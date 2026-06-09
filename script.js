@@ -21,12 +21,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.body.style.opacity = '0';
                 setTimeout(() => {
                     // Si volvemos al inicio, usamos replace para no acumular historial interno
-                    if (destination === 'index' || destination === '/' || destination === 'index.html') {
+                    if (destination === 'index' || destination === '/' || destination === 'index.html' || destination === '') {
                         window.location.replace('/');
                     } else {
-                        // Añadimos .html solo para la navegación interna si estamos en local
-                        // Si estás en un servidor real, podrías quitar el + '.html'
-                        window.location.href = destination.endsWith('.html') ? destination : destination + '.html';
+                        // Detectar si el sitio corre localmente (file://) o en un servidor (http/https)
+                        const isLocal = window.location.protocol === 'file:';
+                        window.location.href = (isLocal && !destination.endsWith('.html')) ? destination + '.html' : destination;
                     }
                 }, TRANSITION_DURATION); // Sincronizado con el CSS para máxima fluidez
             }
