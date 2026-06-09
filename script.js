@@ -16,17 +16,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 e.preventDefault();
                 
                 // Evitar recarga si ya estamos en esa página
-                if (window.location.pathname.endsWith(destination)) return;
+                if (window.location.pathname.includes(destination) && destination !== '/' && destination !== 'index.html') return;
 
                 document.body.style.opacity = '0';
                 setTimeout(() => {
+                    const isLocal = window.location.protocol === 'file:' ||
+                                    window.location.hostname === 'localhost' || 
+                                    window.location.hostname === '127.0.0.1';
+
+                    let finalDestination = destination;
+
+                    // Si estamos en local y el enlace no tiene extensión, se la agregamos
+                    if (isLocal && finalDestination && !finalDestination.includes('.') && 
+                        finalDestination !== '/' && !finalDestination.startsWith('#')) {
+                        finalDestination += '.html';
+                    }
+
                     // Si volvemos al inicio, usamos replace para no acumular historial interno
-                    if (destination === 'index' || destination === '/' || destination === 'index.html' || destination === '') {
-                        window.location.replace('/');
+                    if (finalDestination === 'index' || finalDestination === '/' || 
+                        finalDestination === 'index.html' || finalDestination === '') {
+                        window.location.replace(isLocal ? 'index.html' : '/');
                     } else {
-                        // Detectar si el sitio corre localmente (file://) o en un servidor (http/https)
-                        const isLocal = window.location.protocol === 'file:';
-                        window.location.href = (isLocal && !destination.endsWith('.html')) ? destination + '.html' : destination;
+                        window.location.href = finalDestination;
                     }
                 }, TRANSITION_DURATION); // Sincronizado con el CSS para máxima fluidez
             }
