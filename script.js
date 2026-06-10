@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('page-loaded');
 
     // 2. Efecto de salida (Fade-out) al navegar
-    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario');
+    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario, footer a');
     links.forEach(link => {
         link.addEventListener('click', e => {
             const destination = link.getAttribute('href');
@@ -15,8 +15,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (destination && !destination.startsWith('http') && destination !== '#' && !link.target) {
                 e.preventDefault();
                 
-                // Evitar recarga si ya estamos en esa página
-                if (window.location.pathname.includes(destination) && destination !== '/' && destination !== 'index.html') return;
+                // Comprobar si es la misma página resolviendo la URL completa
+                const targetURL = new URL(destination, window.location.href);
+                if (window.location.pathname === targetURL.pathname) return;
 
                 document.body.style.opacity = '0';
                 setTimeout(() => {
@@ -32,13 +33,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         finalDestination += '.html';
                     }
 
-                    // Si volvemos al inicio, usamos replace para no acumular historial interno
-                    if (finalDestination === 'index' || finalDestination === '/' || 
-                        finalDestination === 'index.html' || finalDestination === '') {
-                        window.location.replace(isLocal ? 'index.html' : '/');
-                    } else {
-                        window.location.href = finalDestination;
-                    }
+                    // Navegación directa. El navegador resuelve la ruta relativa correctamente.
+                    window.location.href = finalDestination;
                 }, TRANSITION_DURATION); // Sincronizado con el CSS para máxima fluidez
             }
         });
