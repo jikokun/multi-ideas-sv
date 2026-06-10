@@ -41,7 +41,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
-// 3. "Seguridad" y Disuasión
+// 3. Manejo de Bfcache (Evita que la página quede invisible al retroceder)
+window.addEventListener('pageshow', (event) => {
+    // event.persisted es true si la página se cargó desde el Bfcache
+    if (event.persisted) {
+        window.location.reload();
+    }
+});
+
+// 4. "Seguridad" y Disuasión
 // Deshabilitar clic derecho
 document.addEventListener('contextmenu', e => e.preventDefault());
 
