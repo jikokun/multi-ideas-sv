@@ -21,17 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 document.body.style.opacity = '0';
                 setTimeout(() => {
-                    const isLocal = window.location.protocol === 'file:' ||
-                                    window.location.hostname === 'localhost' || 
-                                    window.location.hostname === '127.0.0.1';
-
                     let finalDestination = destination;
-
-                    // Si estamos en local y el enlace no tiene extensión, se la agregamos
-                    if (isLocal && finalDestination && !finalDestination.includes('.') && 
-                        finalDestination !== '/' && !finalDestination.startsWith('#')) {
-                        finalDestination += '.html';
-                    }
 
                     // Navegación directa. El navegador resuelve la ruta relativa correctamente.
                     window.location.href = finalDestination;
