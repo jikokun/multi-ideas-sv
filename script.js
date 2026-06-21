@@ -1,49 +1,155 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // Configuración de tiempos
-    const TRANSITION_DURATION = 200;
+// ==========================================================================
+// CONFIGURACIÓN GLOBAL Y TIEMPOS
+// ==========================================================================
+const TRANSITION_DURATION = 200;
 
-    // 1. Efecto de entrada (Fade-in)
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Efecto de entrada (Fade-in) al cargar el documento
     document.body.classList.add('page-loaded');
 
-    // 2. Efecto de salida (Fade-out) al navegar
-    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario, footer a');
-    links.forEach(link => {
-        link.addEventListener('click', e => {
-            const destination = link.getAttribute('href');
-            
-            // Aplicar solo a enlaces internos que no abran en pestaña nueva
-            if (destination && !destination.startsWith('http') && destination !== '#' && !link.target) {
-                e.preventDefault();
-                
-                // Comprobar si es la misma página resolviendo la URL completa
-                const targetURL = new URL(destination, window.location.href);
-                if (window.location.pathname === targetURL.pathname) return;
-
-                document.body.style.opacity = '0';
-                setTimeout(() => {
-                    let finalDestination = destination;
-
-                    // Navegación directa. El navegador resuelve la ruta relativa correctamente.
-                    window.location.href = finalDestination;
-                }, TRANSITION_DURATION); // Sincronizado con el CSS para máxima fluidez
-            }
-        });
-    });
+    // 2. Inicializar la carga del menú global centralizado
+    cargarMenuGlobal();
 });
 
-// 3. Manejo de Bfcache (Evita que la página quede invisible al retroceder)
+// ==========================================================================
+// SISTEMA DE CARGA DINÁMICA DEL MENÚ GLOBAL
+// ==========================================================================
+function cargarMenuGlobal() {
+    const headerContainer = document.getElementById("global-header");
+
+    if (headerContainer) {
+        // Detectar si el archivo actual está en una subcarpeta (por ejemplo: /sensunshop/)
+        const pathname = window.location.pathname;
+        const isInSubfolder = pathname.includes("/sensunshop/");
+        const menuPath = isInSubfolder ? "../menu.html" : "menu.html";
+
+        fetch(menuPath)
+            .then(response => {
+                if (!response.ok) throw new Error("No se pudo obtener el archivo menu.html");
+                return response.text();
+            })
+            .then(html => {
+                // Inyectar el menú dentro de la etiqueta <header>
+                headerContainer.innerHTML = html;
+                
+                // Activar eventos de interacción móvil y resaltar la página actual
+                initMobileMenu();
+                highlightCurrentPage();
+
+                // Asociar efectos de salida (Fade-out) a los enlaces recién cargados
+                initPageTransitions();
+            })
+            .catch(error => console.error("Error al construir el menú adaptativo:", error));
+    } else {
+        // Si por alguna razón la página no usa el header dinámico, inicializar transiciones por defecto
+        initPageTransitions();
+    }
+}
+
+// ==========================================================================
+// CONTROL DE NAVEGACIÓN MÓVIL Y MENÚ DESPLEGABLE TÁCTIL
+// ==========================================================================
+function initMobileMenu() {
+    const menuToggle = document.querySelector(".menu-toggle");
+    const navContainer = document.querySelector(".nav-container");
+    const dropdown = document.querySelector(".dropdown");
+    const dropbtn = document.querySelector(".dropbtn");
+
+    if (menuToggle && navContainer) {
+        // Evento para abrir y cerrar el cajón lateral del menú hamburguesa
+        menuToggle.addEventListener("click", (e) => {
+            e.stopPropagation();
+            menuToggle.classList.toggle("active");
+            navContainer.classList.toggle("active");
+        });
+
+        // Evento interactivo por Click/Toque para el submenú en móviles
+        if (dropbtn) {
+            dropbtn.addEventListener("click", (e) => {
+                if (window.innerWidth <= 768) {
+                    e.preventDefault(); // Evita que salte directo a proyectos.html al primer toque
+                    e.stopPropagation();
+                    dropdown.classList.toggle("active");
+                }
+            });
+        }
+
+        // Cierra todo automáticamente si el usuario toca fuera del menú
+        document.addEventListener("click", (e) => {
+            if (!navContainer.contains(e.target) && !menuToggle.contains(e.target)) {
+                menuToggle.classList.remove("active");
+                navContainer.classList.remove("active");
+                if (dropdown) dropdown.classList.remove("active");
+            }
+        });
+    }
+}
+
+// ==========================================================================
+// COMPORTAMIENTO DE EFECTOS DE NAVEGACIÓN (FADE-OUT)
+// ==========================================================================
+function initPageTransitions() {
+    // Selecciona enlaces estáticos y los enlaces dinámicos inyectados en el nav
+    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario, footer a');
+    
+    links.forEach(link => {
+        // Evitamos duplicar listeners si la función se llama más de una vez
+        link.removeEventListener('click', handleLinkClick);
+        link.addEventListener('click', handleLinkClick);
+    });
+}
+
+function handleLinkClick(e) {
+    const link = e.currentTarget;
+    const destination = link.getAttribute('href');
+    
+    // Aplicar solo a enlaces internos que no abran en pestaña nueva
+    if (destination && !destination.startsWith('http') && destination !== '#' && !link.target) {
+        e.preventDefault();
+        
+        // Comprobar si es la misma página resolviendo la URL completa
+        const targetURL = new URL(destination, window.location.href);
+        if (window.location.pathname === targetURL.pathname) return;
+
+        document.body.style.opacity = '0';
+        setTimeout(() => {
+            window.location.href = destination;
+        }, TRANSITION_DURATION);
+    }
+}
+
+// ==========================================================================
+// RESALTADO AUTOMÁTICO DE LA PÁGINA ACTUAL
+// ==========================================================================
+function highlightCurrentPage() {
+    const path = window.location.pathname.split("/").pop() || "index.html";
+    
+    // Limpiar clases activas previas
+    document.querySelectorAll("header nav a").forEach(a => a.classList.remove("active"));
+
+    // Mapeo automatizado de IDs asignados en tu menu.html
+    if (path === "index.html") document.getElementById("nav-index")?.classList.add("active");
+    if (path === "productos.html") document.getElementById("nav-productos")?.classList.add("active");
+    if (path === "servicios.html") document.getElementById("nav-servicios")?.classList.add("active");
+    if (path === "proyectos.html") document.getElementById("nav-proyectos")?.classList.add("active");
+    if (path === "nosotros.html") document.getElementById("nav-nosotros")?.classList.add("active");
+    if (path === "contacto.html") document.getElementById("nav-contacto")?.classList.add("active");
+}
+
+// ==========================================================================
+// MANEJO DE BFCACHE (Evita congelamiento visual al usar flechas atrás/adelante)
+// ==========================================================================
 window.addEventListener('pageshow', (event) => {
-    // event.persisted es true si la página se cargó desde el Bfcache
     if (event.persisted) {
         window.location.reload();
     }
 });
 
-// 4. "Seguridad" y Disuasión
-// Deshabilitar clic derecho
+// ==========================================================================
+// SEGURIDAD Y DISUASIÓN DE CÓDIGO FUENTE
+// ==========================================================================
 document.addEventListener('contextmenu', e => e.preventDefault());
 
-// Bloquear atajos de teclado (F12, Ctrl+Shift+I, Ctrl+U)
 document.addEventListener('keydown', (e) => {
     if (
         e.key === 'F12' || 
