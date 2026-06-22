@@ -131,9 +131,11 @@ function initMobileMenu() {
         if (dropbtn) {
             dropbtn.addEventListener("click", (e) => {
                 if (window.innerWidth <= 768) {
-                    e.preventDefault(); // Evita que salte directo a proyectos.html al primer toque
-                    e.stopPropagation();
-                    dropdown.classList.toggle("active");
+                    if (!dropdown.classList.contains("active")) {
+                        e.preventDefault(); // Evita que salte directo al primer toque
+                        e.stopImmediatePropagation();
+                        dropdown.classList.add("active");
+                    }
                 }
             });
         }
@@ -153,8 +155,8 @@ function initMobileMenu() {
 // COMPORTAMIENTO DE EFECTOS DE NAVEGACIÓN (FADE-OUT)
 // ==========================================================================
 function initPageTransitions() {
-    // Selecciona enlaces estáticos y los enlaces dinámicos inyectados en el nav
-    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario, footer a');
+    // Selecciona enlaces estáticos y los enlaces dinámicos inyectados en el nav, incluyendo el logo
+    const links = document.querySelectorAll('nav a, .logo-container, .hero-buttons a, .btn-card, .btn-secundario, footer a');
     
     links.forEach(link => {
         // Evitamos duplicar listeners si la función se llama más de una vez
