@@ -18,10 +18,20 @@ function cargarMenuGlobal() {
     const headerContainer = document.getElementById("global-header");
 
     if (headerContainer) {
-        // Detectar si el archivo actual está en una subcarpeta (por ejemplo: /sensunshop/)
+        // Detectar si el archivo actual está en sensunshop (subcarpeta o archivo principal)
         const pathname = window.location.pathname;
         const isInSubfolder = pathname.includes("/sensunshop/");
-        const menuPath = isInSubfolder ? "../menu.html" : "menu.html";
+        const isSensunshopMain = pathname.endsWith("/sensunshop.html");
+        const isSensunshop = isInSubfolder || isSensunshopMain;
+        // Usar un menú específico para sensunshop (página principal o subcarpeta)
+        let menuPath;
+        if (isSensunshop) {
+            // Si estamos en sensunshop.html (raíz), la ruta es relativa a la raíz
+            // Si estamos en /sensunshop/*.html, necesitamos la ruta relativa correcta
+            menuPath = isInSubfolder ? "menu-sensunshop.html" : "sensunshop/menu-sensunshop.html";
+        } else {
+            menuPath = "menu.html";
+        }
 
         fetch(menuPath)
             .then(response => {
@@ -126,6 +136,16 @@ function highlightCurrentPage() {
     
     // Limpiar clases activas previas
     document.querySelectorAll("header nav a").forEach(a => a.classList.remove("active"));
+    // Si estamos en la subcarpeta SensunShop o en sensunshop.html, resaltar su propio menú
+    const inSensun = window.location.pathname.includes('/sensunshop/') || window.location.pathname.endsWith('/sensunshop.html');
+    if (inSensun) {
+        if (path === "negocioslocales.html") document.getElementById("nav-negocios")?.classList.add("active");
+        if (path === "emprendedores.html") document.getElementById("nav-emprendedores")?.classList.add("active");
+        if (path === "comida.html") document.getElementById("nav-comida")?.classList.add("active");
+        if (path === "oficios.html") document.getElementById("nav-oficios")?.classList.add("active");
+        if (path === "profesionales.html") document.getElementById("nav-profesionales")?.classList.add("active");
+        return;
+    }
 
     // Mapeo automatizado de IDs asignados en tu menu.html
     if (path === "index.html") document.getElementById("nav-index")?.classList.add("active");
