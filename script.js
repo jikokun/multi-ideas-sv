@@ -6,17 +6,28 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('page-loaded');
 
     // 2. Efecto de salida (Fade-out) al navegar
-    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card');
+    const links = document.querySelectorAll('nav a, .hero-buttons a, .btn-card, .btn-secundario');
     links.forEach(link => {
         link.addEventListener('click', e => {
             const destination = link.getAttribute('href');
             
             // Aplicar solo a enlaces internos que no abran en pestaña nueva
-            if (destination && destination.includes('.html') && !link.target) {
+            if (destination && !destination.startsWith('http') && destination !== '#' && !link.target) {
                 e.preventDefault();
+                
+                // Evitar recarga si ya estamos en esa página
+                if (window.location.pathname.endsWith(destination)) return;
+
                 document.body.style.opacity = '0';
                 setTimeout(() => {
-                    window.location.href = destination;
+                    // Si volvemos al inicio, usamos replace para no acumular historial interno
+                    if (destination === 'index' || destination === '/' || destination === 'index.html') {
+                        window.location.replace('/');
+                    } else {
+                        // Añadimos .html solo para la navegación interna si estamos en local
+                        // Si estás en un servidor real, podrías quitar el + '.html'
+                        window.location.href = destination.endsWith('.html') ? destination : destination + '.html';
+                    }
                 }, TRANSITION_DURATION); // Sincronizado con el CSS para máxima fluidez
             }
         });
