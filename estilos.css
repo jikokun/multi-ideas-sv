@@ -658,8 +658,9 @@ footer p {
    ========================================================================== */
 @media (max-width: 768px) {
     header {
-        position: relative;
-        padding: 15px 20px;
+        position: sticky;
+        top: 0;
+        padding: 12px 20px;
         display: flex;
         flex-direction: row; 
         justify-content: space-between;
@@ -669,61 +670,107 @@ footer p {
         width: 100%;
     }
 
-    /* Mostrar botón hamburguesa */
+    /* Mostrar botón hamburguesa moderno y asimétrico */
     .menu-toggle {
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
-        width: 28px;
-        height: 20px;
-        background: transparent;
-        border: none;
+        justify-content: center;
+        align-items: flex-end;
+        width: 38px;
+        height: 38px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid color-mix(in srgb, var(--cyan) 20%, transparent);
+        border-radius: 50%;
         cursor: pointer;
         z-index: 1010;
-        padding: 0;
+        padding: 10px;
+        gap: 4px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    }
+
+    .menu-toggle:hover {
+        border-color: var(--cyan);
+        background: rgba(0, 173, 181, 0.08);
+        box-shadow: 0 0 10px color-mix(in srgb, var(--cyan) 30%, transparent);
     }
 
     .menu-toggle .bar {
-        width: 100%;
-        height: 3px;
+        height: 2px;
         background-color: var(--cyan);
         border-radius: 4px;
-        transition: all 0.3s ease-in-out;
-        box-shadow: var(--cyan-glow);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 0 4px color-mix(in srgb, var(--cyan) 45%, transparent);
     }
 
-    /* Animación del ícono de menú hacia una 'X' */
+    /* Longitudes asimétricas iniciales */
+    .menu-toggle .bar:nth-child(1) {
+        width: 18px;
+    }
+
+    .menu-toggle .bar:nth-child(2) {
+        width: 12px;
+    }
+
+    .menu-toggle .bar:nth-child(3) {
+        width: 16px;
+    }
+
+    /* Animación del ícono de menú hacia una 'X' moderna */
+    .menu-toggle.active {
+        border-color: var(--cyan);
+        box-shadow: 0 0 12px color-mix(in srgb, var(--cyan) 40%, transparent);
+        background: rgba(0, 173, 181, 0.1);
+    }
+
     .menu-toggle.active .bar:nth-child(1) {
-        transform: translateY(8px) rotate(45deg);
+        transform: translateY(6px) rotate(45deg);
+        width: 18px;
     }
 
     .menu-toggle.active .bar:nth-child(2) {
         opacity: 0;
+        width: 0;
     }
 
     .menu-toggle.active .bar:nth-child(3) {
-        transform: translateY(-9px) rotate(-45deg);
+        transform: translateY(-6px) rotate(-45deg);
+        width: 18px;
     }
 
-    /* Panel Flotante Lateral Derecho Seguro */
+    /* Panel Flotante Estilo Neon Glassmorphism */
     .nav-container {
-        position: fixed;
-        top: 0;
-        right: -100%; /* Oculto inicialmente */
-        width: 75%;
-        max-width: 300px;
-        height: 100vh;
-        background-color: rgba(10, 10, 12, 0.98); 
-        border-left: 2px solid var(--cyan);
-        box-shadow: -10px 0 30px rgba(0, 242, 254, 0.2);
-        padding: 90px 25px 40px 25px;
-        transition: right 0.4s cubic-bezier(0.1, 0.9, 0.2, 1);
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 20px;
+        width: 260px;
+        max-height: 80vh;
+        background: rgba(10, 12, 16, 0.85); 
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        border: 1px solid color-mix(in srgb, var(--cyan) 25%, transparent);
+        border-radius: 16px;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 
+                    0 0 20px color-mix(in srgb, var(--cyan) 15%, transparent),
+                    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        padding: 18px;
         overflow-y: auto;
-        box-sizing: border-box; /* Crítico: incluye los paddings dentro del ancho */
+        box-sizing: border-box;
+        
+        /* Transición de escala, desplazamiento suave y opacidad */
+        opacity: 0;
+        transform: scale(0.95) translateY(-10px);
+        transform-origin: top right;
+        pointer-events: none;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                    transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        z-index: 1005;
     }
 
     .nav-container.active {
-        right: 0; /* Despliega el menú de forma flotante lateral */
+        opacity: 1;
+        transform: scale(1) translateY(0);
+        pointer-events: all;
     }
 
     /* Limpieza estricta de herencias de PC en el nav */
@@ -738,27 +785,34 @@ footer p {
         box-shadow: none !important;
         padding: 0 !important;
         margin: 0 !important;
-        gap: 5px !important;
+        gap: 4px !important;
     }
 
-    /* Enlaces adaptados en lista vertical */
+    /* Enlaces adaptados en lista vertical con micro-animaciones */
     header nav a, 
     .dropdown .dropbtn {
-        font-size: 1.15rem !important;
-        color: #ffffff !important;
+        font-size: 1.05rem !important;
+        color: rgba(255, 255, 255, 0.85) !important;
         width: 100% !important;
-        padding: 12px 0 !important;
-        border-bottom: 1px solid rgba(0, 242, 254, 0.08) !important;
+        padding: 10px 12px !important;
+        border-bottom: 1px solid color-mix(in srgb, var(--cyan) 8%, transparent) !important;
         text-align: left !important;
         background: transparent !important;
-        display: block !important;
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
         box-sizing: border-box !important;
+        border-radius: 8px;
+        transition: all 0.25s ease !important;
     }
     
     header nav a:hover,
+    header nav a.active,
     .dropdown .dropbtn:hover {
         color: var(--cyan) !important;
-        background: transparent !important;
+        background: color-mix(in srgb, var(--cyan) 6%, transparent) !important;
+        padding-left: 16px !important;
+        text-shadow: 0 0 8px color-mix(in srgb, var(--cyan) 40%, transparent);
     }
 
     .dropdown {
@@ -766,36 +820,44 @@ footer p {
         position: relative;
     }
 
-    /* Contenedor del submenú en móviles */
+    /* Contenedor del submenú en móviles (Proyectos) */
     .dropdown-content {
         position: static !important; 
         opacity: 1 !important;
         visibility: visible !important;
         display: none !important; 
-        /* SE CORRIGIÓ AQUÍ: De 'background' a 'background-color' para eliminar la alerta */
-        background-color: rgba(20, 20, 25, 0.5) !important; 
+        background-color: rgba(18, 22, 32, 0.5) !important; 
+        backdrop-filter: blur(5px);
         border-left: 2px solid var(--cyan) !important;
-        border-radius: 0 !important;
-        box-shadow: none !important;
-        margin: 5px 0 !important;
-        padding-left: 15px !important;
+        border-radius: 8px !important;
+        margin: 4px 0 8px 0 !important;
+        padding: 4px 0 4px 12px !important;
         width: 100% !important;
         transform: none !important;
         box-sizing: border-box !important;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.3) !important;
     }
 
-    /* Al dar click despliega verticalmente los proyectos */
+    /* Despliegue vertical interactivo del submenú */
     .dropdown.active .dropdown-content {
         display: flex !important;
         flex-direction: column !important;
-        gap: 5px !important;
+        gap: 2px !important;
     }
 
     .dropdown-content a {
-        font-size: 1.05rem !important;
-        padding: 10px 0 !important;
-        color: rgba(255, 255, 255, 0.8) !important;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+        font-size: 0.95rem !important;
+        padding: 8px 10px !important;
+        color: rgba(255, 255, 255, 0.75) !important;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.03) !important;
+        border-radius: 6px;
+        transition: all 0.2s ease !important;
+    }
+
+    .dropdown-content a:hover {
+        color: var(--cyan) !important;
+        background: color-mix(in srgb, var(--cyan) 6%, transparent) !important;
+        padding-left: 14px !important;
     }
 
     .dropdown-content::before {
