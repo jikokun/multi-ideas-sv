@@ -41,6 +41,9 @@ function cargarMenuGlobal() {
             .then(html => {
                 // Inyectar el menú dentro de la etiqueta <header>
                 headerContainer.innerHTML = html;
+
+                // Corregir dinámicamente enlaces e imágenes según la ubicación del archivo
+                adjustMenuPaths(headerContainer, isInSubfolder);
                 
                 // Activar eventos de interacción móvil y resaltar la página actual
                 initMobileMenu();
@@ -54,6 +57,57 @@ function cargarMenuGlobal() {
         // Si por alguna razón la página no usa el header dinámico, inicializar transiciones por defecto
         initPageTransitions();
     }
+}
+
+// ==========================================================================
+// AJUSTE DINÁMICO DE RUTAS DEL MENÚ SEGÚN LA PROFUNDIDAD DEL DIRECTORIO
+// ==========================================================================
+function adjustMenuPaths(headerContainer, isInSubfolder) {
+    const links = headerContainer.querySelectorAll("a");
+    const images = headerContainer.querySelectorAll("img");
+
+    links.forEach(a => {
+        let href = a.getAttribute("href");
+        if (!href || href.startsWith("http") || href.startsWith("#") || href.startsWith("mailto:") || href.startsWith("tel:")) {
+            return;
+        }
+
+        if (isInSubfolder) {
+            // Si estamos en la subcarpeta sensunshop/
+            if (href.startsWith("sensunshop/")) {
+                // Quitar el prefijo "sensunshop/" para los enlaces de la misma carpeta
+                a.setAttribute("href", href.substring(11));
+            } else if (!href.startsWith("../")) {
+                // Prependar "../" para ir a la raíz
+                a.setAttribute("href", "../" + href);
+            }
+        } else {
+            // Si estamos en la raíz (ej: sensunshop.html)
+            if (href.startsWith("../")) {
+                // Quitar el prefijo "../" si apunta a la raíz
+                a.setAttribute("href", href.substring(3));
+            }
+        }
+    });
+
+    images.forEach(img => {
+        let src = img.getAttribute("src");
+        if (!src || src.startsWith("http") || src.startsWith("data:")) {
+            return;
+        }
+
+        if (isInSubfolder) {
+            // Si estamos en la subcarpeta, nos aseguramos que las imágenes de la raíz suban un nivel
+            if (!src.startsWith("../") && !src.startsWith("sensunshop/")) {
+                img.setAttribute("src", "../" + src);
+            }
+        } else {
+            // Si estamos en la raíz, quitamos el prefijo "../"
+            if (src.startsWith("../")) {
+                img.setAttribute("src", src.substring(3));
+            }
+        }
+    });
 }
 
 // ==========================================================================
