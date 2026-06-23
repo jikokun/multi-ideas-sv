@@ -267,12 +267,24 @@ header nav a.active {
     align-items: center;
     justify-content: center;
     padding: 60px 5%;
-    text-align: center;
     position: relative;
 }
 
+.hero-container {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 50px;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: left;
+    z-index: 2;
+}
+
 .hero-content {
-    max-width: 850px;
+    flex: 1.2;
+    max-width: 650px;
     z-index: 2;
 }
 
@@ -288,15 +300,104 @@ header nav a.active {
     font-size: 1.15rem;
     color: var(--text-gray);
     margin-bottom: 35px;
-    max-width: 650px;
-    margin-left: auto;
-    margin-right: auto;
 }
 
 .hero-buttons {
     display: flex;
     gap: 15px;
-    justify-content: center;
+    justify-content: flex-start;
+}
+
+/* ========================================================
+   5b. CAROUSEL DE IMÁGENES VERTICALES HERO
+   ======================================================== */
+.hero-carousel-container {
+    flex: 0.8;
+    width: 100%;
+    max-width: 480px;
+    height: 360px;
+    overflow: hidden;
+    position: relative;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    /* Efecto fade en los bordes izquierdo/derecho */
+    mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+    -webkit-mask-image: linear-gradient(to right, transparent, black 12%, black 88%, transparent);
+}
+
+.hero-carousel-track {
+    display: flex;
+    gap: 16px;
+    width: max-content;
+    animation: heroScroll 25s linear infinite;
+    padding: 10px 0;
+}
+
+.hero-carousel-container:hover .hero-carousel-track {
+    animation-play-state: paused;
+}
+
+.hero-carousel-slide {
+    width: 170px;
+    height: 302px; /* 9:16 aspect ratio */
+    flex-shrink: 0;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 173, 181, 0.2);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4), 
+                0 0 10px rgba(0, 173, 181, 0.08);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.3s ease, 
+                box-shadow 0.3s ease;
+}
+
+.hero-carousel-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.hero-carousel-slide:hover {
+    transform: translateY(-8px) scale(1.03);
+    border-color: var(--cyan);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.6), 
+                0 0 20px rgba(0, 173, 181, 0.35);
+}
+
+@keyframes heroScroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        /* Desplazamiento de 6 elementos únicos: 6 * (170px + 16px gap) = 1116px */
+        transform: translateX(-1116px);
+    }
+}
+
+/* Responsividad para Móviles */
+@media (max-width: 992px) {
+    .hero-container {
+        flex-direction: column;
+        text-align: center;
+        gap: 40px;
+    }
+    .hero-content {
+        max-width: 100%;
+    }
+    .hero p {
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .hero-buttons {
+        justify-content: center;
+    }
+    .hero-carousel-container {
+        max-width: 100%;
+        height: 330px;
+        margin-top: 10px;
+    }
 }
 
 /* ========================================================
@@ -1721,5 +1822,521 @@ footer p {
     #promo-popup.active {
         bottom: 85px;
         left: 15px;
+    }
+}
+
+/* ========================================================
+   12. LIGHTBOX MODAL PARA EXPANDIR IMÁGENES
+   ======================================================== */
+.lightbox {
+    display: none;
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(10, 12, 16, 0.95);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.lightbox.active {
+    display: flex;
+    opacity: 1;
+}
+
+.lightbox-content-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 25px;
+    max-width: 90%;
+    max-height: 90%;
+}
+
+.lightbox-content {
+    max-width: 100%;
+    max-height: 68vh;
+    border-radius: 16px;
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 35px rgba(0, 173, 181, 0.3);
+    object-fit: contain;
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.lightbox.active .lightbox-content {
+    transform: scale(1);
+}
+
+.lightbox-close {
+    position: absolute;
+    top: 25px;
+    right: 35px;
+    color: var(--text-gray);
+    font-size: 42px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.2s, transform 0.2s;
+    line-height: 1;
+}
+
+.lightbox-close:hover {
+    color: var(--cyan);
+    transform: scale(1.1);
+}
+
+.lightbox-btn {
+    box-shadow: 0 4px 20px rgba(0, 173, 181, 0.4);
+    animation: pulseGlow 2s infinite alternate;
+}
+
+@keyframes pulseGlow {
+    0% {
+        box-shadow: 0 4px 15px rgba(0, 173, 181, 0.3);
+    }
+    100% {
+        box-shadow: 0 4px 25px rgba(0, 255, 242, 0.6);
+    }
+}
+
+/* ========================================================
+   13. SECCIÓN KICKZONE & TRANSMISIONES EN VIVO (MULTIVIEW)
+   ======================================================== */
+:root {
+    --kick-green: #53fc18;
+    --kick-green-glow: rgba(83, 252, 24, 0.4);
+    --kick-dark-bg: #0b0e0f;
+    --kick-border: #2d3035;
+}
+
+.kickzone-section {
+    padding: 30px 2.5%;
+    max-width: 1700px; /* Ancho extendido para aprovechar pantallas widescreen en PC */
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 95%;
+}
+
+/* Contenedor Multiview Dinámico */
+#multiview-grid {
+    display: flex;
+    flex-direction: column; /* Apilado vertical por defecto en PC (uno abajo del otro) */
+    gap: 20px;
+    width: 100%;
+}
+
+/* Modo Solo Ver: Organiza en cuadrícula de 2 columnas sin chats */
+#multiview-grid.solo-ver-mode {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+}
+
+#multiview-grid.solo-ver-mode .stream-chat-area {
+    display: none !important;
+}
+
+/* Barra de herramientas global del Multiview */
+.multiview-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(18, 22, 32, 0.55);
+    border: 1px solid rgba(83, 252, 24, 0.15);
+    padding: 12px 20px;
+    border-radius: 12px;
+    margin-bottom: 5px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.multiview-toolbar-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Botones de control globales */
+.console-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.console-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-gray);
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.console-btn:hover {
+    background: rgba(83, 252, 24, 0.1);
+    border-color: var(--kick-green);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(83, 252, 24, 0.2);
+}
+
+.console-btn.danger {
+    color: #e74c3c;
+    border-color: rgba(231, 76, 60, 0.3);
+}
+
+.console-btn.danger:hover {
+    background: rgba(231, 76, 60, 0.15);
+    border-color: #e74c3c;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.25);
+}
+
+.console-btn.primary {
+    background: var(--kick-green);
+    color: #000;
+    border-color: var(--kick-green);
+}
+
+.console-btn.primary:hover {
+    background: #47e212;
+    color: #000;
+    box-shadow: 0 0 12px rgba(83, 252, 24, 0.4);
+}
+
+/* Caja del Streamer (Video + Chat en Consola Unificada) */
+.stream-box {
+    background: rgba(18, 22, 32, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(83, 252, 24, 0.15);
+    border-radius: 16px;
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5),
+                0 0 15px rgba(83, 252, 24, 0.03);
+    transition: border-color 0.3s ease;
+}
+
+.stream-box:hover {
+    border-color: rgba(83, 252, 24, 0.3);
+}
+
+/* Barra superior de control del stream */
+.stream-box-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--kick-border);
+}
+
+.stream-box-name {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stream-box-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--kick-green), #00adb5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #000;
+    font-size: 0.95rem;
+    box-shadow: 0 0 8px var(--kick-green-glow);
+}
+
+.stream-box-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.stream-control-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: var(--text-gray);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.stream-control-btn:hover {
+    background: rgba(83, 252, 24, 0.1);
+    border-color: var(--kick-green);
+    color: #fff;
+    box-shadow: 0 0 10px rgba(83, 252, 24, 0.2);
+}
+
+.stream-control-btn.danger:hover {
+    background: rgba(231, 76, 60, 0.15);
+    border-color: #e74c3c;
+    color: #fff;
+    box-shadow: 0 0 10px rgba(231, 76, 60, 0.2);
+}
+
+/* Cuerpo del stream: Video y Chat Lado a Lado */
+.stream-box-body {
+    display: flex;
+    gap: 15px;
+    width: 100%;
+}
+
+.stream-video-area {
+    flex: 1;
+    position: relative;
+}
+
+.kick-embed-container {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%; /* Proporción 16:9 */
+    height: 0;
+    overflow: hidden;
+    border-radius: 10px;
+    border: 1px solid var(--kick-border);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    background: #000;
+}
+
+.kick-embed-container iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+/* Chat del stream a un costado */
+.stream-chat-area {
+    width: 300px;
+    flex-shrink: 0;
+    background-color: var(--kick-dark-bg);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--kick-border);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.stream-chat-area iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.stream-status-badge {
+    background: rgba(83, 252, 24, 0.15);
+    border: 1px solid var(--kick-green);
+    color: var(--kick-green);
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    animation: livePulse 2s infinite alternate;
+}
+
+@keyframes livePulse {
+    0% { opacity: 0.6; box-shadow: 0 0 5px rgba(83, 252, 24, 0.2); }
+    100% { opacity: 1; box-shadow: 0 0 12px rgba(83, 252, 24, 0.5); }
+}
+
+/* Grid de Selección de Streamers */
+.streamers-grid-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-top: 25px;
+    border-left: 4px solid var(--kick-green);
+    padding-left: 12px;
+}
+
+.streamers-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    width: 100%;
+}
+
+.streamer-card {
+    background: var(--bg-card);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+}
+
+.streamer-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, rgba(83, 252, 24, 0.04), transparent);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.streamer-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(83, 252, 24, 0.25);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4),
+                0 0 10px rgba(83, 252, 24, 0.05);
+}
+
+.streamer-card:hover::before {
+    opacity: 1;
+}
+
+.streamer-card-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    z-index: 1;
+}
+
+.streamer-card-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(83, 252, 24, 0.15) 0%, rgba(10, 12, 16, 0.9) 100%);
+    border: 2px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    font-size: 1.15rem;
+    transition: all 0.3s ease;
+    overflow: hidden;
+    position: relative;
+}
+
+.streamer-card-avatar img, .stream-box-avatar img, .streamer-avatar-indicator img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    top: 0;
+    left: 0;
+}
+
+.stream-box-avatar, .streamer-avatar-indicator {
+    overflow: hidden;
+    position: relative;
+}
+
+.streamer-card:hover .streamer-card-avatar {
+    border-color: var(--kick-green);
+    box-shadow: 0 0 10px var(--kick-green-glow);
+}
+
+.streamer-card-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.streamer-card-platform {
+    font-size: 0.75rem;
+    color: var(--text-gray);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.kick-logo-badge {
+    color: var(--kick-green);
+    font-weight: 700;
+}
+
+.streamer-card-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    z-index: 1;
+}
+
+.streamer-card-btn {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: var(--text-white);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-align: center;
+    width: 100%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.streamer-card-btn.primary {
+    background: var(--kick-green);
+    color: #000;
+    border-color: var(--kick-green);
+}
+
+.streamer-card-btn.primary:hover {
+    background: #47e212;
+    box-shadow: 0 0 12px rgba(83, 252, 24, 0.4);
+}
+
+.streamer-card-btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--text-gray);
+}
+
+/* Responsividad para Móviles (Consola y Grid de Streams) */
+@media (max-width: 992px) {
+    .kickzone-section {
+        width: 100%;
+        padding: 20px 4%;
+    }
+    
+    #multiview-grid {
+        grid-template-columns: 1fr !important; /* Siempre 1 columna en móvil */
+    }
+
+    .stream-box-body {
+        flex-direction: column; /* Apila el video y el chat de cada caja */
+    }
+
+    .stream-chat-area {
+        width: 100%; /* El chat ocupa el mismo ancho que el video */
+        height: 380px;
     }
 }

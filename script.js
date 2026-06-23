@@ -272,9 +272,10 @@ console.log("%c¡Alto! %cEsta zona es para desarrolladores.", "color: red; font-
 let cart = [];
 
 function initCart() {
-    // Evitar cargar el carrito en las páginas de Sensun Shop (ya que es solo un catálogo)
+    // Evitar cargar el carrito en las páginas de Sensun Shop (catálogo) y Kickzone (entretenimiento)
     const inSensun = window.location.pathname.includes('/sensunshop/') || window.location.pathname.endsWith('/sensunshop.html');
-    if (inSensun) return;
+    const isKickzone = window.location.pathname.endsWith('/kickzone.html');
+    if (inSensun || isKickzone) return;
 
     // 1. Inyectar estructura HTML del carrito si no existe
     if (!document.getElementById("cart-floating-btn")) {
