@@ -21,7 +21,7 @@
     <section class="hero" style="min-height: 45vh; background: radial-gradient(circle at top right, rgba(83, 252, 24, 0.15), transparent 60%), radial-gradient(circle at bottom left, rgba(18, 22, 32, 0.4), transparent);">
         <div class="hero-content">
             <span class="badge" style="background: rgba(83, 252, 24, 0.1); border-color: rgba(83, 252, 24, 0.3); color: var(--kick-green); text-shadow: 0 0 10px rgba(83, 252, 24, 0.2);">ENTRETENIMIENTO EN VIVO</span>
-            <h1 style="font-size: 3.5rem; font-weight: 800; letter-spacing: -1px;">Kick<span class="gradient-text" style="background: linear-gradient(135deg, #ffffff 30%, var(--kick-green) 100%);">Zone</span></h1>
+            <h1 style="font-size: 3.5rem; font-weight: 800; letter-spacing: -1px;">Kick<span class="kick-gradient-text">Zone</span></h1>
             <p>Sintoniza y agrupa tus transmisiones de Kick preferidas. Visualízalos en vertical (Video + Chat) o activa el Modo Cámaras al sintonizar 3 o más.</p>
         </div>
     </section>
@@ -224,34 +224,79 @@
             // Cargar los avatares dinámicamente
             fetchAvatars();
 
-            function fetchAvatars() {
-                streamersData.forEach(s => {
-                    fetch(`https://api.allorigins.win/get?url=${encodeURIComponent('https://kick.com/api/v1/channels/' + s.username)}`)
-                        .then(response => {
-                            if (!response.ok) throw new Error('Error al conectar proxy');
-                            return response.json();
-                        })
-                        .then(data => {
+            async function fetchAvatarFromProxies(username) {
+                const proxies = [
+                    {
+                        url: `https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v1/channels/' + username)}`,
+                        parse: (data) => data.user && data.user.profile_pic
+                    },
+                    {
+                        url: `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://kick.com/api/v1/channels/' + username)}`,
+                        parse: (data) => data.user && data.user.profile_pic
+                    },
+                    {
+                        url: `https://api.allorigins.win/get?url=${encodeURIComponent('https://kick.com/api/v1/channels/' + username)}`,
+                        parse: (data) => {
                             if (data.contents) {
                                 const parsed = JSON.parse(data.contents);
-                                if (parsed && parsed.user && parsed.user.profile_pic) {
-                                    s.avatar = parsed.user.profile_pic;
-                                    
-                                    // Actualizar el avatar en el listado de tarjetas de streamers
-                                    const avatarElement = document.getElementById(`avatar-container-${s.username}`);
-                                    if (avatarElement) {
-                                        avatarElement.innerHTML = `<img src="${s.avatar}" alt="${s.displayName}">`;
-                                    }
-                                    
-                                    // Re-renderizar streams activos para que adopten la foto de perfil en su barra de título
-                                    const isActive = activeStreams.some(str => str.username === s.username);
-                                    if (isActive) {
-                                        renderStreams();
-                                    }
+                                return parsed && parsed.user && parsed.user.profile_pic;
+                            }
+                            return null;
+                        }
+                    }
+                ];
+
+                for (const proxy of proxies) {
+                    try {
+                        const response = await fetch(proxy.url);
+                        if (response.ok) {
+                            const data = await response.json();
+                            const pic = proxy.parse(data);
+                            if (pic) return pic;
+                        }
+                    } catch (e) {
+                        console.warn(`Proxy failed for ${username} with URL ${proxy.url}:`, e);
+                    }
+                }
+                return null;
+            }
+
+            function fetchAvatars() {
+                streamersData.forEach(async (s, index) => {
+                    // Intentar recuperar de localStorage primero
+                    const cachedAvatar = localStorage.getItem(`kick_avatar_${s.username}`);
+                    if (cachedAvatar) {
+                        s.avatar = cachedAvatar;
+                        const avatarElement = document.getElementById(`avatar-container-${s.username}`);
+                        if (avatarElement) {
+                            avatarElement.innerHTML = `<img src="${s.avatar}" alt="${s.displayName}">`;
+                        }
+                        const isActive = activeStreams.some(str => str.username === s.username);
+                        if (isActive) {
+                            renderStreams();
+                        }
+                    }
+                    
+                    // Actualización secuencial en segundo plano para evitar saturar el proxy
+                    setTimeout(async () => {
+                        try {
+                            const newAvatar = await fetchAvatarFromProxies(s.username);
+                            if (newAvatar && newAvatar !== cachedAvatar) {
+                                s.avatar = newAvatar;
+                                localStorage.setItem(`kick_avatar_${s.username}`, newAvatar);
+                                const avatarElement = document.getElementById(`avatar-container-${s.username}`);
+                                if (avatarElement) {
+                                    avatarElement.innerHTML = `<img src="${newAvatar}" alt="${s.displayName}">`;
+                                }
+                                const isActive = activeStreams.some(str => str.username === s.username);
+                                if (isActive) {
+                                    renderStreams();
                                 }
                             }
-                        })
-                        .catch(err => console.warn(`No se pudo obtener el avatar de ${s.username} (se usará inicial de fallback):`, err));
+                        } catch (err) {
+                            console.warn(`No se pudo actualizar el avatar de ${s.username}:`, err);
+                        }
+                    }, index * 600); // 600ms de retraso entre peticiones
                 });
             }
 
@@ -320,13 +365,17 @@
                             </div>
                             <div class="stream-box-controls">
                                 <button class="stream-control-btn btn-mute-toggle" data-username="${stream.username}">
-                                    ${stream.muted ? '🔊 Activar Sonido' : '🔇 Silenciar'}
+                                    ${stream.muted ? '🔊 <span class="btn-text">Activar Sonido</span>' : '🔇 <span class="btn-text">Silenciar</span>'}
                                 </button>
                                 <button class="stream-control-btn btn-chat-toggle" data-username="${stream.username}">
-                                    ${isChatOpen ? 'Ocultar Chat' : 'Mostrar Chat'}
+                                    ${isChatOpen ? '💬 <span class="btn-text">Ocultar Chat</span>' : '💬 <span class="btn-text">Mostrar Chat</span>'}
                                 </button>
-                                <button class="stream-control-btn btn-reload" data-username="${stream.username}">Recargar</button>
-                                <button class="stream-control-btn danger btn-remove" data-username="${stream.username}">Cerrar</button>
+                                <button class="stream-control-btn btn-reload" data-username="${stream.username}">
+                                    🔄 <span class="btn-text">Recargar</span>
+                                </button>
+                                <button class="stream-control-btn danger btn-remove" data-username="${stream.username}">
+                                    ❌ <span class="btn-text">Cerrar</span>
+                                </button>
                             </div>
                         </div>
 
@@ -386,7 +435,7 @@
                                     ? `https://player.kick.com/${username}?muted=true`
                                     : `https://player.kick.com/${username}`;
                             }
-                            btn.textContent = stream.muted ? '🔊 Activar Sonido' : '🔇 Silenciar';
+                            btn.innerHTML = stream.muted ? '🔊 <span class="btn-text">Activar Sonido</span>' : '🔇 <span class="btn-text">Silenciar</span>';
                         }
                     });
                 });
@@ -410,7 +459,7 @@
                             if (chatContainer) {
                                 chatContainer.style.display = stream.chatVisible ? 'flex' : 'none';
                             }
-                            btn.textContent = stream.chatVisible ? 'Ocultar Chat' : 'Mostrar Chat';
+                            btn.innerHTML = stream.chatVisible ? '💬 <span class="btn-text">Ocultar Chat</span>' : '💬 <span class="btn-text">Mostrar Chat</span>';
                         }
                     });
                 });
