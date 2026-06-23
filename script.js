@@ -18,17 +18,32 @@ function cargarMenuGlobal() {
     const headerContainer = document.getElementById("global-header");
 
     if (headerContainer) {
-        // Detectar si el archivo actual está en sensunshop (subcarpeta o archivo principal)
         const pathname = window.location.pathname;
-        const isInSubfolder = pathname.includes("/sensunshop/");
-        const isSensunshopMain = pathname.endsWith("/sensunshop.html");
-        const isSensunshop = isInSubfolder || isSensunshopMain;
-        // Usar un menú específico para sensunshop (página principal o subcarpeta)
+        
+        // Determinar niveles de subcarpeta
+        let depth = 0;
+        let isSensunshop = false;
+        
+        if (pathname.includes("/sensunshop/negocioslocales/")) {
+            depth = 2;
+            isSensunshop = true;
+        } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
+            depth = 1;
+            isSensunshop = true;
+        } else if (pathname.endsWith("/sensunshop.html")) {
+            depth = 0;
+            isSensunshop = true;
+        }
+        
         let menuPath;
         if (isSensunshop) {
-            // Si estamos en sensunshop.html (raíz), la ruta es relativa a la raíz
-            // Si estamos en /sensunshop/*.html, necesitamos la ruta relativa correcta
-            menuPath = isInSubfolder ? "menu-sensunshop.html" : "sensunshop/menu-sensunshop.html";
+            if (depth === 2) {
+                menuPath = "../menu-sensunshop.html";
+            } else if (depth === 1) {
+                menuPath = "menu-sensunshop.html";
+            } else {
+                menuPath = "sensunshop/menu-sensunshop.html";
+            }
         } else {
             menuPath = "menu.html";
         }
@@ -39,22 +54,16 @@ function cargarMenuGlobal() {
                 return response.text();
             })
             .then(html => {
-                // Inyectar el menú dentro de la etiqueta <header>
                 headerContainer.innerHTML = html;
 
-                // Corregir dinámicamente enlaces e imágenes según la ubicación del archivo
-                adjustMenuPaths(headerContainer, isInSubfolder);
+                adjustMenuPaths(headerContainer, depth, isSensunshop);
                 
-                // Activar eventos de interacción móvil y resaltar la página actual
                 initMobileMenu();
                 highlightCurrentPage();
-
-                // Asociar efectos de salida (Fade-out) a los enlaces recién cargados
                 initPageTransitions();
             })
             .catch(error => console.error("Error al construir el menú adaptativo:", error));
     } else {
-        // Si por alguna razón la página no usa el header dinámico, inicializar transiciones por defecto
         initPageTransitions();
     }
 }
@@ -62,7 +71,7 @@ function cargarMenuGlobal() {
 // ==========================================================================
 // AJUSTE DINÁMICO DE RUTAS DEL MENÚ SEGÚN LA PROFUNDIDAD DEL DIRECTORIO
 // ==========================================================================
-function adjustMenuPaths(headerContainer, isInSubfolder) {
+function adjustMenuPaths(headerContainer, depth, isSensunshop) {
     const links = headerContainer.querySelectorAll("a");
     const images = headerContainer.querySelectorAll("img");
 
@@ -72,20 +81,23 @@ function adjustMenuPaths(headerContainer, isInSubfolder) {
             return;
         }
 
-        if (isInSubfolder) {
-            // Si estamos en la subcarpeta sensunshop/
-            if (href.startsWith("sensunshop/")) {
-                // Quitar el prefijo "sensunshop/" para los enlaces de la misma carpeta
-                a.setAttribute("href", href.substring(11));
-            } else if (!href.startsWith("../")) {
-                // Prependar "../" para ir a la raíz
-                a.setAttribute("href", "../" + href);
-            }
-        } else {
-            // Si estamos en la raíz (ej: sensunshop.html)
-            if (href.startsWith("../")) {
-                // Quitar el prefijo "../" si apunta a la raíz
-                a.setAttribute("href", href.substring(3));
+        if (isSensunshop) {
+            if (depth === 2) {
+                if (href.startsWith("sensunshop/")) {
+                    a.setAttribute("href", "../" + href.substring(11));
+                } else if (!href.startsWith("../")) {
+                    a.setAttribute("href", "../../" + href);
+                }
+            } else if (depth === 1) {
+                if (href.startsWith("sensunshop/")) {
+                    a.setAttribute("href", href.substring(11));
+                } else if (!href.startsWith("../")) {
+                    a.setAttribute("href", "../" + href);
+                }
+            } else {
+                if (href.startsWith("../")) {
+                    a.setAttribute("href", href.substring(3));
+                }
             }
         }
     });
@@ -96,15 +108,21 @@ function adjustMenuPaths(headerContainer, isInSubfolder) {
             return;
         }
 
-        if (isInSubfolder) {
-            // Si estamos en la subcarpeta, nos aseguramos que las imágenes de la raíz suban un nivel
-            if (!src.startsWith("../") && !src.startsWith("sensunshop/")) {
-                img.setAttribute("src", "../" + src);
-            }
-        } else {
-            // Si estamos en la raíz, quitamos el prefijo "../"
-            if (src.startsWith("../")) {
-                img.setAttribute("src", src.substring(3));
+        if (isSensunshop) {
+            if (depth === 2) {
+                if (!src.startsWith("../") && !src.startsWith("sensunshop/")) {
+                    img.setAttribute("src", "../../" + src);
+                } else if (src.startsWith("../")) {
+                    img.setAttribute("src", "../" + src);
+                }
+            } else if (depth === 1) {
+                if (!src.startsWith("../") && !src.startsWith("sensunshop/")) {
+                    img.setAttribute("src", "../" + src);
+                }
+            } else {
+                if (src.startsWith("../")) {
+                    img.setAttribute("src", src.substring(3));
+                }
             }
         }
     });
@@ -116,10 +134,10 @@ function adjustMenuPaths(headerContainer, isInSubfolder) {
 function initMobileMenu() {
     const menuToggle = document.querySelector(".menu-toggle");
     const navContainer = document.querySelector(".nav-container");
-    const dropdown = document.querySelector(".dropdown");
-    const dropbtn = document.querySelector(".dropbtn");
 
     if (menuToggle && navContainer) {
+        const dropdown = navContainer.querySelector(".dropdown");
+        const dropbtn = dropdown ? dropdown.querySelector(".dropbtn") : null;
         // Evento para abrir y cerrar el cajón lateral del menú hamburguesa
         menuToggle.addEventListener("click", (e) => {
             e.stopPropagation();
