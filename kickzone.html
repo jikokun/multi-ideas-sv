@@ -35,7 +35,7 @@
                 <span class="kick-logo-badge">■</span> Canales Sintonizados
             </div>
             <div class="console-controls">
-                <button class="console-btn" id="security-mode-btn" style="display: none;">Modo Solo Ver</button>
+                <button class="console-btn" id="security-mode-btn" style="display: none;">Modo Rejilla</button>
                 <button class="console-btn danger" id="clear-all-btn">Cerrar Todo</button>
             </div>
         </div>
@@ -308,19 +308,19 @@
                     toolbar.style.display = 'none';
                 }
 
-                // Habilitar/mostrar el botón de Solo Ver (Cámaras) si hay 3 o más streams
-                if (count >= 3) {
+                // Habilitar/mostrar el botón de Modo Rejilla si hay 2 o más streams
+                if (count >= 2) {
                     securityModeBtn.style.display = 'inline-block';
                     if (securityModeActive) {
-                        securityModeBtn.textContent = 'Desactivar Solo Ver';
+                        securityModeBtn.textContent = 'Desactivar Modo Rejilla';
                         securityModeBtn.classList.add('primary');
                     } else {
-                        securityModeBtn.textContent = 'Modo Solo Ver';
+                        securityModeBtn.textContent = 'Modo Rejilla';
                         securityModeBtn.classList.remove('primary');
                     }
                 } else {
                     securityModeBtn.style.display = 'none';
-                    securityModeActive = false; // Desactivar si baja de 3
+                    securityModeActive = false; // Desactivar si baja de 2
                 }
             }
 
@@ -346,9 +346,6 @@
                         ? `https://player.kick.com/${stream.username}?muted=true`
                         : `https://player.kick.com/${stream.username}`;
 
-                    // Determinar si el chat debe mostrarse (se oculta si el modo cámaras está activo)
-                    const isChatOpen = stream.chatVisible && !securityModeActive;
-
                     // Encontrar si tenemos cargado el avatar de este streamer
                     const streamerMeta = streamersData.find(s => s.username === stream.username);
                     const avatarHtml = (streamerMeta && streamerMeta.avatar)
@@ -367,11 +364,8 @@
                                 <button class="stream-control-btn btn-mute-toggle" data-username="${stream.username}">
                                     ${stream.muted ? '🔊 <span class="btn-text">Activar Sonido</span>' : '🔇 <span class="btn-text">Silenciar</span>'}
                                 </button>
-                                <button class="stream-control-btn btn-chat-toggle" data-username="${stream.username}">
-                                    ${isChatOpen ? '💬 <span class="btn-text">Ocultar Chat</span>' : '💬 <span class="btn-text">Mostrar Chat</span>'}
-                                </button>
-                                <button class="stream-control-btn btn-login-kick" data-username="${stream.username}" title="Iniciar Sesión en Kick (abrir canal en pestaña nueva)">
-                                    👤 <span class="btn-text">Iniciar Sesión</span>
+                                <button class="stream-control-btn btn-login-kick" data-username="${stream.username}" title="Ver canal en la página oficial de Kick.com">
+                                    👤 <span class="btn-text">Ver en Kick</span>
                                 </button>
                                 <button class="stream-control-btn danger btn-remove" data-username="${stream.username}">
                                     ❌ <span class="btn-text">Cerrar</span>
@@ -379,7 +373,7 @@
                             </div>
                         </div>
 
-                        <!-- Video y Chat lado a lado -->
+                        <!-- Video -->
                         <div class="stream-box-body">
                             <div class="stream-video-area">
                                 <div class="kick-embed-container">
@@ -391,15 +385,6 @@
                                         allow="autoplay; fullscreen">
                                     </iframe>
                                 </div>
-                            </div>
-                            
-                            <div class="stream-chat-area" id="chat-container-${stream.username}" style="display: ${isChatOpen ? 'flex' : 'none'};">
-                                <iframe 
-                                    id="chat-${stream.username}"
-                                    src="https://kick.com/popout/${stream.username}/chat" 
-                                    scrolling="no" 
-                                    allow="autoplay">
-                                </iframe>
                             </div>
                         </div>
                     `;
@@ -440,31 +425,7 @@
                     });
                 });
 
-                // Mostrar / Ocultar Chat
-                grid.querySelectorAll('.btn-chat-toggle').forEach(btn => {
-                    btn.addEventListener('click', () => {
-                        const username = btn.getAttribute('data-username');
-                        const stream = activeStreams.find(s => s.username === username);
-                        if (stream) {
-                            stream.chatVisible = !stream.chatVisible;
-                            
-                            // Si el usuario activa el chat, se cancela/desactiva el modo Solo Ver
-                            if (stream.chatVisible && securityModeActive) {
-                                securityModeActive = false;
-                                renderStreams(); // Re-renderizar todo para desactivar modo cámaras
-                                return;
-                            }
-
-                            const chatContainer = document.getElementById(`chat-container-${username}`);
-                            if (chatContainer) {
-                                chatContainer.style.display = stream.chatVisible ? 'flex' : 'none';
-                            }
-                            btn.innerHTML = stream.chatVisible ? '💬 <span class="btn-text">Ocultar Chat</span>' : '💬 <span class="btn-text">Mostrar Chat</span>';
-                        }
-                    });
-                });
-
-                // Iniciar sesión (abrir canal de Kick en nueva pestaña)
+                // Abrir canal de Kick en nueva pestaña
                 grid.querySelectorAll('.btn-login-kick').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const username = btn.getAttribute('data-username');
@@ -496,14 +457,8 @@
                 activeStreams.push({
                     username: username,
                     displayName: displayName || username,
-                    muted: shouldMute,
-                    chatVisible: true
+                    muted: shouldMute
                 });
-
-                // Si ya teníamos el modo Cámaras encendido, al agregar un nuevo stream, los chats se ocultan
-                if (securityModeActive) {
-                    activeStreams[activeStreams.length - 1].chatVisible = false;
-                }
 
                 renderStreams();
 
@@ -524,23 +479,15 @@
                 activeStreams = [{
                     username: username,
                     displayName: displayName || username,
-                    muted: false,
-                    chatVisible: true
+                    muted: false
                 }];
                 renderStreams();
                 document.getElementById('stream-hub').scrollIntoView({ behavior: 'smooth' });
             }
 
-            // Clic en botón Modo Solo Ver (Global)
+            // Clic en botón Modo Rejilla (Global)
             securityModeBtn.addEventListener('click', () => {
                 securityModeActive = !securityModeActive;
-                if (securityModeActive) {
-                    // Ocultar todos los chats cuando se entra en modo cámaras
-                    activeStreams.forEach(s => s.chatVisible = false);
-                } else {
-                    // Mostrar todos los chats al regresar al modo lista apilada
-                    activeStreams.forEach(s => s.chatVisible = true);
-                }
                 renderStreams();
             });
 
