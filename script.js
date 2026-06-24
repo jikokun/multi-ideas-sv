@@ -39,7 +39,7 @@ function cargarMenuGlobal() {
         } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
             depth = 1;
             isSensunshop = true;
-        } else if (pathname.endsWith("/sensunshop.html")) {
+        } else if (pathname.endsWith("/sensunshop.html") || pathname.endsWith("/sensunshop")) {
             depth = 0;
             isSensunshop = true;
         }
