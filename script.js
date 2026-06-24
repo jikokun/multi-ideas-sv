@@ -272,10 +272,19 @@ console.log("%c¡Alto! %cEsta zona es para desarrolladores.", "color: red; font-
 let cart = [];
 
 function initCart() {
-    // Evitar cargar el carrito en las páginas de Sensun Shop (catálogo) y Kickzone (entretenimiento)
-    const inSensun = window.location.pathname.includes('/sensunshop/') || window.location.pathname.endsWith('/sensunshop.html');
-    const isKickzone = window.location.pathname.endsWith('/kickzone.html');
-    if (inSensun || isKickzone) return;
+    const path = window.location.pathname.toLowerCase();
+    
+    // El carrito solo debe cargarse en:
+    // - index.html / la raíz
+    // - productos.html / /productos
+    // - servicios.html / /servicios
+    const isMainPage = path === '/' || path.endsWith('/index.html') || path.endsWith('/');
+    const isProductos = path.endsWith('/productos.html') || path.endsWith('/productos');
+    const isServicios = path.endsWith('/servicios.html') || path.endsWith('/servicios');
+    
+    if (!isMainPage && !isProductos && !isServicios) {
+        return;
+    }
 
     // 1. Inyectar estructura HTML del carrito si no existe
     if (!document.getElementById("cart-floating-btn")) {
