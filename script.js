@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 5. Inicializar popup promocional de Sensun Shop (si aplica en index.html)
     initPromoPopup();
+
+    // 6. Verificar si hay un negocio para resaltar desde la URL
+    checkHighlightHash();
 });
 
 // ==========================================================================
@@ -70,6 +73,9 @@ function cargarMenuGlobal() {
                 initMobileMenu();
                 highlightCurrentPage();
                 initPageTransitions();
+
+                // Inicializar buscador si estamos en sector sensunshop
+                initSensunSearch(isSensunshop, depth);
             })
             .catch(error => console.error("Error al construir el menú adaptativo:", error));
     } else {
@@ -731,6 +737,249 @@ function enableSwipeToClose(element, callback) {
         // Deslizar horizontal a la derecha con un umbral de 60px
         if (diffX > 60 && Math.abs(diffX) > Math.abs(diffY)) {
             callback();
+        }
+    }
+}
+
+// ==========================================================================
+// SISTEMA DE BÚSQUEDA GLOBAL DE SENSUN SHOP
+// ==========================================================================
+function initSensunSearch(isSensunshop, depth) {
+    if (!isSensunshop) return;
+
+    // 1. Inyectar el marcado del modal de búsqueda si no existe
+    if (!document.getElementById("search-modal-overlay")) {
+        const modalHtml = `
+            <div id="search-modal-overlay" class="search-modal-overlay">
+                <div class="search-modal-box">
+                    <div class="search-modal-header">
+                        <div class="search-modal-icon">
+                            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="11" cy="11" r="8"></circle>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                            </svg>
+                        </div>
+                        <input type="text" id="search-modal-input" class="search-modal-input" placeholder="Buscar negocios, tags, comida, profesionales..." autocomplete="off">
+                        <button id="search-modal-close" class="search-modal-close" aria-label="Cerrar">&times;</button>
+                    </div>
+                    <div id="search-modal-results" class="search-modal-results">
+                        <div class="dynamic-status-message">Escribe algo para empezar a buscar...</div>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML("beforeend", modalHtml);
+    }
+
+    const overlay = document.getElementById("search-modal-overlay");
+    const input = document.getElementById("search-modal-input");
+    const closeBtn = document.getElementById("search-modal-close");
+    const resultsContainer = document.getElementById("search-modal-results");
+    const btnDesktop = document.getElementById("search-btn-desktop");
+    const btnMobile = document.getElementById("search-btn-mobile");
+
+    let businessesData = null;
+
+    // Calcular la ruta para cargar negocioslocales.html
+    let fetchPath = "";
+    let redirectPath = "";
+    if (depth === 2) {
+        fetchPath = "../negocioslocales.html";
+        redirectPath = "../negocioslocales.html";
+    } else if (depth === 1) {
+        fetchPath = "negocioslocales.html";
+        redirectPath = "negocioslocales.html";
+    } else {
+        fetchPath = "sensunshop/negocioslocales.html";
+        redirectPath = "sensunshop/negocioslocales.html";
+    }
+
+    // Cargar y parsear negocioslocales.html
+    async function loadBusinesses() {
+        if (businessesData) return businessesData;
+        try {
+            const response = await fetch(fetchPath);
+            if (!response.ok) throw new Error("No se pudo obtener el catálogo");
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, "text/html");
+            const cards = doc.querySelectorAll("#negocios-container .negocio-card");
+            
+            businessesData = Array.from(cards)
+                .filter(card => !card.classList.contains("disponible"))
+                .map(card => {
+                    const title = card.querySelector("h3").textContent.trim();
+                    const description = card.querySelector("p").textContent.trim();
+                    const tags = Array.from(card.querySelectorAll(".negocio-tags .tag")).map(t => t.textContent.trim());
+                    const category = card.getAttribute("data-category") || "";
+                    const id = card.id || "";
+                    
+                    const imgEl = card.querySelector(".producto-img img");
+                    const imgSrc = imgEl ? imgEl.getAttribute("src") : "";
+                    
+                    return { id, title, description, tags, category, imgSrc };
+                });
+            return businessesData;
+        } catch (error) {
+            console.error("Error al indexar negocios para búsqueda:", error);
+            return [];
+        }
+    }
+
+    // Abrir modal
+    async function openModal() {
+        overlay.classList.add("active");
+        input.value = "";
+        resultsContainer.innerHTML = '<div class="dynamic-status-message">Cargando catálogo...</div>';
+        
+        // Carga en segundo plano al abrir
+        await loadBusinesses();
+        resultsContainer.innerHTML = '<div class="dynamic-status-message">Escribe algo para empezar a buscar...</div>';
+        
+        setTimeout(() => {
+            input.focus();
+        }, 100);
+    }
+
+    // Cerrar modal
+    function closeModal() {
+        overlay.classList.remove("active");
+        input.blur();
+    }
+
+    // Eventos de botones abrir/cerrar
+    if (btnDesktop) btnDesktop.addEventListener("click", openModal);
+    if (btnMobile) btnMobile.addEventListener("click", openModal);
+    if (closeBtn) closeBtn.addEventListener("click", closeModal);
+    overlay.addEventListener("click", (e) => {
+        if (e.target === overlay) closeModal();
+    });
+
+    // Soporte teclado Escape
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.classList.contains("active")) {
+            closeModal();
+        }
+    });
+
+    // Soporte gestos swipe para móvil (deslizar a la derecha)
+    if (typeof enableSwipeToClose === "function") {
+        enableSwipeToClose(overlay, closeModal);
+    }
+
+    const cleanString = (str) => {
+        return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    };
+
+    // Escuchar cambios en la búsqueda
+    input.addEventListener("input", () => {
+        const query = cleanString(input.value);
+        if (!query) {
+            resultsContainer.innerHTML = '<div class="dynamic-status-message">Escribe algo para empezar a buscar...</div>';
+            return;
+        }
+
+        if (!businessesData) return;
+
+        const filtered = businessesData.filter(item => {
+            const title = cleanString(item.title);
+            const desc = cleanString(item.description);
+            const cat = cleanString(item.category);
+            const tags = item.tags.map(t => cleanString(t));
+            
+            return title.includes(query) || desc.includes(query) || cat.includes(query) || tags.some(t => t.includes(query));
+        });
+
+        if (filtered.length === 0) {
+            resultsContainer.innerHTML = '<div class="dynamic-status-message">No se encontraron resultados para "' + input.value + '"</div>';
+            return;
+        }
+
+        let html = "";
+        filtered.forEach(item => {
+            let itemImg = item.imgSrc;
+            // Ajustar rutas relativas si es necesario
+            if (itemImg && !itemImg.startsWith("http") && !itemImg.startsWith("/")) {
+                if (depth === 2) {
+                    itemImg = "../" + itemImg;
+                } else if (depth === 1) {
+                    // Ya está alineado en la subcarpeta sensunshop
+                } else {
+                    itemImg = "sensunshop/" + itemImg;
+                }
+            }
+
+            const itemLink = `${redirectPath}#${item.id}`;
+            const badgeClass = item.category;
+
+            html += `
+                <a href="${itemLink}" class="search-result-item" data-id="${item.id}">
+                    ${itemImg ? `<img src="${itemImg}" alt="${item.title}" class="search-result-img" loading="lazy">` : ""}
+                    <div class="search-result-info">
+                        <div class="search-result-title">${item.title}</div>
+                        <div class="search-result-desc">${item.description}</div>
+                        <div class="search-result-meta">
+                            <span class="search-result-badge ${badgeClass}">${item.category}</span>
+                            ${item.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join("")}
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+
+        resultsContainer.innerHTML = html;
+
+        // Añadir comportamiento de click en los resultados
+        const resultElements = resultsContainer.querySelectorAll(".search-result-item");
+        resultElements.forEach(el => {
+            el.addEventListener("click", (e) => {
+                const id = el.getAttribute("data-id");
+                closeModal();
+
+                // Si ya estamos en negocioslocales.html, manejamos el scroll y resaltado localmente
+                if (window.location.pathname.endsWith("negocioslocales.html")) {
+                    e.preventDefault();
+                    history.pushState(null, null, `#${id}`);
+                    highlightBusinessCard(id);
+                }
+            });
+        });
+    });
+}
+
+// Resaltar y desplazar hacia la tarjeta correspondiente
+function highlightBusinessCard(id) {
+    const targetEl = document.getElementById(id);
+    if (targetEl) {
+        // Si hay filtros locales en negocioslocales.html, restablecer filtros para mostrar todas las tarjetas
+        const filterBtns = document.querySelectorAll('#category-filter-container > .filter-btn');
+        if (filterBtns.length > 0) {
+            const allBtn = Array.from(filterBtns).find(btn => btn.getAttribute('data-category') === 'all' || btn.textContent.toLowerCase().includes('todos'));
+            if (allBtn) {
+                // Hacer clic en 'Todos' para restablecer
+                allBtn.click();
+            }
+        }
+        
+        setTimeout(() => {
+            targetEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            targetEl.classList.add("highlight-card");
+            setTimeout(() => {
+                targetEl.classList.remove("highlight-card");
+            }, 4500);
+        }, 100);
+    }
+}
+
+// Detectar si venimos con un hash para resaltar en la carga inicial de la página
+function checkHighlightHash() {
+    if (window.location.hash) {
+        const id = window.location.hash.substring(1);
+        if (id.startsWith("NEG-")) {
+            // Esperar a que rendericen los elementos
+            setTimeout(() => {
+                highlightBusinessCard(id);
+            }, 600);
         }
     }
 }
