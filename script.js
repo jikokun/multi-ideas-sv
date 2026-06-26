@@ -154,6 +154,13 @@ function initMobileMenu() {
             navContainer.classList.toggle("active");
         });
 
+        // Gesto swipe a la derecha para cerrar el menú en móviles
+        enableSwipeToClose(navContainer, () => {
+            menuToggle.classList.remove("active");
+            navContainer.classList.remove("active");
+            if (dropdown) dropdown.classList.remove("active");
+        });
+
         // Evento interactivo por Click/Toque para el submenú en móviles
         if (dropbtn) {
             dropbtn.addEventListener("click", (e) => {
@@ -368,6 +375,11 @@ function initCart() {
 
     if (overlay) {
         overlay.addEventListener("click", closeCart);
+    }
+
+    if (drawer) {
+        // Gesto swipe a la derecha para cerrar el carrito en móviles
+        enableSwipeToClose(drawer, closeCart);
     }
 
     // 4. Delegación de eventos para agregar productos
@@ -674,5 +686,51 @@ function initPromoPopup() {
             popup.classList.remove("active");
             sessionStorage.setItem("sensun_promo_closed", "true");
         });
+
+        // Gesto swipe a la izquierda para cerrar el popup flotante en móviles
+        let touchstartX = 0;
+        let touchendX = 0;
+        popup.addEventListener('touchstart', e => { 
+            touchstartX = e.changedTouches[0].screenX; 
+        }, { passive: true });
+        
+        popup.addEventListener('touchend', e => {
+            touchendX = e.changedTouches[0].screenX;
+            if (touchendX < touchstartX - 50) { // Deslizar hacia la izquierda
+                popup.classList.remove("active");
+                sessionStorage.setItem("sensun_promo_closed", "true");
+            }
+        }, { passive: true });
+    }
+}
+
+// ==========================================================================
+// ASISTENTE DE DETECCIÓN DE GESTOS SWIPE (UX MÓVIL)
+// ==========================================================================
+function enableSwipeToClose(element, callback) {
+    let touchstartX = 0;
+    let touchstartY = 0;
+    let touchendX = 0;
+    let touchendY = 0;
+
+    element.addEventListener('touchstart', e => {
+        touchstartX = e.changedTouches[0].screenX;
+        touchstartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    element.addEventListener('touchend', e => {
+        touchendX = e.changedTouches[0].screenX;
+        touchendY = e.changedTouches[0].screenY;
+        handleGesture();
+    }, { passive: true });
+
+    function handleGesture() {
+        const diffX = touchendX - touchstartX;
+        const diffY = touchendY - touchstartY;
+
+        // Deslizar horizontal a la derecha con un umbral de 60px
+        if (diffX > 60 && Math.abs(diffX) > Math.abs(diffY)) {
+            callback();
+        }
     }
 }
