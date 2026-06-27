@@ -1005,7 +1005,7 @@ function toggleLightStylesheet(isLight) {
     if (!link) return;
 
     const pathname = window.location.pathname.toLowerCase();
-    const isSensun = pathname.includes("sensunshop.html") || pathname.includes("/sensunshop/");
+    const isSensun = pathname.includes("sensunshop");
     
     let depth = 0;
     if (pathname.includes("/sensunshop/negocioslocales/")) {
