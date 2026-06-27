@@ -40,7 +40,7 @@ function cargarMenuGlobal() {
     const headerContainer = document.getElementById("global-header");
 
     if (headerContainer) {
-        const pathname = window.location.pathname;
+        const pathname = window.location.pathname.toLowerCase();
         
         // Determinar niveles de subcarpeta
         let depth = 0;
@@ -1004,7 +1004,7 @@ function toggleLightStylesheet(isLight) {
                  document.querySelector('link[href*="estilo_claro_multi.css"]');
     if (!link) return;
 
-    const pathname = window.location.pathname;
+    const pathname = window.location.pathname.toLowerCase();
     const isSensun = pathname.includes("sensunshop.html") || pathname.includes("/sensunshop/");
     
     let depth = 0;
