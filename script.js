@@ -3,6 +3,16 @@
 // ==========================================================================
 const TRANSITION_DURATION = 200;
 
+// Inicialización inmediata del tema claro/oscuro para evitar parpadeos
+(function() {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.add('light-theme');
+    } else {
+        document.body.classList.remove('light-theme');
+    }
+})();
+
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Efecto de entrada (Fade-in) al cargar el documento
     document.body.classList.add('page-loaded');
@@ -74,8 +84,11 @@ function cargarMenuGlobal() {
                 highlightCurrentPage();
                 initPageTransitions();
 
-                // Inicializar buscador si estamos en sector sensunshop
+                 // Inicializar buscador si estamos en sector sensunshop
                 initSensunSearch(isSensunshop, depth);
+
+                // Inicializar interruptor de tema claro/oscuro
+                initThemeToggle();
             })
             .catch(error => console.error("Error al construir el menú adaptativo:", error));
     } else {
@@ -982,4 +995,65 @@ function checkHighlightHash() {
             }, 600);
         }
     }
+}
+
+// Función para aplicar/remover la hoja de estilos clara
+function toggleLightStylesheet(isLight) {
+    const link = document.querySelector('link[href*="estilos.css"]') || 
+                 document.querySelector('link[href*="estilo_claro.css"]') ||
+                 document.querySelector('link[href*="estilo_claro_multi.css"]');
+    if (!link) return;
+
+    const pathname = window.location.pathname;
+    const isSensun = pathname.includes("sensunshop.html") || pathname.includes("/sensunshop/");
+    
+    let depth = 0;
+    if (pathname.includes("/sensunshop/negocioslocales/")) {
+        depth = 2;
+    } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
+        depth = 1;
+    }
+    
+    let pathPrefix = "";
+    if (depth === 2) {
+        pathPrefix = "../../";
+    } else if (depth === 1) {
+        pathPrefix = "../";
+    }
+
+    if (isLight) {
+        if (isSensun) {
+            link.href = pathPrefix + "estilo_claro.css?v=3";
+        } else {
+            link.href = pathPrefix + "estilo_claro_multi.css?v=3";
+        }
+    } else {
+        link.href = pathPrefix + "estilos.css?v=3";
+    }
+}
+
+// Inicializar interruptores de tema claro/oscuro
+function initThemeToggle() {
+    const toggleButtons = document.querySelectorAll('.theme-toggle-btn');
+    if (toggleButtons.length === 0) return;
+
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Alternar clase de modo claro en body
+            const isLight = document.body.classList.toggle('light-theme');
+            
+            // Cargar/Remover stylesheet dinámicamente
+            toggleLightStylesheet(isLight);
+            
+            // Guardar preferencia del usuario en localStorage
+            if (isLight) {
+                localStorage.setItem('theme', 'light');
+            } else {
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    });
 }
