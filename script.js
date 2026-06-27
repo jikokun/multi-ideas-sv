@@ -997,12 +997,15 @@ function checkHighlightHash() {
     }
 }
 
-// Función para aplicar/remover la hoja de estilos clara
-function toggleLightStylesheet(isLight) {
+// Función para aplicar/remover la hoja de estilos clara con precarga
+function toggleLightStylesheet(isLight, callback) {
     const link = document.querySelector('link[href*="estilos.css"]') || 
                  document.querySelector('link[href*="estilo_claro.css"]') ||
                  document.querySelector('link[href*="estilo_claro_multi.css"]');
-    if (!link) return;
+    if (!link) {
+        if (callback) callback();
+        return;
+    }
 
     const pathname = window.location.pathname.toLowerCase();
     const isSensun = pathname.includes("sensunshop");
@@ -1021,15 +1024,32 @@ function toggleLightStylesheet(isLight) {
         pathPrefix = "../";
     }
 
+    let newHref = "";
     if (isLight) {
         if (isSensun) {
-            link.href = pathPrefix + "estilo_claro.css?v=3";
+            newHref = pathPrefix + "estilo_claro.css?v=3";
         } else {
-            link.href = pathPrefix + "estilo_claro_multi.css?v=3";
+            newHref = pathPrefix + "estilo_claro_multi.css?v=3";
         }
     } else {
-        link.href = pathPrefix + "estilos.css?v=3";
+        newHref = pathPrefix + "estilos.css?v=3";
     }
+
+    // Usar callback cuando el navegador termine de cargar la nueva hoja de estilos
+    let called = false;
+    const handleLoad = () => {
+        if (!called) {
+            called = true;
+            if (callback) callback();
+        }
+    };
+
+    link.onload = handleLoad;
+    
+    // Timeout de respaldo por si el evento onload no se dispara
+    setTimeout(handleLoad, 400);
+
+    link.href = newHref;
 }
 
 // Inicializar interruptores de tema claro/oscuro
@@ -1042,18 +1062,30 @@ function initThemeToggle() {
             e.preventDefault();
             e.stopPropagation();
             
-            // Alternar clase de modo claro en body
-            const isLight = document.body.classList.toggle('light-theme');
+            // 1. Agregar clase de transición para desvanecer el contenido de forma fluida
+            document.body.classList.add('theme-transitioning');
             
-            // Cargar/Remover stylesheet dinámicamente
-            toggleLightStylesheet(isLight);
-            
-            // Guardar preferencia del usuario en localStorage
-            if (isLight) {
-                localStorage.setItem('theme', 'light');
-            } else {
-                localStorage.setItem('theme', 'dark');
-            }
+            // 2. Dar tiempo para el fade-out (200ms)
+            setTimeout(() => {
+                const isLight = !document.body.classList.contains('light-theme');
+                
+                // 3. Intercambiar la hoja de estilos y esperar a que se precargue
+                toggleLightStylesheet(isLight, () => {
+                    // 4. Cambiar clases del body una vez cargada la hoja
+                    if (isLight) {
+                        document.body.classList.add('light-theme');
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        document.body.classList.remove('light-theme');
+                        localStorage.setItem('theme', 'dark');
+                    }
+                    
+                    // 5. Retirar la clase de transición para hacer un fade-in suave con los nuevos estilos ya aplicados
+                    setTimeout(() => {
+                        document.body.classList.remove('theme-transitioning');
+                    }, 50);
+                });
+            }, 200);
         });
     });
 }
