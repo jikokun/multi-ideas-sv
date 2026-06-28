@@ -71,6 +71,14 @@
             background: #4285f4;
             box-shadow: 0 0 15px rgba(66, 133, 244, 0.4);
         }
+        .test-btn.migration-btn {
+            border-color: #e67e22;
+            color: #ffffff;
+        }
+        .test-btn.migration-btn:hover {
+            background: #e67e22;
+            box-shadow: 0 0 15px rgba(230, 126, 34, 0.4);
+        }
         
         .console-log {
             background: #07090d;
@@ -114,6 +122,7 @@
             <div class="action-group">
                 <button id="btn-test-google" class="test-btn google-btn">Probar Login Google</button>
                 <button id="btn-test-rtdb" class="test-btn">Probar Realtime DB</button>
+                <button id="btn-migrate-catalog" class="test-btn migration-btn">Migrar Catálogo de Negocios</button>
             </div>
 
             <h3 style="margin-bottom: 10px; font-size: 1.1rem;">Consola de Diagnóstico:</h3>
@@ -202,6 +211,67 @@
             } catch (e) {
                 log(`Error en Realtime DB: ${e.message}`, "error");
                 log("Consejo: Revisa que tus Reglas de Seguridad en Realtime Database estén en modo de prueba (.write: true, .read: true).", "info");
+            }
+        });
+
+        // 4. Migrar Catálogo de Negocios
+        document.getElementById("btn-migrate-catalog").addEventListener("click", async () => {
+            log("Iniciando extracción y migración del catálogo de negocios...", "info");
+            try {
+                const response = await fetch('sensunshop/negocioslocales.html');
+                if (!response.ok) throw new Error("No se pudo obtener negocioslocales.html para la extracción.");
+                const html = await response.text();
+                
+                const parser = new DOMParser();
+                const docParser = parser.parseFromString(html, 'text/html');
+                const cards = docParser.querySelectorAll('#negocios-container .negocio-card');
+                
+                if (cards.length === 0) {
+                    throw new Error("No se encontraron tarjetas de negocio con la clase '.negocio-card' dentro de '#negocios-container'.");
+                }
+
+                const businesses = Array.from(cards)
+                    .filter(card => !card.classList.contains('disponible')) // Evitar la de espacio disponible
+                    .map(card => {
+                        const imgEl = card.querySelector('.producto-img img');
+                        const tags = Array.from(card.querySelectorAll('.negocio-tags .tag')).map(t => t.textContent.trim());
+                        
+                        let linksHtml = card.querySelector('.negocio-links').innerHTML;
+                        // Normalizar rutas relativas a la raíz
+                        linksHtml = linksHtml.replace(/href="negocioslocales\//g, 'href="sensunshop/negocioslocales/');
+                        linksHtml = linksHtml.replace(/href="\.\.\//g, 'href="');
+                        
+                        const borderLeftColor = card.style.borderLeftColor || 'var(--ss-orange)';
+                        const imgFit = imgEl ? imgEl.style.objectFit : 'cover';
+                        const imgMaxHeight = imgEl ? imgEl.style.maxHeight : '90%';
+                        const imgMaxWidth = imgEl ? imgEl.style.maxWidth : '90%';
+                        const imgWidth = imgEl ? imgEl.style.width : 'auto';
+                        const imgHeight = imgEl ? imgEl.style.height : 'auto';
+                        const imgBorderRadius = imgEl ? imgEl.style.borderRadius : '8px';
+                        
+                        return {
+                            id: card.id || `NEG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+                            category: card.getAttribute('data-category') || '',
+                            tags: tags,
+                            title: card.querySelector('h3').textContent.trim(),
+                            description: card.querySelector('p').textContent.trim(),
+                            imgSrc: imgEl ? imgEl.getAttribute('src') : '',
+                            imgAlt: imgEl ? imgEl.getAttribute('alt') : '',
+                            imgFit, imgMaxHeight, imgMaxWidth, imgWidth, imgHeight, imgBorderRadius,
+                            borderLeftColor,
+                            linksHtml: linksHtml
+                        };
+                    });
+
+                log(`Se extrajeron exitosamente ${businesses.length} negocios del HTML.`, "success");
+                log("Subiendo datos a Realtime Database (nodo 'sensun_shop/negocios')...", "info");
+
+                const dbRef = ref(rtdb, 'sensun_shop/negocios');
+                await set(dbRef, businesses);
+
+                log("¡Migración Completada con Éxito! Los negocios ya están en la base de datos.", "success");
+            } catch (e) {
+                log(`Error durante la migración: ${e.message}`, "error");
             }
         });
     </script>
