@@ -6,9 +6,9 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// Configuración real obtenida desde la consola de Firebase
+// Configuración real y precisa copiada de la consola de Firebase
 const firebaseConfig = {
-    apiKey: "AIzaSyBPDkdjd6mTRre3Tj5nYXaaZd7uKCCbyc",
+    apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
     authDomain: "sensunshopweb.firebaseapp.com",
     projectId: "sensunshopweb",
     storageBucket: "sensunshopweb.firebasestorage.app",
