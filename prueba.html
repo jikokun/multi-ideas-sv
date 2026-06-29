@@ -143,7 +143,7 @@
     <script src="script.js"></script>
     <script type="module">
         import { auth, rtdb } from "./firebase-config.js?v=3";
-        import { GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const logContainer = document.getElementById("console-output");
@@ -177,16 +177,39 @@
             log("ADVERTENCIA: Estás cargando la web mediante el protocolo file://. El inicio de sesión de Google fallará obligatoriamente. Usa un servidor local.", "error");
         }
 
+        // Procesar el resultado de la redirección al cargar la página (para dispositivos móviles)
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result) {
+                    log(`¡Autenticación Exitosa (Redirección)! Usuario: ${result.user.displayName} (${result.user.email})`, "success");
+                }
+            })
+            .catch((e) => {
+                log(`Error en resultado de redirección: ${e.message}`, "error");
+            });
+
         // 2. Probar Google Login
         document.getElementById("btn-test-google").addEventListener("click", async () => {
-            log("Iniciando ventana emergente de Google Auth...", "info");
             const provider = new GoogleAuthProvider();
-            try {
-                const result = await signInWithPopup(auth, provider);
-                log(`¡Autenticación Exitosa! Usuario: ${result.user.displayName} (${result.user.email})`, "success");
-            } catch (e) {
-                log(`Error de Autenticación: ${e.message}`, "error");
-                log("Verifica: 1. Que no estés usando file://. 2. Que el dominio actual esté en 'Dominios autorizados' en la consola de Firebase -> Authentication -> Configuración.", "info");
+            // Detectar si es dispositivo móvil para elegir el flujo adecuado
+            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+            if (isMobile) {
+                log("Dispositivo móvil detectado. Iniciando inicio de sesión por redirección (signInWithRedirect) en la misma pestaña...", "info");
+                try {
+                    await signInWithRedirect(auth, provider);
+                } catch (e) {
+                    log(`Error de Autenticación por Redirección: ${e.message}`, "error");
+                }
+            } else {
+                log("Dispositivo de escritorio detectado. Iniciando ventana emergente (signInWithPopup)...", "info");
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    log(`¡Autenticación Exitosa! Usuario: ${result.user.displayName} (${result.user.email})`, "success");
+                } catch (e) {
+                    log(`Error de Autenticación: ${e.message}`, "error");
+                    log("Verifica: 1. Que no estés usando file://. 2. Que el dominio actual esté en 'Dominios autorizados' en la consola de Firebase -> Authentication -> Configuración.", "info");
+                }
             }
         });
 
