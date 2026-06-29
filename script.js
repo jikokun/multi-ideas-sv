@@ -89,6 +89,9 @@ function cargarMenuGlobal() {
 
                 // Inicializar interruptor de tema claro/oscuro
                 initThemeToggle();
+
+                // Inicializar sistema de autenticación
+                initAuthentication(depth);
             })
             .catch(error => console.error("Error al construir el menú adaptativo:", error));
     } else {
@@ -1089,3 +1092,213 @@ function initThemeToggle() {
         });
     });
 }
+
+// ==========================================================================
+// SISTEMA DE AUTENTICACIÓN (LOGIN, LOGOUT, REGISTRO CON FIREBASE)
+// ==========================================================================
+function initAuthentication(depth) {
+    const prefix = depth === 2 ? '../../' : depth === 1 ? '../' : '';
+    const modalPath = prefix + 'partials/auth-modal.html';
+    const configPath = (depth === 2 ? '../../' : depth === 1 ? '../' : './') + 'firebase-config.js';
+
+    // 1. Cargar el modal HTML dinámicamente
+    fetch(modalPath)
+        .then(response => {
+            if (!response.ok) throw new Error("No se pudo cargar el modal de autenticación");
+            return response.text();
+        })
+        .then(async (html) => {
+            // Insertar el modal al final del body
+            const wrapper = document.createElement('div');
+            wrapper.innerHTML = html;
+            const authModal = wrapper.firstElementChild;
+            document.body.appendChild(authModal);
+
+            // Importar dinámicamente la configuración de Firebase
+            try {
+                const fb = await import(configPath);
+                setupAuthFlow(authModal, fb);
+            } catch (err) {
+                console.error("Error al importar Firebase en el cliente:", err);
+            }
+        })
+        .catch(err => console.error("Error al inicializar el sistema de autenticación:", err));
+}
+
+function setupAuthFlow(authModal, fb) {
+    const { 
+        auth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword, 
+        signOut, 
+        updateProfile,
+        onAuthStateChanged 
+    } = fb;
+
+    const authForm = authModal.querySelector('#auth-form');
+    const authTitle = authModal.querySelector('#auth-title');
+    const authSubtitle = authModal.querySelector('#auth-subtitle');
+    const groupName = authModal.querySelector('#group-name');
+    const inputName = authModal.querySelector('#auth-name');
+    const inputEmail = authModal.querySelector('#auth-email');
+    const inputPassword = authModal.querySelector('#auth-password');
+    const errorMsg = authModal.querySelector('#auth-error-msg');
+    const submitBtn = authModal.querySelector('#auth-submit-btn');
+    const tabLogin = authModal.querySelector('#tab-login');
+    const tabRegister = authModal.querySelector('#tab-register');
+    const closeBtn = authModal.querySelector('#auth-modal-close');
+
+    let currentMode = 'login'; // 'login' o 'register'
+
+    // Control del modal
+    function openModal() {
+        errorMsg.style.display = 'none';
+        errorMsg.textContent = '';
+        authForm.reset();
+        switchMode('login');
+        authModal.removeAttribute('style');
+        authModal.classList.add('active');
+    }
+
+    function closeModal() {
+        authModal.classList.remove('active');
+    }
+
+    // Cambiar entre Login y Registro
+    function switchMode(mode) {
+        currentMode = mode;
+        errorMsg.style.display = 'none';
+        
+        if (mode === 'login') {
+            tabLogin.classList.add('active');
+            tabRegister.classList.remove('active');
+            authTitle.textContent = 'Ingresa a tu cuenta';
+            authSubtitle.textContent = 'Accede a todas las funciones de Multi Ideas Sv';
+            groupName.style.display = 'none';
+            inputName.removeAttribute('required');
+            submitBtn.textContent = 'Ingresar';
+        } else {
+            tabLogin.classList.remove('active');
+            tabRegister.classList.add('active');
+            authTitle.textContent = 'Crea tu cuenta';
+            authSubtitle.textContent = 'Regístrate gratis para personalizar tu experiencia';
+            groupName.style.display = 'flex';
+            inputName.setAttribute('required', 'true');
+            submitBtn.textContent = 'Registrarse';
+        }
+    }
+
+    // Listeners del modal
+    tabLogin.addEventListener('click', () => switchMode('login'));
+    tabRegister.addEventListener('click', () => switchMode('register'));
+    closeBtn.addEventListener('click', closeModal);
+    authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) closeModal();
+    });
+
+    // Mapeo de errores de Firebase Auth a español amigable
+    function getFriendlyErrorMessage(code) {
+        switch (code) {
+            case 'auth/invalid-credential':
+            case 'auth/wrong-password':
+            case 'auth/user-not-found':
+                return 'Credenciales incorrectas. Verifica tu correo y contraseña.';
+            case 'auth/email-already-in-use':
+                return 'Este correo electrónico ya está registrado por otro usuario.';
+            case 'auth/weak-password':
+                return 'La contraseña es demasiado débil. Debe tener al menos 6 caracteres.';
+            case 'auth/invalid-email':
+                return 'El formato del correo electrónico no es válido.';
+            case 'auth/missing-password':
+                return 'Por favor ingresa tu contraseña.';
+            case 'auth/missing-email':
+                return 'Por favor ingresa tu dirección de correo electrónico.';
+            default:
+                return 'Ocurrió un error inesperado al procesar la solicitud. Por favor intenta de nuevo.';
+        }
+    }
+
+    // Formulario de login/registro
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        errorMsg.style.display = 'none';
+        errorMsg.textContent = '';
+        submitBtn.disabled = true;
+        
+        const email = inputEmail.value.trim();
+        const password = inputPassword.value;
+        const displayName = inputName.value.trim();
+
+        try {
+            if (currentMode === 'login') {
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                if (displayName) {
+                    await updateProfile(userCredential.user, { displayName });
+                }
+            }
+            closeModal();
+        } catch (error) {
+            console.error("Error de autenticación:", error);
+            errorMsg.textContent = getFriendlyErrorMessage(error.code);
+            errorMsg.style.display = 'block';
+        } finally {
+            submitBtn.disabled = false;
+        }
+    });
+
+    // Escuchar cambios de estado en la sesión
+    onAuthStateChanged(auth, (user) => {
+        updateHeaderUI(user, openModal, signOut, auth);
+    });
+}
+
+function updateHeaderUI(user, openModalFn, signOutFn, auth) {
+    const desktopContainer = document.getElementById('auth-container-desktop');
+    const mobileContainer = document.getElementById('auth-container-mobile');
+
+    if (user) {
+        const initials = (user.displayName || user.email).charAt(0).toUpperCase();
+        const displayName = user.displayName || user.email.split('@')[0];
+
+        // Actualizar UI de Escritorio
+        if (desktopContainer) {
+            desktopContainer.innerHTML = `
+                <div class="user-profile-menu">
+                    <div class="user-profile-badge" title="${user.email}">${initials}</div>
+                    <span class="user-profile-email" title="${user.email}">${displayName}</span>
+                    <button class="btn-logout" id="btn-logout-desktop">Salir</button>
+                </div>
+            `;
+            document.getElementById('btn-logout-desktop').addEventListener('click', () => {
+                signOutFn(auth).catch(err => console.error("Error al cerrar sesión:", err));
+            });
+        }
+
+        // Actualizar UI de Móvil
+        if (mobileContainer) {
+            mobileContainer.innerHTML = `
+                <div class="user-profile-menu">
+                    <div class="user-profile-badge" title="${user.email}">${initials}</div>
+                    <button class="btn-logout" id="btn-logout-mobile">Salir</button>
+                </div>
+            `;
+            document.getElementById('btn-logout-mobile').addEventListener('click', () => {
+                signOutFn(auth).catch(err => console.error("Error al cerrar sesión:", err));
+            });
+        }
+    } else {
+        // Restaurar botón de login (Escritorio)
+        if (desktopContainer) {
+            desktopContainer.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">Iniciar Sesión</button>`;
+            desktopContainer.querySelector('.btn-login-trigger').addEventListener('click', openModalFn);
+        }
+
+        // Restaurar botón de login (Móvil)
+        if (mobileContainer) {
+            mobileContainer.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">Acceder</button>`;
+            mobileContainer.querySelector('.btn-login-trigger').addEventListener('click', openModalFn);
+        }
+    }
+}

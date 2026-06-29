@@ -3,7 +3,14 @@
 // ==========================================================================
 // Módulos oficiales de Firebase v10 desde el CDN de Google.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+    getAuth, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    updateProfile,
+    onAuthStateChanged 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Configuración real y precisa copiada de la consola de Firebase
@@ -24,5 +31,14 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const rtdb = getDatabase(app);
 
-// Exportar módulos listos para su uso
-export { app, auth, rtdb };
+// Exportar módulos y funciones listos para su uso
+export { 
+    app, 
+    auth, 
+    rtdb, 
+    signInWithEmailAndPassword, 
+    createUserWithEmailAndPassword, 
+    signOut, 
+    updateProfile,
+    onAuthStateChanged 
+};
