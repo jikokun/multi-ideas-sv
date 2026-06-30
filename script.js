@@ -1390,8 +1390,10 @@ document.addEventListener('click', (e) => {
         return;
     }
 
-    // 3. Trigger para abrir el perfil del usuario al hacer clic en su insignia o nombre (excluyendo el botón de logout)
-    const profileTrigger = e.target.closest('.user-profile-badge') || e.target.closest('.user-profile-email');
+    // 3. Trigger para abrir el perfil del usuario al hacer clic en su insignia, nombre o info (excluyendo el botón de logout)
+    const profileTrigger = e.target.closest('.user-profile-info') || 
+                           e.target.closest('.user-profile-badge') || 
+                           e.target.closest('.user-profile-email');
     if (profileTrigger) {
         console.log("[Auth Debug] Click en badge o email del perfil.");
         if (e.target.closest('#btn-logout-desktop') || e.target.closest('#btn-logout-mobile')) {
@@ -1415,49 +1417,85 @@ document.addEventListener('click', (e) => {
 });
 
 function updateHeaderUI(user, openModalFn, signOutFn, auth) {
-    const desktopContainer = document.getElementById('auth-container-desktop');
-    const mobileContainer = document.getElementById('auth-container-mobile');
+    const containers = document.querySelectorAll('.nav-auth-container');
+    const text = window.location.pathname.includes('sensunshop') ? 'Acceder' : 'Iniciar Sesión';
 
-    if (user) {
-        const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-        const displayName = user.displayName || user.email.split('@')[0];
+    containers.forEach(container => {
+        if (user) {
+            const initials = (user.displayName || user.email).charAt(0).toUpperCase();
+            const displayName = user.displayName || user.email.split('@')[0];
 
-        // Actualizar UI de Escritorio
-        if (desktopContainer) {
-            desktopContainer.innerHTML = `
-                <div class="user-profile-menu">
-                    <div class="user-profile-badge" title="${user.email}">${initials}</div>
-                    <span class="user-profile-email" title="${user.email}">${displayName}</span>
-                    <button class="btn-logout-round" id="btn-logout-desktop" title="Cerrar Sesión">
+            container.innerHTML = `
+                <div class="user-profile-menu" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">
+                    <div class="user-profile-info" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
+                        <div class="user-profile-badge" title="${user.email}">${initials}</div>
+                        <span class="user-profile-email" title="${user.email}">${displayName}</span>
+                    </div>
+                    <button class="btn-logout-round" title="Cerrar Sesión">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                     </button>
                 </div>
             `;
+            
+            // Aplicar avatar e iniciales si tiene un avatar guardado en Firebase photoURL
+            const badge = container.querySelector('.user-profile-badge');
+            if (badge) {
+                applyAvatarToElement(badge, user.photoURL, initials);
+            }
+        } else {
+            container.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">${text}</button>`;
+            const btn = container.querySelector('.btn-login-trigger');
+            if (btn) btn.addEventListener('click', openModalFn);
         }
+    });
+}
 
-        // Actualizar UI de Móvil
-        if (mobileContainer) {
-            mobileContainer.innerHTML = `
-                <div class="user-profile-menu">
-                    <div class="user-profile-badge" title="${user.email}">${initials}</div>
-                    <button class="btn-logout-round" id="btn-logout-mobile" title="Cerrar Sesión">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
-                    </button>
-                </div>
-            `;
-        }
+// Helpers para renderizado y aplicación del avatar dinámico
+function getAvatarSvg(avatarKey, strokeColor = '#ffffff') {
+    switch (avatarKey) {
+        case 'male1':
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 100%; height: 100%; display: block;"><circle cx="12" cy="10" r="4.5"></circle><path d="M8.5 7.5c1-1.5 2.5-2 3.5-2s2.5.5 3.5 2M8 9.5c0-1.5 1.5-2.5 4-2.5s4 1 4 2.5" stroke-width="2.2"></path><path d="M5 20a7 7 0 0 1 14 0"></path><path d="M10 14.5v2l2 2 2-2v-2"></path></svg>`;
+        case 'male2':
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 100%; height: 100%; display: block;"><path d="M8.5 9a3.5 3.5 0 0 1 7 0v2a3.5 3.5 0 0 1-7 0V9z"></path><path d="M8 7.5c.5-2 2-3 4-3s3.5 1 4 3" stroke-width="2.2"></path><path d="M8.5 11c0 2 1.5 3.5 3.5 3.5s3.5-1.5 3.5-3.5" stroke-width="2.2"></path><path d="M5 20.5a7 7 0 0 1 14 0"></path></svg>`;
+        case 'female1':
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 100%; height: 100%; display: block;"><circle cx="12" cy="10" r="4"></circle><path d="M7.5 9c0-3.5 2.5-4.5 4.5-4.5s4.5 1 4.5 4.5v5.5c0 .5-.5 1.5-1 1.5s-1-1-1-1.5V11" stroke-width="2.2"></path><path d="M7.5 9v5.5c0 .5.5 1.5 1 1.5s1-1 1-1.5V11" stroke-width="2.2"></path><path d="M5 20a7 7 0 0 1 14 0"></path></svg>`;
+        case 'female2':
+            return `<svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="width: 100%; height: 100%; display: block;"><circle cx="12" cy="4.5" r="2" stroke-width="2.2"></circle><circle cx="12" cy="11" r="4"></circle><path d="M8 9.5c1-1 2-1.5 4-1.5s3 .5 4 1.5" stroke-width="2.2"></path><circle cx="7.5" cy="12" r="0.8" fill="currentColor"></circle><circle cx="16.5" cy="12" r="0.8" fill="currentColor"></circle><path d="M5 20.5a7 7 0 0 1 14 0"></path><path d="M10 16.5a2 2 0 0 0 4 0"></path></svg>`;
+        default:
+            return '';
+    }
+}
+
+function applyAvatarToElement(element, photoURL, initials = 'U') {
+    if (!element) return;
+    
+    let avatarKey = '';
+    let bgColor = '';
+    
+    if (photoURL && photoURL.includes('|')) {
+        const parts = photoURL.split('|');
+        avatarKey = parts[0];
+        bgColor = parts[1];
+    }
+    
+    if (avatarKey && bgColor) {
+        element.style.backgroundColor = bgColor;
+        element.style.color = '#ffffff';
+        element.innerHTML = getAvatarSvg(avatarKey, '#ffffff');
+        // Quitar estilos de texto
+        element.style.fontSize = '0';
+        element.style.lineHeight = '0';
+        element.style.padding = '5px'; // Dar espacio interno para que el SVG no toque los bordes
+        element.style.boxSizing = 'border-box';
     } else {
-        // Restaurar botón de login (Escritorio)
-        if (desktopContainer) {
-            desktopContainer.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">Iniciar Sesión</button>`;
-            desktopContainer.querySelector('.btn-login-trigger').addEventListener('click', openModalFn);
-        }
-
-        // Restaurar botón de login (Móvil)
-        if (mobileContainer) {
-            mobileContainer.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">Acceder</button>`;
-            mobileContainer.querySelector('.btn-login-trigger').addEventListener('click', openModalFn);
-        }
+        // Restaurar valores por defecto (Inicial)
+        element.style.backgroundColor = '';
+        element.style.color = '';
+        element.style.fontSize = '';
+        element.style.lineHeight = '';
+        element.style.padding = '';
+        element.style.boxSizing = '';
+        element.textContent = initials;
     }
 }
 
@@ -1543,6 +1581,70 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const logoutCancelBtn = confirmLogoutModal.querySelector('#confirm-logout-no');
     const logoutYesBtn = confirmLogoutModal.querySelector('#confirm-logout-yes');
 
+    // Avatar Customizer Elements
+    const saveAvatarBtn = profileModal.querySelector('#profile-save-avatar-btn');
+    const avatarOptionBtns = profileModal.querySelectorAll('.avatar-option-btn');
+    const colorOptionBtns = profileModal.querySelectorAll('.color-option-btn');
+
+    let selectedAvatar = '';
+    let selectedColor = '';
+
+    avatarOptionBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            avatarOptionBtns.forEach(b => {
+                b.style.borderColor = 'rgba(255,255,255,0.1)';
+                b.style.background = 'rgba(255,255,255,0.05)';
+            });
+            btn.style.borderColor = 'var(--cyan)';
+            btn.style.background = 'rgba(0, 173, 181, 0.1)';
+            selectedAvatar = btn.getAttribute('data-avatar');
+        });
+    });
+
+    colorOptionBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            colorOptionBtns.forEach(b => {
+                b.style.transform = 'scale(1)';
+                b.style.borderColor = 'transparent';
+            });
+            btn.style.transform = 'scale(1.2)';
+            btn.style.borderColor = '#ffffff';
+            selectedColor = btn.getAttribute('data-color');
+        });
+    });
+
+    function setSelectedAvatarUI(photoURL) {
+        let currentAvatar = '';
+        let currentColor = '';
+        if (photoURL && photoURL.includes('|')) {
+            const parts = photoURL.split('|');
+            currentAvatar = parts[0];
+            currentColor = parts[1];
+        }
+        
+        avatarOptionBtns.forEach(b => {
+            if (b.getAttribute('data-avatar') === currentAvatar) {
+                b.style.borderColor = 'var(--cyan)';
+                b.style.background = 'rgba(0, 173, 181, 0.1)';
+                selectedAvatar = currentAvatar;
+            } else {
+                b.style.borderColor = 'rgba(255,255,255,0.1)';
+                b.style.background = 'rgba(255,255,255,0.05)';
+            }
+        });
+
+        colorOptionBtns.forEach(b => {
+            if (b.getAttribute('data-color') === currentColor) {
+                b.style.transform = 'scale(1.2)';
+                b.style.borderColor = '#ffffff';
+                selectedColor = currentColor;
+            } else {
+                b.style.transform = 'scale(1)';
+                b.style.borderColor = 'transparent';
+            }
+        });
+    }
+
     // Funciones del modal de Perfil
     function openProfile() {
         profileModal.classList.add('active');
@@ -1615,6 +1717,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
 
     window.openProfileModal = openProfile;
     window.openConfirmLogoutModal = openConfirmLogout;
+    window.setSelectedAvatarUI = setSelectedAvatarUI;
 
     return {
         inputName,
@@ -1631,7 +1734,11 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         openReauth,
         closeProfile,
         logoutYesBtn,
-        closeConfirmLogout
+        closeConfirmLogout,
+        saveAvatarBtn,
+        getSelectedAvatar: () => selectedAvatar,
+        getSelectedColor: () => selectedColor,
+        setSelectedAvatarUI
     };
 }
 
@@ -1660,7 +1767,11 @@ function connectFirebaseToProfile(profileUI, fb) {
         openReauth, 
         closeProfile,
         logoutYesBtn,
-        closeConfirmLogout
+        closeConfirmLogout,
+        saveAvatarBtn,
+        getSelectedAvatar,
+        getSelectedColor,
+        setSelectedAvatarUI
     } = profileUI;
 
     // Vinculación de botón de salir desde modal de perfil - Manejado por delegador global
@@ -1705,6 +1816,50 @@ function connectFirebaseToProfile(profileUI, fb) {
                 showNotification('Error', 'No se pudo guardar el nombre.', 'error');
             } finally {
                 saveNameBtn.disabled = false;
+            }
+        });
+    }
+
+    // Al guardar avatar personalizado
+    if (saveAvatarBtn) {
+        saveAvatarBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const avatar = getSelectedAvatar();
+            const color = getSelectedColor();
+
+            if (!avatar || !color) {
+                showNotification('Personaliza tu Avatar', 'Por favor elige un avatar y un color de fondo.', 'warning');
+                return;
+            }
+
+            saveAvatarBtn.disabled = true;
+            try {
+                const newPhotoURL = `${avatar}|${color}`;
+                await updateProfile(user, { photoURL: newPhotoURL });
+                showNotification('Avatar Actualizado', 'Tu avatar personalizado ha sido guardado con éxito.', 'success');
+
+                // Actualizar la instancia local
+                window.firebaseUserInstance = auth.currentUser;
+
+                // Forzar actualización inmediata del avatar en el modal de perfil
+                const initials = (user.displayName || user.email).charAt(0).toUpperCase();
+                if (labelAvatar) {
+                    applyAvatarToElement(labelAvatar, newPhotoURL, initials);
+                }
+
+                // Forzar actualización inmediata en todos los encabezados del DOM
+                const headerBadges = document.querySelectorAll('.user-profile-badge');
+                headerBadges.forEach(badge => {
+                    applyAvatarToElement(badge, newPhotoURL, initials);
+                });
+
+            } catch (err) {
+                console.error("Error al guardar avatar:", err);
+                showNotification('Error', 'No se pudo guardar el avatar personalizado.', 'error');
+            } finally {
+                saveAvatarBtn.disabled = false;
             }
         });
     }
