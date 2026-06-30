@@ -58,16 +58,22 @@ function cargarMenuGlobal() {
         }
         
         let menuPath;
-        if (isSensunshop) {
-            if (depth === 2) {
-                menuPath = "../menu-sensunshop.html";
-            } else if (depth === 1) {
-                menuPath = "menu-sensunshop.html";
+        const isLocalFile = window.location.protocol === 'file:';
+        
+        if (isLocalFile) {
+            if (isSensunshop) {
+                if (depth === 2) {
+                    menuPath = "../menu-sensunshop.html";
+                } else if (depth === 1) {
+                    menuPath = "menu-sensunshop.html";
+                } else {
+                    menuPath = "sensunshop/menu-sensunshop.html";
+                }
             } else {
-                menuPath = "sensunshop/menu-sensunshop.html";
+                menuPath = "menu.html";
             }
         } else {
-            menuPath = "menu.html";
+            menuPath = isSensunshop ? "/sensunshop/menu-sensunshop.html" : "/menu.html";
         }
 
         fetch(menuPath)
@@ -225,18 +231,38 @@ function handleLinkClick(e) {
     const link = e.currentTarget;
     const destination = link.getAttribute('href');
     
-    // Aplicar solo a enlaces internos que no abran en pestaña nueva
-    if (destination && !destination.startsWith('http') && destination !== '#' && !link.target) {
-        e.preventDefault();
-        
-        // Comprobar si es la misma página resolviendo la URL completa
+    // Si no hay destino, o es una sección/ancla interna (empieza con #), o se abre en otra pestaña, no interferimos
+    if (!destination || destination.startsWith('http') || destination.startsWith('#') || link.target) {
+        return;
+    }
+    
+    try {
         const targetURL = new URL(destination, window.location.href);
-        if (window.location.pathname === targetURL.pathname) return;
+        const currentURL = new URL(window.location.href);
+        
+        // Comprobar si apunta al mismo documento/ruta
+        const isSamePage = currentURL.pathname === targetURL.pathname || 
+                           (currentURL.pathname.endsWith('/') && targetURL.pathname.endsWith('/index.html')) ||
+                           (currentURL.pathname.endsWith('/index.html') && targetURL.pathname.endsWith('/'));
 
+        if (isSamePage) {
+            // Si tiene hash (ej. #productos), permitimos el scroll nativo
+            if (targetURL.hash) {
+                return;
+            }
+            // Si es exactamente la misma URL sin hash, prevenimos recarga redundante
+            e.preventDefault();
+            return;
+        }
+
+        // Si es una página interna distinta, aplicamos transición
+        e.preventDefault();
         document.body.style.opacity = '0';
         setTimeout(() => {
             window.location.href = destination;
         }, TRANSITION_DURATION);
+    } catch (err) {
+        // En caso de error de análisis de URL, dejar comportamiento por defecto
     }
 }
 
@@ -278,9 +304,10 @@ window.addEventListener('pageshow', (event) => {
 });
 
 // ==========================================================================
-// SEGURIDAD Y DISUASIÓN DE CÓDIGO FUENTE
+// SEGURIDAD Y DISUASIÓN DE CÓDIGO FUENTE (Suavizada para evitar bloqueo táctil)
 // ==========================================================================
-document.addEventListener('contextmenu', e => e.preventDefault());
+// Nota: Bloquear contextmenu directamente interfiere con la usabilidad móvil y selección de texto.
+// Se ha removido el preventDefault del contextmenu para garantizar una experiencia táctil fluida.
 
 document.addEventListener('keydown', (e) => {
     if (
@@ -1097,44 +1124,50 @@ function initThemeToggle() {
 // SISTEMA DE AUTENTICACIÓN (LOGIN, LOGOUT, REGISTRO CON FIREBASE)
 // ==========================================================================
 function initAuthentication(depth) {
-    const prefix = depth === 2 ? '../../' : depth === 1 ? '../' : '';
-    const modalPath = prefix + 'partials/auth-modal.html';
-    const configPath = (depth === 2 ? '../../' : depth === 1 ? '../' : './') + 'firebase-config.js';
+    const isLocalFile = window.location.protocol === 'file:';
+    const prefix = isLocalFile ? (depth === 2 ? '../../' : depth === 1 ? '../' : '') : '';
+    const modalPath = isLocalFile ? (prefix + 'partials/auth-modal.html') : '/partials/auth-modal.html';
+    const configPath = isLocalFile ? (prefix + 'firebase-config.js') : '/firebase-config.js';
+
+    console.log("[Auth Debug] initAuthentication started. modalPath:", modalPath, "configPath:", configPath);
 
     // 1. Cargar el modal HTML dinámicamente
     fetch(modalPath)
         .then(response => {
+            console.log("[Auth Debug] fetch response status:", response.status);
             if (!response.ok) throw new Error("No se pudo cargar el modal de autenticación");
             return response.text();
         })
         .then(async (html) => {
+            console.log("[Auth Debug] modal HTML fetched successfully.");
             // Insertar el modal al final del body
             const wrapper = document.createElement('div');
             wrapper.innerHTML = html;
-            const authModal = wrapper.firstElementChild;
-            document.body.appendChild(authModal);
+            const authModal = wrapper.querySelector('#auth-modal');
+            if (authModal) {
+                document.body.appendChild(authModal);
+                console.log("[Auth Debug] authModal appended to body:", authModal);
 
-            // Importar dinámicamente la configuración de Firebase
-            try {
-                const fb = await import(configPath);
-                setupAuthFlow(authModal, fb);
-            } catch (err) {
-                console.error("Error al importar Firebase en el cliente:", err);
+                // Inicializar la interfaz del modal (Abrir, cerrar, pestañas) de inmediato
+                const authUI = setupAuthUI(authModal);
+
+                // Importar dinámicamente la configuración de Firebase
+                try {
+                    console.log("[Auth Debug] importing firebase config from:", configPath);
+                    const fb = await import(configPath);
+                    console.log("[Auth Debug] firebase config imported successfully.");
+                    connectFirebaseToAuth(authUI, fb);
+                } catch (err) {
+                    console.error("[Auth Debug] Error al importar Firebase en el cliente:", err);
+                }
+            } else {
+                console.error("[Auth Debug] No se encontró #auth-modal en el HTML cargado. HTML recibido:", html);
             }
         })
-        .catch(err => console.error("Error al inicializar el sistema de autenticación:", err));
+        .catch(err => console.error("[Auth Debug] Error al inicializar el sistema de autenticación:", err));
 }
 
-function setupAuthFlow(authModal, fb) {
-    const { 
-        auth, 
-        signInWithEmailAndPassword, 
-        createUserWithEmailAndPassword, 
-        signOut, 
-        updateProfile,
-        onAuthStateChanged 
-    } = fb;
-
+function setupAuthUI(authModal) {
     const authForm = authModal.querySelector('#auth-form');
     const authTitle = authModal.querySelector('#auth-title');
     const authSubtitle = authModal.querySelector('#auth-subtitle');
@@ -1152,9 +1185,11 @@ function setupAuthFlow(authModal, fb) {
 
     // Control del modal
     function openModal() {
-        errorMsg.style.display = 'none';
-        errorMsg.textContent = '';
-        authForm.reset();
+        if (errorMsg) {
+            errorMsg.style.display = 'none';
+            errorMsg.textContent = '';
+        }
+        if (authForm) authForm.reset();
         switchMode('login');
         authModal.removeAttribute('style');
         authModal.classList.add('active');
@@ -1167,34 +1202,62 @@ function setupAuthFlow(authModal, fb) {
     // Cambiar entre Login y Registro
     function switchMode(mode) {
         currentMode = mode;
-        errorMsg.style.display = 'none';
+        if (errorMsg) errorMsg.style.display = 'none';
         
         if (mode === 'login') {
-            tabLogin.classList.add('active');
-            tabRegister.classList.remove('active');
-            authTitle.textContent = 'Ingresa a tu cuenta';
-            authSubtitle.textContent = 'Accede a todas las funciones de Multi Ideas Sv';
-            groupName.style.display = 'none';
-            inputName.removeAttribute('required');
-            submitBtn.textContent = 'Ingresar';
+            if (tabLogin) tabLogin.classList.add('active');
+            if (tabRegister) tabRegister.classList.remove('active');
+            if (authTitle) authTitle.textContent = 'Ingresa a tu cuenta';
+            if (authSubtitle) authSubtitle.textContent = 'Accede a todas las funciones de Multi Ideas Sv';
+            if (groupName) groupName.style.display = 'none';
+            if (inputName) inputName.removeAttribute('required');
+            if (submitBtn) submitBtn.textContent = 'Ingresar';
         } else {
-            tabLogin.classList.remove('active');
-            tabRegister.classList.add('active');
-            authTitle.textContent = 'Crea tu cuenta';
-            authSubtitle.textContent = 'Regístrate gratis para personalizar tu experiencia';
-            groupName.style.display = 'flex';
-            inputName.setAttribute('required', 'true');
-            submitBtn.textContent = 'Registrarse';
+            if (tabLogin) tabLogin.classList.remove('active');
+            if (tabRegister) tabRegister.classList.add('active');
+            if (authTitle) authTitle.textContent = 'Crea tu cuenta';
+            if (authSubtitle) authSubtitle.textContent = 'Regístrate gratis para personalizar tu experiencia';
+            if (groupName) groupName.style.display = 'flex';
+            if (inputName) inputName.setAttribute('required', 'true');
+            if (submitBtn) submitBtn.textContent = 'Registrarse';
         }
     }
 
     // Listeners del modal
-    tabLogin.addEventListener('click', () => switchMode('login'));
-    tabRegister.addEventListener('click', () => switchMode('register'));
-    closeBtn.addEventListener('click', closeModal);
+    if (tabLogin) tabLogin.addEventListener('click', () => switchMode('login'));
+    if (tabRegister) tabRegister.addEventListener('click', () => switchMode('register'));
+    if (closeBtn) closeBtn.addEventListener('click', closeModal);
     authModal.addEventListener('click', (e) => {
         if (e.target === authModal) closeModal();
     });
+
+    // Exportar openModal globalmente de inmediato
+    console.log("[Auth Debug] setupAuthUI initialized. Exporting openModal to window.openAuthModal.");
+    window.openAuthModal = openModal;
+
+    return {
+        authForm,
+        inputEmail,
+        inputPassword,
+        inputName,
+        errorMsg,
+        submitBtn,
+        closeModal,
+        getCurrentMode: () => currentMode
+    };
+}
+
+function connectFirebaseToAuth(authUI, fb) {
+    const { 
+        auth, 
+        signInWithEmailAndPassword, 
+        createUserWithEmailAndPassword, 
+        signOut, 
+        updateProfile,
+        onAuthStateChanged 
+    } = fb;
+
+    const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, getCurrentMode } = authUI;
 
     // Mapeo de errores de Firebase Auth a español amigable
     function getFriendlyErrorMessage(code) {
@@ -1219,40 +1282,65 @@ function setupAuthFlow(authModal, fb) {
     }
 
     // Formulario de login/registro
-    authForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        errorMsg.style.display = 'none';
-        errorMsg.textContent = '';
-        submitBtn.disabled = true;
-        
-        const email = inputEmail.value.trim();
-        const password = inputPassword.value;
-        const displayName = inputName.value.trim();
-
-        try {
-            if (currentMode === 'login') {
-                await signInWithEmailAndPassword(auth, email, password);
-            } else {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-                if (displayName) {
-                    await updateProfile(userCredential.user, { displayName });
-                }
+    if (authForm) {
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (errorMsg) {
+                errorMsg.style.display = 'none';
+                errorMsg.textContent = '';
             }
-            closeModal();
-        } catch (error) {
-            console.error("Error de autenticación:", error);
-            errorMsg.textContent = getFriendlyErrorMessage(error.code);
-            errorMsg.style.display = 'block';
-        } finally {
-            submitBtn.disabled = false;
-        }
-    });
+            if (submitBtn) submitBtn.disabled = true;
+            
+            const email = inputEmail ? inputEmail.value.trim() : '';
+            const password = inputPassword ? inputPassword.value : '';
+            const displayName = inputName ? inputName.value.trim() : '';
+            const currentMode = getCurrentMode();
+
+            try {
+                if (currentMode === 'login') {
+                    await signInWithEmailAndPassword(auth, email, password);
+                    showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv!', 'success');
+                } else {
+                    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+                    if (displayName) {
+                        await updateProfile(userCredential.user, { displayName });
+                    }
+                    showNotification('Registro Completado', '¡Tu cuenta ha sido creada con éxito!', 'success');
+                }
+                closeModal();
+            } catch (error) {
+                console.error("Error de autenticación:", error);
+                if (errorMsg) {
+                    errorMsg.textContent = getFriendlyErrorMessage(error.code);
+                    errorMsg.style.display = 'block';
+                }
+                showNotification('Error de Autenticación', getFriendlyErrorMessage(error.code), 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        });
+    }
 
     // Escuchar cambios de estado en la sesión
     onAuthStateChanged(auth, (user) => {
-        updateHeaderUI(user, openModal, signOut, auth);
+        updateHeaderUI(user, window.openAuthModal, signOut, auth);
     });
 }
+
+// Escuchador global de clics para abrir la ventana emergente de autenticación
+document.addEventListener('click', (e) => {
+    const trigger = e.target.closest('.btn-login-trigger') || e.target.closest('.btn-auth-trigger');
+    console.log("[Auth Debug] Document clicked. Target:", e.target, "Matched trigger:", trigger);
+    if (trigger) {
+        console.log("[Auth Debug] Match found. window.openAuthModal type:", typeof window.openAuthModal);
+        if (typeof window.openAuthModal === 'function') {
+            e.preventDefault();
+            window.openAuthModal();
+        } else {
+            console.warn("[Auth Debug] window.openAuthModal is not a function!");
+        }
+    }
+});
 
 function updateHeaderUI(user, openModalFn, signOutFn, auth) {
     const desktopContainer = document.getElementById('auth-container-desktop');
@@ -1272,7 +1360,14 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
                 </div>
             `;
             document.getElementById('btn-logout-desktop').addEventListener('click', () => {
-                signOutFn(auth).catch(err => console.error("Error al cerrar sesión:", err));
+                signOutFn(auth)
+                    .then(() => {
+                        showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
+                    })
+                    .catch(err => {
+                        console.error("Error al cerrar sesión:", err);
+                        showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
+                    });
             });
         }
 
@@ -1285,7 +1380,14 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
                 </div>
             `;
             document.getElementById('btn-logout-mobile').addEventListener('click', () => {
-                signOutFn(auth).catch(err => console.error("Error al cerrar sesión:", err));
+                signOutFn(auth)
+                    .then(() => {
+                        showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
+                    })
+                    .catch(err => {
+                        console.error("Error al cerrar sesión:", err);
+                        showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
+                    });
             });
         }
     } else {
@@ -1301,4 +1403,61 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
             mobileContainer.querySelector('.btn-login-trigger').addEventListener('click', openModalFn);
         }
     }
+}
+
+// Función del Sistema de Notificaciones (Toasts) generales - PREMIUM GLASS
+function showNotification(title, message, type = 'success') {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    
+    // Configurar icono SVG e indicador de borde según el tipo
+    let iconSvg = '';
+    let iconColor = 'var(--cyan)'; // Por defecto hereda el color de marca (Cian en Multi, Naranja en Sensun)
+    
+    if (type === 'success') {
+        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="color: var(--cyan);"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    } else if (type === 'error') {
+        iconColor = '#e74c3c';
+        toast.style.borderLeftColor = iconColor;
+        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+    } else if (type === 'warning') {
+        iconColor = '#f39c12';
+        toast.style.borderLeftColor = iconColor;
+        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+    } else if (type === 'info') {
+        iconColor = '#3498db';
+        toast.style.borderLeftColor = iconColor;
+        iconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="${iconColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>`;
+    }
+
+    toast.innerHTML = `
+        <div class="toast-icon-wrapper">
+            ${iconSvg}
+        </div>
+        <div class="toast-content">
+            <div class="toast-title">${title}</div>
+            <div class="toast-message">${message}</div>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Provocar reflujo para disparar transición CSS
+    toast.offsetHeight;
+    toast.classList.add('show');
+
+    // Retirar la notificación automáticamente tras 4 segundos
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            toast.remove();
+        }, 400);
+    }, 4000);
 }
