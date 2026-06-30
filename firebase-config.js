@@ -9,7 +9,10 @@ import {
     createUserWithEmailAndPassword, 
     signOut, 
     updateProfile,
-    onAuthStateChanged 
+    onAuthStateChanged,
+    deleteUser,
+    EmailAuthProvider,
+    reauthenticateWithCredential
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -40,5 +43,8 @@ export {
     createUserWithEmailAndPassword, 
     signOut, 
     updateProfile,
-    onAuthStateChanged 
+    onAuthStateChanged,
+    deleteUser,
+    EmailAuthProvider,
+    reauthenticateWithCredential
 };

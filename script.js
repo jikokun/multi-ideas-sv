@@ -1126,45 +1126,63 @@ function initThemeToggle() {
 function initAuthentication(depth) {
     const isLocalFile = window.location.protocol === 'file:';
     const prefix = isLocalFile ? (depth === 2 ? '../../' : depth === 1 ? '../' : '') : '';
-    const modalPath = isLocalFile ? (prefix + 'partials/auth-modal.html') : '/partials/auth-modal.html';
-    const configPath = isLocalFile ? (prefix + 'firebase-config.js') : '/firebase-config.js';
+    const authModalPath = isLocalFile ? (prefix + 'partials/auth-modal.html') : '/partials/auth-modal.html';
+    const profileModalPath = isLocalFile ? (prefix + 'partials/profile-modal.html') : '/partials/profile-modal.html';
+    // Agregar cache-buster para evitar que el navegador use una versión vieja en cache
+    const configPath = isLocalFile ? (prefix + 'firebase-config.js') : ('/firebase-config.js?v=' + Date.now());
 
-    console.log("[Auth Debug] initAuthentication started. modalPath:", modalPath, "configPath:", configPath);
+    console.log("[Auth Debug] initAuthentication started. configPath:", configPath);
 
-    // 1. Cargar el modal HTML dinámicamente
-    fetch(modalPath)
-        .then(response => {
-            console.log("[Auth Debug] fetch response status:", response.status);
-            if (!response.ok) throw new Error("No se pudo cargar el modal de autenticación");
-            return response.text();
+    // Cargar los modales de autenticación y perfil dinámicamente de forma concurrente
+    Promise.all([
+        fetch(authModalPath).then(res => {
+            if (!res.ok) throw new Error("No se pudo cargar el modal de autenticación");
+            return res.text();
+        }),
+        fetch(profileModalPath).then(res => {
+            if (!res.ok) throw new Error("No se pudo cargar el modal de perfil");
+            return res.text();
         })
-        .then(async (html) => {
-            console.log("[Auth Debug] modal HTML fetched successfully.");
-            // Insertar el modal al final del body
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = html;
-            const authModal = wrapper.querySelector('#auth-modal');
-            if (authModal) {
-                document.body.appendChild(authModal);
-                console.log("[Auth Debug] authModal appended to body:", authModal);
+    ])
+    .then(async ([authHtml, profileHtml]) => {
+        console.log("[Auth Debug] Modales cargados exitosamente.");
 
-                // Inicializar la interfaz del modal (Abrir, cerrar, pestañas) de inmediato
-                const authUI = setupAuthUI(authModal);
+        // Inyectar modal de Auth
+        const authWrapper = document.createElement('div');
+        authWrapper.innerHTML = authHtml;
+        const authModal = authWrapper.querySelector('#auth-modal');
+        if (authModal) {
+            document.body.appendChild(authModal);
+        }
 
-                // Importar dinámicamente la configuración de Firebase
-                try {
-                    console.log("[Auth Debug] importing firebase config from:", configPath);
-                    const fb = await import(configPath);
-                    console.log("[Auth Debug] firebase config imported successfully.");
-                    connectFirebaseToAuth(authUI, fb);
-                } catch (err) {
-                    console.error("[Auth Debug] Error al importar Firebase en el cliente:", err);
-                }
-            } else {
-                console.error("[Auth Debug] No se encontró #auth-modal en el HTML cargado. HTML recibido:", html);
-            }
-        })
-        .catch(err => console.error("[Auth Debug] Error al inicializar el sistema de autenticación:", err));
+        // Inyectar modal de Perfil y confirmación de eliminación/cierre de sesión
+        const profileWrapper = document.createElement('div');
+        profileWrapper.innerHTML = profileHtml;
+        const profileModal = profileWrapper.querySelector('#profile-modal');
+        const confirmDeleteModal = profileWrapper.querySelector('#confirm-delete-modal');
+        const reauthModal = profileWrapper.querySelector('#reauth-modal');
+        const confirmLogoutModal = profileWrapper.querySelector('#confirm-logout-modal');
+        
+        if (profileModal) document.body.appendChild(profileModal);
+        if (confirmDeleteModal) document.body.appendChild(confirmDeleteModal);
+        if (reauthModal) document.body.appendChild(reauthModal);
+        if (confirmLogoutModal) document.body.appendChild(confirmLogoutModal);
+
+        // Inicializar interfaces de usuario de inmediato (síncronas)
+        const authUI = setupAuthUI(authModal);
+        const profileUI = setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLogoutModal);
+
+        // Importar dinámicamente la configuración de Firebase
+        try {
+            const fb = await import(configPath);
+            console.log("[Auth Debug] Firebase config loaded. Exported keys:", Object.keys(fb));
+            connectFirebaseToAuth(authUI, fb);
+            connectFirebaseToProfile(profileUI, fb);
+        } catch (err) {
+            console.error("[Auth Debug] Error al importar Firebase en el cliente:", err);
+        }
+    })
+    .catch(err => console.error("[Auth Debug] Error al inicializar el sistema de autenticación/perfil:", err));
 }
 
 function setupAuthUI(authModal) {
@@ -1321,23 +1339,77 @@ function connectFirebaseToAuth(authUI, fb) {
         });
     }
 
+    window.firebaseSignOut = signOut;
+    window.firebaseAuth = auth;
+
     // Escuchar cambios de estado en la sesión
     onAuthStateChanged(auth, (user) => {
+        window.firebaseUserInstance = user;
         updateHeaderUI(user, window.openAuthModal, signOut, auth);
     });
 }
 
-// Escuchador global de clics para abrir la ventana emergente de autenticación
+// Escuchador global de clics para abrir la ventana emergente de autenticación, perfil o cerrar sesión
 document.addEventListener('click', (e) => {
+    console.log("[Auth Debug] Click detectado en:", e.target);
+    
+    // 1. Trigger de Autenticación (Iniciar Sesión)
     const trigger = e.target.closest('.btn-login-trigger') || e.target.closest('.btn-auth-trigger');
-    console.log("[Auth Debug] Document clicked. Target:", e.target, "Matched trigger:", trigger);
     if (trigger) {
-        console.log("[Auth Debug] Match found. window.openAuthModal type:", typeof window.openAuthModal);
+        console.log("[Auth Debug] Click en trigger de auth.");
+        e.preventDefault();
         if (typeof window.openAuthModal === 'function') {
-            e.preventDefault();
             window.openAuthModal();
         } else {
-            console.warn("[Auth Debug] window.openAuthModal is not a function!");
+            console.warn("[Auth Debug] window.openAuthModal no es una función!");
+        }
+        return;
+    }
+
+    // 2. Trigger para Cerrar Sesión (Cualquiera de los botones)
+    const logoutBtn = e.target.closest('#btn-logout-desktop') || 
+                      e.target.closest('#btn-logout-mobile') || 
+                      e.target.closest('#profile-logout-btn') ||
+                      e.target.closest('.btn-logout-round') ||
+                      e.target.closest('.btn-logout');
+                      
+    if (logoutBtn) {
+        console.log("[Auth Debug] Click en botón de cerrar sesión detectado:", logoutBtn);
+        e.preventDefault();
+        
+        // Cerrar modal de perfil si estuviera abierto para evitar superposición
+        const profileModal = document.querySelector('#profile-modal');
+        if (profileModal) profileModal.classList.remove('active');
+        
+        // Abrir modal personalizado de confirmación de cierre de sesión
+        if (typeof window.openConfirmLogoutModal === 'function') {
+            window.openConfirmLogoutModal();
+        } else {
+            console.warn("[Auth Debug] window.openConfirmLogoutModal no está disponible.");
+        }
+        return;
+    }
+
+    // 3. Trigger para abrir el perfil del usuario al hacer clic en su insignia o nombre (excluyendo el botón de logout)
+    const profileTrigger = e.target.closest('.user-profile-badge') || e.target.closest('.user-profile-email');
+    if (profileTrigger) {
+        console.log("[Auth Debug] Click en badge o email del perfil.");
+        if (e.target.closest('#btn-logout-desktop') || e.target.closest('#btn-logout-mobile')) {
+            return;
+        }
+        if (typeof window.openProfileModal === 'function') {
+            e.preventDefault();
+            const user = window.firebaseUserInstance;
+            if (user) {
+                const inputName = document.querySelector('#profile-name-input');
+                const labelEmail = document.querySelector('#profile-user-email');
+                const labelAvatar = document.querySelector('#profile-avatar-char');
+                
+                if (inputName) inputName.value = user.displayName || user.email.split('@')[0];
+                if (labelEmail) labelEmail.textContent = user.email;
+                if (labelAvatar) labelAvatar.textContent = (user.displayName || user.email).charAt(0).toUpperCase();
+            }
+            window.openProfileModal();
         }
     }
 });
@@ -1356,19 +1428,11 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
                 <div class="user-profile-menu">
                     <div class="user-profile-badge" title="${user.email}">${initials}</div>
                     <span class="user-profile-email" title="${user.email}">${displayName}</span>
-                    <button class="btn-logout" id="btn-logout-desktop">Salir</button>
+                    <button class="btn-logout-round" id="btn-logout-desktop" title="Cerrar Sesión">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                    </button>
                 </div>
             `;
-            document.getElementById('btn-logout-desktop').addEventListener('click', () => {
-                signOutFn(auth)
-                    .then(() => {
-                        showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
-                    })
-                    .catch(err => {
-                        console.error("Error al cerrar sesión:", err);
-                        showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
-                    });
-            });
         }
 
         // Actualizar UI de Móvil
@@ -1376,19 +1440,11 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
             mobileContainer.innerHTML = `
                 <div class="user-profile-menu">
                     <div class="user-profile-badge" title="${user.email}">${initials}</div>
-                    <button class="btn-logout" id="btn-logout-mobile">Salir</button>
+                    <button class="btn-logout-round" id="btn-logout-mobile" title="Cerrar Sesión">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                    </button>
                 </div>
             `;
-            document.getElementById('btn-logout-mobile').addEventListener('click', () => {
-                signOutFn(auth)
-                    .then(() => {
-                        showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
-                    })
-                    .catch(err => {
-                        console.error("Error al cerrar sesión:", err);
-                        showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
-                    });
-            });
         }
     } else {
         // Restaurar botón de login (Escritorio)
@@ -1460,4 +1516,261 @@ function showNotification(title, message, type = 'success') {
             toast.remove();
         }, 400);
     }, 4000);
+}
+
+// ==========================================================================
+// SISTEMA DE PERFIL DE USUARIO Y ELIMINACIÓN DE CUENTA (FIREBASE)
+// ==========================================================================
+function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLogoutModal) {
+    const inputName = profileModal.querySelector('#profile-name-input');
+    const saveNameBtn = profileModal.querySelector('#profile-save-name-btn');
+    const labelEmail = profileModal.querySelector('#profile-user-email');
+    const labelAvatar = profileModal.querySelector('#profile-avatar-char');
+    const closeBtn = profileModal.querySelector('#profile-modal-close');
+    const logoutBtn = profileModal.querySelector('#profile-logout-btn');
+    const deleteBtn = profileModal.querySelector('#profile-delete-btn');
+
+    const confirmCloseBtn = confirmDeleteModal.querySelector('#confirm-delete-close');
+    const confirmCancelBtn = confirmDeleteModal.querySelector('#confirm-delete-no');
+    const confirmYesBtn = confirmDeleteModal.querySelector('#confirm-delete-yes');
+
+    const reauthForm = reauthModal.querySelector('#reauth-form');
+    const reauthPassword = reauthModal.querySelector('#reauth-password-input');
+    const reauthError = reauthModal.querySelector('#reauth-error-msg');
+    const reauthClose = reauthModal.querySelector('#reauth-modal-close');
+
+    const logoutCloseBtn = confirmLogoutModal.querySelector('#confirm-logout-close');
+    const logoutCancelBtn = confirmLogoutModal.querySelector('#confirm-logout-no');
+    const logoutYesBtn = confirmLogoutModal.querySelector('#confirm-logout-yes');
+
+    // Funciones del modal de Perfil
+    function openProfile() {
+        profileModal.classList.add('active');
+    }
+
+    function closeProfile() {
+        profileModal.classList.remove('active');
+    }
+
+    if (closeBtn) closeBtn.addEventListener('click', closeProfile);
+    profileModal.addEventListener('click', (e) => {
+        if (e.target === profileModal) closeProfile();
+    });
+
+    // Modal de Confirmación de Eliminación
+    function openConfirm() {
+        confirmDeleteModal.classList.add('active');
+    }
+
+    function closeConfirm() {
+        confirmDeleteModal.classList.remove('active');
+    }
+
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', () => {
+            closeProfile();
+            openConfirm();
+        });
+    }
+
+    if (confirmCloseBtn) confirmCloseBtn.addEventListener('click', closeConfirm);
+    if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeConfirm);
+    confirmDeleteModal.addEventListener('click', (e) => {
+        if (e.target === confirmDeleteModal) closeConfirm();
+    });
+
+    // Modal de Reautenticación
+    function openReauth() {
+        if (reauthError) {
+            reauthError.style.display = 'none';
+            reauthError.textContent = '';
+        }
+        if (reauthForm) reauthForm.reset();
+        reauthModal.classList.add('active');
+    }
+
+    function closeReauth() {
+        reauthModal.classList.remove('active');
+    }
+
+    if (reauthClose) reauthClose.addEventListener('click', closeReauth);
+    reauthModal.addEventListener('click', (e) => {
+        if (e.target === reauthModal) closeReauth();
+    });
+
+    // Modal de Confirmación de Cierre de Sesión
+    function openConfirmLogout() {
+        confirmLogoutModal.classList.add('active');
+    }
+
+    function closeConfirmLogout() {
+        confirmLogoutModal.classList.remove('active');
+    }
+
+    if (logoutCloseBtn) logoutCloseBtn.addEventListener('click', closeConfirmLogout);
+    if (logoutCancelBtn) logoutCancelBtn.addEventListener('click', closeConfirmLogout);
+    confirmLogoutModal.addEventListener('click', (e) => {
+        if (e.target === confirmLogoutModal) closeConfirmLogout();
+    });
+
+    window.openProfileModal = openProfile;
+    window.openConfirmLogoutModal = openConfirmLogout;
+
+    return {
+        inputName,
+        saveNameBtn,
+        labelEmail,
+        labelAvatar,
+        logoutBtn,
+        confirmYesBtn,
+        reauthForm,
+        reauthPassword,
+        reauthError,
+        closeConfirm,
+        closeReauth,
+        openReauth,
+        closeProfile,
+        logoutYesBtn,
+        closeConfirmLogout
+    };
+}
+
+function connectFirebaseToProfile(profileUI, fb) {
+    const { 
+        auth, 
+        updateProfile, 
+        deleteUser, 
+        EmailAuthProvider, 
+        reauthenticateWithCredential,
+        signOut
+    } = fb;
+
+    const { 
+        inputName, 
+        saveNameBtn, 
+        labelEmail, 
+        labelAvatar, 
+        logoutBtn, 
+        confirmYesBtn, 
+        reauthForm, 
+        reauthPassword, 
+        reauthError, 
+        closeConfirm, 
+        closeReauth, 
+        openReauth, 
+        closeProfile,
+        logoutYesBtn,
+        closeConfirmLogout
+    } = profileUI;
+
+    // Vinculación de botón de salir desde modal de perfil - Manejado por delegador global
+
+    // Al guardar nombre
+    if (saveNameBtn) {
+        saveNameBtn.addEventListener('click', async () => {
+            const user = auth.currentUser;
+            if (!user) return;
+            
+            const newName = inputName.value.trim();
+            if (!newName) {
+                showNotification('Error', 'El nombre no puede estar vacío.', 'error');
+                return;
+            }
+
+            saveNameBtn.disabled = true;
+            try {
+                await updateProfile(user, { displayName: newName });
+                showNotification('Nombre Actualizado', 'Tu perfil ha sido modificado con éxito.', 'success');
+                
+                // Forzar actualización inmediata del encabezado e interfaz
+                const initials = newName.charAt(0).toUpperCase();
+                if (labelAvatar) labelAvatar.textContent = initials;
+                
+                // Actualizar la instancia local
+                window.firebaseUserInstance = auth.currentUser;
+                
+                // Buscar y actualizar elementos de perfil en el encabezado
+                const desktopEmail = document.querySelector('#auth-container-desktop .user-profile-email');
+                const mobileEmail = document.querySelector('#auth-container-mobile .user-profile-email');
+                const desktopBadge = document.querySelector('#auth-container-desktop .user-profile-badge');
+                const mobileBadge = document.querySelector('#auth-container-mobile .user-profile-badge');
+                
+                if (desktopEmail) desktopEmail.textContent = newName;
+                if (mobileEmail) mobileEmail.textContent = newName;
+                if (desktopBadge) desktopBadge.textContent = initials;
+                if (mobileBadge) mobileBadge.textContent = initials;
+
+            } catch (err) {
+                console.error("Error al actualizar perfil:", err);
+                showNotification('Error', 'No se pudo guardar el nombre.', 'error');
+            } finally {
+                saveNameBtn.disabled = false;
+            }
+        });
+    }
+
+    // Al confirmar salida en modal de cierre de sesión
+    if (logoutYesBtn) {
+        logoutYesBtn.addEventListener('click', () => {
+            if (typeof closeConfirmLogout === 'function') closeConfirmLogout();
+            signOut(auth)
+                .then(() => {
+                    showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
+                })
+                .catch(err => {
+                    console.error("Error al cerrar sesión:", err);
+                    showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
+                });
+        });
+    }
+
+    // Al hacer clic en confirmar eliminación
+    if (confirmYesBtn) {
+        confirmYesBtn.addEventListener('click', () => {
+            closeConfirm();
+            openReauth();
+        });
+    }
+
+    // Formulario de reautenticación para eliminar cuenta
+    if (reauthForm) {
+        reauthForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            if (!user) return;
+
+            const password = reauthPassword.value;
+            if (reauthError) {
+                reauthError.style.display = 'none';
+                reauthError.textContent = '';
+            }
+
+            try {
+                // Reautenticar
+                const credential = EmailAuthProvider.credential(user.email, password);
+                await reauthenticateWithCredential(user, credential);
+                
+                // Eliminar usuario
+                await deleteUser(user);
+                
+                closeReauth();
+                showNotification('Cuenta Eliminada', 'Tu cuenta ha sido dada de baja de forma definitiva.', 'info');
+            } catch (err) {
+                console.error("Error de eliminación:", err);
+                if (reauthError) {
+                    let msg = 'Contraseña incorrecta. Verifica tus datos.';
+                    if (err.code === 'auth/wrong-password') {
+                        msg = 'Contraseña incorrecta. Verifica tus datos.';
+                    } else if (err.code === 'auth/user-mismatch') {
+                        msg = 'El usuario no coincide.';
+                    } else {
+                        msg = 'Ocurrió un error inesperado al validar la identidad.';
+                    }
+                    reauthError.textContent = msg;
+                    reauthError.style.display = 'block';
+                }
+                showNotification('Error', 'No se pudo eliminar la cuenta.', 'error');
+            }
+        });
+    }
 }
