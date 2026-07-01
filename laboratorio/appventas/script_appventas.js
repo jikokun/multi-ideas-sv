@@ -63,8 +63,8 @@ async function loadData() {
                     logo: ''
                 };
             } else {
-                // Si no hay datos en la nube, migrar los de localStorage o dejar valores por defecto
-                const saved = localStorage.getItem('ventasProData');
+                // Si no hay datos en la nube, migrar los de localStorage específicos de este usuario o dejar valores por defecto
+                const saved = localStorage.getItem(`ventasProData_${currentUser.uid}`);
                 if (saved) {
                     store = JSON.parse(saved);
                     await saveData();
@@ -72,7 +72,7 @@ async function loadData() {
             }
         } catch (error) {
             console.error("Error al cargar datos de Firebase:", error);
-            const saved = localStorage.getItem('ventasProData');
+            const saved = localStorage.getItem(`ventasProData_${currentUser.uid}`);
             if (saved) store = JSON.parse(saved);
         }
     }
@@ -85,8 +85,8 @@ async function saveData() {
         } catch (error) {
             console.error("Error al guardar datos en Firebase:", error);
         }
+        localStorage.setItem(`ventasProData_${currentUser.uid}`, JSON.stringify(store));
     }
-    localStorage.setItem('ventasProData', JSON.stringify(store));
 }
 
 // ============================================
