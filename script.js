@@ -76,7 +76,10 @@ function cargarMenuGlobal() {
             menuPath = isSensunshop ? "/sensunshop/menu-sensunshop.html" : "/menu.html";
         }
 
-        fetch(menuPath)
+        // Add a timestamp cache-buster to force browser/server to bypass cache and load the latest file
+        const fetchUrl = isLocalFile ? menuPath : (menuPath + "?v=" + Date.now());
+
+        fetch(fetchUrl)
             .then(response => {
                 if (!response.ok) throw new Error("No se pudo obtener el archivo menu.html");
                 return response.text();
@@ -1562,6 +1565,16 @@ function showNotification(title, message, type = 'success') {
 // SISTEMA DE PERFIL DE USUARIO Y ELIMINACIÓN DE CUENTA (FIREBASE)
 // ==========================================================================
 function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLogoutModal) {
+    // If profileModal is not found, return a fallback object to prevent crashing
+    if (!profileModal) {
+        console.warn("[Profile UI] profileModal is missing");
+        return {
+            setSelectedAvatarUI: () => {},
+            getSelectedAvatar: () => '',
+            getSelectedColor: () => ''
+        };
+    }
+
     const inputName = profileModal.querySelector('#profile-name-input');
     const saveNameBtn = profileModal.querySelector('#profile-save-name-btn');
     const labelEmail = profileModal.querySelector('#profile-user-email');
@@ -1570,18 +1583,18 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const logoutBtn = profileModal.querySelector('#profile-logout-btn');
     const deleteBtn = profileModal.querySelector('#profile-delete-btn');
 
-    const confirmCloseBtn = confirmDeleteModal.querySelector('#confirm-delete-close');
-    const confirmCancelBtn = confirmDeleteModal.querySelector('#confirm-delete-no');
-    const confirmYesBtn = confirmDeleteModal.querySelector('#confirm-delete-yes');
+    const confirmCloseBtn = confirmDeleteModal ? confirmDeleteModal.querySelector('#confirm-delete-close') : null;
+    const confirmCancelBtn = confirmDeleteModal ? confirmDeleteModal.querySelector('#confirm-delete-no') : null;
+    const confirmYesBtn = confirmDeleteModal ? confirmDeleteModal.querySelector('#confirm-delete-yes') : null;
 
-    const reauthForm = reauthModal.querySelector('#reauth-form');
-    const reauthPassword = reauthModal.querySelector('#reauth-password-input');
-    const reauthError = reauthModal.querySelector('#reauth-error-msg');
-    const reauthClose = reauthModal.querySelector('#reauth-modal-close');
+    const reauthForm = reauthModal ? reauthModal.querySelector('#reauth-form') : null;
+    const reauthPassword = reauthModal ? reauthModal.querySelector('#reauth-password-input') : null;
+    const reauthError = reauthModal ? reauthModal.querySelector('#reauth-error-msg') : null;
+    const reauthClose = reauthModal ? reauthModal.querySelector('#reauth-modal-close') : null;
 
-    const logoutCloseBtn = confirmLogoutModal.querySelector('#confirm-logout-close');
-    const logoutCancelBtn = confirmLogoutModal.querySelector('#confirm-logout-no');
-    const logoutYesBtn = confirmLogoutModal.querySelector('#confirm-logout-yes');
+    const logoutCloseBtn = confirmLogoutModal ? confirmLogoutModal.querySelector('#confirm-logout-close') : null;
+    const logoutCancelBtn = confirmLogoutModal ? confirmLogoutModal.querySelector('#confirm-logout-no') : null;
+    const logoutYesBtn = confirmLogoutModal ? confirmLogoutModal.querySelector('#confirm-logout-yes') : null;
 
     // Avatar Customizer Elements
     const saveAvatarBtn = profileModal.querySelector('#profile-save-avatar-btn');
@@ -1654,13 +1667,15 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     if (btnEditMode) {
         btnEditMode.addEventListener('click', (e) => {
             e.preventDefault();
-            originalName = inputName.value;
-            inputName.removeAttribute('readonly');
-            inputName.style.pointerEvents = 'auto';
-            inputName.style.background = 'rgba(255,255,255,0.06)';
-            inputName.style.borderColor = 'rgba(255,255,255,0.15)';
-            inputName.focus();
-            inputName.select();
+            if (inputName) {
+                originalName = inputName.value;
+                inputName.removeAttribute('readonly');
+                inputName.style.pointerEvents = 'auto';
+                inputName.style.background = 'rgba(255,255,255,0.06)';
+                inputName.style.borderColor = 'rgba(255,255,255,0.15)';
+                inputName.focus();
+                inputName.select();
+            }
             
             btnEditMode.style.display = 'none';
             if (saveNameBtn) saveNameBtn.style.display = 'flex';
@@ -1683,7 +1698,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     if (btnCancelEdit) {
         btnCancelEdit.addEventListener('click', (e) => {
             e.preventDefault();
-            inputName.value = originalName;
+            if (inputName) inputName.value = originalName;
             resetEditState();
         });
     }
@@ -1705,11 +1720,11 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
 
     // Modal de Confirmación de Eliminación
     function openConfirm() {
-        confirmDeleteModal.classList.add('active');
+        if (confirmDeleteModal) confirmDeleteModal.classList.add('active');
     }
 
     function closeConfirm() {
-        confirmDeleteModal.classList.remove('active');
+        if (confirmDeleteModal) confirmDeleteModal.classList.remove('active');
     }
 
     if (deleteBtn) {
@@ -1721,9 +1736,11 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
 
     if (confirmCloseBtn) confirmCloseBtn.addEventListener('click', closeConfirm);
     if (confirmCancelBtn) confirmCancelBtn.addEventListener('click', closeConfirm);
-    confirmDeleteModal.addEventListener('click', (e) => {
-        if (e.target === confirmDeleteModal) closeConfirm();
-    });
+    if (confirmDeleteModal) {
+        confirmDeleteModal.addEventListener('click', (e) => {
+            if (e.target === confirmDeleteModal) closeConfirm();
+        });
+    }
 
     // Modal de Reautenticación
     function openReauth() {
@@ -1732,32 +1749,36 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
             reauthError.textContent = '';
         }
         if (reauthForm) reauthForm.reset();
-        reauthModal.classList.add('active');
+        if (reauthModal) reauthModal.classList.add('active');
     }
 
     function closeReauth() {
-        reauthModal.classList.remove('active');
+        if (reauthModal) reauthModal.classList.remove('active');
     }
 
     if (reauthClose) reauthClose.addEventListener('click', closeReauth);
-    reauthModal.addEventListener('click', (e) => {
-        if (e.target === reauthModal) closeReauth();
-    });
+    if (reauthModal) {
+        reauthModal.addEventListener('click', (e) => {
+            if (e.target === reauthModal) closeReauth();
+        });
+    }
 
     // Modal de Confirmación de Cierre de Sesión
     function openConfirmLogout() {
-        confirmLogoutModal.classList.add('active');
+        if (confirmLogoutModal) confirmLogoutModal.classList.add('active');
     }
 
     function closeConfirmLogout() {
-        confirmLogoutModal.classList.remove('active');
+        if (confirmLogoutModal) confirmLogoutModal.classList.remove('active');
     }
 
     if (logoutCloseBtn) logoutCloseBtn.addEventListener('click', closeConfirmLogout);
     if (logoutCancelBtn) logoutCancelBtn.addEventListener('click', closeConfirmLogout);
-    confirmLogoutModal.addEventListener('click', (e) => {
-        if (e.target === confirmLogoutModal) closeConfirmLogout();
-    });
+    if (confirmLogoutModal) {
+        confirmLogoutModal.addEventListener('click', (e) => {
+            if (e.target === confirmLogoutModal) closeConfirmLogout();
+        });
+    }
 
     window.openProfileModal = openProfile;
     window.openConfirmLogoutModal = openConfirmLogout;
