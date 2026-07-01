@@ -1598,7 +1598,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
                 b.style.background = 'rgba(255,255,255,0.05)';
             });
             btn.style.borderColor = 'var(--cyan)';
-            btn.style.background = 'rgba(0, 173, 181, 0.1)';
+            btn.style.background = 'rgba(var(--cyan-rgb, 0, 173, 181), 0.1)';
             selectedAvatar = btn.getAttribute('data-avatar');
         });
     });
@@ -1627,7 +1627,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         avatarOptionBtns.forEach(b => {
             if (b.getAttribute('data-avatar') === currentAvatar) {
                 b.style.borderColor = 'var(--cyan)';
-                b.style.background = 'rgba(0, 173, 181, 0.1)';
+                b.style.background = 'rgba(var(--cyan-rgb, 0, 173, 181), 0.1)';
                 selectedAvatar = currentAvatar;
             } else {
                 b.style.borderColor = 'rgba(255,255,255,0.1)';
@@ -1647,8 +1647,50 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         });
     }
 
+    const btnEditMode = profileModal.querySelector('#profile-btn-edit-mode');
+    const btnCancelEdit = profileModal.querySelector('#profile-btn-cancel-edit');
+    let originalName = '';
+
+    if (btnEditMode) {
+        btnEditMode.addEventListener('click', (e) => {
+            e.preventDefault();
+            originalName = inputName.value;
+            inputName.removeAttribute('readonly');
+            inputName.style.pointerEvents = 'auto';
+            inputName.style.background = 'rgba(255,255,255,0.06)';
+            inputName.style.borderColor = 'rgba(255,255,255,0.15)';
+            inputName.focus();
+            inputName.select();
+            
+            btnEditMode.style.display = 'none';
+            if (saveNameBtn) saveNameBtn.style.display = 'flex';
+            if (btnCancelEdit) btnCancelEdit.style.display = 'flex';
+        });
+    }
+
+    function resetEditState() {
+        if (inputName) {
+            inputName.setAttribute('readonly', 'true');
+            inputName.style.pointerEvents = 'none';
+            inputName.style.background = 'rgba(255,255,255,0.02)';
+            inputName.style.borderColor = 'rgba(255,255,255,0.05)';
+        }
+        if (btnEditMode) btnEditMode.style.display = 'flex';
+        if (saveNameBtn) saveNameBtn.style.display = 'none';
+        if (btnCancelEdit) btnCancelEdit.style.display = 'none';
+    }
+
+    if (btnCancelEdit) {
+        btnCancelEdit.addEventListener('click', (e) => {
+            e.preventDefault();
+            inputName.value = originalName;
+            resetEditState();
+        });
+    }
+
     // Funciones del modal de Perfil
     function openProfile() {
+        resetEditState();
         profileModal.classList.add('active');
     }
 
@@ -1740,7 +1782,9 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         saveAvatarBtn,
         getSelectedAvatar: () => selectedAvatar,
         getSelectedColor: () => selectedColor,
-        setSelectedAvatarUI
+        setSelectedAvatarUI,
+        btnEditMode,
+        btnCancelEdit
     };
 }
 
@@ -1773,7 +1817,9 @@ function connectFirebaseToProfile(profileUI, fb) {
         saveAvatarBtn,
         getSelectedAvatar,
         getSelectedColor,
-        setSelectedAvatarUI
+        setSelectedAvatarUI,
+        btnEditMode,
+        btnCancelEdit
     } = profileUI;
 
     // Vinculación de botón de salir desde modal de perfil - Manejado por delegador global
@@ -1812,6 +1858,16 @@ function connectFirebaseToProfile(profileUI, fb) {
                 if (mobileEmail) mobileEmail.textContent = newName;
                 if (desktopBadge) desktopBadge.textContent = initials;
                 if (mobileBadge) mobileBadge.textContent = initials;
+
+                // Retornar el input de nombre al estado de sólo lectura
+                inputName.setAttribute('readonly', 'true');
+                inputName.style.pointerEvents = 'none';
+                inputName.style.background = 'rgba(255,255,255,0.02)';
+                inputName.style.borderColor = 'rgba(255,255,255,0.05)';
+                
+                if (btnEditMode) btnEditMode.style.display = 'flex';
+                if (saveNameBtn) saveNameBtn.style.display = 'none';
+                if (btnCancelEdit) btnCancelEdit.style.display = 'none';
 
             } catch (err) {
                 console.error("Error al actualizar perfil:", err);
