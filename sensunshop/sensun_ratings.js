@@ -102,6 +102,12 @@ const styles = `
         font-size: 1.5rem;
         cursor: pointer;
     }
+    @media (max-width: 480px) {
+        .rating-auth-card {
+            padding: 20px 15px;
+            border-radius: 14px;
+        }
+    }
 `;
 
 // Inyectar estilos en el documento
