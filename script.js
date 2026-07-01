@@ -1162,11 +1162,13 @@ function initAuthentication(depth) {
         const confirmDeleteModal = profileWrapper.querySelector('#confirm-delete-modal');
         const reauthModal = profileWrapper.querySelector('#reauth-modal');
         const confirmLogoutModal = profileWrapper.querySelector('#confirm-logout-modal');
+        const userFavoritesModal = profileWrapper.querySelector('#user-favorites-modal');
         
         if (profileModal) document.body.appendChild(profileModal);
         if (confirmDeleteModal) document.body.appendChild(confirmDeleteModal);
         if (reauthModal) document.body.appendChild(reauthModal);
         if (confirmLogoutModal) document.body.appendChild(confirmLogoutModal);
+        if (userFavoritesModal) document.body.appendChild(userFavoritesModal);
 
         // Inicializar interfaces de usuario de inmediato (síncronas)
         const authUI = setupAuthUI(authModal);

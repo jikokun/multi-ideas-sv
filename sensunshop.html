@@ -1139,6 +1139,8 @@
                         const imgEl = card.querySelector('.producto-img img');
                         const imgContainer = card.querySelector('.producto-img');
                         const tags = Array.from(card.querySelectorAll('.negocio-tags .tag')).map(t => t.textContent.trim());
+                        const ratingWidget = card.querySelector('.sensun-rating-widget');
+                        const businessId = ratingWidget ? ratingWidget.dataset.businessId : card.id.toLowerCase();
                         
                         let linksHtml = card.querySelector('.negocio-links').innerHTML;
                         // Ajustar rutas relativas para que funcionen desde la raíz
@@ -1154,6 +1156,7 @@
                         const imgBorderRadius = imgEl ? imgEl.style.borderRadius : '8px';
                         
                         return {
+                            id: businessId,
                             category: card.getAttribute('data-category') || '',
                             tags: tags,
                             title: card.querySelector('h3').textContent.trim(),
@@ -1173,6 +1176,7 @@
                     return [];
                 }
             }
+
 
             // Manejar click en las categorías
             categoryBtns.forEach(btn => {
@@ -1236,9 +1240,15 @@
                     filtered.forEach(item => {
                         const badgeStyle = `background: rgba(232, 98, 26, 0.15); color: var(--ss-orange); border-color: rgba(232, 98, 26, 0.3);`;
                         const badgeText = item.tags[0] || 'DESTACADO';
+                        const isFav = window.userFavorites && window.userFavorites[item.id];
                         
                         htmlContent += `
-                            <div class="slider-card" style="border-left-color: ${item.borderLeftColor}; flex: 0 0 100%; width: 100%; scroll-snap-align: start;">
+                            <div class="slider-card" style="border-left-color: ${item.borderLeftColor}; flex: 0 0 100%; width: 100%; scroll-snap-align: start; position: relative;">
+                                <button class="favorite-toggle-btn ${isFav ? 'is-favorite' : ''}" data-business-id="${item.id}" onclick="event.preventDefault(); event.stopPropagation(); window.toggleFavorite('${item.id}')">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/>
+                                    </svg>
+                                </button>
                                 <div class="slider-card-img" style="display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.2);">
                                     <img src="${item.imgSrc}" alt="${item.imgAlt}" style="object-fit: ${item.imgFit}; max-height: ${item.imgMaxHeight}; max-width: ${item.imgMaxWidth}; width: ${item.imgWidth}; height: ${item.imgHeight}; border-radius: ${item.imgBorderRadius};" loading="lazy">
                                 </div>
@@ -1342,5 +1352,6 @@
             }
         });
     </script>
+    <script type="module" src="sensunshop/sensun_ratings.js"></script>
 </body>
 </html>
