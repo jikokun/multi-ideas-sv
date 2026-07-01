@@ -91,6 +91,7 @@ const styles = `
         width: 100%;
         box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
         position: relative;
+        color: #fff;
     }
     .rating-auth-close {
         position: absolute;
@@ -107,6 +108,49 @@ const styles = `
             padding: 20px 15px;
             border-radius: 14px;
         }
+    }
+
+    /* Adaptación a Modo Claro */
+    body.light-theme .star-rating-container,
+    .light-theme .star-rating-container {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.08) !important;
+        color: #1a202c !important;
+    }
+    body.light-theme .rating-text,
+    .light-theme .rating-text {
+        color: #4a5568 !important;
+    }
+    body.light-theme .rating-auth-card,
+    .light-theme .rating-auth-card {
+        background: #ffffff !important;
+        border: 1px solid rgba(0, 0, 0, 0.1) !important;
+        color: #1a202c !important;
+    }
+    body.light-theme .rating-auth-card h3,
+    .light-theme .rating-auth-card h3 {
+        color: #f39c12 !important;
+    }
+    body.light-theme .rating-auth-card p,
+    body.light-theme .rating-auth-card label,
+    .light-theme .rating-auth-card p,
+    .light-theme .rating-auth-card label {
+        color: #4a5568 !important;
+    }
+    body.light-theme .rating-auth-card input,
+    .light-theme .rating-auth-card input {
+        background: #f7fafc !important;
+        border: 1px solid #cbd5e0 !important;
+        color: #1a202c !important;
+    }
+    body.light-theme .rating-auth-card button[type="submit"],
+    .light-theme .rating-auth-card button[type="submit"] {
+        background: #f39c12 !important;
+        color: #ffffff !important;
+    }
+    body.light-theme .rating-auth-close,
+    .light-theme .rating-auth-close {
+        color: #4a5568 !important;
     }
 `;
 
