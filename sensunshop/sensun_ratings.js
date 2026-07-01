@@ -111,11 +111,17 @@ const styles = `
     }
 
     /* Adaptación a Modo Claro */
-    body.light-theme .star-rating-container,
-    .light-theme .star-rating-container {
+    body.light-theme .star-rating-container:not(.compact),
+    .light-theme .star-rating-container:not(.compact) {
         background: #ffffff !important;
         border: 1px solid rgba(0, 0, 0, 0.08) !important;
         color: #1a202c !important;
+    }
+    body.light-theme .star-rating-container.compact,
+    .light-theme .star-rating-container.compact {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
     body.light-theme .rating-text,
     .light-theme .rating-text {
@@ -181,28 +187,28 @@ function initRatingWidget(container) {
     if (isCompact) {
         container.innerHTML = `
             <div class="star-rating-container compact" style="background: transparent; border: none; padding: 4px 0; box-shadow: none; align-items: flex-start; gap: 4px;">
-                <div class="stars-row" id="stars-row-${businessId}">
+                <div class="stars-row">
                     <!-- Estrellas inyectadas por JS -->
                 </div>
-                <div class="rating-text" id="rating-text-${businessId}" style="font-size: 0.75rem; color: #a0aec0;">Cargando...</div>
+                <div class="rating-text" style="font-size: 0.75rem; color: #a0aec0;">Cargando...</div>
             </div>
         `;
     } else {
         container.innerHTML = `
             <div class="star-rating-container">
                 <h4 style="font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 2px;">Calificación del Negocio</h4>
-                <div class="stars-row" id="stars-row-${businessId}">
+                <div class="stars-row">
                     <!-- Estrellas inyectadas por JS -->
                 </div>
-                <div class="rating-text" id="rating-text-${businessId}">Cargando calificación...</div>
-                <div class="rating-helper" id="rating-helper-${businessId}"></div>
+                <div class="rating-text">Cargando calificación...</div>
+                <div class="rating-helper"></div>
             </div>
         `;
     }
 
-    const starsRow = document.getElementById(`stars-row-${businessId}`);
-    const ratingText = document.getElementById(`rating-text-${businessId}`);
-    const ratingHelper = document.getElementById(`rating-helper-${businessId}`);
+    const starsRow = container.querySelector(`.stars-row`);
+    const ratingText = container.querySelector(`.rating-text`);
+    const ratingHelper = container.querySelector(`.rating-helper`);
 
     // Cargar calificaciones en tiempo real desde Firebase RTDB
     const ratingsRef = ref(rtdb, `sensunshop/ratings/${businessId}`);

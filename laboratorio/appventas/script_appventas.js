@@ -109,7 +109,6 @@ function navigateTo(section) {
         'empresa': ['Empresa', 'Configuración de la empresa'],
         'ventas': ['Ventas', 'Control de ventas realizadas'],
         'inventario': ['Inventario', 'Gestión de stock'],
-        'materia-prima': ['Materia Prima', 'Control de materias primas'],
         'catalogo': ['Catálogo', 'Catálogo de productos'],
         'proveedores': ['Proveedores', 'Gestión de proveedores'],
         'clientes': ['Clientes', 'Base de datos de clientes']
@@ -130,11 +129,16 @@ function navigateTo(section) {
         case 'empresa': renderEmpresa(); break;
         case 'ventas': renderVentas(); break;
         case 'inventario': renderInventario(); break;
-        case 'materia-prima': renderMateriaPrima(); break;
         case 'catalogo': renderCatalogo(); break;
         case 'proveedores': renderProveedores(); break;
         case 'clientes': renderClientes(); break;
     }
+
+    // Cerrar sidebar y overlay en móvil al navegar
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) sidebar.classList.remove('active');
+    if (overlay) overlay.classList.add('hidden');
 }
 
 // ============================================
@@ -171,8 +175,16 @@ if (savedTheme === 'light') {
 // ACTUALIZAR DISPLAY DE EMPRESA
 // ============================================
 function updateCompanyDisplay() {
-    document.getElementById('company-name-display').textContent = store.empresa.nombre;
-    document.getElementById('company-rubro-display').textContent = store.empresa.rubro + ' - ' + store.empresa.tipo;
+    const nameDisplay = document.getElementById('company-name-display');
+    const rubroDisplay = document.getElementById('company-rubro-display');
+    if (nameDisplay) {
+        nameDisplay.textContent = (store.empresa && store.empresa.nombre) ? store.empresa.nombre : 'Mi Empresa';
+    }
+    if (rubroDisplay) {
+        const rubro = (store.empresa && store.empresa.rubro) ? store.empresa.rubro : 'Comercio';
+        const tipo = (store.empresa && store.empresa.tipo) ? store.empresa.tipo : 'Pequeña';
+        rubroDisplay.textContent = rubro + ' - ' + tipo;
+    }
 }
 
 // ============================================
@@ -273,72 +285,184 @@ function renderDashboard() {
 // ============================================
 // EMPRESA
 // ============================================
+let isEmpresaEditing = false;
+
 function renderEmpresa() {
+    const disabledAttr = !isEmpresaEditing ? 'disabled' : '';
+    const selectDisabledClass = !isEmpresaEditing ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer';
+    const inputDisabledClass = !isEmpresaEditing ? 'opacity-70 cursor-not-allowed' : '';
+
+    const preestablishedRubros = ['Comercio', 'Servicios', 'Manufactura', 'Tecnología', 'Alimentos', 'Salud', 'Educación'];
+    const isCustomRubro = store.empresa.rubro && !preestablishedRubros.includes(store.empresa.rubro);
+    const rubroVal = isCustomRubro ? 'Personalizado' : (store.empresa.rubro || 'Servicios');
+    const tipoVal = store.empresa.tipo || 'Pequeña';
+
     document.getElementById('content-area').innerHTML = `
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6">
             <h3 class="text-lg font-semibold mb-6 text-cyan-400">Información de la Empresa</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label class="block text-sm font-medium mb-2">Nombre de la Empresa</label>
-                    <input type="text" id="emp-nombre" value="${store.empresa.nombre}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
+                    <input type="text" id="emp-nombre" value="${store.empresa.nombre}" ${disabledAttr} class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors ${inputDisabledClass}">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Rubro</label>
-                    <select id="emp-rubro" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
-                        <option value="Comercio" ${store.empresa.rubro === 'Comercio' ? 'selected' : ''}>Comercio</option>
-                        <option value="Servicios" ${store.empresa.rubro === 'Servicios' ? 'selected' : ''}>Servicios</option>
-                        <option value="Manufactura" ${store.empresa.rubro === 'Manufactura' ? 'selected' : ''}>Manufactura</option>
-                        <option value="Tecnología" ${store.empresa.rubro === 'Tecnología' ? 'selected' : ''}>Tecnología</option>
-                        <option value="Alimentos" ${store.empresa.rubro === 'Alimentos' ? 'selected' : ''}>Alimentos</option>
-                        <option value="Salud" ${store.empresa.rubro === 'Salud' ? 'selected' : ''}>Salud</option>
-                        <option value="Educación" ${store.empresa.rubro === 'Educación' ? 'selected' : ''}>Educación</option>
-                    </select>
+                    <div class="relative custom-dropdown" id="emp-rubro" data-value="${rubroVal}">
+                        <button type="button" onclick="toggleCustomDropdown('emp-rubro')" ${disabledAttr} class="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 ${selectDisabledClass}">
+                            <span class="selected-value">${rubroVal}</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                            ${['Comercio', 'Servicios', 'Manufactura', 'Tecnología', 'Alimentos', 'Salud', 'Educación', 'Personalizado'].map(opt => `
+                                <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('emp-rubro', '${opt}')">${opt}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div id="custom-rubro-container" class="mt-3 ${rubroVal === 'Personalizado' ? '' : 'hidden'}">
+                        <label class="block text-xs font-medium mb-1 text-zinc-400">Especificar Rubro Personalizado</label>
+                        <input type="text" id="emp-rubro-personalizado" value="${isCustomRubro ? store.empresa.rubro : ''}" ${disabledAttr} class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors ${inputDisabledClass}" placeholder="Ej. Imprenta y Diseño">
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Tipo de Empresa</label>
-                    <select id="emp-tipo" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
-                        <option value="Micro" ${store.empresa.tipo === 'Micro' ? 'selected' : ''}>Micro</option>
-                        <option value="Pequeña" ${store.empresa.tipo === 'Pequeña' ? 'selected' : ''}>Pequeña</option>
-                        <option value="Mediana" ${store.empresa.tipo === 'Mediana' ? 'selected' : ''}>Mediana</option>
-                        <option value="Grande" ${store.empresa.tipo === 'Grande' ? 'selected' : ''}>Grande</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">RFC</label>
-                    <input type="text" id="emp-rfc" value="${store.empresa.rfc}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
+                    <div class="relative custom-dropdown" id="emp-tipo" data-value="${tipoVal}">
+                        <button type="button" onclick="toggleCustomDropdown('emp-tipo')" ${disabledAttr} class="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 ${selectDisabledClass}">
+                            <span class="selected-value">${tipoVal}</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                            ${['Micro', 'Pequeña', 'Mediana', 'Grande'].map(opt => `
+                                <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('emp-tipo', '${opt}')">${opt}</div>
+                            `).join('')}
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Dirección</label>
-                    <input type="text" id="emp-direccion" value="${store.empresa.direccion}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
+                    <input type="text" id="emp-direccion" value="${store.empresa.direccion}" ${disabledAttr} class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors ${inputDisabledClass}">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Teléfono</label>
-                    <input type="text" id="emp-telefono" value="${store.empresa.telefono}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
+                    <input type="text" id="emp-telefono" value="${store.empresa.telefono}" ${disabledAttr} class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors ${inputDisabledClass}">
                 </div>
                 <div class="md:col-span-2">
                     <label class="block text-sm font-medium mb-2">Email</label>
-                    <input type="email" id="emp-email" value="${store.empresa.email}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors">
+                    <input type="email" id="emp-email" value="${store.empresa.email}" ${disabledAttr} class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors ${inputDisabledClass}">
                 </div>
             </div>
-            <button onclick="saveEmpresa()" class="mt-6 btn-primary">Guardar Cambios</button>
+            <div class="mt-6 flex gap-3">
+                ${!isEmpresaEditing 
+                    ? `<button onclick="enableEmpresaEditing()" class="btn-primary">Editar Info</button>` 
+                    : `<button onclick="saveEmpresa()" class="btn-primary">Guardar Cambios</button>
+                       <button onclick="cancelEmpresaEditing()" class="btn-secondary">Cancelar</button>`
+                }
+            </div>
         </div>
     `;
 }
 
+function enableEmpresaEditing() {
+    isEmpresaEditing = true;
+    renderEmpresa();
+}
+
+function cancelEmpresaEditing() {
+    isEmpresaEditing = false;
+    renderEmpresa();
+}
+
 function saveEmpresa() {
+    let finalRubro = document.getElementById('emp-rubro').dataset.value || 'Servicios';
+    if (finalRubro === 'Personalizado') {
+        const customInput = document.getElementById('emp-rubro-personalizado');
+        finalRubro = customInput ? customInput.value.trim() : 'Personalizado';
+        if (!finalRubro) finalRubro = 'Personalizado';
+    }
+
     store.empresa = {
         nombre: document.getElementById('emp-nombre').value,
-        rubro: document.getElementById('emp-rubro').value,
-        tipo: document.getElementById('emp-tipo').value,
-        rfc: document.getElementById('emp-rfc').value,
+        rubro: finalRubro,
+        tipo: document.getElementById('emp-tipo').dataset.value || 'Pequeña',
+        rfc: store.empresa.rfc || '',
         direccion: document.getElementById('emp-direccion').value,
         telefono: document.getElementById('emp-telefono').value,
         email: document.getElementById('emp-email').value
     };
     saveData();
     updateCompanyDisplay();
-    alert('Información de la empresa actualizada');
+    isEmpresaEditing = false;
+    renderEmpresa();
 }
+
+// CONTROLADORES DE DROPDOWNS PERSONALIZADOS
+function toggleCustomDropdown(dropdownId) {
+    if ((dropdownId === 'emp-rubro' || dropdownId === 'emp-tipo') && !isEmpresaEditing) return;
+    
+    // Cerrar otros dropdowns abiertos
+    document.querySelectorAll('.custom-dropdown-options').forEach(options => {
+        if (options.parentNode.id !== dropdownId) {
+            options.classList.add('hidden');
+            options.parentNode.querySelector('.dropdown-arrow')?.classList.remove('rotate-180');
+        }
+    });
+
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+    const options = dropdown.querySelector('.custom-dropdown-options');
+    const arrow = dropdown.querySelector('.dropdown-arrow');
+    
+    if (options) options.classList.toggle('hidden');
+    if (arrow) arrow.classList.toggle('rotate-180');
+}
+
+function selectCustomDropdownOption(dropdownId, value, dataValue) {
+    const dropdown = document.getElementById(dropdownId);
+    if (!dropdown) return;
+    
+    dropdown.querySelector('.selected-value').textContent = value;
+    dropdown.dataset.value = (dataValue !== undefined && dataValue !== null) ? dataValue : value;
+    
+    dropdown.querySelector('.custom-dropdown-options').classList.add('hidden');
+    const arrow = dropdown.querySelector('.dropdown-arrow');
+    if (arrow) arrow.classList.remove('rotate-180');
+
+    // Manejar opción de Rubro Personalizado
+    if (dropdownId === 'emp-rubro') {
+        const customContainer = document.getElementById('custom-rubro-container');
+        if (customContainer) {
+            if (value === 'Personalizado') {
+                customContainer.classList.remove('hidden');
+            } else {
+                customContainer.classList.add('hidden');
+            }
+        }
+    }
+
+    // Manejar categoría de Inventario (Producto vs Servicio)
+    if (dropdownId === 'inv-categoria') {
+        handleInventarioCategoryChange((dataValue !== undefined && dataValue !== null) ? dataValue : value);
+    }
+}
+
+// Cerrar dropdowns si se hace clic fuera de ellos
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.custom-dropdown') && !e.target.closest('#inv-material-proveedor')) {
+        document.querySelectorAll('.custom-dropdown-options').forEach(options => {
+            options.classList.add('hidden');
+        });
+        document.querySelectorAll('.dropdown-arrow').forEach(arrow => {
+            arrow.classList.remove('rotate-180');
+        });
+        const provOptions = document.getElementById('inv-material-proveedor-options');
+        if (provOptions) provOptions.classList.add('hidden');
+    }
+});
+
+window.enableEmpresaEditing = enableEmpresaEditing;
+window.cancelEmpresaEditing = cancelEmpresaEditing;
+window.saveEmpresa = saveEmpresa;
+window.toggleCustomDropdown = toggleCustomDropdown;
+window.selectCustomDropdownOption = selectCustomDropdownOption;
 
 // ============================================
 // VENTAS
@@ -353,80 +477,224 @@ function renderVentas() {
             </button>
         </div>
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-zinc-800">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Fecha</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Cliente</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Productos</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Total</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-800">
-                    ${store.ventas.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-500">No hay ventas registradas</td></tr>' :
-                    store.ventas.map((v, i) => `
-                        <tr class="hover:bg-zinc-800/50">
-                            <td class="px-6 py-4">${v.fecha}</td>
-                            <td class="px-6 py-4 font-medium">${v.cliente}</td>
-                            <td class="px-6 py-4">${v.items.length} productos</td>
-                            <td class="px-6 py-4 text-cyan-400 font-semibold">$${v.total.toLocaleString()}</td>
-                            <td class="px-6 py-4">
-                                <button onclick="deleteVenta(${i})" class="text-red-400 hover:text-red-300">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
-                            </td>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-zinc-800">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Fecha</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Cliente / Notas</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Productos vendidos</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Total</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Acciones</th>
                         </tr>
-                    `).join('')}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        ${store.ventas.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-500">No hay ventas registradas</td></tr>' :
+                        store.ventas.map((v, i) => `
+                            <tr class="hover:bg-zinc-800/50">
+                                <td class="px-6 py-4 text-sm text-zinc-300">${v.fecha}</td>
+                                <td class="px-6 py-4">
+                                    <div class="font-medium text-sm text-zinc-100">${v.cliente}</div>
+                                    ${v.detalle ? `<div class="text-xs text-zinc-500 max-w-[200px] truncate" title="${v.detalle}">${v.detalle}</div>` : ''}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-zinc-400">
+                                    <div class="max-w-[250px] truncate" title="${v.items.map(item => `${item.cantidad}x ${item.nombre}`).join(', ')}">
+                                        ${v.items.map(item => `${item.cantidad}x ${item.nombre}`).join(', ')}
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <div class="text-cyan-400 font-semibold">$${v.total.toLocaleString()}</div>
+                                    ${v.envio ? `<div class="text-[10px] text-zinc-500">Envío: +$${v.envio}</div>` : ''}
+                                </td>
+                                <td class="px-6 py-4">
+                                    <button onclick="deleteVenta(${i})" class="text-red-400 hover:text-red-300">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
         </div>
     `;
 }
 
 function openVentaModal() {
-    const clientesOptions = store.clientes.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
-    const productosOptions = store.inventario.map(p => `<option value="${p.id}" data-precio="${p.precio}">${p.nombre} - $${p.precio}</option>`).join('');
-
     openModal('Nueva Venta', `
         <div class="space-y-4">
+            <!-- Selector de Fecha -->
             <div>
-                <label class="block text-sm font-medium mb-2">Cliente</label>
-                <select id="venta-cliente" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-                    <option value="">Seleccionar cliente</option>
-                    ${clientesOptions}
-                </select>
+                <label class="block text-sm font-medium mb-1.5">Fecha</label>
+                <input type="date" id="venta-fecha" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:border-cyan-500">
             </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Agregar Producto</label>
-                <div class="flex gap-2">
-                    <select id="venta-producto" class="flex-1 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-                        <option value="">Seleccionar producto</option>
-                        ${productosOptions}
-                    </select>
-                    <input type="number" id="venta-cantidad" placeholder="Cantidad" class="w-32 px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="1" value="1">
-                    <button onclick="addVentaItem()" class="btn-primary">Agregar</button>
+
+            <!-- Switch de Venta Rápida -->
+            <div class="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-zinc-800">
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium">Venta Rápida</span>
+                    <span class="text-xs text-zinc-500">Registrar monto directo sin inventario</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="venta-switch-rapida" onchange="toggleVentaRapidaMode()" class="sr-only peer">
+                    <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                </label>
+            </div>
+
+            <!-- Campos Venta Normal -->
+            <div id="venta-normal-cliente-container">
+                <label class="block text-sm font-medium mb-2">Cliente</label>
+                <div class="relative custom-dropdown" id="venta-cliente" data-value="">
+                    <button type="button" onclick="toggleCustomDropdown('venta-cliente')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                        <span class="selected-value">Seleccionar cliente</span>
+                        <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-cliente', 'Seleccionar cliente', '')">Seleccionar cliente</div>
+                        ${store.clientes.map(c => `
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-cliente', '${c.nombre}', '${c.nombre}')">${c.nombre}</div>
+                        `).join('')}
+                    </div>
                 </div>
             </div>
-            <div id="venta-items" class="space-y-2">
-                <p class="text-zinc-500 text-sm">Agrega productos a la venta</p>
+
+            <div id="venta-normal-producto-container">
+                <label class="block text-sm font-medium mb-2">Agregar Producto</label>
+                <div class="flex gap-2">
+                    <div class="flex-1 relative custom-dropdown" id="venta-producto" data-value="">
+                        <button type="button" onclick="toggleCustomDropdown('venta-producto')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                            <span class="selected-value">Seleccionar producto</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-producto', 'Seleccionar producto', '')">Seleccionar producto</div>
+                            ${store.inventario.map(p => `
+                                <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-producto', '${p.nombre} - $${p.precio}', '${p.id}')">${p.nombre} - $${p.precio}</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <input type="number" id="venta-cantidad" placeholder="Cant." class="w-16 px-2 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 text-center" min="1" value="1">
+                    <button onclick="addVentaItem()" class="w-10 h-10 rounded-full bg-cyan-600 hover:bg-cyan-500 flex items-center justify-center text-white font-bold transition-all focus:outline-none flex-shrink-0" title="Agregar Producto">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </button>
+                </div>
             </div>
+
+            <div id="venta-normal-items-container" class="space-y-2">
+                <label class="block text-sm font-medium">Resumen de Productos</label>
+                <div id="venta-items" class="space-y-2">
+                    <p class="text-zinc-500 text-sm">Agrega productos a la venta</p>
+                </div>
+            </div>
+
+            <!-- Campo Venta Rápida -->
+            <div id="venta-monto-rapida-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Monto de la Venta ($)</label>
+                <input type="number" id="venta-monto-rapida" oninput="updateVentaTotalDisplay()" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 font-bold text-lg" min="0.01" step="0.01" placeholder="0.00">
+            </div>
+
+            <!-- Switch de Envío -->
+            <div class="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-zinc-800">
+                <div class="flex flex-col">
+                    <span class="text-sm font-medium">Servicio a Domicilio (Envío)</span>
+                    <span class="text-xs text-zinc-500">Añade cargo de entrega al total</span>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="venta-switch-envio" onchange="toggleVentaEnvio()" class="sr-only peer">
+                    <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                </label>
+            </div>
+
+            <!-- Campo Monto de Envío -->
+            <div id="venta-envio-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Costo de Envío ($)</label>
+                <input type="number" id="venta-envio-monto" oninput="updateVentaTotalDisplay()" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100" min="0" step="0.01" value="0">
+            </div>
+
+            <!-- Detalles de la Venta -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Detalles / Notas de la Venta</label>
+                <textarea id="venta-detalle" rows="2" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 text-sm" placeholder="Ej. Pago por transferencia, entrega por la tarde..."></textarea>
+            </div>
+
+            <!-- Footer con Total -->
             <div class="border-t border-zinc-700 pt-4">
                 <div class="flex justify-between items-center">
-                    <span class="text-lg font-semibold">Total:</span>
+                    <span class="text-lg font-semibold text-zinc-200">Total a Pagar:</span>
                     <span id="venta-total" class="text-2xl font-bold text-cyan-400">$0</span>
                 </div>
             </div>
-            <button onclick="saveVenta()" class="w-full btn-primary">Guardar Venta</button>
+            <button onclick="saveVenta()" class="w-full btn-primary mt-2">Guardar Venta</button>
         </div>
     `);
+    
+    // Configurar fecha del día actual por defecto
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('venta-fecha').value = today;
+
     window.ventaItems = [];
+}
+
+function toggleVentaRapidaMode() {
+    const isRapida = document.getElementById('venta-switch-rapida').checked;
+    const normalCliente = document.getElementById('venta-normal-cliente-container');
+    const normalProducto = document.getElementById('venta-normal-producto-container');
+    const normalItems = document.getElementById('venta-normal-items-container');
+    const rapidaMonto = document.getElementById('venta-monto-rapida-container');
+    
+    if (isRapida) {
+        normalCliente.classList.add('hidden');
+        normalProducto.classList.add('hidden');
+        normalItems.classList.add('hidden');
+        rapidaMonto.classList.remove('hidden');
+    } else {
+        normalCliente.classList.remove('hidden');
+        normalProducto.classList.remove('hidden');
+        normalItems.classList.remove('hidden');
+        rapidaMonto.classList.add('hidden');
+    }
+    updateVentaTotalDisplay();
+}
+
+function toggleVentaEnvio() {
+    const hasEnvio = document.getElementById('venta-switch-envio').checked;
+    const envioMonto = document.getElementById('venta-envio-container');
+    if (hasEnvio) {
+        envioMonto.classList.remove('hidden');
+    } else {
+        envioMonto.classList.add('hidden');
+        const inputEnvio = document.getElementById('venta-envio-monto');
+        if (inputEnvio) inputEnvio.value = 0;
+    }
+    updateVentaTotalDisplay();
+}
+
+function updateVentaTotalDisplay() {
+    let subtotal = 0;
+    const isRapida = document.getElementById('venta-switch-rapida')?.checked;
+    
+    if (isRapida) {
+        const montoVal = parseFloat(document.getElementById('venta-monto-rapida').value);
+        subtotal = isNaN(montoVal) ? 0 : montoVal;
+    } else {
+        subtotal = window.ventaItems.reduce((sum, item) => sum + item.subtotal, 0);
+    }
+    
+    let shipping = 0;
+    const hasEnvio = document.getElementById('venta-switch-envio')?.checked;
+    if (hasEnvio) {
+        const shippingVal = parseFloat(document.getElementById('venta-envio-monto').value);
+        shipping = isNaN(shippingVal) ? 0 : shippingVal;
+    }
+    
+    const total = subtotal + shipping;
+    document.getElementById('venta-total').textContent = '$' + total.toLocaleString();
 }
 
 function addVentaItem() {
     const productoSelect = document.getElementById('venta-producto');
     const cantidad = parseInt(document.getElementById('venta-cantidad').value);
-    const productoId = productoSelect.value;
+    const productoId = productoSelect ? productoSelect.dataset.value : '';
 
     if (!productoId || !cantidad) return;
 
@@ -442,6 +710,7 @@ function addVentaItem() {
     });
 
     renderVentaItems();
+    updateVentaTotalDisplay();
 }
 
 function renderVentaItems() {
@@ -450,13 +719,13 @@ function renderVentaItems() {
         container.innerHTML = '<p class="text-zinc-500 text-sm">Agrega productos a la venta</p>';
     } else {
         container.innerHTML = window.ventaItems.map((item, i) => `
-            <div class="flex items-center justify-between p-3 bg-zinc-800 rounded-lg">
+            <div class="flex items-center justify-between p-2.5 bg-zinc-800/40 rounded-lg border border-zinc-800/80">
                 <div>
-                    <p class="font-medium">${item.nombre}</p>
-                    <p class="text-sm text-zinc-500">${item.cantidad} x $${item.precio}</p>
+                    <p class="font-medium text-sm">${item.nombre}</p>
+                    <p class="text-xs text-zinc-500">${item.cantidad} x $${item.precio}</p>
                 </div>
                 <div class="flex items-center gap-3">
-                    <span class="text-cyan-400 font-semibold">$${item.subtotal}</span>
+                    <span class="text-cyan-400 font-semibold text-sm">$${item.subtotal}</span>
                     <button onclick="removeVentaItem(${i})" class="text-red-400 hover:text-red-300">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                     </button>
@@ -464,30 +733,69 @@ function renderVentaItems() {
             </div>
         `).join('');
     }
-
-    const total = window.ventaItems.reduce((sum, item) => sum + item.subtotal, 0);
-    document.getElementById('venta-total').textContent = '$' + total.toLocaleString();
 }
 
 function removeVentaItem(index) {
     window.ventaItems.splice(index, 1);
     renderVentaItems();
+    updateVentaTotalDisplay();
 }
 
 function saveVenta() {
-    const cliente = document.getElementById('venta-cliente').value;
-    if (!cliente || window.ventaItems.length === 0) {
-        alert('Selecciona un cliente y agrega al menos un producto');
-        return;
+    const isRapida = document.getElementById('venta-switch-rapida').checked;
+    const hasEnvio = document.getElementById('venta-switch-envio').checked;
+    const fechaVal = document.getElementById('venta-fecha').value || new Date().toISOString().split('T')[0];
+    const detalle = document.getElementById('venta-detalle').value;
+    
+    // Formatear fecha
+    const [year, month, day] = fechaVal.split('-');
+    const fechaFormateada = `${day}/${month}/${year}`;
+
+    let cliente = '';
+    let items = [];
+    let subtotal = 0;
+    
+    if (isRapida) {
+        cliente = 'Venta Rápida';
+        const montoVal = parseFloat(document.getElementById('venta-monto-rapida').value);
+        if (isNaN(montoVal) || montoVal <= 0) {
+            alert('Digita un monto válido para la venta rápida');
+            return;
+        }
+        subtotal = montoVal;
+        items = [{
+            id: 'rapida',
+            nombre: 'Venta Directa',
+            precio: montoVal,
+            cantidad: 1,
+            subtotal: montoVal
+        }];
+    } else {
+        const clienteDropdown = document.getElementById('venta-cliente');
+        cliente = clienteDropdown ? (clienteDropdown.dataset.value || '') : '';
+        if (!cliente || window.ventaItems.length === 0) {
+            alert('Selecciona un cliente y agrega al menos un producto');
+            return;
+        }
+        subtotal = window.ventaItems.reduce((sum, item) => sum + item.subtotal, 0);
+        items = window.ventaItems;
     }
 
-    const total = window.ventaItems.reduce((sum, item) => sum + item.subtotal, 0);
+    let envio = 0;
+    if (hasEnvio) {
+        const envioVal = parseFloat(document.getElementById('venta-envio-monto').value);
+        envio = isNaN(envioVal) ? 0 : envioVal;
+    }
+
+    const total = subtotal + envio;
 
     store.ventas.push({
         id: Date.now(),
-        fecha: new Date().toLocaleDateString('es-MX'),
+        fecha: fechaFormateada,
         cliente: cliente,
-        items: window.ventaItems,
+        items: items,
+        envio: envio,
+        detalle: detalle,
         total: total
     });
 
@@ -510,17 +818,17 @@ function deleteVenta(index) {
 function renderInventario() {
     document.getElementById('content-area').innerHTML = `
         <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-semibold text-cyan-400">Control de Inventario</h3>
+            <h3 class="text-lg font-semibold text-cyan-400">Control de Productos / Servicios / Materiales</h3>
             <button onclick="openInventarioModal()" class="btn-primary flex items-center gap-2">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Agregar Producto
+                Agregar
             </button>
         </div>
         <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
             <table class="w-full">
                 <thead class="bg-zinc-800">
                     <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Producto</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Nombre</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Categoría</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Stock</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Precio</th>
@@ -528,15 +836,35 @@ function renderInventario() {
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-800">
-                    ${store.inventario.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-500">No hay productos en inventario</td></tr>' :
+                    ${store.inventario.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-500">No hay registros guardados</td></tr>' :
                     store.inventario.map((p, i) => `
                         <tr class="hover:bg-zinc-800/50">
-                            <td class="px-6 py-4 font-medium">${p.nombre}</td>
-                            <td class="px-6 py-4">${p.categoria}</td>
                             <td class="px-6 py-4">
-                                <span class="${p.stock < 10 ? 'text-red-400' : 'text-cyan-400'} font-semibold">${p.stock}</span>
+                                <div class="font-medium text-zinc-100">${p.nombre}</div>
+                                ${p.materialTipo ? `<div class="text-xs text-zinc-500">Tipo: ${p.materialTipo}</div>` : ''}
+                                ${p.proveedor ? `<div class="text-[10px] text-cyan-500/80">Prov: ${p.proveedor}</div>` : ''}
                             </td>
-                            <td class="px-6 py-4 text-cyan-400">$${p.precio.toLocaleString()}</td>
+                            <td class="px-6 py-4">
+                                <span class="px-2 py-0.5 text-xs font-semibold rounded ${
+                                    p.categoria === 'Servicio' 
+                                        ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' 
+                                        : (p.categoria === 'Material' 
+                                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
+                                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20')
+                                }">
+                                    ${p.categoria}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4">
+                                ${p.categoria === 'Servicio' 
+                                    ? '<span class="text-zinc-500 font-medium">N/A (Servicio)</span>' 
+                                    : `<span class="${p.stock < 10 ? 'text-red-400' : 'text-cyan-400'} font-semibold">${p.stock}</span>`
+                                }
+                            </td>
+                            <td class="px-6 py-4 text-cyan-400 font-medium">
+                                $${p.precio.toLocaleString()}
+                                ${p.categoria === 'Material' ? `<span class="text-zinc-500 text-xs">${p.materialPrecioTipo === 'Paquete' ? '/ paq.' : '/ ud.'}</span>` : ''}
+                            </td>
                             <td class="px-6 py-4 flex gap-3">
                                 <button onclick="openEditInventarioModal(${i})" class="text-cyan-400 hover:text-cyan-300">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
@@ -554,24 +882,75 @@ function renderInventario() {
 }
 
 function openInventarioModal() {
-    openModal('Agregar Producto al Inventario', `
+    openModal('Agregar Producto / Servicio / Material', `
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-2">Nombre del Producto</label>
-                <input type="text" id="inv-nombre" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
+                <label class="block text-sm font-medium mb-2">Nombre</label>
+                <input type="text" id="inv-nombre" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-2">Categoría</label>
-                <input type="text" id="inv-categoria" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
+                <div class="relative custom-dropdown" id="inv-categoria" data-value="Producto">
+                    <button type="button" onclick="toggleCustomDropdown('inv-categoria')" class="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                        <span class="selected-value">Producto</span>
+                        <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('inv-categoria', 'Producto')">Producto</div>
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('inv-categoria', 'Servicio')">Servicio</div>
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('inv-categoria', 'Material')">Material</div>
+                    </div>
+                </div>
             </div>
+            
+            <!-- Campo Tipo (Material) -->
+            <div id="inv-material-tipo-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Tipo de Material</label>
+                <input type="text" id="inv-material-tipo" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100" placeholder="Ej. Madera, Metal, Plástico...">
+            </div>
+            
+            <!-- Switch Tipo Precio (Material) -->
+            <div id="inv-material-preciotipo-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Tipo de Precio</label>
+                <div class="flex items-center justify-between p-3 bg-zinc-800/30 rounded-lg border border-zinc-800">
+                    <div class="flex flex-col">
+                        <span class="text-sm font-medium id-mprecio-text text-zinc-200">Precio Unitario</span>
+                        <span class="text-xs text-zinc-500">¿El precio ingresado es por unidad o paquete?</span>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" id="inv-material-switch-preciotipo" onchange="toggleMaterialPrecioTipo()" class="sr-only peer">
+                        <div class="w-11 h-6 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500"></div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Detalle (Material) -->
+            <div id="inv-material-detalle-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Detalle / Notas del Material</label>
+                <textarea id="inv-material-detalle" rows="2" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 text-sm" placeholder="Especificaciones, dimensiones, etc."></textarea>
+            </div>
+            
+            <!-- Proveedor (Material) -->
+            <div id="inv-material-proveedor-container" class="hidden">
+                <label class="block text-sm font-medium mb-2">Proveedor</label>
+                <div class="relative" id="inv-material-proveedor">
+                    <input type="text" id="inv-material-proveedor-input" onfocus="showMaterialProveedorDropdown()" oninput="filterMaterialProveedorDropdown()" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 text-sm" placeholder="Selecciona o escribe un proveedor...">
+                    <div id="inv-material-proveedor-options" class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden max-h-40 overflow-y-auto scrollbar-thin">
+                        ${store.proveedores.map(prov => `
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectMaterialProveedorOption('${prov.empresa}')">${prov.empresa}</div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
-                <div>
+                <div id="inv-stock-container">
                     <label class="block text-sm font-medium mb-2">Stock</label>
-                    <input type="number" id="inv-stock" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
+                    <input type="number" id="inv-stock" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100" min="0" value="1">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Precio</label>
-                    <input type="number" id="inv-precio" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
+                    <input type="number" id="inv-precio" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100" min="0">
                 </div>
             </div>
             <button onclick="saveInventario()" class="w-full btn-primary">Guardar</button>
@@ -580,24 +959,53 @@ function openInventarioModal() {
 }
 
 function saveInventario() {
-    const nombre = document.getElementById('inv-nombre').value;
-    const categoria = document.getElementById('inv-categoria').value;
-    const stock = parseInt(document.getElementById('inv-stock').value);
+    const nombre = document.getElementById('inv-nombre').value.trim();
+    const categoria = document.getElementById('inv-categoria').dataset.value || 'Producto';
+    
+    let stock = parseInt(document.getElementById('inv-stock').value);
+    if (categoria === 'Servicio') {
+        stock = 0;
+    }
     const precio = parseFloat(document.getElementById('inv-precio').value);
 
-    if (!nombre || !categoria || isNaN(stock) || isNaN(precio)) {
+    if (!nombre || !categoria || (categoria !== 'Servicio' && isNaN(stock)) || isNaN(precio)) {
         alert('Completa todos los campos');
         return;
     }
 
-    store.inventario.push({
+    const item = {
         id: Date.now(),
         nombre,
         categoria,
         stock,
         precio
-    });
+    };
 
+    if (categoria === 'Material') {
+        const materialTipo = document.getElementById('inv-material-tipo').value.trim();
+        const materialSwitch = document.getElementById('inv-material-switch-preciotipo').checked;
+        const materialPrecioTipo = materialSwitch ? 'Paquete' : 'Unitario';
+        const materialDetalle = document.getElementById('inv-material-detalle').value.trim();
+        const provName = document.getElementById('inv-material-proveedor-input').value.trim();
+
+        item.materialTipo = materialTipo;
+        item.materialPrecioTipo = materialPrecioTipo;
+        item.materialDetalle = materialDetalle;
+        item.proveedor = provName;
+
+        // Auto-add provider if new
+        if (provName && !store.proveedores.some(p => p.empresa.toLowerCase() === provName.toLowerCase())) {
+            store.proveedores.push({
+                empresa: provName,
+                contacto: 'Contacto Rápido',
+                telefono: '-',
+                email: '-',
+                productos: nombre
+            });
+        }
+    }
+
+    store.inventario.push(item);
     saveData();
     closeModal();
     navigateTo('inventario');
@@ -608,111 +1016,6 @@ function deleteInventario(index) {
         store.inventario.splice(index, 1);
         saveData();
         navigateTo('inventario');
-    });
-}
-
-// ============================================
-// MATERIA PRIMA
-// ============================================
-function renderMateriaPrima() {
-    document.getElementById('content-area').innerHTML = `
-        <div class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-semibold text-cyan-400">Control de Materia Prima</h3>
-            <button onclick="openMateriaPrimaModal()" class="btn-primary flex items-center gap-2">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Agregar Materia Prima
-            </button>
-        </div>
-        <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-zinc-800">
-                    <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Material</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Unidad</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Cantidad</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Costo Unit.</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-zinc-400 uppercase">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-800">
-                    ${store.materiaPrima.length === 0 ? '<tr><td colspan="5" class="px-6 py-8 text-center text-zinc-500">No hay materia prima registrada</td></tr>' :
-                    store.materiaPrima.map((m, i) => `
-                        <tr class="hover:bg-zinc-800/50">
-                            <td class="px-6 py-4 font-medium">${m.nombre}</td>
-                            <td class="px-6 py-4">${m.unidad}</td>
-                            <td class="px-6 py-4 text-cyan-400 font-semibold">${m.cantidad}</td>
-                            <td class="px-6 py-4">$${m.costo.toLocaleString()}</td>
-                            <td class="px-6 py-4 flex gap-3">
-                                <button onclick="openEditMateriaPrimaModal(${i})" class="text-cyan-400 hover:text-cyan-300">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
-                                </button>
-                                <button onclick="deleteMateriaPrima(${i})" class="text-red-400 hover:text-red-300">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                </button>
-                            </td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
-    `;
-}
-
-function openMateriaPrimaModal() {
-    openModal('Agregar Materia Prima', `
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium mb-2">Nombre del Material</label>
-                <input type="text" id="mp-nombre" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Unidad de Medida</label>
-                <input type="text" id="mp-unidad" placeholder="kg, litros, piezas, etc." class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Cantidad</label>
-                    <input type="number" id="mp-cantidad" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">Costo Unitario</label>
-                    <input type="number" id="mp-costo" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
-                </div>
-            </div>
-            <button onclick="saveMateriaPrima()" class="w-full btn-primary">Guardar</button>
-        </div>
-    `);
-}
-
-function saveMateriaPrima() {
-    const nombre = document.getElementById('mp-nombre').value;
-    const unidad = document.getElementById('mp-unidad').value;
-    const cantidad = parseFloat(document.getElementById('mp-cantidad').value);
-    const costo = parseFloat(document.getElementById('mp-costo').value);
-
-    if (!nombre || !unidad || isNaN(cantidad) || isNaN(costo)) {
-        alert('Completa todos los campos');
-        return;
-    }
-
-    store.materiaPrima.push({
-        id: Date.now(),
-        nombre,
-        unidad,
-        cantidad,
-        costo
-    });
-
-    saveData();
-    closeModal();
-    navigateTo('materia-prima');
-}
-
-function deleteMateriaPrima(index) {
-    openDeleteModal(() => {
-        store.materiaPrima.splice(index, 1);
-        saveData();
-        navigateTo('materia-prima');
     });
 }
 
@@ -777,10 +1080,16 @@ function openCatalogoModal() {
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Disponible</label>
-                    <select id="cat-disponible" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-                        <option value="true">Sí</option>
-                        <option value="false">No</option>
-                    </select>
+                    <div class="relative custom-dropdown" id="cat-disponible" data-value="true">
+                        <button type="button" onclick="toggleCustomDropdown('cat-disponible')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                            <span class="selected-value">Sí</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('cat-disponible', 'Sí', 'true')">Sí</div>
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('cat-disponible', 'No', 'false')">No</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <button onclick="saveCatalogo()" class="w-full btn-primary">Guardar</button>
@@ -793,7 +1102,8 @@ function saveCatalogo() {
     const categoria = document.getElementById('cat-categoria').value;
     const descripcion = document.getElementById('cat-descripcion').value;
     const precio = parseFloat(document.getElementById('cat-precio').value);
-    const disponible = document.getElementById('cat-disponible').value === 'true';
+    const disponibleDropdown = document.getElementById('cat-disponible');
+    const disponible = disponibleDropdown ? (disponibleDropdown.dataset.value === 'true') : true;
 
     if (!nombre || !categoria || isNaN(precio)) {
         alert('Completa los campos obligatorios');
@@ -1245,9 +1555,6 @@ window.deleteVenta = deleteVenta;
 window.openInventarioModal = openInventarioModal;
 window.saveInventario = saveInventario;
 window.deleteInventario = deleteInventario;
-window.openMateriaPrimaModal = openMateriaPrimaModal;
-window.saveMateriaPrima = saveMateriaPrima;
-window.deleteMateriaPrima = deleteMateriaPrima;
 window.openCatalogoModal = openCatalogoModal;
 window.saveCatalogo = saveCatalogo;
 window.deleteCatalogo = deleteCatalogo;
@@ -1310,18 +1617,28 @@ function saveEditCliente(index) {
 
 function openEditInventarioModal(index) {
     const p = store.inventario[index];
-    openModal('Editar Producto', `
+    const isServicio = p.categoria === 'Servicio';
+    openModal('Editar Producto / Servicio', `
         <div class="space-y-4">
             <div>
-                <label class="block text-sm font-medium mb-2">Nombre del Producto</label>
+                <label class="block text-sm font-medium mb-2">Nombre del Producto / Servicio</label>
                 <input type="text" id="inv-nombre" value="${p.nombre}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-2">Categoría</label>
-                <input type="text" id="inv-categoria" value="${p.categoria}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
+                <div class="relative custom-dropdown" id="inv-categoria" data-value="${p.categoria}">
+                    <button type="button" onclick="toggleCustomDropdown('inv-categoria')" class="w-full flex items-center justify-between px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                        <span class="selected-value">${p.categoria}</span>
+                        <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('inv-categoria', 'Producto')">Producto</div>
+                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('inv-categoria', 'Servicio')">Servicio</div>
+                    </div>
+                </div>
             </div>
             <div class="grid grid-cols-2 gap-4">
-                <div>
+                <div id="inv-stock-container" class="${isServicio ? 'hidden' : ''}">
                     <label class="block text-sm font-medium mb-2">Stock</label>
                     <input type="number" id="inv-stock" value="${p.stock}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
                 </div>
@@ -1337,11 +1654,15 @@ function openEditInventarioModal(index) {
 
 function saveEditInventario(index) {
     const nombre = document.getElementById('inv-nombre').value;
-    const categoria = document.getElementById('inv-categoria').value;
-    const stock = parseInt(document.getElementById('inv-stock').value);
+    const categoria = document.getElementById('inv-categoria').dataset.value || 'Producto';
+    
+    let stock = parseInt(document.getElementById('inv-stock').value);
+    if (categoria === 'Servicio') {
+        stock = 0;
+    }
     const precio = parseFloat(document.getElementById('inv-precio').value);
 
-    if (!nombre || !categoria || isNaN(stock) || isNaN(precio)) {
+    if (!nombre || !categoria || (categoria === 'Producto' && isNaN(stock)) || isNaN(precio)) {
         alert('Completa todos los campos');
         return;
     }
@@ -1359,56 +1680,7 @@ function saveEditInventario(index) {
     navigateTo('inventario');
 }
 
-function openEditMateriaPrimaModal(index) {
-    const m = store.materiaPrima[index];
-    openModal('Editar Materia Prima', `
-        <div class="space-y-4">
-            <div>
-                <label class="block text-sm font-medium mb-2">Nombre del Material</label>
-                <input type="text" id="mp-nombre" value="${m.nombre}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm font-medium mb-2">Unidad de Medida</label>
-                <input type="text" id="mp-unidad" value="${m.unidad}" placeholder="kg, litros, piezas, etc." class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Cantidad</label>
-                    <input type="number" id="mp-cantidad" value="${m.cantidad}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-2">Costo Unitario</label>
-                    <input type="number" id="mp-costo" value="${m.costo}" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg" min="0">
-                </div>
-            </div>
-            <button onclick="saveEditMateriaPrima(${index})" class="w-full btn-primary">Guardar Cambios</button>
-        </div>
-    `);
-}
 
-function saveEditMateriaPrima(index) {
-    const nombre = document.getElementById('mp-nombre').value;
-    const unidad = document.getElementById('mp-unidad').value;
-    const cantidad = parseFloat(document.getElementById('mp-cantidad').value);
-    const costo = parseFloat(document.getElementById('mp-costo').value);
-
-    if (!nombre || !unidad || isNaN(cantidad) || isNaN(costo)) {
-        alert('Completa todos los campos');
-        return;
-    }
-
-    store.materiaPrima[index] = {
-        ...store.materiaPrima[index],
-        nombre,
-        unidad,
-        cantidad,
-        costo
-    };
-
-    saveData();
-    closeModal();
-    navigateTo('materia-prima');
-}
 
 function openEditCatalogoModal(index) {
     const p = store.catalogo[index];
@@ -1433,10 +1705,16 @@ function openEditCatalogoModal(index) {
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-2">Disponible</label>
-                    <select id="cat-disponible" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg">
-                        <option value="true" ${p.disponible ? 'selected' : ''}>Sí</option>
-                        <option value="false" ${!p.disponible ? 'selected' : ''}>No</option>
-                    </select>
+                    <div class="relative custom-dropdown" id="cat-disponible" data-value="${p.disponible ? 'true' : 'false'}">
+                        <button type="button" onclick="toggleCustomDropdown('cat-disponible')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                            <span class="selected-value">${p.disponible ? 'Sí' : 'No'}</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('cat-disponible', 'Sí', 'true')">Sí</div>
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('cat-disponible', 'No', 'false')">No</div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <button onclick="saveEditCatalogo(${index})" class="w-full btn-primary">Guardar Cambios</button>
@@ -1449,7 +1727,8 @@ function saveEditCatalogo(index) {
     const categoria = document.getElementById('cat-categoria').value;
     const description = document.getElementById('cat-descripcion').value;
     const precio = parseFloat(document.getElementById('cat-precio').value);
-    const disponible = document.getElementById('cat-disponible').value === 'true';
+    const disponibleDropdown = document.getElementById('cat-disponible');
+    const disponible = disponibleDropdown ? (disponibleDropdown.dataset.value === 'true') : true;
 
     if (!nombre || !categoria || isNaN(precio)) {
         alert('Completa los campos obligatorios');
@@ -1530,12 +1809,88 @@ window.openEditClienteModal = openEditClienteModal;
 window.saveEditCliente = saveEditCliente;
 window.openEditInventarioModal = openEditInventarioModal;
 window.saveEditInventario = saveEditInventario;
-window.openEditMateriaPrimaModal = openEditMateriaPrimaModal;
-window.saveEditMateriaPrima = saveEditMateriaPrima;
 window.openEditCatalogoModal = openEditCatalogoModal;
 window.saveEditCatalogo = saveEditCatalogo;
 window.openEditProveedorModal = openEditProveedorModal;
 window.saveEditProveedor = saveEditProveedor;
+window.toggleVentaRapidaMode = toggleVentaRapidaMode;
+window.toggleVentaEnvio = toggleVentaEnvio;
+window.updateVentaTotalDisplay = updateVentaTotalDisplay;
+window.showMaterialProveedorDropdown = showMaterialProveedorDropdown;
+window.filterMaterialProveedorDropdown = filterMaterialProveedorDropdown;
+window.selectMaterialProveedorOption = selectMaterialProveedorOption;
+window.toggleMaterialPrecioTipo = toggleMaterialPrecioTipo;
+
+function handleInventarioCategoryChange(value) {
+    const stockContainer = document.getElementById('inv-stock-container');
+    const tipoContainer = document.getElementById('inv-material-tipo-container');
+    const precioTipoContainer = document.getElementById('inv-material-preciotipo-container');
+    const detalleContainer = document.getElementById('inv-material-detalle-container');
+    const proveedorContainer = document.getElementById('inv-material-proveedor-container');
+
+    if (value === 'Servicio') {
+        if (stockContainer) stockContainer.classList.add('hidden');
+        if (tipoContainer) tipoContainer.classList.add('hidden');
+        if (precioTipoContainer) precioTipoContainer.classList.add('hidden');
+        if (detalleContainer) detalleContainer.classList.add('hidden');
+        if (proveedorContainer) proveedorContainer.classList.add('hidden');
+        
+        const stockInput = document.getElementById('inv-stock');
+        if (stockInput) stockInput.value = 0;
+    } else if (value === 'Material') {
+        if (stockContainer) stockContainer.classList.remove('hidden');
+        if (tipoContainer) tipoContainer.classList.remove('hidden');
+        if (precioTipoContainer) precioTipoContainer.classList.remove('hidden');
+        if (detalleContainer) detalleContainer.classList.remove('hidden');
+        if (proveedorContainer) proveedorContainer.classList.remove('hidden');
+    } else {
+        // Producto
+        if (stockContainer) stockContainer.classList.remove('hidden');
+        if (tipoContainer) tipoContainer.classList.add('hidden');
+        if (precioTipoContainer) precioTipoContainer.classList.add('hidden');
+        if (detalleContainer) detalleContainer.classList.add('hidden');
+        if (proveedorContainer) proveedorContainer.classList.add('hidden');
+    }
+}
+window.handleInventarioCategoryChange = handleInventarioCategoryChange;
+
+function showMaterialProveedorDropdown() {
+    const options = document.getElementById('inv-material-proveedor-options');
+    if (options) options.classList.remove('hidden');
+}
+
+function filterMaterialProveedorDropdown() {
+    const inputVal = document.getElementById('inv-material-proveedor-input').value.toLowerCase();
+    const options = document.getElementById('inv-material-proveedor-options');
+    if (!options) return;
+    options.classList.remove('hidden');
+    
+    // Filtrar elementos de la lista
+    const items = options.querySelectorAll('div');
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(inputVal)) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+}
+
+function selectMaterialProveedorOption(val) {
+    const input = document.getElementById('inv-material-proveedor-input');
+    if (input) input.value = val;
+    const options = document.getElementById('inv-material-proveedor-options');
+    if (options) options.classList.add('hidden');
+}
+
+function toggleMaterialPrecioTipo() {
+    const switchVal = document.getElementById('inv-material-switch-preciotipo').checked;
+    const textLabel = document.querySelector('.id-mprecio-text');
+    if (textLabel) {
+        textLabel.textContent = switchVal ? 'Precio por Paquete' : 'Precio Unitario';
+    }
+}
 
 // CONTROLADOR DE MODAL DE ELIMINACIÓN PERSONALIZADO
 let pendingDeleteAction = null;
@@ -1572,3 +1927,23 @@ function confirmDeleteAction() {
 window.openDeleteModal = openDeleteModal;
 window.closeDeleteModal = closeDeleteModal;
 window.confirmDeleteAction = confirmDeleteAction;
+
+// CONTROLADOR DE MENÚ DE NAVEGACIÓN EN MÓVIL
+function toggleSidebar() {
+    console.log("toggleSidebar llamada");
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    if (sidebar) {
+        sidebar.classList.toggle('active');
+        console.log("Sidebar active:", sidebar.classList.contains('active'));
+    } else {
+        console.error("No se encontró el elemento sidebar");
+    }
+    if (overlay) {
+        overlay.classList.toggle('hidden');
+        console.log("Overlay hidden:", overlay.classList.contains('hidden'));
+    } else {
+        console.error("No se encontró el elemento sidebar-overlay");
+    }
+}
+window.toggleSidebar = toggleSidebar;
