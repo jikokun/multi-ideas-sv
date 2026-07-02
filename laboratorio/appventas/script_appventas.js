@@ -28,7 +28,8 @@ let store = {
     materiaPrima: [],
     catalogo: [],
     proveedores: [],
-    clientes: []
+    clientes: [],
+    ajustesMateriales: []
 };
 
 let currentSection = 'dashboard';
@@ -52,6 +53,7 @@ async function loadData() {
                 store.catalogo = store.catalogo || [];
                 store.proveedores = store.proveedores || [];
                 store.clientes = store.clientes || [];
+                store.ajustesMateriales = store.ajustesMateriales || [];
                 store.empresa = store.empresa || {
                     nombre: 'Mi Empresa',
                     rubro: 'Comercio',
@@ -446,7 +448,7 @@ function selectCustomDropdownOption(dropdownId, value, dataValue) {
 
 // Cerrar dropdowns si se hace clic fuera de ellos
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.custom-dropdown') && !e.target.closest('#inv-material-proveedor')) {
+    if (!e.target.closest('.custom-dropdown') && !e.target.closest('#inv-material-proveedor') && !e.target.closest('#venta-cliente-combobox')) {
         document.querySelectorAll('.custom-dropdown-options').forEach(options => {
             options.classList.add('hidden');
         });
@@ -455,6 +457,8 @@ document.addEventListener('click', (e) => {
         });
         const provOptions = document.getElementById('inv-material-proveedor-options');
         if (provOptions) provOptions.classList.add('hidden');
+        const clienteOptions = document.getElementById('venta-cliente-options');
+        if (clienteOptions) clienteOptions.classList.add('hidden');
     }
 });
 
@@ -544,31 +548,27 @@ function openVentaModal() {
             <!-- Campos Venta Normal -->
             <div id="venta-normal-cliente-container">
                 <label class="block text-sm font-medium mb-2">Cliente</label>
-                <div class="relative custom-dropdown" id="venta-cliente" data-value="">
-                    <button type="button" onclick="toggleCustomDropdown('venta-cliente')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
-                        <span class="selected-value">Seleccionar cliente</span>
-                        <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                    </button>
-                    <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
-                        <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-cliente', 'Seleccionar cliente', '')">Seleccionar cliente</div>
+                <div class="relative" id="venta-cliente-combobox">
+                    <input type="text" id="venta-cliente-input" onfocus="window.showVentaClienteDropdown()" oninput="window.filterVentaClienteDropdown()" class="w-full px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 placeholder-zinc-500 text-sm" placeholder="Selecciona o escribe el nombre del cliente...">
+                    <div id="venta-cliente-options" class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden max-h-40 overflow-y-auto scrollbar-thin">
                         ${store.clientes.map(c => `
-                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-cliente', '${c.nombre}', '${c.nombre}')">${c.nombre}</div>
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="window.selectVentaClienteOption('${c.nombre}')">${c.nombre}</div>
                         `).join('')}
                     </div>
                 </div>
             </div>
 
             <div id="venta-normal-producto-container">
-                <label class="block text-sm font-medium mb-2">Agregar Producto</label>
+                <label class="block text-sm font-medium mb-2">Agregar Producto / Servicio</label>
                 <div class="flex gap-2">
                     <div class="flex-1 relative custom-dropdown" id="venta-producto" data-value="">
                         <button type="button" onclick="toggleCustomDropdown('venta-producto')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
-                            <span class="selected-value">Seleccionar producto</span>
+                            <span class="selected-value">Seleccionar producto o servicio</span>
                             <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                         </button>
                         <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-60 overflow-y-auto scrollbar-thin">
-                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-producto', 'Seleccionar producto', '')">Seleccionar producto</div>
-                            ${store.inventario.map(p => `
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-producto', 'Seleccionar producto o servicio', '')">Seleccionar producto o servicio</div>
+                            ${store.inventario.filter(p => p.categoria !== 'Material').map(p => `
                                 <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-producto', '${p.nombre} - $${p.precio}', '${p.id}')">${p.nombre} - $${p.precio}</div>
                             `).join('')}
                         </div>
@@ -581,9 +581,38 @@ function openVentaModal() {
             </div>
 
             <div id="venta-normal-items-container" class="space-y-2">
-                <label class="block text-sm font-medium">Resumen de Productos</label>
+                <label class="block text-sm font-medium">Resumen de Productos / Servicios</label>
                 <div id="venta-items" class="space-y-2">
                     <p class="text-zinc-500 text-sm">Agrega productos a la venta</p>
+                </div>
+            </div>
+
+            <!-- Sección Descontar Materiales (Control de Inventario) -->
+            <div id="venta-normal-material-container" class="space-y-2 border-t border-zinc-800/80 pt-3 mt-3">
+                <label class="block text-sm font-medium text-zinc-400">Descontar Materiales del Inventario (Control interno)</label>
+                <div class="flex gap-2">
+                    <div class="flex-1 relative custom-dropdown" id="venta-material" data-value="">
+                        <button type="button" onclick="toggleCustomDropdown('venta-material')" class="w-full flex items-center justify-between px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 transition-colors text-zinc-100 cursor-pointer">
+                            <span class="selected-value">Seleccionar material</span>
+                            <svg class="w-5 h-5 text-zinc-400 dropdown-arrow transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="absolute left-0 right-0 mt-1 bg-zinc-900 border border-zinc-800 rounded-lg shadow-xl z-20 hidden custom-dropdown-options max-h-40 overflow-y-auto scrollbar-thin">
+                            <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-material', 'Seleccionar material', '')">Seleccionar material</div>
+                            ${store.inventario.filter(m => m.categoria === 'Material').map(m => `
+                                <div class="px-4 py-2.5 hover:bg-cyan-500/10 hover:text-cyan-400 cursor-pointer text-sm transition-colors text-zinc-200" onclick="selectCustomDropdownOption('venta-material', '${m.nombre} (Stock: ${m.stock})', '${m.id}')">${m.nombre} (Stock: ${m.stock})</div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <input type="number" id="venta-material-cantidad" placeholder="Cant." class="w-16 px-2 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg focus:border-cyan-500 text-zinc-100 text-center" min="1" value="1">
+                    <button onclick="window.addVentaMaterialItem()" class="w-10 h-10 rounded-full bg-amber-600 hover:bg-amber-500 flex items-center justify-center text-white font-bold transition-all focus:outline-none flex-shrink-0" title="Descontar Material">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="venta-normal-material-items-container" class="space-y-2">
+                <div id="venta-material-items" class="space-y-2">
+                    <!-- Resumen de materiales agregados para descontar -->
                 </div>
             </div>
 
@@ -633,6 +662,7 @@ function openVentaModal() {
     document.getElementById('venta-fecha').value = today;
 
     window.ventaItems = [];
+    window.ventaMaterialItems = [];
 }
 
 function toggleVentaRapidaMode() {
@@ -647,11 +677,15 @@ function toggleVentaRapidaMode() {
         normalProducto.classList.add('hidden');
         normalItems.classList.add('hidden');
         rapidaMonto.classList.remove('hidden');
+        document.getElementById('venta-normal-material-container')?.classList.add('hidden');
+        document.getElementById('venta-normal-material-items-container')?.classList.add('hidden');
     } else {
         normalCliente.classList.remove('hidden');
         normalProducto.classList.remove('hidden');
         normalItems.classList.remove('hidden');
         rapidaMonto.classList.add('hidden');
+        document.getElementById('venta-normal-material-container')?.classList.remove('hidden');
+        document.getElementById('venta-normal-material-items-container')?.classList.remove('hidden');
     }
     updateVentaTotalDisplay();
 }
@@ -698,7 +732,7 @@ function addVentaItem() {
 
     if (!productoId || !cantidad) return;
 
-    const producto = store.inventario.find(p => p.id === productoId);
+    const producto = store.inventario.find(p => p.id.toString() === productoId.toString());
     if (!producto) return;
 
     window.ventaItems.push({
@@ -771,12 +805,24 @@ function saveVenta() {
             subtotal: montoVal
         }];
     } else {
-        const clienteDropdown = document.getElementById('venta-cliente');
-        cliente = clienteDropdown ? (clienteDropdown.dataset.value || '') : '';
+        const clienteInput = document.getElementById('venta-cliente-input');
+        cliente = clienteInput ? clienteInput.value.trim() : '';
         if (!cliente || window.ventaItems.length === 0) {
-            alert('Selecciona un cliente y agrega al menos un producto');
+            alert('Selecciona o escribe un cliente y agrega al menos un producto');
             return;
         }
+        
+        // Registrar automáticamente si el cliente es nuevo
+        if (cliente && !store.clientes.some(c => c.nombre.toLowerCase() === cliente.toLowerCase())) {
+            store.clientes.push({
+                id: Date.now(),
+                nombre: cliente,
+                email: '-',
+                telefono: '-',
+                direccion: '-'
+            });
+        }
+        
         subtotal = window.ventaItems.reduce((sum, item) => sum + item.subtotal, 0);
         items = window.ventaItems;
     }
@@ -798,6 +844,16 @@ function saveVenta() {
         detalle: detalle,
         total: total
     });
+
+    // Descontar materiales del inventario (Control interno)
+    if (!isRapida && window.ventaMaterialItems && window.ventaMaterialItems.length > 0) {
+        window.ventaMaterialItems.forEach(matItem => {
+            const dbMaterial = store.inventario.find(m => m.id.toString() === matItem.id.toString());
+            if (dbMaterial) {
+                dbMaterial.stock = Math.max(0, dbMaterial.stock - matItem.cantidad);
+            }
+        });
+    }
 
     saveData();
     closeModal();
@@ -878,6 +934,57 @@ function renderInventario() {
                 </tbody>
             </table>
         </div>
+
+        <!-- Historial de Ajustes de Materiales -->
+        <div class="mt-8">
+            <h4 class="text-md font-semibold text-zinc-300 mb-4">Historial de Reajustes de Materiales</h4>
+            <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+                <table class="w-full text-xs">
+                    <thead class="bg-zinc-800/60">
+                        <tr>
+                            <th class="px-6 py-2.5 text-left text-zinc-400 font-medium uppercase">Fecha</th>
+                            <th class="px-6 py-2.5 text-left text-zinc-400 font-medium uppercase">Material</th>
+                            <th class="px-6 py-2.5 text-left text-zinc-400 font-medium uppercase">Tipo</th>
+                            <th class="px-6 py-2.5 text-left text-zinc-400 font-medium uppercase">Cantidad</th>
+                            <th class="px-6 py-2.5 text-left text-zinc-400 font-medium uppercase">Motivo</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-800">
+                        ${!store.ajustesMateriales || store.ajustesMateriales.length === 0 
+                            ? '<tr><td colspan="5" class="px-6 py-4 text-center text-zinc-550">No hay reajustes registrados aún.</td></tr>' 
+                            : [...store.ajustesMateriales].reverse().slice(0, 15).map(log => `
+                                <tr class="hover:bg-zinc-800/20">
+                                    <td class="px-6 py-3 text-zinc-500">${log.fecha}</td>
+                                    <td class="px-6 py-3 font-medium text-zinc-200">${log.materialNombre}</td>
+                                    <td class="px-6 py-3">
+                                        <span class="px-2 py-0.5 rounded font-semibold text-[10px] ${
+                                            log.tipo === 'Entrada' 
+                                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                                                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+                                        }">
+                                            ${log.tipo}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-3 font-semibold ${log.tipo === 'Entrada' ? 'text-emerald-400' : 'text-red-400'}">
+                                        ${log.tipo === 'Entrada' ? '+' : '-'}${log.cantidad}
+                                    </td>
+                                    <td class="px-6 py-3 text-zinc-450 italic">${log.motivo}</td>
+                                </tr>
+                            `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Botón rojo flotante de reajuste de materiales (paquete con flecha hacia abajo) -->
+        <button onclick="window.openAjusteMaterialesModal()" class="fixed bottom-6 right-6 w-14 h-14 bg-red-600 hover:bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg shadow-red-600/30 transition-all duration-200 active:scale-95 z-40" title="Reajuste de Existencias (Salida/Entrada)">
+            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22V12"></path>
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <path d="M12 7v8M8 11l4 4 4-4" stroke="#ff4d4d" stroke-width="2.5"></path>
+            </svg>
+        </button>
     `;
 }
 
@@ -992,6 +1099,16 @@ function saveInventario() {
         item.materialPrecioTipo = materialPrecioTipo;
         item.materialDetalle = materialDetalle;
         item.proveedor = provName;
+
+        if (materialSwitch) {
+            // Guardamos valores del paquete para estadísticas
+            item.precioPaquete = precio;
+            item.unidadesPorPaquete = stock;
+            // El stock total ingresado es la cantidad del paquete
+            item.stock = stock;
+            // Calculamos precio unitario redondeado a máximo 3 decimales
+            item.precio = Math.round((precio / stock) * 1000) / 1000;
+        }
 
         // Auto-add provider if new
         if (provName && !store.proveedores.some(p => p.empresa.toLowerCase() === provName.toLowerCase())) {
@@ -1890,6 +2007,10 @@ function toggleMaterialPrecioTipo() {
     if (textLabel) {
         textLabel.textContent = switchVal ? 'Precio por Paquete' : 'Precio Unitario';
     }
+    const stockLabel = document.querySelector('#inv-stock-container label');
+    if (stockLabel) {
+        stockLabel.textContent = switchVal ? 'Cantidad por Paquete' : 'Stock';
+    }
 }
 
 // CONTROLADOR DE MODAL DE ELIMINACIÓN PERSONALIZADO
@@ -1947,3 +2068,277 @@ function toggleSidebar() {
     }
 }
 window.toggleSidebar = toggleSidebar;
+
+// ============================================
+// REAJUSTE DE MATERIALES DE INVENTARIO (FAB)
+// ============================================
+function openAjusteMaterialesModal() {
+    const materiales = store.inventario
+        .map((item, index) => ({ ...item, originalIndex: index }))
+        .filter(item => item.categoria === 'Material');
+
+    if (materiales.length === 0) {
+        openModal('Reajuste de Materiales', `
+            <div class="p-6 text-center text-zinc-500">
+                No hay materiales registrados en el inventario para ajustar.
+            </div>
+        `);
+        return;
+    }
+
+    // Estado temporal
+    window.currentAjusteIndex = null;
+    window.currentAjusteStock = 0; // Inicia en 0 (offset de ajuste)
+
+    openModal('Reajuste de Inventario de Materiales', `
+        <div class="space-y-6">
+            <div>
+                <label class="block text-sm font-medium mb-2 text-zinc-400">Selecciona el Material</label>
+                <select id="ajuste-material-select" onchange="window.onAjusteMaterialChange()" class="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg text-zinc-100 focus:border-cyan-500 focus:outline-none">
+                    <option value="">-- Elige un material disponible --</option>
+                    ${materiales.map(m => `<option value="${m.originalIndex}">${m.nombre} (Stock actual: ${m.stock})</option>`).join('')}
+                </select>
+            </div>
+            
+            <div id="ajuste-control-area" class="hidden bg-zinc-800/40 border border-zinc-850 rounded-xl p-5 text-center space-y-4">
+                <div class="text-sm text-zinc-450">Ajuste de stock a realizar</div>
+                <div class="flex items-center justify-center gap-6">
+                    <button onclick="window.adjustAjusteMaterial(-1)" class="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 rounded-lg flex items-center justify-center text-2xl transition-all duration-200 active:scale-95">
+                        -
+                    </button>
+                    <div id="ajuste-stock-display" class="text-4xl font-bold text-cyan-400">0</div>
+                    <button onclick="window.adjustAjusteMaterial(1)" class="w-12 h-12 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 rounded-lg flex items-center justify-center text-2xl transition-all duration-200 active:scale-95">
+                        +
+                    </button>
+                </div>
+                <div class="text-xs text-zinc-500">Usa los botones para restar (-) o sumar (+) existencias al stock actual.</div>
+                
+                <div class="text-left mt-4 border-t border-zinc-800/80 pt-3">
+                    <label class="block text-xs font-medium text-zinc-400 mb-1.5">Detalle / Motivo del Ajuste (Opcional)</label>
+                    <input type="text" id="ajuste-motivo" placeholder="Ej. Merma, ingreso de compra, corrección..." class="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-zinc-100 text-xs focus:outline-none focus:border-cyan-500">
+                </div>
+            </div>
+
+            <button onclick="window.saveAjusteMaterial()" class="w-full py-3 bg-red-650 hover:bg-red-650/80 hover:text-white text-zinc-100 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-red-600/20 active:scale-98">
+                Guardar Ajuste
+            </button>
+        </div>
+    `);
+}
+
+function onAjusteMaterialChange() {
+    const select = document.getElementById('ajuste-material-select');
+    const controlArea = document.getElementById('ajuste-control-area');
+    const display = document.getElementById('ajuste-stock-display');
+    
+    if (!select || !controlArea || !display) return;
+    
+    const val = select.value;
+    if (val === "") {
+        controlArea.classList.add('hidden');
+        window.currentAjusteIndex = null;
+        return;
+    }
+    
+    const index = parseInt(val, 10);
+    const item = store.inventario[index];
+    if (item) {
+        window.currentAjusteIndex = index;
+        window.currentAjusteStock = 0; // Se inicia siempre en 0
+        display.textContent = '0';
+        display.className = "text-4xl font-bold text-cyan-400";
+        controlArea.classList.remove('hidden');
+    }
+}
+
+function adjustAjusteMaterial(amount) {
+    if (window.currentAjusteIndex === null) return;
+    
+    const item = store.inventario[window.currentAjusteIndex];
+    const newStockAdjustment = window.currentAjusteStock + amount;
+    
+    if (item.stock + newStockAdjustment < 0) {
+        alert(`No puedes restar más unidades de las disponibles en el stock actual (${item.stock}).`);
+        return;
+    }
+    
+    window.currentAjusteStock = newStockAdjustment;
+    const display = document.getElementById('ajuste-stock-display');
+    if (display) {
+        if (window.currentAjusteStock > 0) {
+            display.textContent = '+' + window.currentAjusteStock;
+            display.className = "text-4xl font-bold text-emerald-400";
+        } else if (window.currentAjusteStock < 0) {
+            display.textContent = window.currentAjusteStock;
+            display.className = "text-4xl font-bold text-red-400";
+        } else {
+            display.textContent = '0';
+            display.className = "text-4xl font-bold text-cyan-400";
+        }
+    }
+}
+
+function saveAjusteMaterial() {
+    if (window.currentAjusteIndex === null) {
+        alert('Por favor selecciona un material antes de guardar.');
+        return;
+    }
+    if (window.currentAjusteStock === 0) {
+        alert('El ajuste debe ser distinto de 0 para realizar cambios.');
+        return;
+    }
+    
+    const item = store.inventario[window.currentAjusteIndex];
+    if (item) {
+        const originalStock = item.stock;
+        const adjustment = window.currentAjusteStock;
+        const newStock = originalStock + adjustment;
+        
+        if (newStock < 0) {
+            alert('Error: El stock resultante no puede ser negativo.');
+            return;
+        }
+        
+        item.stock = newStock;
+        
+        // Agregar registro al historial de ajustes
+        store.ajustesMateriales = store.ajustesMateriales || [];
+        const today = new Date();
+        const fechaFormateada = today.toLocaleDateString('es-SV') + ' ' + today.toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+        const motivoInput = document.getElementById('ajuste-motivo');
+        const motivo = motivoInput ? (motivoInput.value.trim() || 'Ajuste manual') : 'Ajuste manual';
+        
+        store.ajustesMateriales.push({
+            id: Date.now(),
+            fecha: fechaFormateada,
+            materialNombre: item.nombre,
+            cantidad: Math.abs(adjustment),
+            tipo: adjustment > 0 ? 'Entrada' : 'Salida',
+            motivo: motivo
+        });
+        
+        saveData();
+        closeModal();
+        renderInventario(); // Refrescar la vista de inventario
+    }
+}
+
+window.openAjusteMaterialesModal = openAjusteMaterialesModal;
+window.onAjusteMaterialChange = onAjusteMaterialChange;
+window.adjustAjusteMaterial = adjustAjusteMaterial;
+window.saveAjusteMaterial = saveAjusteMaterial;
+
+// ============================================
+// ASOCIACIÓN Y DESCUENTO DE MATERIALES EN VENTAS
+// ============================================
+function addVentaMaterialItem() {
+    const materialSelect = document.getElementById('venta-material');
+    const cantidadInput = document.getElementById('venta-material-cantidad');
+    const cantidad = cantidadInput ? parseInt(cantidadInput.value, 10) : 1;
+    const materialId = materialSelect ? materialSelect.dataset.value : '';
+
+    if (!materialId || isNaN(cantidad) || cantidad <= 0) {
+        alert('Selecciona un material y una cantidad válida');
+        return;
+    }
+
+    const material = store.inventario.find(m => m.id.toString() === materialId.toString());
+    if (!material) return;
+
+    if (material.stock < cantidad) {
+        alert(`Stock insuficiente de ${material.nombre}. Stock disponible: ${material.stock}`);
+        return;
+    }
+
+    // Verificar si ya está en la lista de materiales asociados
+    const existing = window.ventaMaterialItems.find(m => m.id.toString() === materialId.toString());
+    if (existing) {
+        if (material.stock < (existing.cantidad + cantidad)) {
+            alert(`Stock insuficiente de ${material.nombre}. Stock acumulado máximo: ${material.stock}`);
+            return;
+        }
+        existing.cantidad += cantidad;
+    } else {
+        window.ventaMaterialItems.push({
+            id: material.id,
+            nombre: material.nombre,
+            cantidad: cantidad
+        });
+    }
+
+    // Resetear selector
+    if (materialSelect) {
+        materialSelect.querySelector('.selected-value').textContent = 'Seleccionar material';
+        materialSelect.dataset.value = '';
+    }
+    if (cantidadInput) cantidadInput.value = 1;
+
+    renderVentaMaterialItems();
+}
+
+function renderVentaMaterialItems() {
+    const container = document.getElementById('venta-material-items');
+    if (!container) return;
+    if (window.ventaMaterialItems.length === 0) {
+        container.innerHTML = '';
+    } else {
+        container.innerHTML = window.ventaMaterialItems.map((item, i) => `
+            <div class="flex items-center justify-between p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                <div>
+                    <span class="text-[10px] font-semibold text-amber-400">[Material a Descontar]</span>
+                    <p class="font-medium text-xs text-zinc-200">${item.nombre}</p>
+                    <p class="text-[10px] text-zinc-500">Cantidad: ${item.cantidad} uds.</p>
+                </div>
+                <button onclick="window.removeVentaMaterialItem(${i})" class="text-red-400 hover:text-red-300">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        `).join('');
+    }
+}
+
+function removeVentaMaterialItem(index) {
+    window.ventaMaterialItems.splice(index, 1);
+    renderVentaMaterialItems();
+}
+
+window.addVentaMaterialItem = addVentaMaterialItem;
+window.renderVentaMaterialItems = renderVentaMaterialItems;
+window.removeVentaMaterialItem = removeVentaMaterialItem;
+
+// ============================================
+// COMBOBOX DE CLIENTES EN VENTAS
+// ============================================
+function showVentaClienteDropdown() {
+    const options = document.getElementById('venta-cliente-options');
+    if (options) options.classList.remove('hidden');
+}
+
+function filterVentaClienteDropdown() {
+    const inputVal = document.getElementById('venta-cliente-input').value.toLowerCase();
+    const options = document.getElementById('venta-cliente-options');
+    if (!options) return;
+    options.classList.remove('hidden');
+    
+    // Filtrar elementos de la lista
+    const items = options.querySelectorAll('div');
+    items.forEach(item => {
+        const text = item.textContent.toLowerCase();
+        if (text.includes(inputVal)) {
+            item.classList.remove('hidden');
+        } else {
+            item.classList.add('hidden');
+        }
+    });
+}
+
+function selectVentaClienteOption(val) {
+    const input = document.getElementById('venta-cliente-input');
+    if (input) input.value = val;
+    const options = document.getElementById('venta-cliente-options');
+    if (options) options.classList.add('hidden');
+}
+
+window.showVentaClienteDropdown = showVentaClienteDropdown;
+window.filterVentaClienteDropdown = filterVentaClienteDropdown;
+window.selectVentaClienteOption = selectVentaClienteOption;
