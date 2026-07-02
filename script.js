@@ -33,6 +33,20 @@ document.addEventListener('DOMContentLoaded', () => {
     checkHighlightHash();
 });
 
+// Helper global para evitar fugas de scroll al abrir overlays
+window.updateBodyScroll = function() {
+    const isCartActive = document.getElementById("cart-drawer")?.classList.contains("active");
+    const isSearchActive = document.getElementById("search-modal-overlay")?.classList.contains("active");
+    const isNavActive = document.querySelector(".nav-container")?.classList.contains("active");
+    const isAuthActive = document.getElementById("auth-modal")?.classList.contains("active") || document.querySelector(".rating-auth-modal")?.classList.contains("open");
+    
+    if (isCartActive || isSearchActive || isNavActive || isAuthActive) {
+        document.body.classList.add("no-scroll");
+    } else {
+        document.body.classList.remove("no-scroll");
+    }
+};
+
 // ==========================================================================
 // SISTEMA DE CARGA DINÁMICA DEL MENÚ GLOBAL
 // ==========================================================================
@@ -183,6 +197,7 @@ function initMobileMenu() {
             e.stopPropagation();
             menuToggle.classList.toggle("active");
             navContainer.classList.toggle("active");
+            window.updateBodyScroll();
         });
 
         // Gesto swipe a la derecha para cerrar el menú en móviles
@@ -190,6 +205,7 @@ function initMobileMenu() {
             menuToggle.classList.remove("active");
             navContainer.classList.remove("active");
             if (dropdown) dropdown.classList.remove("active");
+            window.updateBodyScroll();
         });
 
         // Evento interactivo por Click/Toque para el submenú en móviles
@@ -211,6 +227,7 @@ function initMobileMenu() {
                 menuToggle.classList.remove("active");
                 navContainer.classList.remove("active");
                 if (dropdown) dropdown.classList.remove("active");
+                window.updateBodyScroll();
             }
         });
     }
@@ -460,6 +477,7 @@ function closeCart() {
     const overlay = document.getElementById("cart-overlay");
     if (drawer) drawer.classList.remove("active");
     if (overlay) overlay.classList.remove("active");
+    window.updateBodyScroll();
 }
 
 function openCart() {
@@ -467,6 +485,7 @@ function openCart() {
     const overlay = document.getElementById("cart-overlay");
     if (drawer) drawer.classList.add("active");
     if (overlay) overlay.classList.add("active");
+    window.updateBodyScroll();
 }
 
 function addToCart(id, name, subtitle, price, image) {
@@ -893,6 +912,7 @@ function initSensunSearch(isSensunshop, depth) {
     // Abrir modal
     async function openModal() {
         overlay.classList.add("active");
+        window.updateBodyScroll();
         input.value = "";
         resultsContainer.innerHTML = '<div class="dynamic-status-message">Cargando catálogo...</div>';
         
@@ -908,6 +928,7 @@ function initSensunSearch(isSensunshop, depth) {
     // Cerrar modal
     function closeModal() {
         overlay.classList.remove("active");
+        window.updateBodyScroll();
         input.blur();
     }
 
@@ -1239,10 +1260,12 @@ function setupAuthUI(authModal) {
         switchMode('login');
         authModal.removeAttribute('style');
         authModal.classList.add('active');
+        window.updateBodyScroll();
     }
 
     function closeModal() {
         authModal.classList.remove('active');
+        window.updateBodyScroll();
     }
 
     // Cambiar entre Login y Registro
@@ -1730,10 +1753,12 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     function openProfile() {
         resetEditState();
         profileModal.classList.add('active');
+        window.updateBodyScroll();
     }
 
     function closeProfile() {
         profileModal.classList.remove('active');
+        window.updateBodyScroll();
     }
 
     if (closeBtn) closeBtn.addEventListener('click', closeProfile);
@@ -1744,10 +1769,12 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     // Modal de Confirmación de Eliminación
     function openConfirm() {
         if (confirmDeleteModal) confirmDeleteModal.classList.add('active');
+        window.updateBodyScroll();
     }
 
     function closeConfirm() {
         if (confirmDeleteModal) confirmDeleteModal.classList.remove('active');
+        window.updateBodyScroll();
     }
 
     if (deleteBtn) {
@@ -1773,33 +1800,37 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         }
         if (reauthForm) reauthForm.reset();
         if (reauthModal) reauthModal.classList.add('active');
+        window.updateBodyScroll();
     }
 
-    function closeReauth() {
+    function closeModalReauth() {
         if (reauthModal) reauthModal.classList.remove('active');
+        window.updateBodyScroll();
     }
 
-    if (reauthClose) reauthClose.addEventListener('click', closeReauth);
+    if (reauthClose) reauthClose.addEventListener('click', closeModalReauth);
     if (reauthModal) {
         reauthModal.addEventListener('click', (e) => {
-            if (e.target === reauthModal) closeReauth();
+            if (e.target === reauthModal) closeModalReauth();
         });
     }
 
     // Modal de Confirmación de Cierre de Sesión
     function openConfirmLogout() {
         if (confirmLogoutModal) confirmLogoutModal.classList.add('active');
+        window.updateBodyScroll();
     }
 
-    function closeConfirmLogout() {
+    function closeConfirmLogoutModal() {
         if (confirmLogoutModal) confirmLogoutModal.classList.remove('active');
+        window.updateBodyScroll();
     }
 
-    if (logoutCloseBtn) logoutCloseBtn.addEventListener('click', closeConfirmLogout);
-    if (logoutCancelBtn) logoutCancelBtn.addEventListener('click', closeConfirmLogout);
+    if (logoutCloseBtn) logoutCloseBtn.addEventListener('click', closeConfirmLogoutModal);
+    if (logoutCancelBtn) logoutCancelBtn.addEventListener('click', closeConfirmLogoutModal);
     if (confirmLogoutModal) {
         confirmLogoutModal.addEventListener('click', (e) => {
-            if (e.target === confirmLogoutModal) closeConfirmLogout();
+            if (e.target === confirmLogoutModal) closeConfirmLogoutModal();
         });
     }
 

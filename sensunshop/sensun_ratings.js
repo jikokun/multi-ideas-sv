@@ -819,6 +819,9 @@ function openAuthModal() {
     const modal = document.getElementById('rating-auth-modal');
     if (modal) {
         modal.classList.add('open');
+        if (typeof window.updateBodyScroll === 'function') {
+            window.updateBodyScroll();
+        }
     }
 }
 
@@ -826,6 +829,9 @@ function closeAuthModal() {
     const modal = document.getElementById('rating-auth-modal');
     if (modal) {
         modal.classList.remove('open');
+        if (typeof window.updateBodyScroll === 'function') {
+            window.updateBodyScroll();
+        }
     }
 }
 
