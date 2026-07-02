@@ -72,24 +72,19 @@ function cargarMenuGlobal() {
         }
         
         let menuPath;
-        const isLocalFile = window.location.protocol === 'file:';
-        
-        if (isLocalFile) {
-            if (isSensunshop) {
-                if (depth === 2) {
-                    menuPath = "../menu-sensunshop.html";
-                } else if (depth === 1) {
-                    menuPath = "menu-sensunshop.html";
-                } else {
-                    menuPath = "sensunshop/menu-sensunshop.html";
-                }
+        if (isSensunshop) {
+            if (depth === 2) {
+                menuPath = "../menu-sensunshop.html";
+            } else if (depth === 1) {
+                menuPath = "menu-sensunshop.html";
             } else {
-                menuPath = "menu.html";
+                menuPath = "sensunshop/menu-sensunshop.html";
             }
         } else {
-            menuPath = isSensunshop ? "/sensunshop/menu-sensunshop.html" : "/menu.html";
+            menuPath = "menu.html";
         }
 
+        const isLocalFile = window.location.protocol === 'file:';
         // Add a timestamp cache-buster to force browser/server to bypass cache and load the latest file
         const fetchUrl = isLocalFile ? menuPath : (menuPath + "?v=" + Date.now());
 
@@ -1171,12 +1166,11 @@ function initThemeToggle() {
 // SISTEMA DE AUTENTICACIÓN (LOGIN, LOGOUT, REGISTRO CON FIREBASE)
 // ==========================================================================
 function initAuthentication(depth) {
-    const isLocalFile = window.location.protocol === 'file:';
-    const prefix = isLocalFile ? (depth === 2 ? '../../' : depth === 1 ? '../' : '') : '';
-    const authModalPath = isLocalFile ? (prefix + 'partials/auth-modal.html') : '/partials/auth-modal.html';
-    const profileModalPath = isLocalFile ? (prefix + 'partials/profile-modal.html') : '/partials/profile-modal.html';
+    const prefix = depth === 2 ? '../../' : depth === 1 ? '../' : './';
+    const authModalPath = prefix + 'partials/auth-modal.html';
+    const profileModalPath = prefix + 'partials/profile-modal.html';
     // Agregar cache-buster para evitar que el navegador use una versión vieja en cache
-    const configPath = isLocalFile ? (prefix + 'firebase-config.js') : ('/firebase-config.js?v=' + Date.now());
+    const configPath = prefix + 'firebase-config.js?v=' + Date.now();
 
     console.log("[Auth Debug] initAuthentication started. configPath:", configPath);
 
@@ -1849,11 +1843,11 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         reauthPassword,
         reauthError,
         closeConfirm,
-        closeReauth,
+        closeReauth: closeModalReauth,
         openReauth,
         closeProfile,
         logoutYesBtn,
-        closeConfirmLogout,
+        closeConfirmLogout: closeConfirmLogoutModal,
         saveAvatarBtn,
         getSelectedAvatar: () => selectedAvatar,
         getSelectedColor: () => selectedColor,
