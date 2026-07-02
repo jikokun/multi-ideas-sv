@@ -847,24 +847,63 @@ let cachedParsedBusinesses = null;
 async function getBusinessesList() {
     if (cachedParsedBusinesses) return cachedParsedBusinesses;
 
-    // Intentar buscar tarjetas en el DOM actual primero (ej: negocioslocales.html)
-    let cards = document.querySelectorAll('#negocios-container .negocio-card');
-    if (cards.length > 0) {
-        cachedParsedBusinesses = parseCards(cards, false);
-        return cachedParsedBusinesses;
+    const pathname = window.location.pathname.toLowerCase();
+    let prefix = 'sensunshop/';
+    let isRoot = true;
+
+    if (pathname.includes("/sensunshop/negocioslocales/") || pathname.includes("/sensunshop/profesionales/")) {
+        prefix = '../';
+        isRoot = false;
+    } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
+        prefix = './';
+        isRoot = false;
     }
 
-    // Si no están en el DOM, hacer fetch a negocioslocales.html (ej: desde la home)
+    const targets = [
+        prefix + 'negocioslocales.html',
+        prefix + 'emprendedores.html'
+    ];
+
     try {
-        const isRoot = !window.location.pathname.includes('/sensunshop/');
-        const fetchPath = isRoot ? 'sensunshop/negocioslocales.html' : 'negocioslocales.html';
-        const response = await fetch(fetchPath);
-        if (!response.ok) throw new Error("No se pudo obtener el catálogo.");
-        const html = await response.text();
+        const fetchPromises = targets.map(async (url) => {
+            try {
+                const res = await fetch(url);
+                if (!res.ok) return '';
+                return await res.text();
+            } catch (e) {
+                console.error(`Error al cargar ${url}:`, e);
+                return '';
+            }
+        });
+
+        const htmls = await Promise.all(fetchPromises);
         const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-        const docCards = doc.querySelectorAll('#negocios-container .negocio-card');
-        cachedParsedBusinesses = parseCards(docCards, isRoot);
+        let allCards = [];
+
+        // Si hay tarjetas en el DOM actual, agregarlas primero
+        const currentDOMCards = document.querySelectorAll('#negocios-container .negocio-card');
+        if (currentDOMCards.length > 0) {
+            allCards.push(...parseCards(currentDOMCards, false));
+        }
+
+        htmls.forEach(html => {
+            if (!html) return;
+            const doc = parser.parseFromString(html, 'text/html');
+            const docCards = doc.querySelectorAll('#negocios-container .negocio-card');
+            allCards.push(...parseCards(docCards, isRoot));
+        });
+
+        // Eliminar duplicados por ID
+        const uniqueBusinesses = [];
+        const seenIds = new Set();
+        allCards.forEach(b => {
+            if (!seenIds.has(b.id)) {
+                seenIds.add(b.id);
+                uniqueBusinesses.push(b);
+            }
+        });
+
+        cachedParsedBusinesses = uniqueBusinesses;
         return cachedParsedBusinesses;
     } catch (error) {
         console.error("Error al cargar negocios para favoritos:", error);

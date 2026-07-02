@@ -1641,6 +1641,18 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const avatarOptionBtns = profileModal.querySelectorAll('.avatar-option-btn');
     const colorOptionBtns = profileModal.querySelectorAll('.color-option-btn');
 
+    // Ocultar botón de favoritos si no estamos en sensunshop
+    const favoritesBtn = profileModal.querySelector('#profile-favorites-btn');
+    if (favoritesBtn) {
+        const isSensunshop = window.location.pathname.toLowerCase().includes('sensunshop');
+        const parentDiv = favoritesBtn.parentElement;
+        if (parentDiv) {
+            parentDiv.style.display = isSensunshop ? 'flex' : 'none';
+        } else {
+            favoritesBtn.style.display = isSensunshop ? 'block' : 'none';
+        }
+    }
+
     let selectedAvatar = '';
     let selectedColor = '';
 
