@@ -826,45 +826,63 @@ function initSensunSearch(isSensunshop, depth) {
 
     let businessesData = null;
 
-    // Calcular la ruta para cargar negocioslocales.html
-    let fetchPath = "";
-    let redirectPath = "";
-    if (depth === 2) {
-        fetchPath = "../negocioslocales.html";
-        redirectPath = "../negocioslocales.html";
-    } else if (depth === 1) {
-        fetchPath = "negocioslocales.html";
-        redirectPath = "negocioslocales.html";
-    } else {
-        fetchPath = "sensunshop/negocioslocales.html";
-        redirectPath = "sensunshop/negocioslocales.html";
-    }
+    // Páginas a indexar en Sensun Shop
+    const targetPages = [
+        "negocioslocales.html",
+        "emprendedores.html",
+        "comida.html",
+        "oficios.html",
+        "profesionales.html"
+    ];
 
-    // Cargar y parsear negocioslocales.html
+    // Cargar y parsear las páginas en paralelo
     async function loadBusinesses() {
         if (businessesData) return businessesData;
         try {
-            const response = await fetch(fetchPath);
-            if (!response.ok) throw new Error("No se pudo obtener el catálogo");
-            const html = await response.text();
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, "text/html");
-            const cards = doc.querySelectorAll("#negocios-container .negocio-card");
+            const results = await Promise.all(targetPages.map(async (pageName) => {
+                let fetchPath = "";
+                let redirectPath = "";
+                if (depth === 2) {
+                    fetchPath = "../" + pageName;
+                    redirectPath = "../" + pageName;
+                } else if (depth === 1) {
+                    fetchPath = pageName;
+                    redirectPath = pageName;
+                } else {
+                    fetchPath = "sensunshop/" + pageName;
+                    redirectPath = "sensunshop/" + pageName;
+                }
+
+                try {
+                    const response = await fetch(fetchPath);
+                    if (!response.ok) return []; // Si falla alguna página temporalmente o no existe, continuamos con las demás
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+                    const cards = doc.querySelectorAll(".negocio-card");
+                    
+                    return Array.from(cards)
+                        .filter(card => !card.classList.contains("disponible"))
+                        .map(card => {
+                            const title = card.querySelector("h3") ? card.querySelector("h3").textContent.trim() : "";
+                            const description = card.querySelector("p") ? card.querySelector("p").textContent.trim() : "";
+                            const tags = Array.from(card.querySelectorAll(".negocio-tags .tag, .producto-info .tag")).map(t => t.textContent.trim());
+                            const category = card.getAttribute("data-category") || "";
+                            const id = card.id || "";
+                            
+                            const imgEl = card.querySelector(".producto-img img, .slider-card-img img");
+                            const imgSrc = imgEl ? imgEl.getAttribute("src") : "";
+                            
+                            return { id, title, description, tags, category, imgSrc, redirectPath };
+                        });
+                } catch (err) {
+                    console.warn(`Error al indexar la página ${pageName}:`, err);
+                    return [];
+                }
+            }));
             
-            businessesData = Array.from(cards)
-                .filter(card => !card.classList.contains("disponible"))
-                .map(card => {
-                    const title = card.querySelector("h3").textContent.trim();
-                    const description = card.querySelector("p").textContent.trim();
-                    const tags = Array.from(card.querySelectorAll(".negocio-tags .tag")).map(t => t.textContent.trim());
-                    const category = card.getAttribute("data-category") || "";
-                    const id = card.id || "";
-                    
-                    const imgEl = card.querySelector(".producto-img img");
-                    const imgSrc = imgEl ? imgEl.getAttribute("src") : "";
-                    
-                    return { id, title, description, tags, category, imgSrc };
-                });
+            // Unificar todos los arreglos
+            businessesData = results.flat();
             return businessesData;
         } catch (error) {
             console.error("Error al indexar negocios para búsqueda:", error);
@@ -944,22 +962,23 @@ function initSensunSearch(isSensunshop, depth) {
         let html = "";
         filtered.forEach(item => {
             let itemImg = item.imgSrc;
-            // Ajustar rutas relativas si es necesario
+            // Ajustar rutas relativas de imagen si es necesario
             if (itemImg && !itemImg.startsWith("http") && !itemImg.startsWith("/")) {
+                let cleanImgPath = itemImg.replace(/^(\.\.\/)+/, '').replace(/^(sensunshop\/)+/, '');
                 if (depth === 2) {
-                    itemImg = "../" + itemImg;
+                    itemImg = "../../" + cleanImgPath;
                 } else if (depth === 1) {
-                    // Ya está alineado en la subcarpeta sensunshop
+                    itemImg = "../" + cleanImgPath;
                 } else {
-                    itemImg = "sensunshop/" + itemImg;
+                    itemImg = cleanImgPath;
                 }
             }
 
-            const itemLink = `${redirectPath}#${item.id}`;
+            const itemLink = `${item.redirectPath}#${item.id}`;
             const badgeClass = item.category;
 
             html += `
-                <a href="${itemLink}" class="search-result-item" data-id="${item.id}">
+                <a href="${itemLink}" class="search-result-item" data-id="${item.id}" data-href="${itemLink}">
                     ${itemImg ? `<img src="${itemImg}" alt="${item.title}" class="search-result-img" loading="lazy">` : ""}
                     <div class="search-result-info">
                         <div class="search-result-title">${item.title}</div>
@@ -980,10 +999,14 @@ function initSensunSearch(isSensunshop, depth) {
         resultElements.forEach(el => {
             el.addEventListener("click", (e) => {
                 const id = el.getAttribute("data-id");
+                const href = el.getAttribute("data-href");
+                const targetPageName = href.split('#')[0].split('/').pop();
+                const currentPageName = window.location.pathname.split('/').pop() || "sensunshop.html";
+
                 closeModal();
 
-                // Si ya estamos en negocioslocales.html, manejamos el scroll y resaltado localmente
-                if (window.location.pathname.endsWith("negocioslocales.html")) {
+                // Si ya estamos en la página destino, manejamos el scroll y resaltado localmente
+                if (currentPageName === targetPageName) {
                     e.preventDefault();
                     history.pushState(null, null, `#${id}`);
                     highlightBusinessCard(id);
@@ -1021,7 +1044,7 @@ function highlightBusinessCard(id) {
 function checkHighlightHash() {
     if (window.location.hash) {
         const id = window.location.hash.substring(1);
-        if (id.startsWith("NEG-")) {
+        if (id) {
             // Esperar a que rendericen los elementos
             setTimeout(() => {
                 highlightBusinessCard(id);
