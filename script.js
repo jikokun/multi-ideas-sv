@@ -805,7 +805,10 @@ function enableSwipeToClose(element, callback) {
 // SISTEMA DE BÚSQUEDA GLOBAL DE SENSUN SHOP
 // ==========================================================================
 function initSensunSearch(isSensunshop, depth) {
-    if (!isSensunshop) return;
+    const btnDesktop = document.getElementById("search-btn-desktop");
+    const btnMobile = document.getElementById("search-btn-mobile");
+    
+    if (!btnDesktop && !btnMobile) return;
 
     // 1. Inyectar el marcado del modal de búsqueda si no existe
     if (!document.getElementById("search-modal-overlay")) {
@@ -835,8 +838,6 @@ function initSensunSearch(isSensunshop, depth) {
     const input = document.getElementById("search-modal-input");
     const closeBtn = document.getElementById("search-modal-close");
     const resultsContainer = document.getElementById("search-modal-results");
-    const btnDesktop = document.getElementById("search-btn-desktop");
-    const btnMobile = document.getElementById("search-btn-mobile");
 
     let businessesData = null;
 
