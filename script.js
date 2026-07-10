@@ -1325,7 +1325,9 @@ function connectFirebaseToAuth(authUI, fb) {
         onAuthStateChanged,
         GoogleAuthProvider,
         signInWithPopup,
-        getAdditionalUserInfo
+        getAdditionalUserInfo,
+        signInWithRedirect,
+        getRedirectResult
     } = fb;
 
     const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, googleBtn, googleText, switchMode, getCurrentMode } = authUI;
@@ -1351,6 +1353,46 @@ function connectFirebaseToAuth(authUI, fb) {
                 return 'Ocurrió un error inesperado al procesar la solicitud. Por favor intenta de nuevo.';
         }
     }
+
+    // Procesar resultado de redirección de Google (para móviles)
+    getRedirectResult(auth).then(async (result) => {
+        if (result) {
+            console.log("[Auth Debug] Redirect result obtenido:", result);
+            const additionalUserInfo = getAdditionalUserInfo(result);
+            const savedMode = localStorage.getItem('google_auth_mode') || 'login';
+            localStorage.removeItem('google_auth_mode');
+
+            if (savedMode === 'login') {
+                if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                    const user = result.user;
+                    await user.delete(); 
+                    await signOut(auth);
+
+                    const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
+                    showNotification('Registro Requerido', msg, 'info');
+                    
+                    // Abrir el modal en pestaña de registro tras un breve delay
+                    setTimeout(() => {
+                        if (typeof window.openAuthModal === 'function') {
+                            window.openAuthModal();
+                            if (typeof switchMode === 'function') {
+                                switchMode('register');
+                            }
+                        }
+                    }, 1000);
+                } else {
+                    showNotification('Sesión Iniciada', '¡Bienvenido de nuevo con Google!', 'success');
+                }
+            } else {
+                showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada con éxito!', 'success');
+            }
+        }
+    }).catch((error) => {
+        console.error("[Auth Debug] Error al procesar redirect de Google:", error);
+        if (error.code !== 'auth/popup-blocked') {
+            showNotification('Error de Autenticación', 'No se pudo completar el inicio de sesión con Google.', 'error');
+        }
+    });
 
     // Formulario de login/registro
     if (authForm) {
@@ -1406,49 +1448,65 @@ function connectFirebaseToAuth(authUI, fb) {
             const provider = new GoogleAuthProvider();
             const currentMode = getCurrentMode();
 
-            try {
-                const result = await signInWithPopup(auth, provider);
-                const additionalUserInfo = getAdditionalUserInfo(result);
-                
-                if (currentMode === 'login') {
-                    // Si el modo es login y es un usuario nuevo, evitamos el login redundante
-                    if (additionalUserInfo && additionalUserInfo.isNewUser) {
-                        const user = result.user;
-                        await user.delete(); 
-                        await signOut(auth);
+            // Detectar si está en un navegador móvil
+            const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
-                        const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
-                        if (errorMsg) {
-                            errorMsg.textContent = msg;
-                            errorMsg.style.display = 'block';
-                        }
-                        showNotification('Registro Requerido', msg, 'info');
-                        if (typeof switchMode === 'function') {
-                            switchMode('register');
+            if (isMobile) {
+                localStorage.setItem('google_auth_mode', currentMode);
+                try {
+                    await signInWithRedirect(auth, provider);
+                } catch (error) {
+                    console.error("Error de redirección con Google:", error);
+                    showNotification('Error con Google', 'No se pudo iniciar la redirección.', 'error');
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (googleBtn) googleBtn.disabled = false;
+                }
+            } else {
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    const additionalUserInfo = getAdditionalUserInfo(result);
+                    
+                    if (currentMode === 'login') {
+                        // Si el modo es login y es un usuario nuevo, evitamos el login redundante
+                        if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                            const user = result.user;
+                            await user.delete(); 
+                            await signOut(auth);
+
+                            const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
+                            if (errorMsg) {
+                                errorMsg.textContent = msg;
+                                errorMsg.style.display = 'block';
+                            }
+                            showNotification('Registro Requerido', msg, 'info');
+                            if (typeof switchMode === 'function') {
+                                switchMode('register');
+                            }
+                        } else {
+                            showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv con Google!', 'success');
+                            closeModal();
                         }
                     } else {
-                        showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv con Google!', 'success');
+                        // Modo Registro
+                        showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
                         closeModal();
                     }
-                } else {
-                    // Modo Registro
-                    showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
-                    closeModal();
+                } catch (error) {
+                    console.error("Error de autenticación con Google:", error);
+                    let friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
+                    if (error.code === 'auth/popup-closed-by-user') {
+                        friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
+                    }
+                    if (errorMsg) {
+                        friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
+                        errorMsg.textContent = friendlyMsg;
+                        errorMsg.style.display = 'block';
+                    }
+                    showNotification('Error con Google', friendlyMsg, 'error');
+                } finally {
+                    if (submitBtn) submitBtn.disabled = false;
+                    if (googleBtn) googleBtn.disabled = false;
                 }
-            } catch (error) {
-                console.error("Error de autenticación con Google:", error);
-                let friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
-                if (error.code === 'auth/popup-closed-by-user') {
-                    friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
-                }
-                if (errorMsg) {
-                    errorMsg.textContent = friendlyMsg;
-                    errorMsg.style.display = 'block';
-                }
-                showNotification('Error con Google', friendlyMsg, 'error');
-            } finally {
-                if (submitBtn) submitBtn.disabled = false;
-                if (googleBtn) googleBtn.disabled = false;
             }
         });
     }

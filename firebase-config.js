@@ -15,7 +15,9 @@ import {
     reauthenticateWithCredential,
     GoogleAuthProvider,
     signInWithPopup,
-    getAdditionalUserInfo
+    getAdditionalUserInfo,
+    signInWithRedirect,
+    getRedirectResult
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -52,5 +54,7 @@ export {
     reauthenticateWithCredential,
     GoogleAuthProvider,
     signInWithPopup,
-    getAdditionalUserInfo
+    getAdditionalUserInfo,
+    signInWithRedirect,
+    getRedirectResult
 };

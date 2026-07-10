@@ -792,29 +792,41 @@ function createAuthModal() {
 
     const handleGoogleAuth = async (isLogin) => {
         const provider = new GoogleAuthProvider();
-        try {
-            const result = await signInWithPopup(auth, provider);
-            const additionalUserInfo = getAdditionalUserInfo(result);
-            
-            if (isLogin) {
-                if (additionalUserInfo && additionalUserInfo.isNewUser) {
-                    const user = result.user;
-                    await user.delete();
-                    await signOut(auth);
-                    alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
-                    // Cambiar a registro
-                    loginForm.style.display = 'none';
-                    registerForm.style.display = 'flex';
+        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            localStorage.setItem('google_auth_mode', isLogin ? 'login' : 'register');
+            try {
+                await signInWithRedirect(auth, provider);
+            } catch (error) {
+                console.error("Error en redirect de Google (ratings):", error);
+                alert("No se pudo iniciar la redirección de Google.");
+            }
+        } else {
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const additionalUserInfo = getAdditionalUserInfo(result);
+                
+                if (isLogin) {
+                    if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                        const user = result.user;
+                        await user.delete();
+                        await signOut(auth);
+                        alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
+                        // Cambiar a registro
+                        loginForm.style.display = 'none';
+                        registerForm.style.display = 'flex';
+                    } else {
+                        closeAuthModal();
+                    }
                 } else {
                     closeAuthModal();
                 }
-            } else {
-                closeAuthModal();
-            }
-        } catch (error) {
-            console.error("Error en autenticación Google:", error);
-            if (error.code !== 'auth/popup-closed-by-user') {
-                alert("Error al conectar con Google: " + translateAuthError(error.code));
+            } catch (error) {
+                console.error("Error en autenticación Google:", error);
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    alert("Error al conectar con Google: " + translateAuthError(error.code));
+                }
             }
         }
     };
