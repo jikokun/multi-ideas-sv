@@ -1239,6 +1239,8 @@ function setupAuthUI(authModal) {
     const tabLogin = authModal.querySelector('#tab-login');
     const tabRegister = authModal.querySelector('#tab-register');
     const closeBtn = authModal.querySelector('#auth-modal-close');
+    const googleBtn = authModal.querySelector('#auth-google-btn');
+    const googleText = authModal.querySelector('#auth-google-text');
 
     let currentMode = 'login'; // 'login' o 'register'
 
@@ -1273,6 +1275,7 @@ function setupAuthUI(authModal) {
             if (groupName) groupName.style.display = 'none';
             if (inputName) inputName.removeAttribute('required');
             if (submitBtn) submitBtn.textContent = 'Ingresar';
+            if (googleText) googleText.textContent = 'Iniciar con Google';
         } else {
             if (tabLogin) tabLogin.classList.remove('active');
             if (tabRegister) tabRegister.classList.add('active');
@@ -1281,6 +1284,7 @@ function setupAuthUI(authModal) {
             if (groupName) groupName.style.display = 'flex';
             if (inputName) inputName.setAttribute('required', 'true');
             if (submitBtn) submitBtn.textContent = 'Registrarse';
+            if (googleText) googleText.textContent = 'Registrarse con Google';
         }
     }
 
@@ -1304,6 +1308,9 @@ function setupAuthUI(authModal) {
         errorMsg,
         submitBtn,
         closeModal,
+        googleBtn,
+        googleText,
+        switchMode,
         getCurrentMode: () => currentMode
     };
 }
@@ -1315,10 +1322,13 @@ function connectFirebaseToAuth(authUI, fb) {
         createUserWithEmailAndPassword, 
         signOut, 
         updateProfile,
-        onAuthStateChanged 
+        onAuthStateChanged,
+        GoogleAuthProvider,
+        signInWithPopup,
+        getAdditionalUserInfo
     } = fb;
 
-    const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, getCurrentMode } = authUI;
+    const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, googleBtn, googleText, switchMode, getCurrentMode } = authUI;
 
     // Mapeo de errores de Firebase Auth a español amigable
     function getFriendlyErrorMessage(code) {
@@ -1378,6 +1388,67 @@ function connectFirebaseToAuth(authUI, fb) {
                 showNotification('Error de Autenticación', getFriendlyErrorMessage(error.code), 'error');
             } finally {
                 if (submitBtn) submitBtn.disabled = false;
+            }
+        });
+    }
+
+    // Google Sign-In con control de registro
+    if (googleBtn) {
+        googleBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            if (errorMsg) {
+                errorMsg.style.display = 'none';
+                errorMsg.textContent = '';
+            }
+            if (submitBtn) submitBtn.disabled = true;
+            if (googleBtn) googleBtn.disabled = true;
+
+            const provider = new GoogleAuthProvider();
+            const currentMode = getCurrentMode();
+
+            try {
+                const result = await signInWithPopup(auth, provider);
+                const additionalUserInfo = getAdditionalUserInfo(result);
+                
+                if (currentMode === 'login') {
+                    // Si el modo es login y es un usuario nuevo, evitamos el login redundante
+                    if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                        const user = result.user;
+                        await user.delete(); 
+                        await signOut(auth);
+
+                        const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
+                        if (errorMsg) {
+                            errorMsg.textContent = msg;
+                            errorMsg.style.display = 'block';
+                        }
+                        showNotification('Registro Requerido', msg, 'info');
+                        if (typeof switchMode === 'function') {
+                            switchMode('register');
+                        }
+                    } else {
+                        showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv con Google!', 'success');
+                        closeModal();
+                    }
+                } else {
+                    // Modo Registro
+                    showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
+                    closeModal();
+                }
+            } catch (error) {
+                console.error("Error de autenticación con Google:", error);
+                let friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
+                if (error.code === 'auth/popup-closed-by-user') {
+                    friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
+                }
+                if (errorMsg) {
+                    errorMsg.textContent = friendlyMsg;
+                    errorMsg.style.display = 'block';
+                }
+                showNotification('Error con Google', friendlyMsg, 'error');
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+                if (googleBtn) googleBtn.disabled = false;
             }
         });
     }

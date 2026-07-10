@@ -7,7 +7,11 @@ import {
     onAuthStateChanged,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
-    updateProfile
+    updateProfile,
+    GoogleAuthProvider,
+    signInWithPopup,
+    getAdditionalUserInfo,
+    signOut
 } from "../firebase-config.js";
 import { ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -45,8 +49,8 @@ const styles = `
         filter: drop-shadow(0 0 5px rgba(255, 183, 3, 0.4));
     }
     .star-btn.user-filled {
-        color: #00b4d8;
-        filter: drop-shadow(0 0 5px rgba(0, 180, 216, 0.4));
+        color: #f39c12;
+        filter: drop-shadow(0 0 5px rgba(243, 156, 18, 0.4));
     }
     .rating-text {
         font-size: 0.9rem;
@@ -58,7 +62,7 @@ const styles = `
         color: #718096;
     }
     .rating-helper a {
-        color: #00b4d8;
+        color: #f39c12;
         text-decoration: underline;
         cursor: pointer;
     }
@@ -636,7 +640,7 @@ function initRatingWidget(container) {
         if (!isCompact) {
             if (currentUser) {
                 if (userVote) {
-                    ratingHelper.innerHTML = `Tu calificación: <span style="color: #00b4d8; font-weight: 600;">${userVote} estrellas</span> (puedes cambiarla)`;
+                    ratingHelper.innerHTML = `Tu calificación: <span style="color: #f39c12; font-weight: 600;">${userVote} estrellas</span> (puedes cambiarla)`;
                 } else {
                     ratingHelper.textContent = "Haz clic en una estrella para votar";
                 }
@@ -701,7 +705,7 @@ function createAuthModal() {
         <div class="rating-auth-card">
             <button class="rating-auth-close" onclick="closeAuthModal()">&times;</button>
             <div style="text-align: center; margin-bottom: 25px;">
-                <h3 style="color: #00b4d8; font-size: 1.5rem; font-weight: 700; margin-bottom: 5px;">Sensun Shop</h3>
+                <h3 style="color: #f39c12; font-size: 1.5rem; font-weight: 700; margin-bottom: 5px;">Sensun Shop</h3>
                 <p style="color: #a0aec0; font-size: 0.88rem;">Inicia sesión para poder calificar este negocio</p>
             </div>
 
@@ -715,11 +719,20 @@ function createAuthModal() {
                     <label style="display: block; font-size: 0.85rem; color: #a0aec0; margin-bottom: 5px;">Contraseña</label>
                     <input type="password" id="rating-login-password" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none;" placeholder="••••••••">
                 </div>
-                <button type="submit" style="background: #00b4d8; color: #0a0d14; font-weight: 700; padding: 12px; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
+                <button type="submit" style="background: #f39c12; color: #0a0d14; font-weight: 700; padding: 12px; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
                     Iniciar Sesión
                 </button>
+                <div style="display: flex; align-items: center; text-align: center; margin: 5px 0; color: #a0aec0; font-size: 0.85rem;">
+                    <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-right: .8em;"></span>
+                    <span>o</span>
+                    <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-left: .8em;"></span>
+                </div>
+                <button type="button" id="rating-google-login-btn" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; gap: 10px; border-color: rgba(255, 255, 255, 0.1);">
+                    <svg viewBox="0 0 24 24" width="18" height="18" style="fill: currentColor;"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.727 5.727 0 0 1 8.24 12.8a5.727 5.727 0 0 1 5.751-5.714c1.554 0 2.966.574 4.053 1.516l3.18-3.18C19.294 3.525 16.74 2.286 13.99 2.286 8.167 2.286 3.42 7.034 3.42 12.86c0 5.823 4.747 10.57 10.57 10.57 6.077 0 10.1-4.27 10.1-10.286 0-.693-.06-1.356-.174-1.858H12.24Z"/></svg>
+                    <span>Iniciar con Google</span>
+                </button>
                 <p style="font-size: 0.85rem; color: #718096; text-align: center; margin-top: 10px;">
-                    ¿No tienes cuenta? <a href="#" id="rating-go-register" style="color: #00b4d8; text-decoration: underline;">Regístrate aquí</a>
+                    ¿No tienes cuenta? <a href="#" id="rating-go-register" style="color: #f39c12; text-decoration: underline;">Regístrate aquí</a>
                 </p>
             </form>
 
@@ -737,11 +750,20 @@ function createAuthModal() {
                     <label style="display: block; font-size: 0.85rem; color: #a0aec0; margin-bottom: 5px;">Contraseña</label>
                     <input type="password" id="rating-register-password" required style="width: 100%; padding: 10px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; outline: none;" placeholder="••••••••">
                 </div>
-                <button type="submit" style="background: #00b4d8; color: #0a0d14; font-weight: 700; padding: 12px; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
+                <button type="submit" style="background: #f39c12; color: #0a0d14; font-weight: 700; padding: 12px; border: none; border-radius: 8px; cursor: pointer; transition: background 0.2s;">
                     Crear Cuenta
                 </button>
+                <div style="display: flex; align-items: center; text-align: center; margin: 5px 0; color: #a0aec0; font-size: 0.85rem;">
+                    <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-right: .8em;"></span>
+                    <span>o</span>
+                    <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-left: .8em;"></span>
+                </div>
+                <button type="button" id="rating-google-register-btn" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; gap: 10px; border-color: rgba(255, 255, 255, 0.1);">
+                    <svg viewBox="0 0 24 24" width="18" height="18" style="fill: currentColor;"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.727 5.727 0 0 1 8.24 12.8a5.727 5.727 0 0 1 5.751-5.714c1.554 0 2.966.574 4.053 1.516l3.18-3.18C19.294 3.525 16.74 2.286 13.99 2.286 8.167 2.286 3.42 7.034 3.42 12.86c0 5.823 4.747 10.57 10.57 10.57 6.077 0 10.1-4.27 10.1-10.286 0-.693-.06-1.356-.174-1.858H12.24Z"/></svg>
+                    <span>Registrarse con Google</span>
+                </button>
                 <p style="font-size: 0.85rem; color: #718096; text-align: center; margin-top: 10px;">
-                    ¿Ya tienes una cuenta? <a href="#" id="rating-go-login" style="color: #00b4d8; text-decoration: underline;">Inicia sesión</a>
+                    ¿Ya tienes una cuenta? <a href="#" id="rating-go-login" style="color: #f39c12; text-decoration: underline;">Inicia sesión</a>
                 </p>
             </form>
         </div>
@@ -753,6 +775,8 @@ function createAuthModal() {
     const registerForm = document.getElementById('rating-register-form');
     const goRegister = document.getElementById('rating-go-register');
     const goLogin = document.getElementById('rating-go-login');
+    const googleLoginBtn = document.getElementById('rating-google-login-btn');
+    const googleRegisterBtn = document.getElementById('rating-google-register-btn');
 
     goRegister.addEventListener('click', (e) => {
         e.preventDefault();
@@ -765,6 +789,49 @@ function createAuthModal() {
         registerForm.style.display = 'none';
         loginForm.style.display = 'flex';
     });
+
+    const handleGoogleAuth = async (isLogin) => {
+        const provider = new GoogleAuthProvider();
+        try {
+            const result = await signInWithPopup(auth, provider);
+            const additionalUserInfo = getAdditionalUserInfo(result);
+            
+            if (isLogin) {
+                if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                    const user = result.user;
+                    await user.delete();
+                    await signOut(auth);
+                    alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
+                    // Cambiar a registro
+                    loginForm.style.display = 'none';
+                    registerForm.style.display = 'flex';
+                } else {
+                    closeAuthModal();
+                }
+            } else {
+                closeAuthModal();
+            }
+        } catch (error) {
+            console.error("Error en autenticación Google:", error);
+            if (error.code !== 'auth/popup-closed-by-user') {
+                alert("Error al conectar con Google: " + translateAuthError(error.code));
+            }
+        }
+    };
+
+    if (googleLoginBtn) {
+        googleLoginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleGoogleAuth(true);
+        });
+    }
+
+    if (googleRegisterBtn) {
+        googleRegisterBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleGoogleAuth(false);
+        });
+    }
 
     loginForm.addEventListener('submit', async (e) => {
         e.preventDefault();
