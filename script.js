@@ -294,7 +294,6 @@ function highlightCurrentPage() {
     if (inSensun) {
         if (path === "negocioslocales.html") document.getElementById("nav-negocios")?.classList.add("active");
         if (path === "emprendedores.html") document.getElementById("nav-emprendedores")?.classList.add("active");
-        if (path === "comida.html") document.getElementById("nav-comida")?.classList.add("active");
         if (path === "oficios.html") document.getElementById("nav-oficios")?.classList.add("active");
         if (path === "profesionales.html") document.getElementById("nav-profesionales")?.classList.add("active");
         return;
@@ -841,11 +840,9 @@ function initSensunSearch(isSensunshop, depth) {
 
     let businessesData = null;
 
-    // Páginas a indexar en Sensun Shop
     const targetPages = [
         "negocioslocales.html",
         "emprendedores.html",
-        "comida.html",
         "oficios.html",
         "profesionales.html"
     ];
