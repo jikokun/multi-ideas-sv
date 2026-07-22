@@ -337,9 +337,10 @@
             style="display: flex; justify-content: space-between; align-items: center; max-width: 1200px; margin: 0 auto 30px auto; padding: 0 5%; gap: 20px;">
             <div class="filter-container" id="category-filter-container"
                 style="display: flex; gap: 10px; flex-wrap: wrap; margin: 0; justify-content: flex-start; padding: 0;">
-                <button class="filter-btn active" data-filter="all">Todos</button>
-                <button class="filter-btn" data-filter="graduados">Graduados / Universitarios</button>
-                <button class="filter-btn" data-filter="tecnicos">Técnicos</button>
+                <button class="filter-btn active" data-filter="all">Todos los Profesionales</button>
+                <button class="filter-btn" data-filter="salud">Salud & Medicina</button>
+                <button class="filter-btn" data-filter="graduados">Graduados & Universitarios</button>
+                <button class="filter-btn" data-filter="tecnicos">Técnicos & Especialistas</button>
             </div>
 
             <!-- Botón desplegable único para subcategorías a la derecha -->
@@ -447,7 +448,7 @@
                 style="color: inherit; text-decoration: none;">Políticas de Privacidad</a></p>
     </footer>
 
-    <script src="../script.js"></script>
+    <script src="../script.js?v=4"></script>
     <script>
         // Logica Local para Controles de Slider y Filtros de Catalogo
         document.addEventListener('DOMContentLoaded', () => {
@@ -517,13 +518,16 @@
                     const cardTagsString = card.getAttribute('data-tags') || '';
                     const cardTags = cardTagsString.split(',').map(t => t.trim());
 
-                    const matchesCategory = (currentCategory === 'all' || cardCategory === currentCategory);
+                    const matchesCategory = (currentCategory === 'all' || cardCategory === currentCategory || cardTags.includes(currentCategory));
                     const matchesTag = (currentTag === 'all' || cardTags.includes(currentTag));
 
                     if (matchesCategory && matchesTag) {
-                        card.style.display = 'flex';
+                        card.classList.remove('hidden-filter');
+                        card.style.setProperty('display', 'flex', 'important');
+                        card.style.opacity = '1';
                     } else {
-                        card.style.display = 'none';
+                        card.classList.add('hidden-filter');
+                        card.style.setProperty('display', 'none', 'important');
                     }
                 });
             }
@@ -586,6 +590,40 @@
                     tagDropdown.classList.remove('active');
 
                     applyFilters();
+                });
+            });
+
+            // CLIC DIRECTO EN LAS ETIQUETAS DE CADA TARJETA (.tag)
+            document.querySelectorAll('#negocios-container .tag').forEach(tagSpan => {
+                tagSpan.style.cursor = 'pointer';
+                tagSpan.title = `Filtrar por ${tagSpan.textContent.trim()}`;
+                tagSpan.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rawTagText = tagSpan.textContent.trim().toLowerCase();
+                    const tagSlug = rawTagText.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+                    currentTag = tagSlug;
+                    currentCategory = 'all';
+
+                    categoryBtns.forEach(b => b.classList.remove('active'));
+                    tagLinks.forEach(l => l.classList.remove('active'));
+
+                    const matchingLink = document.querySelector(`#tag-dropdown-content a[data-tag="${tagSlug}"]`);
+                    if (matchingLink) {
+                        matchingLink.classList.add('active');
+                        subcatBtn.innerHTML = `${matchingLink.textContent} <span class="arrow-down" style="border-top-color: currentColor; margin-left: 4px; pointer-events: none;"></span>`;
+                    } else {
+                        subcatBtn.innerHTML = `${tagSpan.textContent.trim()} <span class="arrow-down" style="border-top-color: currentColor; margin-left: 4px; pointer-events: none;"></span>`;
+                    }
+                    subcatBtn.classList.add('active');
+
+                    applyFilters();
+
+                    const catalogoSection = document.getElementById('catalogo');
+                    if (catalogoSection) {
+                        catalogoSection.scrollIntoView({ behavior: 'smooth' });
+                    }
                 });
             });
         });

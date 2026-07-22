@@ -512,11 +512,13 @@ const styles = `
         border-color: #ffffff !important;
     }
 
-    /* Reglas de Uniformidad estrictas y Simetría Perfecta para Tarjetas del Catálogo */
-    .negocios-grid .negocio-card, 
-    .productos-grid .producto-card, 
-    .catalogo-grid .producto-card,
-    .catalogo-grid .negocio-card {
+    .hidden-filter {
+        display: none !important;
+    }
+    .negocios-grid .negocio-card:not(.hidden-filter), 
+    .productos-grid .producto-card:not(.hidden-filter), 
+    .catalogo-grid .producto-card:not(.hidden-filter),
+    .catalogo-grid .negocio-card:not(.hidden-filter) {
         box-sizing: border-box !important;
         width: 100% !important;
         height: 100% !important;
@@ -526,9 +528,15 @@ const styles = `
     }
     .productos-grid, .negocios-grid, .catalogo-grid {
         display: grid !important;
-        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)) !important;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
         gap: 24px !important;
         align-items: stretch !important;
+    }
+    @media (max-width: 600px) {
+        .productos-grid, .negocios-grid, .catalogo-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+        }
     }
     /* Normalización de Contenedor de Etiquetas (1 sola fila limpia tipo carrusel automático si son 4+ etiquetas) */
     .negocio-tags, .producto-tags {
@@ -572,6 +580,14 @@ const styles = `
     .negocio-tags .tag, .producto-tags .tag {
         white-space: nowrap !important;
         flex-shrink: 0 !important;
+        cursor: pointer !important;
+        transition: all 0.2s ease !important;
+    }
+    .negocio-tags .tag:hover, .producto-tags .tag:hover {
+        background: rgba(243, 156, 18, 0.25) !important;
+        border-color: rgba(243, 156, 18, 0.6) !important;
+        color: #f39c12 !important;
+        transform: translateY(-1px) !important;
     }
     /* Normalización de Descripciones (Exactamente 2 líneas para alinear títulos, estrellas y botones) */
     .negocio-card p, .producto-card p {
@@ -1980,27 +1996,38 @@ function escapeHtml(text) {
 
 // Inyección de botones de comentarios en las tarjetas de carteleras (Formato Circular Compacto en Línea de Estrellas)
 function injectCommentButtons() {
-    const cards = document.querySelectorAll(".negocio-card, .slider-card");
+    // Eliminar botones erroneamente inyectados en tarjetas informativas del slider de novedades sin widget de estrellas
+    document.querySelectorAll(".novedades-section .slider-card, .novedades-slider .slider-card").forEach(slide => {
+        if (!slide.querySelector(".sensun-rating-widget")) {
+            const btn = slide.querySelector(".compact-comment-circle-btn");
+            if (btn) btn.remove();
+        }
+    });
+
+    const cards = document.querySelectorAll(".negocio-card, .producto-card");
     cards.forEach(card => {
         if (card.classList.contains("disponible")) return;
+
+        // Ignorar tarjetas puramente informativas del slider sin widget de calificación
+        if (card.closest(".novedades-section, .novedades-slider") && !card.querySelector(".sensun-rating-widget")) return;
         
         // Limpiar botones antiguos en .negocio-links si existieran
         const oldLinkBtn = card.querySelector(".negocio-links .btn-comment");
         if (oldLinkBtn) oldLinkBtn.remove();
 
-        let businessId = card.dataset.businessId;
         const ratingWidget = card.querySelector(".sensun-rating-widget");
-        if (!businessId && ratingWidget) {
-            businessId = ratingWidget.dataset.businessId;
+        let businessId = card.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null) || (card.id ? card.id.toLowerCase() : null);
+
+        const titleEl = card.querySelector("h3");
+        const titleText = titleEl ? titleEl.textContent.trim() : "";
+
+        if (!businessId && titleText) {
+            businessId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         }
-        if (!businessId && card.id) businessId = card.id.toLowerCase();
         if (!businessId) return;
 
         // Evitar duplicados
         if (card.querySelector(".compact-comment-circle-btn")) return;
-
-        const titleEl = card.querySelector("h3");
-        const titleText = titleEl ? titleEl.textContent.trim() : "";
 
         // Crear el botón circular compacto
         const btn = document.createElement("button");
@@ -2038,10 +2065,12 @@ function injectCommentButtons() {
                 container.appendChild(btn);
             }
         } else {
-            // Fallback si no hay widget de estrellas
-            const content = card.querySelector(".slider-card-content, .negocio-info") || card;
-            const targetRow = content.querySelector(".stars-row, h3") || content;
-            targetRow.appendChild(btn);
+            // Fallback solo para tarjetas de negocio reales con .negocio-info
+            const content = card.querySelector(".negocio-info");
+            if (content) {
+                const targetRow = content.querySelector(".stars-row, h3") || content;
+                targetRow.appendChild(btn);
+            }
         }
 
         // Escuchar número de comentarios en tiempo real

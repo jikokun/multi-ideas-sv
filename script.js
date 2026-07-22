@@ -1332,6 +1332,23 @@ function connectFirebaseToAuth(authUI, fb) {
 
     const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, googleBtn, googleText, switchMode, getCurrentMode } = authUI;
 
+    function getAppName() {
+        const path = (window.location.pathname || '').toLowerCase();
+        const href = (window.location.href || '').toLowerCase();
+        const title = (document.title || '').toLowerCase();
+        
+        if (path.includes('sensun') || href.includes('sensun') || title.includes('sensun')) {
+            return 'Sensun Shop';
+        }
+        if (path.includes('kickzone') || href.includes('kickzone') || title.includes('kickzone')) {
+            return 'Kickzone';
+        }
+        if (path.includes('fidelix') || href.includes('fidelix') || title.includes('fidelix')) {
+            return 'FideliX';
+        }
+        return 'Multi Ideas Sv';
+    }
+
     // Mapeo de errores de Firebase Auth a español amigable
     function getFriendlyErrorMessage(code) {
         switch (code) {
@@ -1381,7 +1398,7 @@ function connectFirebaseToAuth(authUI, fb) {
                         }
                     }, 1000);
                 } else {
-                    showNotification('Sesión Iniciada', '¡Bienvenido de nuevo con Google!', 'success');
+                    showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
                 }
             } else {
                 showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada con éxito!', 'success');
@@ -1412,7 +1429,7 @@ function connectFirebaseToAuth(authUI, fb) {
             try {
                 if (currentMode === 'login') {
                     await signInWithEmailAndPassword(auth, email, password);
-                    showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv!', 'success');
+                    showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()}!`, 'success');
                 } else {
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     if (displayName) {
@@ -1483,7 +1500,7 @@ function connectFirebaseToAuth(authUI, fb) {
                                 switchMode('register');
                             }
                         } else {
-                            showNotification('Sesión Iniciada', '¡Bienvenido de nuevo a Multi Ideas Sv con Google!', 'success');
+                            showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
                             closeModal();
                         }
                     } else {
