@@ -13,7 +13,7 @@ import {
     getAdditionalUserInfo,
     signOut
 } from "../firebase-config.js";
-import { ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { ref, set, get, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Estilos dinámicos para las estrellas y el modal
 const styles = `
@@ -415,6 +415,533 @@ const styles = `
     body.light-theme .favorito-list-item h4 {
         color: #1a202c !important;
     }
+
+    /* Estilos del Widget de Calificación y Botón Circular de Comentarios Parallel */
+    .sensun-rating-widget {
+        width: 100% !important;
+        margin: 6px 0 10px 0 !important;
+        display: block !important;
+    }
+    .star-rating-container.compact {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        gap: 8px !important;
+    }
+    .stars-rating-left-group {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 6px !important;
+        flex-wrap: nowrap !important;
+        min-width: 0 !important;
+    }
+    .star-rating-container.compact .stars-row {
+        display: flex !important;
+        gap: 3px !important;
+        align-items: center !important;
+    }
+    .star-rating-container.compact .rating-text {
+        font-size: 0.78rem !important;
+        color: #a0aec0 !important;
+        font-weight: 600 !important;
+        white-space: nowrap !important;
+        margin: 0 !important;
+    }
+    .compact-comment-circle-btn {
+        position: relative !important;
+        width: 32px !important;
+        height: 32px !important;
+        border-radius: 50% !important;
+        background: rgba(243, 156, 18, 0.12) !important;
+        border: 1px solid rgba(243, 156, 18, 0.3) !important;
+        color: #f39c12 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        padding: 0 !important;
+        flex-shrink: 0 !important;
+        outline: none !important;
+        margin-left: auto !important;
+    }
+    .compact-comment-circle-btn:hover {
+        transform: scale(1.12) !important;
+        background: rgba(243, 156, 18, 0.25) !important;
+        border-color: rgba(243, 156, 18, 0.6) !important;
+        box-shadow: 0 0 12px rgba(243, 156, 18, 0.35) !important;
+    }
+    .comment-micro-badge {
+        position: absolute !important;
+        top: -4px !important;
+        right: -4px !important;
+        background: #f39c12 !important;
+        color: #0a0d14 !important;
+        font-size: 0.65rem !important;
+        font-weight: 800 !important;
+        min-width: 16px !important;
+        height: 16px !important;
+        border-radius: 8px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 0 4px !important;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4) !important;
+        border: 1px solid #121724 !important;
+        line-height: 1 !important;
+    }
+    body.light-theme .compact-comment-circle-btn {
+        background: #fffaf0 !important;
+        border-color: #fbd38d !important;
+        color: #dd6b20 !important;
+    }
+    body.light-theme .compact-comment-circle-btn:hover {
+        background: #feebc8 !important;
+        border-color: #f6ad55 !important;
+    }
+    body.light-theme .comment-micro-badge {
+        background: #dd6b20 !important;
+        color: #ffffff !important;
+        border-color: #ffffff !important;
+    }
+
+    /* Reglas de Uniformidad estrictas y Simetría Perfecta para Tarjetas del Catálogo */
+    .negocios-grid .negocio-card, 
+    .productos-grid .producto-card, 
+    .catalogo-grid .producto-card,
+    .catalogo-grid .negocio-card {
+        box-sizing: border-box !important;
+        width: 100% !important;
+        height: 100% !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+    }
+    .productos-grid, .negocios-grid, .catalogo-grid {
+        display: grid !important;
+        grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)) !important;
+        gap: 24px !important;
+        align-items: stretch !important;
+    }
+    /* Normalización de Contenedor de Etiquetas (1 sola fila limpia tipo carrusel automático si son 4+ etiquetas) */
+    .negocio-tags, .producto-tags {
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        overflow: hidden !important;
+        gap: 6px !important;
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
+        align-items: center !important;
+        margin-bottom: 12px !important;
+        position: relative !important;
+        width: 100% !important;
+    }
+    .negocio-tags.has-carousel-tags, .producto-tags.has-carousel-tags {
+        mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+        -webkit-mask-image: linear-gradient(to right, transparent 0%, black 6%, black 94%, transparent 100%);
+    }
+    .tags-track {
+        display: flex !important;
+        gap: 6px !important;
+        width: max-content !important;
+        align-items: center !important;
+        will-change: transform;
+    }
+    .has-carousel-tags .tags-track {
+        animation: tagsCarouselSlide 10s ease-in-out infinite alternate !important;
+    }
+    .has-carousel-tags:hover .tags-track {
+        animation-play-state: paused !important;
+    }
+    @keyframes tagsCarouselSlide {
+        0%, 25% {
+            transform: translateX(0);
+        }
+        75%, 100% {
+            transform: translateX(var(--tags-slide-dist, -60px));
+        }
+    }
+    .negocio-tags .tag, .producto-tags .tag {
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
+    }
+    /* Normalización de Descripciones (Exactamente 2 líneas para alinear títulos, estrellas y botones) */
+    .negocio-card p, .producto-card p {
+        display: -webkit-box !important;
+        -webkit-line-clamp: 2 !important;
+        -webkit-box-orient: vertical !important;
+        overflow: hidden !important;
+        min-height: 2.7em !important;
+        margin-bottom: 15px !important;
+    }
+
+    /* Modal de Comentarios Anónimos */
+    .comments-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(10, 13, 20, 0.82);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        padding: 20px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .comments-modal.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .comments-modal-card {
+        background: #121724;
+        border: 1px solid rgba(243, 156, 18, 0.25);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 520px;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(243, 156, 18, 0.15);
+        position: relative;
+        overflow: hidden;
+        animation: commentsModalSlideUp 0.3s ease-out forwards;
+    }
+    @keyframes commentsModalSlideUp {
+        from { transform: translateY(20px) scale(0.97); }
+        to { transform: translateY(0) scale(1); }
+    }
+    .comments-modal-close {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        color: #a0aec0;
+        font-size: 1.3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        z-index: 5;
+    }
+    .comments-modal-close:hover {
+        background: rgba(234, 67, 53, 0.2);
+        color: #ea4335;
+        border-color: rgba(234, 67, 53, 0.4);
+    }
+    .comments-modal-header {
+        padding: 20px 24px 16px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        gap: 14px;
+    }
+    .comments-header-icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: rgba(243, 156, 18, 0.15);
+        border: 1px solid rgba(243, 156, 18, 0.3);
+        color: #f39c12;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+        flex-shrink: 0;
+    }
+    .comments-modal-header h3 {
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin: 0;
+        line-height: 1.3;
+    }
+    .comments-modal-header p {
+        font-size: 0.78rem;
+        color: #a0aec0;
+        margin: 3px 0 0;
+    }
+    .comments-list-container {
+        padding: 16px 24px;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        min-height: 150px;
+        max-height: 420px;
+    }
+    .comments-list-container::-webkit-scrollbar {
+        width: 6px;
+    }
+    .comments-list-container::-webkit-scrollbar-thumb {
+        background: rgba(243, 156, 18, 0.3);
+        border-radius: 10px;
+    }
+    .comment-item {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        position: relative;
+        transition: all 0.2s ease;
+    }
+    .comment-item.own-comment {
+        background: rgba(243, 156, 18, 0.05);
+        border-color: rgba(243, 156, 18, 0.2);
+    }
+    .comment-item-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .comment-author-info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .comment-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4a5568, #2d3748);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.85rem;
+        color: #e2e8f0;
+    }
+    .comment-author-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #e2e8f0;
+    }
+    .own-badge {
+        font-size: 0.68rem;
+        background: rgba(243, 156, 18, 0.2);
+        color: #f39c12;
+        padding: 2px 6px;
+        border-radius: 6px;
+        border: 1px solid rgba(243, 156, 18, 0.3);
+        font-weight: 600;
+    }
+    .comment-time {
+        font-size: 0.72rem;
+        color: #718096;
+    }
+    .comment-text {
+        font-size: 0.88rem;
+        color: #cbd5e0;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .comment-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 4px;
+        align-self: flex-end;
+    }
+    .btn-comment-action {
+        background: none;
+        border: none;
+        font-size: 0.75rem;
+        font-weight: 500;
+        cursor: pointer;
+        padding: 3px 8px;
+        border-radius: 6px;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .btn-comment-action.edit {
+        color: #f39c12;
+        background: rgba(243, 156, 18, 0.1);
+    }
+    .btn-comment-action.edit:hover {
+        background: rgba(243, 156, 18, 0.25);
+    }
+    .btn-comment-action.delete {
+        color: #e74c3c;
+        background: rgba(231, 76, 60, 0.1);
+    }
+    .btn-comment-action.delete:hover {
+        background: rgba(231, 76, 60, 0.25);
+    }
+    .comments-form-container {
+        padding: 16px 24px 20px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(0, 0, 0, 0.15);
+    }
+    .comments-form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+    .comment-input-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    .comment-textarea {
+        width: 100%;
+        min-height: 48px;
+        max-height: 100px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 12px;
+        padding: 10px 14px;
+        color: #ffffff;
+        font-size: 0.88rem;
+        font-family: inherit;
+        resize: none;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .comment-textarea:focus {
+        border-color: #f39c12;
+        box-shadow: 0 0 10px rgba(243, 156, 18, 0.25);
+    }
+    .editing-banner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: rgba(243, 156, 18, 0.15);
+        border: 1px solid rgba(243, 156, 18, 0.3);
+        border-radius: 8px;
+        padding: 6px 12px;
+        font-size: 0.78rem;
+        color: #f39c12;
+    }
+    .btn-cancel-edit {
+        background: none;
+        border: none;
+        color: #a0aec0;
+        cursor: pointer;
+        font-size: 0.75rem;
+        text-decoration: underline;
+    }
+    .comments-form-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+    .anon-notice {
+        font-size: 0.73rem;
+        color: #718096;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .btn-send-comment {
+        background: linear-gradient(135deg, #f39c12, #d35400);
+        color: #ffffff;
+        border: none;
+        border-radius: 10px;
+        padding: 8px 18px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+    .btn-send-comment:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+    }
+    .comment-login-prompt {
+        text-align: center;
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px dashed rgba(255, 255, 255, 0.15);
+        border-radius: 12px;
+        color: #a0aec0;
+        font-size: 0.85rem;
+    }
+    .comment-login-prompt button {
+        background: #f39c12;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 6px 14px;
+        font-weight: 600;
+        margin-left: 8px;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+    .comment-login-prompt button:hover {
+        background: #e67e22;
+    }
+
+    /* Adaptación a Modo Claro para Modal de Comentarios */
+    body.light-theme .comments-modal-card {
+        background: #ffffff !important;
+        border-color: rgba(0, 0, 0, 0.1) !important;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15) !important;
+    }
+    body.light-theme .comments-modal-close {
+        background: rgba(0, 0, 0, 0.05) !important;
+        color: #4a5568 !important;
+        border-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .comments-modal-header {
+        border-bottom-color: rgba(0, 0, 0, 0.08) !important;
+    }
+    body.light-theme .comments-modal-header h3 {
+        color: #1a202c !important;
+    }
+    body.light-theme .comments-modal-header p {
+        color: #718096 !important;
+    }
+    body.light-theme .comment-item {
+        background: #f8fafc !important;
+        border-color: #e2e8f0 !important;
+    }
+    body.light-theme .comment-item.own-comment {
+        background: #fffaf0 !important;
+        border-color: #feebc8 !important;
+    }
+    body.light-theme .comment-author-name {
+        color: #2d3748 !important;
+    }
+    body.light-theme .comment-text {
+        color: #4a5568 !important;
+    }
+    body.light-theme .comments-form-container {
+        background: #f7fafc !important;
+        border-top-color: #e2e8f0 !important;
+    }
+    body.light-theme .comment-textarea {
+        background: #ffffff !important;
+        border-color: #cbd5e0 !important;
+        color: #1a202c !important;
+    }
+    body.light-theme .comment-login-prompt {
+        background: #ffffff !important;
+        border-color: #cbd5e0 !important;
+        color: #4a5568 !important;
+    }
 `;
 
 // Inyectar estilos en el documento
@@ -530,6 +1057,15 @@ onAuthStateChanged(auth, (user) => {
     // Inyectar botones de favoritos en la página actual
     injectFavoriteButtons();
 
+    // Inyectar botones de comentarios en las tarjetas de la cartelera
+    injectCommentButtons();
+
+    // Inicializar carrusel automático para contenedores con 4+ etiquetas
+    initTagsCarousel();
+
+    // Actualizar formulario de comentarios si el modal está abierto
+    renderCommentsForm();
+
     // Reinicializar todos los widgets de calificación que estén en la página (por ID o por clase)
     document.querySelectorAll("[id='sensun-rating-widget'], .sensun-rating-widget").forEach(widget => {
         initRatingWidget(widget);
@@ -541,6 +1077,9 @@ window.toggleFavorite = toggleFavorite;
 window.syncFavoritesUI = syncFavoritesUI;
 window.injectFavoriteButtons = injectFavoriteButtons;
 window.userFavorites = userFavorites;
+window.injectCommentButtons = injectCommentButtons;
+window.openCommentsModal = openCommentsModal;
+window.closeCommentsModal = closeCommentsModal;
 
 // Inicializar un widget de votación
 function initRatingWidget(container) {
@@ -552,24 +1091,62 @@ function initRatingWidget(container) {
     // Crear estructura interna básica del widget
     if (isCompact) {
         container.innerHTML = `
-            <div class="star-rating-container compact" style="background: transparent; border: none; padding: 4px 0; box-shadow: none; align-items: flex-start; gap: 4px;">
-                <div class="stars-row">
-                    <!-- Estrellas inyectadas por JS -->
+            <div class="star-rating-container compact" style="background: transparent; border: none; padding: 4px 0; box-shadow: none; display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px;">
+                <div class="stars-rating-left-group" style="display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; min-width: 0;">
+                    <div class="stars-row" style="display: flex; gap: 3px; align-items: center;">
+                        <!-- Estrellas inyectadas por JS -->
+                    </div>
+                    <div class="rating-text" style="font-size: 0.75rem; color: #a0aec0; font-weight: 600; white-space: nowrap;">Cargando...</div>
                 </div>
-                <div class="rating-text" style="font-size: 0.75rem; color: #a0aec0;">Cargando...</div>
+                <button type="button" class="compact-comment-circle-btn" data-business-id="${businessId}" title="Ver comentarios comunitarios">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                        <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                    </svg>
+                    <span class="comment-micro-badge">0</span>
+                </button>
             </div>
         `;
     } else {
         container.innerHTML = `
-            <div class="star-rating-container">
+            <div class="star-rating-container" style="display: flex; flex-direction: column; gap: 8px; position: relative;">
                 <h4 style="font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 2px;">Calificación del Negocio</h4>
-                <div class="stars-row">
-                    <!-- Estrellas inyectadas por JS -->
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div class="stars-row">
+                        <!-- Estrellas inyectadas por JS -->
+                    </div>
+                    <button type="button" class="compact-comment-circle-btn" data-business-id="${businessId}" title="Ver comentarios comunitarios">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                            <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+                        </svg>
+                        <span class="comment-micro-badge">0</span>
+                    </button>
                 </div>
                 <div class="rating-text">Cargando calificación...</div>
                 <div class="rating-helper"></div>
             </div>
         `;
+    }
+
+    // Configurar listener para el botón circular de comentarios
+    const commentBtn = container.querySelector('.compact-comment-circle-btn');
+    if (commentBtn) {
+        const card = container.closest('.negocio-card, .slider-card') || container.parentElement;
+        const titleEl = card ? card.querySelector('h3') : null;
+        const titleText = titleEl ? titleEl.textContent.trim() : '';
+
+        commentBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openCommentsModal(businessId, titleText);
+        };
+
+        const countBadge = commentBtn.querySelector('.comment-micro-badge');
+        const commentsRefNode = ref(rtdb, `comments/${businessId}`);
+        onValue(commentsRefNode, (snapshot) => {
+            const val = snapshot.val() || {};
+            const count = Object.keys(val).length;
+            if (countBadge) countBadge.textContent = count;
+        });
     }
 
     const starsRow = container.querySelector(`.stars-row`);
@@ -1121,3 +1698,397 @@ document.addEventListener('click', (e) => {
         if (profileModal) profileModal.classList.add('active');
     }
 });
+
+// ==========================================================================
+// SISTEMA DE COMENTARIOS ANÓNIMOS EN TIEMPO REAL - SENSUN SHOP
+// ==========================================================================
+let activeCommentsListener = null;
+let activeCommentsBusinessId = null;
+let editingCommentId = null;
+
+// Modal dinámico de comentarios
+function ensureCommentsModal() {
+    if (document.getElementById("sensun-comments-modal")) return;
+
+    const modalDiv = document.createElement("div");
+    modalDiv.id = "sensun-comments-modal";
+    modalDiv.className = "comments-modal";
+    modalDiv.innerHTML = `
+        <div class="comments-modal-card">
+            <button type="button" class="comments-modal-close" id="comments-modal-close-btn">&times;</button>
+            <div class="comments-modal-header">
+                <div class="comments-header-icon">💬</div>
+                <div>
+                    <h3 id="comments-modal-title">Comentarios del Negocio</h3>
+                    <p id="comments-modal-subtitle">Opiniones y consultas comunitarias (Anónimo)</p>
+                </div>
+            </div>
+            
+            <div id="comments-list-container" class="comments-list-container">
+                <div style="text-align: center; padding: 20px; color: #a0aec0;">Cargando comentarios...</div>
+            </div>
+            
+            <div id="comments-form-container" class="comments-form-container">
+                <!-- Se actualiza con el estado de autenticación -->
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalDiv);
+
+    // Cerrar al hacer clic en el botón de cerrar
+    document.getElementById("comments-modal-close-btn").addEventListener("click", closeCommentsModal);
+
+    // Cerrar al hacer clic fuera de la tarjeta
+    modalDiv.addEventListener("click", (e) => {
+        if (e.target === modalDiv) closeCommentsModal();
+    });
+}
+
+function closeCommentsModal() {
+    const modal = document.getElementById("sensun-comments-modal");
+    if (modal) modal.classList.remove("active");
+    if (activeCommentsListener) {
+        activeCommentsListener();
+        activeCommentsListener = null;
+    }
+    activeCommentsBusinessId = null;
+    editingCommentId = null;
+}
+
+function openCommentsModal(businessId, businessTitle) {
+    ensureCommentsModal();
+    const modal = document.getElementById("sensun-comments-modal");
+    const titleEl = document.getElementById("comments-modal-title");
+    if (titleEl) titleEl.textContent = businessTitle ? `Comentarios: ${businessTitle}` : "Comentarios de la Cartelera";
+
+    activeCommentsBusinessId = businessId;
+    editingCommentId = null;
+    modal.classList.add("active");
+
+    renderCommentsForm();
+    listenToComments(businessId);
+}
+
+function renderCommentsForm() {
+    const container = document.getElementById("comments-form-container");
+    if (!container) return;
+
+    if (!currentUser) {
+        container.innerHTML = `
+            <div class="comment-login-prompt">
+                <span>Inicia sesión para publicar un comentario anónimo.</span>
+                <button type="button" id="btn-open-auth-for-comments">Iniciar Sesión</button>
+            </div>
+        `;
+        const authBtn = container.querySelector("#btn-open-auth-for-comments");
+        if (authBtn) {
+            authBtn.addEventListener("click", () => {
+                closeCommentsModal();
+                openAuthModal();
+            });
+        }
+        return;
+    }
+
+    container.innerHTML = `
+        <form id="sensun-comment-form" class="comments-form">
+            ${editingCommentId ? `
+                <div class="editing-banner">
+                    <span>✏️ Editando tu comentario</span>
+                    <button type="button" class="btn-cancel-edit" id="btn-cancel-edit-comment">Cancelar</button>
+                </div>
+            ` : ''}
+            <div class="comment-input-wrapper">
+                <textarea id="comment-textarea-input" class="comment-textarea" placeholder="Escribe un comentario anónimo..." rows="2" required></textarea>
+            </div>
+            <div class="comments-form-bottom">
+                <span class="anon-notice">🔒 Tu identidad es anónima al público</span>
+                <button type="submit" class="btn-send-comment">
+                    <span>${editingCommentId ? "Guardar" : "Publicar"}</span>
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+                </button>
+            </div>
+        </form>
+    `;
+
+    const form = container.querySelector("#sensun-comment-form");
+    const cancelEditBtn = container.querySelector("#btn-cancel-edit-comment");
+
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener("click", () => {
+            editingCommentId = null;
+            renderCommentsForm();
+        });
+    }
+
+    if (form) {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const textarea = container.querySelector("#comment-textarea-input");
+            const text = textarea ? textarea.value.trim() : "";
+            if (!text || !activeCommentsBusinessId || !currentUser) return;
+
+            try {
+                if (editingCommentId) {
+                    const commentRef = ref(rtdb, `comments/${activeCommentsBusinessId}/${editingCommentId}`);
+                    await update(commentRef, {
+                        text: text,
+                        editedAt: Date.now()
+                    });
+                    editingCommentId = null;
+                } else {
+                    const commentsListRef = ref(rtdb, `comments/${activeCommentsBusinessId}`);
+                    const newCommentRef = push(commentsListRef);
+                    await set(newCommentRef, {
+                        text: text,
+                        timestamp: Date.now(),
+                        uid: currentUser.uid
+                    });
+                }
+                renderCommentsForm();
+            } catch (err) {
+                console.error("Error al guardar comentario:", err);
+            }
+        });
+    }
+}
+
+function listenToComments(businessId) {
+    const listContainer = document.getElementById("comments-list-container");
+    if (!listContainer) return;
+
+    if (activeCommentsListener) {
+        activeCommentsListener();
+        activeCommentsListener = null;
+    }
+
+    const commentsRef = ref(rtdb, `comments/${businessId}`);
+    activeCommentsListener = onValue(commentsRef, (snapshot) => {
+        const commentsData = snapshot.val() || {};
+        const commentKeys = Object.keys(commentsData);
+
+        if (commentKeys.length === 0) {
+            listContainer.innerHTML = `
+                <div style="text-align: center; padding: 30px 15px; color: #a0aec0; font-size: 0.9rem;">
+                    <p style="margin:0 0 6px 0;">💬 Aún no hay comentarios.</p>
+                    <small style="color: #718096;">¡Sé el primero en compartir tu opinión de forma anónima!</small>
+                </div>
+            `;
+            return;
+        }
+
+        // Ordenar por fecha (más antiguos a más recientes)
+        const sortedComments = commentKeys.map(key => ({
+            id: key,
+            ...commentsData[key]
+        })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+        let html = '';
+        sortedComments.forEach(c => {
+            const isOwn = currentUser && c.uid === currentUser.uid;
+            const dateStr = formatCommentDate(c.timestamp);
+            const sanitizedText = escapeHtml(c.text || '');
+
+            html += `
+                <div class="comment-item ${isOwn ? 'own-comment' : ''}" data-comment-id="${c.id}">
+                    <div class="comment-item-header">
+                        <div class="comment-author-info">
+                            <div class="comment-avatar">👤</div>
+                            <span class="comment-author-name">Usuario Anónimo</span>
+                            ${isOwn ? `<span class="own-badge">Tu comentario</span>` : ''}
+                        </div>
+                        <span class="comment-time">${dateStr}</span>
+                    </div>
+                    <div class="comment-text">${sanitizedText}</div>
+                    ${isOwn ? `
+                        <div class="comment-actions">
+                            <button type="button" class="btn-comment-action edit" data-action="edit" data-id="${c.id}" data-text="${escapeHtml(c.text)}">
+                                ✏️ Editar
+                            </button>
+                            <button type="button" class="btn-comment-action delete" data-action="delete" data-id="${c.id}">
+                                🗑️ Eliminar
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        });
+
+        listContainer.innerHTML = html;
+
+        // Auto-scroll al final para ver nuevos comentarios
+        listContainer.scrollTop = listContainer.scrollHeight;
+
+        // Delegar eventos de editar/eliminar
+        listContainer.querySelectorAll(".btn-comment-action").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const action = btn.dataset.action;
+                const commentId = btn.dataset.id;
+                if (action === "edit") {
+                    editingCommentId = commentId;
+                    renderCommentsForm();
+                    const textarea = document.getElementById("comment-textarea-input");
+                    if (textarea) {
+                        textarea.value = btn.dataset.text || "";
+                        textarea.focus();
+                    }
+                } else if (action === "delete") {
+                    if (confirm("¿Estás seguro de que deseas eliminar este comentario?")) {
+                        deleteComment(businessId, commentId);
+                    }
+                }
+            });
+        });
+    });
+}
+
+async function deleteComment(businessId, commentId) {
+    try {
+        const commentRef = ref(rtdb, `comments/${businessId}/${commentId}`);
+        await remove(commentRef);
+        if (editingCommentId === commentId) {
+            editingCommentId = null;
+            renderCommentsForm();
+        }
+    } catch (err) {
+        console.error("Error al eliminar comentario:", err);
+    }
+}
+
+function formatCommentDate(ts) {
+    if (!ts) return '';
+    const date = new Date(ts);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Justo ahora';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Hace ${diffHours} h`;
+    
+    return date.toLocaleDateString('es-SV', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Inyección de botones de comentarios en las tarjetas de carteleras (Formato Circular Compacto en Línea de Estrellas)
+function injectCommentButtons() {
+    const cards = document.querySelectorAll(".negocio-card, .slider-card");
+    cards.forEach(card => {
+        if (card.classList.contains("disponible")) return;
+        
+        // Limpiar botones antiguos en .negocio-links si existieran
+        const oldLinkBtn = card.querySelector(".negocio-links .btn-comment");
+        if (oldLinkBtn) oldLinkBtn.remove();
+
+        let businessId = card.dataset.businessId;
+        const ratingWidget = card.querySelector(".sensun-rating-widget");
+        if (!businessId && ratingWidget) {
+            businessId = ratingWidget.dataset.businessId;
+        }
+        if (!businessId && card.id) businessId = card.id.toLowerCase();
+        if (!businessId) return;
+
+        // Evitar duplicados
+        if (card.querySelector(".compact-comment-circle-btn")) return;
+
+        const titleEl = card.querySelector("h3");
+        const titleText = titleEl ? titleEl.textContent.trim() : "";
+
+        // Crear el botón circular compacto
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "compact-comment-circle-btn";
+        btn.dataset.businessId = businessId;
+        btn.title = "Ver comentarios comunitarios";
+        btn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M20 2H4c-1.1 0-1.99.9-1.99 2L2 22l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zM6 9h12v2H6V9zm8 5H6v-2h8v2zm4-6H6V6h12v2z"/>
+            </svg>
+            <span class="comment-micro-badge">0</span>
+        `;
+
+        btn.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openCommentsModal(businessId, titleText);
+        });
+
+        // Insertar en la sección de estrellas del widget
+        if (ratingWidget) {
+            let container = ratingWidget.querySelector(".star-rating-container");
+            if (!container) {
+                ratingWidget.style.display = "flex";
+                ratingWidget.style.alignItems = "center";
+                ratingWidget.style.justifyContent = "space-between";
+                ratingWidget.style.width = "100%";
+                ratingWidget.appendChild(btn);
+            } else {
+                container.style.display = "flex";
+                container.style.alignItems = "center";
+                container.style.justifyContent = "space-between";
+                container.style.width = "100%";
+                container.appendChild(btn);
+            }
+        } else {
+            // Fallback si no hay widget de estrellas
+            const content = card.querySelector(".slider-card-content, .negocio-info") || card;
+            const targetRow = content.querySelector(".stars-row, h3") || content;
+            targetRow.appendChild(btn);
+        }
+
+        // Escuchar número de comentarios en tiempo real
+        const countBadge = btn.querySelector(".comment-micro-badge");
+        const commentsRef = ref(rtdb, `comments/${businessId}`);
+        onValue(commentsRef, (snapshot) => {
+            const val = snapshot.val() || {};
+            const count = Object.keys(val).length;
+            if (countBadge) countBadge.textContent = count;
+        });
+    });
+}
+
+// Inicializar carrusel automático para contenedores de etiquetas con 4+ etiquetas o desbordamiento
+function initTagsCarousel() {
+    const containers = document.querySelectorAll(".negocio-tags, .producto-tags");
+    containers.forEach(container => {
+        const tags = container.querySelectorAll(".tag");
+        if (tags.length >= 4 || container.scrollWidth > container.clientWidth) {
+            container.classList.add("has-carousel-tags");
+            if (!container.querySelector(".tags-track")) {
+                const track = document.createElement("div");
+                track.className = "tags-track";
+                while (container.firstChild) {
+                    track.appendChild(container.firstChild);
+                }
+                container.appendChild(track);
+            }
+            
+            const track = container.querySelector(".tags-track");
+            if (track) {
+                const maxSlide = Math.max(0, track.scrollWidth - container.clientWidth + 14);
+                track.style.setProperty("--tags-slide-dist", `-${maxSlide}px`);
+            }
+        }
+    });
+}
+
+window.initTagsCarousel = initTagsCarousel;
+
+// Ejecutar inyección cuando el DOM esté listo
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => {
+        injectCommentButtons();
+        initTagsCarousel();
+    });
+} else {
+    injectCommentButtons();
+    initTagsCarousel();
+}
