@@ -106,14 +106,194 @@
             line-height: 1.5;
             color: #ffb380;
         }
+
+        /* Modal de Acceso Restringido para Zona de Pruebas */
+        .gate-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: rgba(8, 12, 20, 0.95);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 1;
+            transition: opacity 0.4s ease, visibility 0.4s ease;
+        }
+        .gate-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .gate-card {
+            background: #121724;
+            border: 1px solid rgba(0, 173, 181, 0.3);
+            border-radius: 20px;
+            padding: 40px 30px;
+            max-width: 420px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(0, 173, 181, 0.15);
+            position: relative;
+            color: #ffffff;
+        }
+        .gate-icon {
+            width: 64px;
+            height: 64px;
+            background: rgba(0, 173, 181, 0.1);
+            border: 1px solid rgba(0, 173, 181, 0.3);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px auto;
+            color: var(--cyan, #00adb5);
+            box-shadow: 0 0 20px rgba(0, 173, 181, 0.2);
+        }
+        .gate-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .gate-desc {
+            font-size: 0.9rem;
+            color: #a0aec0;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        .gate-input-wrapper {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        .gate-input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1.2rem;
+            letter-spacing: 3px;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+        .gate-input:focus {
+            border-color: var(--cyan, #00adb5);
+            box-shadow: 0 0 15px rgba(0, 173, 181, 0.3);
+            background: rgba(0, 173, 181, 0.08);
+        }
+        .gate-input.shake {
+            animation: gateShake 0.4s ease-in-out;
+            border-color: #dc3545 !important;
+            box-shadow: 0 0 15px rgba(220, 53, 69, 0.4) !important;
+        }
+        @keyframes gateShake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .gate-submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00adb5 0%, #007980 100%);
+            border: none;
+            border-radius: 10px;
+            color: #ffffff;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 173, 181, 0.3);
+        }
+        .gate-submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 173, 181, 0.5);
+        }
+        .gate-buttons-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .gate-cancel-btn {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            color: #a0aec0;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .gate-cancel-btn:hover {
+            background: rgba(220, 53, 69, 0.15);
+            border-color: rgba(220, 53, 69, 0.4);
+            color: #ff6b6b;
+        }
+        .gate-close-btn {
+            position: absolute;
+            top: 15px;
+            right: 18px;
+            background: none;
+            border: none;
+            color: #a0aec0;
+            font-size: 1.6rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s ease, transform 0.2s ease;
+            padding: 5px;
+        }
+        .gate-close-btn:hover {
+            color: #ffffff;
+            transform: scale(1.15);
+        }
+        .gate-error-msg {
+            color: #dc3545;
+            font-size: 0.85rem;
+            margin-top: 12px;
+            display: none;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
+    <!-- Overlay de Seguridad Restringido -->
+    <div id="gate-overlay" class="gate-overlay">
+        <div class="gate-card">
+            <button id="gate-close-btn" class="gate-close-btn" aria-label="Cerrar y salir">&times;</button>
+            <div class="gate-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+            </div>
+            <h2 class="gate-title">Acceso Restringido</h2>
+            <p class="gate-desc">Ingresa el código de seguridad especial para acceder al panel de pruebas de <strong>Multi Ideas Sv</strong>.</p>
+            
+            <div class="gate-input-wrapper">
+                <input type="password" id="gate-code-input" class="gate-input" placeholder="••••••••" maxlength="8" inputmode="numeric" autocomplete="off">
+            </div>
+            
+            <div class="gate-buttons-row">
+                <button id="gate-submit-btn" class="gate-submit-btn">Verificar Código</button>
+                <button id="gate-cancel-btn" class="gate-cancel-btn">Cancelar y Regresar</button>
+            </div>
+            <div id="gate-error-msg" class="gate-error-msg"></div>
+        </div>
+    </div>
+
     <header id="global-header"></header>
 
     <section class="test-container">
         <div class="test-card">
-            <span class="badge">FIREBASE DIAGNOSTIC</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span class="badge">FIREBASE DIAGNOSTIC</span>
+                <button id="btn-lock-zone" class="test-btn" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(220, 53, 69, 0.5); color: #dc3545;">🔒 Bloquear Zona</button>
+            </div>
             <h1 style="margin: 10px 0 15px 0; font-size: 2rem;">Panel de Pruebas <span class="gradient-text">Firebase</span></h1>
             <p>Usa este panel interactivo para corroborar el estado de la conexión a tu base de datos y autenticación en tiempo real (Realtime Database y Authentication habilitados).</p>
             
@@ -297,6 +477,73 @@
                 log(`Error durante la migración: ${e.message}`, "error");
             }
         });
+
+        // ==========================================================================
+        // CONTROL DE ACCESO MEDIANTE CÓDIGO DE SEGURIDAD (53608892)
+        // ==========================================================================
+        const SECURITY_CODE = "53608892";
+        const gateOverlay = document.getElementById("gate-overlay");
+        const codeInput = document.getElementById("gate-code-input");
+        const submitBtn = document.getElementById("gate-submit-btn");
+        const errorMsg = document.getElementById("gate-error-msg");
+        const lockBtn = document.getElementById("btn-lock-zone");
+
+        function checkAccess() {
+            if (sessionStorage.getItem("zona_pruebas_access") === SECURITY_CODE) {
+                gateOverlay.classList.add("hidden");
+                document.body.style.overflow = "";
+            } else {
+                gateOverlay.classList.remove("hidden");
+                document.body.style.overflow = "hidden";
+                setTimeout(() => codeInput && codeInput.focus(), 100);
+            }
+        }
+
+        function validateCode() {
+            const entered = codeInput.value.trim();
+            if (entered === SECURITY_CODE) {
+                sessionStorage.setItem("zona_pruebas_access", SECURITY_CODE);
+                gateOverlay.classList.add("hidden");
+                document.body.style.overflow = "";
+                errorMsg.style.display = "none";
+                codeInput.value = "";
+                log("Acceso concedido mediante código de seguridad.", "success");
+            } else {
+                errorMsg.style.display = "block";
+                errorMsg.textContent = "Código de acceso incorrecto. Inténtalo de nuevo.";
+                codeInput.classList.add("shake");
+                setTimeout(() => codeInput.classList.remove("shake"), 400);
+                codeInput.value = "";
+                codeInput.focus();
+            }
+        }
+
+        const closeBtn = document.getElementById("gate-close-btn");
+        const cancelBtn = document.getElementById("gate-cancel-btn");
+
+        const handleExit = () => {
+            window.location.href = "index.html";
+        };
+
+        if (closeBtn) closeBtn.addEventListener("click", handleExit);
+        if (cancelBtn) cancelBtn.addEventListener("click", handleExit);
+
+        if (submitBtn && codeInput) {
+            submitBtn.addEventListener("click", validateCode);
+            codeInput.addEventListener("keypress", (e) => {
+                if (e.key === "Enter") validateCode();
+            });
+        }
+
+        if (lockBtn) {
+            lockBtn.addEventListener("click", () => {
+                sessionStorage.removeItem("zona_pruebas_access");
+                checkAccess();
+            });
+        }
+
+        // Ejecutar verificación inmediata al cargar
+        checkAccess();
     </script>
 </body>
 </html>
