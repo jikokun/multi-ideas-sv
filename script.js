@@ -1069,9 +1069,9 @@ function checkHighlightHash() {
 
 // Función para aplicar/remover la hoja de estilos clara con precarga
 function toggleLightStylesheet(isLight, callback) {
-    const link = document.querySelector('link[href*="estilos.css"]') || 
+    const link = document.querySelector('link[href*="estilo_claro_multi.css"]') || 
                  document.querySelector('link[href*="estilo_claro.css"]') ||
-                 document.querySelector('link[href*="estilo_claro_multi.css"]');
+                 document.querySelector('link[href*="estilos.css"]');
     if (!link) {
         if (callback) callback();
         return;
