@@ -1097,12 +1097,12 @@ function toggleLightStylesheet(isLight, callback) {
     let newHref = "";
     if (isLight) {
         if (isSensun) {
-            newHref = pathPrefix + "estilo_claro.css?v=3";
+            newHref = pathPrefix + "estilo_claro.css?v=4";
         } else {
-            newHref = pathPrefix + "estilo_claro_multi.css?v=3";
+            newHref = pathPrefix + "estilo_claro_multi.css?v=4";
         }
     } else {
-        newHref = pathPrefix + "estilos.css?v=3";
+        newHref = pathPrefix + "estilos.css?v=4";
     }
 
     // Usar callback cuando el navegador termine de cargar la nueva hoja de estilos
