@@ -652,14 +652,17 @@ const styles = `
     }
     .card-expand-close-btn {
         position: absolute;
-        top: 15px;
-        right: 15px;
-        width: 34px;
-        height: 34px;
+        top: 14px;
+        left: 14px;
+        right: auto;
+        width: 36px;
+        height: 36px;
         border-radius: 50%;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.12);
-        color: #a0aec0;
+        background: rgba(10, 13, 20, 0.75);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        color: rgba(255, 255, 255, 0.8);
         font-size: 1.3rem;
         line-height: 1;
         cursor: pointer;
@@ -667,12 +670,14 @@ const styles = `
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
-        z-index: 20;
+        z-index: 30;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
     }
     .card-expand-close-btn:hover {
-        background: rgba(234, 67, 53, 0.25);
-        color: #ff5252;
-        border-color: rgba(234, 67, 53, 0.5);
+        background: rgba(234, 67, 53, 0.85);
+        color: #ffffff;
+        border-color: rgba(234, 67, 53, 0.9);
+        transform: scale(1.1);
     }
     .card-expand-modal-card .producto-card,
     .card-expand-modal-card .negocio-card {
@@ -711,6 +716,91 @@ const styles = `
     }
     body.light-theme .card-expand-modal-card p {
         color: #4a5568 !important;
+    }
+
+    /* Puntero e interacción en Fotos / Logos para Ampliación */
+    .producto-img img, .slider-card-img img, .producto-foto {
+        cursor: pointer !important;
+        transition: transform 0.25s ease, opacity 0.25s ease !important;
+    }
+    .producto-img:hover img, .slider-card-img:hover img {
+        transform: scale(1.03);
+    }
+
+    /* Modal de Visualización de Imagen Ampliada (Lightbox) */
+    .image-lightbox-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 20000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(5, 7, 12, 0.92);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 20px;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .image-lightbox-modal.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .image-lightbox-container {
+        position: relative;
+        max-width: 95vw;
+        max-height: 90vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transform: scale(0.9) translateY(10px);
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .image-lightbox-modal.active .image-lightbox-container {
+        transform: scale(1) translateY(0);
+    }
+    .image-lightbox-img {
+        max-width: 90vw;
+        max-height: 85vh;
+        object-fit: contain;
+        border-radius: 14px;
+        box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 40px rgba(243, 156, 18, 0.25);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(18, 22, 32, 0.85);
+    }
+    .image-lightbox-close {
+        position: absolute;
+        top: -16px;
+        right: -16px;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(18, 22, 32, 0.95);
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: #ffffff;
+        font-size: 1.4rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        z-index: 10;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+    }
+    .image-lightbox-close:hover {
+        background: #ea4335;
+        border-color: #ea4335;
+        transform: scale(1.1);
+    }
+    @media (max-width: 600px) {
+        .image-lightbox-close {
+            top: -12px;
+            right: -10px;
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+        }
     }
 
     /* Modal de Comentarios Anónimos */
@@ -1835,6 +1925,7 @@ document.addEventListener('click', (e) => {
 let activeCommentsListener = null;
 let activeCommentsBusinessId = null;
 let editingCommentId = null;
+let currentBusinessCommentsList = [];
 
 // Modal dinámico de comentarios
 function ensureCommentsModal() {
@@ -1859,7 +1950,7 @@ function ensureCommentsModal() {
             </div>
             
             <div id="comments-form-container" class="comments-form-container">
-                <!-- Se actualiza con el estado de autenticación -->
+                <!-- Se actualiza con el estado de autenticación y control anti-spam -->
             </div>
         </div>
     `;
@@ -1884,6 +1975,7 @@ function closeCommentsModal() {
     }
     activeCommentsBusinessId = null;
     editingCommentId = null;
+    currentBusinessCommentsList = [];
 }
 
 function openCommentsModal(businessId, businessTitle) {
@@ -1894,6 +1986,7 @@ function openCommentsModal(businessId, businessTitle) {
 
     activeCommentsBusinessId = businessId;
     editingCommentId = null;
+    currentBusinessCommentsList = [];
     modal.classList.add("active");
 
     renderCommentsForm();
@@ -1918,6 +2011,18 @@ function renderCommentsForm() {
                 openAuthModal();
             });
         }
+        return;
+    }
+
+    // REG DE CONTROL ANTI-SPAM: Verificar si el usuario ya tiene un comentario en este negocio
+    const userExistingComment = currentBusinessCommentsList.find(c => c.uid === currentUser.uid);
+
+    if (userExistingComment && !editingCommentId) {
+        container.innerHTML = `
+            <div class="user-comment-limit-notice" style="padding: 12px 16px; background: rgba(243, 156, 18, 0.12); border: 1px solid rgba(243, 156, 18, 0.3); border-radius: 12px; color: #f39c12; font-size: 0.88rem; text-align: center;">
+                <span>✅ Ya has publicado tu comentario en este negocio. Puedes editarlo o eliminarlo en la lista.</span>
+            </div>
+        `;
         return;
     }
 
@@ -1959,6 +2064,13 @@ function renderCommentsForm() {
             const text = textarea ? textarea.value.trim() : "";
             if (!text || !activeCommentsBusinessId || !currentUser) return;
 
+            // Verificación redundante Anti-Spam
+            if (!editingCommentId && currentBusinessCommentsList.some(c => c.uid === currentUser.uid)) {
+                alert("Solo puedes publicar un comentario por negocio. Puedes editar tu comentario existente.");
+                renderCommentsForm();
+                return;
+            }
+
             try {
                 if (editingCommentId) {
                     const commentRef = ref(rtdb, `comments/${activeCommentsBusinessId}/${editingCommentId}`);
@@ -1998,6 +2110,14 @@ function listenToComments(businessId) {
         const commentsData = snapshot.val() || {};
         const commentKeys = Object.keys(commentsData);
 
+        // Ordenar por fecha (más antiguos a más recientes)
+        const sortedComments = commentKeys.map(key => ({
+            id: key,
+            ...commentsData[key]
+        })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+
+        currentBusinessCommentsList = sortedComments;
+
         if (commentKeys.length === 0) {
             listContainer.innerHTML = `
                 <div style="text-align: center; padding: 30px 15px; color: #a0aec0; font-size: 0.9rem;">
@@ -2005,14 +2125,9 @@ function listenToComments(businessId) {
                     <small style="color: #718096;">¡Sé el primero en compartir tu opinión de forma anónima!</small>
                 </div>
             `;
+            renderCommentsForm();
             return;
         }
-
-        // Ordenar por fecha (más antiguos a más recientes)
-        const sortedComments = commentKeys.map(key => ({
-            id: key,
-            ...commentsData[key]
-        })).sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
 
         let html = '';
         sortedComments.forEach(c => {
@@ -2049,6 +2164,9 @@ function listenToComments(businessId) {
 
         // Auto-scroll al final para ver nuevos comentarios
         listContainer.scrollTop = listContainer.scrollHeight;
+
+        // Actualizar el formulario según si el usuario ya comentó o no
+        renderCommentsForm();
 
         // Delegar eventos de editar/eliminar
         listContainer.querySelectorAll(".btn-comment-action").forEach(btn => {
@@ -2294,16 +2412,74 @@ function openCardExpandModal(card, modal) {
 
 window.initCardExpandModal = initCardExpandModal;
 
+// Inicializar Modal de Imagen Ampliada (Lightbox al tocar Foto/Logo)
+function initImageLightboxModal() {
+    let lightbox = document.getElementById("sensun-image-lightbox");
+    if (!lightbox) {
+        lightbox = document.createElement("div");
+        lightbox.id = "sensun-image-lightbox";
+        lightbox.className = "image-lightbox-modal";
+        lightbox.innerHTML = `
+            <div class="image-lightbox-container">
+                <button type="button" class="image-lightbox-close" id="image-lightbox-close-btn" aria-label="Cerrar imagen">&times;</button>
+                <img src="" alt="Imagen Ampliada" class="image-lightbox-img" id="image-lightbox-img-el">
+            </div>
+        `;
+        document.body.appendChild(lightbox);
+
+        lightbox.addEventListener("click", (e) => {
+            if (e.target === lightbox || e.target.closest("#image-lightbox-close-btn")) {
+                lightbox.classList.remove("active");
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && lightbox.classList.contains("active")) {
+                lightbox.classList.remove("active");
+            }
+        });
+    }
+
+    // Escuchar clics en fotos o logotipos dentro de tarjetas de negocio o sliders
+    document.addEventListener("click", (e) => {
+        const img = e.target.closest(".producto-img img, .slider-card-img img, .producto-foto");
+        if (!img) return;
+
+        // Ignorar si el clic fue en botones interactivos (como el botón de favorito ★)
+        const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite");
+        if (isInteractive) return;
+
+        const src = img.getAttribute("src");
+        if (!src) return;
+
+        openImageLightbox(src, img.getAttribute("alt") || "Imagen del negocio", lightbox);
+    });
+}
+
+function openImageLightbox(src, alt, lightbox) {
+    const imgEl = lightbox.querySelector("#image-lightbox-img-el");
+    if (!imgEl) return;
+
+    imgEl.src = src;
+    imgEl.alt = alt || "Imagen ampliada del negocio";
+    lightbox.classList.add("active");
+}
+
+window.initImageLightboxModal = initImageLightboxModal;
+
 // Ejecutar inyección cuando el DOM esté listo
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         injectCommentButtons();
         initTagsCarousel();
         initCardExpandModal();
+        initImageLightboxModal();
     });
 } else {
     injectCommentButtons();
     initTagsCarousel();
     initCardExpandModal();
+    initImageLightboxModal();
 }
+
 

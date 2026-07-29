@@ -196,10 +196,50 @@ Dado que en las carteleras principales del catálogo las descripciones cortas es
   - Despliega el **texto descriptivo íntegro sin límite de líneas ni elipses** (`line-clamp: unset`), facilitando la lectura completa en cualquier pantalla.
   - Mantiene los botones interactivos (WhatsApp, Ubicación, Detalles) funcionales.
 * **Cierre**:
-  - Botón flotante de cierre (`✕`) en la esquina superior derecha.
+  - Botón flotante de cierre (`✕`) ubicado en la **esquina superior izquierda (`top-left`)** para evitar cualquier solapamiento o conflicto de clic con el botón de favoritos (que se ubica a la derecha).
   - Al hacer clic fuera de la tarjeta emergente (backdrop).
   - Mediante la tecla `Escape`.
 * **Adaptabilidad**: Totalmente auto-ajustable a pantallas móviles (`max-height: 90vh; overflow-y: auto`) y web.
+
+---
+
+## 🛡️ 5. Regla de Control Anti-Spam de Comentarios
+
+### 5.1 Definición de la Regla
+Para prevenir el spam, la duplicación masiva de contenido o valoraciones malintencionadas, el sistema impone una **restricción estricta de 1 comentario por usuario por negocio**:
+* **Límite**: Cada usuario registrado (autenticado mediante Firebase Auth) puede publicar únicamente **un (1) comentario** por cada cliente o negocio registrado en SensunShop.
+
+### 5.2 Comportamiento de la Interfaz:
+1. **Usuario sin Comentario Previos en el Negocio**:
+   - Visualiza el formulario estándar para redactar y publicar su comentario anónimo de forma normal.
+
+2. **Usuario con Comentario Ya Publicado**:
+   - El formulario de redacción se oculta automáticamente y se muestra un aviso indicativo:
+     `"✅ Ya has publicado tu comentario en este negocio. Puedes editarlo o eliminarlo en la lista."`
+   - El usuario conserva la opción de hacer clic en **"✏️ Editar"** para modificar el texto de su opinión existente o en **"🗑️ Eliminar"** para borrarlo.
+
+3. **Restauración del Permiso**:
+   - Si el usuario decide **Eliminar** su comentario previo, el sistema liberará inmediatamente la casilla para permitirle redactar una nueva opinión si lo desea.
+
+---
+
+## 🖼️ 6. Visor de Imagen Ampliada (Lightbox / Zoom de Fotos)
+
+### 6.1 Objetivo
+Permitir que los usuarios aprecien en alta resolución las fotografías de portada, logotipos de marcas o imágenes de productos exhibidos en cualquier ficha de negocio.
+
+### 6.2 Reglas de Funcionamiento y Disparadores:
+* **Disparador**: Clic / Tap directo sobre cualquier fotografía o logotipo dentro de las fichas de negocio (`.producto-img img`, `.slider-card-img img`, `.producto-foto`).
+* **Exclusión de Botones Superpuestos**: El clic sobre el botón de favoritos (★) u otros controles interactivos NO activa el visor de imagen.
+* **Comportamiento**:
+  - Abre una pantalla completa (*Lightbox*) con fondo oscuro traslúcido y desenfoque (`backdrop-filter: blur(16px)`).
+  - La fotografía se escala de forma responsiva (`max-width: 90vw; max-height: 85vh; object-fit: contain;`) manteniendo sus proporciones originales sin distorsión.
+* **Cierre**:
+  - Botón de cierre (`✕`) superpuesto.
+  - Haciendo clic en cualquier parte del fondo traslúcido.
+  - Presionando la tecla `Escape`.
+
+
 
 
 
