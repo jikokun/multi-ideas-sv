@@ -599,6 +599,120 @@ const styles = `
         margin-bottom: 15px !important;
     }
 
+    /* Puntero interactivo para ampliar Ficha en la cartelera principal */
+    #negocios-container .producto-card .producto-info h3,
+    #negocios-container .producto-card .producto-info p {
+        cursor: pointer !important;
+        transition: color 0.2s ease, opacity 0.2s ease !important;
+    }
+    #negocios-container .producto-card .producto-info h3:hover {
+        color: var(--ss-orange, #f39c12) !important;
+    }
+    #negocios-container .producto-card .producto-info p:hover {
+        opacity: 0.88 !important;
+    }
+
+    /* Modal de Ficha Ampliada (Zoom / Vista Extendida) */
+    .card-expand-modal-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(8, 10, 15, 0.85);
+        backdrop-filter: blur(16px);
+        -webkit-backdrop-filter: blur(16px);
+        padding: 20px;
+        opacity: 0;
+        pointer-events: none;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-expand-modal-overlay.active {
+        opacity: 1;
+        pointer-events: auto;
+    }
+    .card-expand-modal-card {
+        background: #121724;
+        border: 1px solid rgba(243, 156, 18, 0.35);
+        border-radius: 20px;
+        max-width: 520px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px rgba(0, 0, 0, 0.75), 0 0 30px rgba(243, 156, 18, 0.2);
+        position: relative;
+        padding: 24px;
+        color: #fff;
+        transform: scale(0.92) translateY(15px);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card-expand-modal-overlay.active .card-expand-modal-card {
+        transform: scale(1) translateY(0);
+    }
+    .card-expand-close-btn {
+        position: absolute;
+        top: 15px;
+        right: 15px;
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        color: #a0aec0;
+        font-size: 1.3rem;
+        line-height: 1;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+        z-index: 20;
+    }
+    .card-expand-close-btn:hover {
+        background: rgba(234, 67, 53, 0.25);
+        color: #ff5252;
+        border-color: rgba(234, 67, 53, 0.5);
+    }
+    .card-expand-modal-card .producto-card,
+    .card-expand-modal-card .negocio-card {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    .card-expand-modal-card p {
+        display: block !important;
+        -webkit-line-clamp: unset !important;
+        line-clamp: unset !important;
+        overflow: visible !important;
+        white-space: normal !important;
+        font-size: 0.96rem !important;
+        line-height: 1.65 !important;
+        color: #cbd5e0 !important;
+        margin-bottom: 20px !important;
+        min-height: auto !important;
+    }
+    .card-expand-modal-card h3 {
+        font-size: 1.4rem !important;
+        font-weight: 700 !important;
+        margin-bottom: 12px !important;
+        color: #ffffff !important;
+        white-space: normal !important;
+    }
+    body.light-theme .card-expand-modal-card {
+        background: #ffffff !important;
+        border-color: rgba(0, 0, 0, 0.12) !important;
+        color: #1a202c !important;
+    }
+    body.light-theme .card-expand-modal-card h3 {
+        color: #1a202c !important;
+    }
+    body.light-theme .card-expand-modal-card p {
+        color: #4a5568 !important;
+    }
+
     /* Modal de Comentarios Anónimos */
     .comments-modal {
         position: fixed;
@@ -2109,15 +2223,87 @@ function initTagsCarousel() {
     });
 }
 
-window.initTagsCarousel = initTagsCarousel;
+// Inicializar Modal de Ficha Ampliada (Zoom al tocar Título o Descripción en la cartelera principal)
+function initCardExpandModal() {
+    let modal = document.getElementById("card-expand-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "card-expand-modal";
+        modal.className = "card-expand-modal-overlay";
+        modal.innerHTML = `
+            <div class="card-expand-modal-card">
+                <button class="card-expand-close-btn" aria-label="Cerrar">&times;</button>
+                <div class="card-expand-modal-body"></div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        modal.addEventListener("click", (e) => {
+            if (e.target === modal || e.target.closest(".card-expand-close-btn")) {
+                modal.classList.remove("active");
+            }
+        });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && modal.classList.contains("active")) {
+                modal.classList.remove("active");
+            }
+        });
+    }
+
+    // Delegación de eventos estricta en la cartelera principal (#negocios-container o .negocios-grid-section)
+    document.addEventListener("click", (e) => {
+        // FILTRO ESTRICTO: Solo se activa en la cartelera/cuadrícula principal del catálogo
+        const gridContainer = e.target.closest("#negocios-container, .negocios-grid-section");
+        if (!gridContainer) return; // Se ignoran Novedades (slider), Boletines, etc.
+
+        const card = e.target.closest(".producto-card, .negocio-card");
+        if (!card) return;
+
+        // Comprobar si el clic fue en el Título (h3) o en la Breve Info (p)
+        const isHeading = e.target.closest("h3");
+        const isParagraph = e.target.closest("p");
+
+        // Excluir elementos interactivos como enlaces, WhatsApp, Ubicación, Favoritos, Reseñas o Tags
+        const isInteractive = e.target.closest("a, button, .sensun-rating-widget, .tag, .favorite-toggle-btn, .comment-trigger-btn");
+
+        if ((isHeading || isParagraph) && !isInteractive) {
+            openCardExpandModal(card, modal);
+        }
+    });
+}
+
+function openCardExpandModal(card, modal) {
+    const modalBody = modal.querySelector(".card-expand-modal-body");
+    if (!modalBody) return;
+
+    const clonedCard = card.cloneNode(true);
+    clonedCard.removeAttribute("id");
+
+    const clonedP = clonedCard.querySelector("p");
+    if (clonedP) {
+        clonedP.style.webkitLineClamp = "unset";
+        clonedP.style.display = "block";
+        clonedP.style.overflow = "visible";
+    }
+
+    modalBody.innerHTML = "";
+    modalBody.appendChild(clonedCard);
+    modal.classList.add("active");
+}
+
+window.initCardExpandModal = initCardExpandModal;
 
 // Ejecutar inyección cuando el DOM esté listo
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         injectCommentButtons();
         initTagsCarousel();
+        initCardExpandModal();
     });
 } else {
     injectCommentButtons();
     initTagsCarousel();
+    initCardExpandModal();
 }
+
