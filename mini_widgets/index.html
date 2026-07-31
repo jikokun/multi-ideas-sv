@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlays & Mini Widgets para OBS | Multi Ideas Sv</title>
+  <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../estilos.css">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script>
+      (function() {
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'light') {
+              document.querySelector('link[href*="../estilos.css"]').href = '../estilo_claro_multi.css?v=3';
+              document.body?.classList.add('light-theme');
+          }
+      })();
+  </script>
+
+  <style>
+    html, body {
+      height: auto !important;
+      min-height: 100vh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+    }
+
+    .mini-widgets-container {
+      width: 100%;
+      max-width: 1350px;
+      margin: 0 auto;
+      padding: 20px 20px 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .page-title-section {
+      text-align: center;
+      margin-bottom: 40px;
+      max-width: 800px;
+    }
+
+    .page-title-section h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      color: #00f5d4;
+      text-shadow: 0 0 16px rgba(0, 245, 212, 0.6);
+      margin-bottom: 12px;
+    }
+
+    p.subtitle {
+      color: #a0c0d8;
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
+      gap: 35px;
+      width: 100%;
+    }
+
+    .card {
+      background: rgba(4, 20, 32, 0.85);
+      border: 1.5px solid rgba(0, 245, 212, 0.35);
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .iframe-preview {
+      width: 100%;
+      height: 180px;
+      border: 1px dashed rgba(0, 245, 212, 0.4);
+      border-radius: 12px;
+      background: radial-gradient(circle at center, #061928 0%, #02090f 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #00f5d4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(2, 9, 15, 0.8);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: #00f5d4;
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.3);
+    }
+
+    /* Estilos Neón Modernos para Checkboxes Custom */
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #a0c0d8;
+      user-select: none;
+    }
+
+    .custom-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: rgba(2, 9, 15, 0.8);
+      border: 2px solid rgba(0, 245, 212, 0.4);
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .custom-checkbox:checked {
+      background: #00f5d4;
+      border-color: #00f5d4;
+      box-shadow: 0 0 10px rgba(0, 245, 212, 0.6);
+    }
+
+    .custom-checkbox:checked::after {
+      content: '✓';
+      color: #02090f;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    /* Scrollbar Estilizada y Adaptada al Contenedor */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(2, 9, 15, 0.6);
+      border-radius: 10px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #00f5d4 0%, #0077b6 100%);
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0, 245, 212, 0.5);
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #00f5d4;
+    }
+
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px 20px;
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      font-weight: 900;
+      font-size: 0.98rem;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+      box-shadow: 0 4px 15px rgba(0, 245, 212, 0.3);
+      margin-top: 6px;
+    }
+
+    .btn-copy:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 245, 212, 0.5);
+    }
+
+    .btn-copy.copied {
+      background: linear-gradient(135deg, #53fc18 0%, #00b4d8 100%);
+      color: #02090f;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #00f5d4;
+      color: #02090f;
+      font-weight: 900;
+      padding: 14px 28px;
+      border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0, 245, 212, 0.6);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Menú Global Adaptativo de Multi Ideas Sv -->
+  <header id="global-header"></header>
+
+  <div class="mini-widgets-container">
+
+    <div class="page-title-section">
+      <h1>✨ Generador y Configurador de Mini Widgets</h1>
+      <p class="subtitle">Personaliza los datos de tu canal de transmisión, prueba la vista previa interactiva en tiempo real y copia el enlace listo para pegar en OBS Studio.</p>
+    </div>
+
+    <div class="grid">
+
+      <!-- Card 1: Clima & Reloj -->
+      <div class="card" id="card-weather">
+        <h2>🌤️ 1. Widget Clima & Reloj en Vivo</h2>
+        <div class="iframe-preview">
+          <iframe id="preview-weather" src="widget_clima_reloj.html"></iframe>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="weather-nobg" onchange="updateWeatherWidget()">
+            <span>Modo Transparente Sin Caja (Solo texto e ícono)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="weather-theme-light" onchange="updateWeatherWidget()">
+            <span>☀️ Tema Claro para Widget</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-weather', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 2: Contador Kick Live -->
+      <div class="card" id="card-kick">
+        <h2>💚 2. Widget Contador Kick (Viewers & Follows)</h2>
+        <div class="iframe-preview">
+          <iframe id="preview-kick" src="widget_kick_counter.html?channel=jikokun"></iframe>
+        </div>
+        
+        <div class="form-group">
+          <label for="kick-channel-input">Nombre de Usuario de Kick:</label>
+          <input type="text" id="kick-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateKickWidget()">
+        </div>
+
+        <label class="checkbox-group">
+          <input type="checkbox" class="custom-checkbox" id="kick-theme-light" onchange="updateKickWidget()">
+          <span>☀️ Tema Claro para Widget</span>
+        </label>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-kick', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 3: Rotador Redes Sociales -->
+      <div class="card" id="card-social">
+        <h2>📢 3. Widget Rotador de Redes Sociales</h2>
+        <div class="iframe-preview">
+          <iframe id="preview-social" src="widget_redes_sociales.html?kick=jikokun&instagram=jikokun_official&tiktok=jikokun_tv"></iframe>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <p style="font-size: 0.85rem; color: #00f5d4; font-weight: 800; text-transform: uppercase;">Selecciona las redes que deseas mostrar:</p>
+        </div>
+
+        <label class="checkbox-group" style="margin-bottom: 4px;">
+          <input type="checkbox" class="custom-checkbox" id="social-theme-light" onchange="updateSocialWidget()">
+          <span>☀️ Tema Claro para Widget</span>
+        </label>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-height: 220px; overflow-y: auto; padding-right: 6px;" class="custom-scroll">
+          <!-- Kick -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(83,252,24,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-kick" checked onchange="updateSocialWidget()">
+              <span style="color: #53fc18;">💚 Kick</span>
+            </label>
+            <input type="text" id="val-kick" class="input-field" value="jikokun" placeholder="Usuario Kick" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Discord -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(88,101,242,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-discord" checked onchange="updateSocialWidget()">
+              <span style="color: #5865f2;">👾 Discord</span>
+            </label>
+            <input type="text" id="val-discord" class="input-field" value="discord.gg/jikokun" placeholder="Enlace Discord" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Instagram -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(225,48,108,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-instagram" checked onchange="updateSocialWidget()">
+              <span style="color: #e1306c;">📸 Instagram</span>
+            </label>
+            <input type="text" id="val-instagram" class="input-field" value="jikokun_official" placeholder="Usuario Insta" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Facebook -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(24,119,242,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-facebook" onchange="updateSocialWidget()">
+              <span style="color: #1877f2;">📘 Facebook</span>
+            </label>
+            <input type="text" id="val-facebook" class="input-field" value="jikokun_page" placeholder="Página Facebook" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Spotify -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(29,185,84,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-spotify" onchange="updateSocialWidget()">
+              <span style="color: #1db954;">🎧 Spotify</span>
+            </label>
+            <input type="text" id="val-spotify" class="input-field" value="Jikokun Playlist" placeholder="Playlist/Perfil" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- TikTok -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(0,242,254,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-tiktok" checked onchange="updateSocialWidget()">
+              <span style="color: #00f2fe;">🎵 TikTok</span>
+            </label>
+            <input type="text" id="val-tiktok" class="input-field" value="jikokun_tv" placeholder="Usuario TikTok" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Telegram -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(0,136,204,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-telegram" onchange="updateSocialWidget()">
+              <span style="color: #0088cc;">✈️ Telegram</span>
+            </label>
+            <input type="text" id="val-telegram" class="input-field" value="t.me/jikokun" placeholder="Canal Telegram" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- YouTube -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(255,0,0,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-youtube" onchange="updateSocialWidget()">
+              <span style="color: #ff0000;">▶️ YouTube</span>
+            </label>
+            <input type="text" id="val-youtube" class="input-field" value="jikokun_yt" placeholder="Canal YouTube" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Twitch -->
+          <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(145,70,255,0.25);">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-twitch" onchange="updateSocialWidget()">
+              <span style="color: #9146ff;">🟪 Twitch</span>
+            </label>
+            <input type="text" id="val-twitch" class="input-field" value="jikokun_tv" placeholder="Canal Twitch" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-social', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 4: Cuenta Atrás -->
+      <div class="card" id="card-countdown">
+        <h2>⏳ 4. Widget Cuenta Atrás de Stream</h2>
+        <div class="iframe-preview">
+          <iframe id="preview-countdown" src="widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar"></iframe>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+          <div class="form-group">
+            <label for="countdown-min">Minutos:</label>
+            <input type="number" id="countdown-min" class="input-field" value="5" min="1" max="120" oninput="updateCountdownWidget()">
+          </div>
+          <div class="form-group">
+            <label for="countdown-title-input">Título del Evento:</label>
+            <input type="text" id="countdown-title-input" class="input-field" value="Estamos Por Empezar" placeholder="Ej: Pausa / Volvemos" oninput="updateCountdownWidget()">
+          </div>
+        </div>
+
+        <label class="checkbox-group">
+          <input type="checkbox" class="custom-checkbox" id="countdown-theme-light" onchange="updateCountdownWidget()">
+          <span>☀️ Tema Claro para Widget</span>
+        </label>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-countdown', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 5: Reloj Digital -->
+      <div class="card" id="card-digital">
+        <h2>⏱️ 5. Widget Reloj Digital Futurista</h2>
+        <div class="iframe-preview">
+          <iframe id="preview-digital" src="widget_reloj_digital.html"></iframe>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="digital-seconds" onchange="updateDigitalWidget()">
+            <span>Mostrar Segundos en Pantalla</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="digital-theme-light" onchange="updateDigitalWidget()">
+            <span>☀️ Tema Claro para Widget</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-digital', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Multi Ideas Sv. San Salvador, El Salvador. Todos los derechos reservados.</p>
+  </footer>
+
+  <!-- Toast de Notificación -->
+  <div class="toast" id="toast-notify">✅ ¡Enlace Copiado! Pégalo en tu Fuente Navegador de OBS</div>
+
+  <script src="../script.js"></script>
+
+  <script>
+    const PRODUCTION_DOMAIN = "https://multiideassv.com/mini_widgets/";
+    const generatedUrls = {};
+
+    function getAbsoluteUrl(relativePath) {
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        return PRODUCTION_DOMAIN + relativePath;
+      }
+      let base = window.location.origin + window.location.pathname;
+      if (!base.endsWith('/')) {
+        base = base.substring(0, base.lastIndexOf('/') + 1);
+      }
+      return new URL(relativePath, base).href;
+    }
+
+    // 1. Clima & Reloj Widget Update
+    function updateWeatherWidget() {
+      const noBg = document.getElementById('weather-nobg').checked;
+      const isLight = document.getElementById('weather-theme-light').checked;
+      const params = new URLSearchParams();
+      if (noBg) params.set('nobg', 'true');
+      if (isLight) params.set('theme', 'light');
+
+      const path = `widget_clima_reloj.html${params.toString() ? '?' + params.toString() : ''}`;
+      document.getElementById('preview-weather').src = path;
+      generatedUrls['url-weather'] = getAbsoluteUrl(path);
+    }
+
+    // 2. Kick Widget Update
+    function updateKickWidget() {
+      const channel = document.getElementById('kick-channel-input').value.trim() || 'jikokun';
+      const isLight = document.getElementById('kick-theme-light').checked;
+      const params = new URLSearchParams({ channel });
+      if (isLight) params.set('theme', 'light');
+
+      const path = `widget_kick_counter.html?${params.toString()}`;
+      document.getElementById('preview-kick').src = path;
+      generatedUrls['url-kick'] = getAbsoluteUrl(path);
+    }
+
+    // 3. Social Rotator Update
+    function updateSocialWidget() {
+      const keys = ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch'];
+      const params = new URLSearchParams();
+
+      keys.forEach(key => {
+        const chk = document.getElementById(`chk-${key}`);
+        const valInput = document.getElementById(`val-${key}`);
+        if (chk && chk.checked && valInput && valInput.value.trim()) {
+          params.set(key, valInput.value.trim());
+        }
+      });
+
+      const isLight = document.getElementById('social-theme-light').checked;
+      if (isLight) params.set('theme', 'light');
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const path = `widget_redes_sociales.html${queryString}`;
+      document.getElementById('preview-social').src = path;
+      generatedUrls['url-social'] = getAbsoluteUrl(path);
+    }
+
+    // 4. Countdown Widget Update
+    function updateCountdownWidget() {
+      const min = document.getElementById('countdown-min').value || '5';
+      const title = document.getElementById('countdown-title-input').value || 'Estamos Por Empezar';
+      const isLight = document.getElementById('countdown-theme-light').checked;
+      const params = new URLSearchParams({ min, title });
+      if (isLight) params.set('theme', 'light');
+
+      const path = `widget_contador_cuenta_atras.html?${params.toString()}`;
+      document.getElementById('preview-countdown').src = path;
+      generatedUrls['url-countdown'] = getAbsoluteUrl(path);
+    }
+
+    // 5. Digital Clock Update
+    function updateDigitalWidget() {
+      const seconds = document.getElementById('digital-seconds').checked;
+      const isLight = document.getElementById('digital-theme-light').checked;
+      const params = new URLSearchParams();
+      if (seconds) params.set('seconds', 'true');
+      if (isLight) params.set('theme', 'light');
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const path = `widget_reloj_digital.html${queryString}`;
+      document.getElementById('preview-digital').src = path;
+      generatedUrls['url-digital'] = getAbsoluteUrl(path);
+    }
+
+    // Copy URL function with Toast and Button Animation
+    function copyWidgetUrl(urlKey, btn) {
+      const urlText = generatedUrls[urlKey];
+      if (!urlText) return;
+
+      navigator.clipboard.writeText(urlText).then(() => {
+        // Feedback en el botón
+        const originalText = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '✅ ¡Enlace Copiado al Portapapeles!';
+
+        // Toast
+        const toast = document.getElementById('toast-notify');
+        toast.classList.add('show');
+
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = originalText;
+          toast.classList.remove('show');
+        }, 3000);
+      }).catch(err => {
+        console.error('Error al copiar al portapapeles:', err);
+      });
+    }
+
+    // Inicializar URLs al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+      updateWeatherWidget();
+      updateKickWidget();
+      updateSocialWidget();
+      updateCountdownWidget();
+      updateDigitalWidget();
+    });
+  </script>
+
+</body>
+</html>

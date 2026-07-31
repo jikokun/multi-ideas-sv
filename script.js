@@ -59,6 +59,7 @@ function cargarMenuGlobal() {
         // Determinar niveles de subcarpeta
         let depth = 0;
         let isSensunshop = false;
+        let isMiniWidgets = false;
         
         if (pathname.includes("/sensunshop/negocioslocales/")) {
             depth = 2;
@@ -69,6 +70,9 @@ function cargarMenuGlobal() {
         } else if (pathname.endsWith("/sensunshop.html") || pathname.endsWith("/sensunshop")) {
             depth = 0;
             isSensunshop = true;
+        } else if (pathname.includes("/mini_widgets/") || pathname.includes("/mini_widgets")) {
+            depth = 1;
+            isMiniWidgets = true;
         }
         
         let menuPath;
@@ -80,6 +84,8 @@ function cargarMenuGlobal() {
             } else {
                 menuPath = "sensunshop/menu-sensunshop.html";
             }
+        } else if (isMiniWidgets) {
+            menuPath = "../menu.html";
         } else {
             menuPath = "menu.html";
         }
@@ -96,7 +102,7 @@ function cargarMenuGlobal() {
             .then(html => {
                 headerContainer.innerHTML = html;
 
-                adjustMenuPaths(headerContainer, depth, isSensunshop);
+                adjustMenuPaths(headerContainer, depth, isSensunshop, isMiniWidgets);
                 
                 initMobileMenu();
                 highlightCurrentPage();
@@ -120,7 +126,7 @@ function cargarMenuGlobal() {
 // ==========================================================================
 // AJUSTE DINÁMICO DE RUTAS DEL MENÚ SEGÚN LA PROFUNDIDAD DEL DIRECTORIO
 // ==========================================================================
-function adjustMenuPaths(headerContainer, depth, isSensunshop) {
+function adjustMenuPaths(headerContainer, depth, isSensunshop, isMiniWidgets) {
     const links = headerContainer.querySelectorAll("a");
     const images = headerContainer.querySelectorAll("img");
 
@@ -148,6 +154,12 @@ function adjustMenuPaths(headerContainer, depth, isSensunshop) {
                     a.setAttribute("href", href.substring(3));
                 }
             }
+        } else if (isMiniWidgets) {
+            if (href.startsWith("mini_widgets/")) {
+                a.setAttribute("href", href.substring(13));
+            } else if (!href.startsWith("../")) {
+                a.setAttribute("href", "../" + href);
+            }
         }
     });
 
@@ -172,6 +184,10 @@ function adjustMenuPaths(headerContainer, depth, isSensunshop) {
                 if (src.startsWith("../")) {
                     img.setAttribute("src", src.substring(3));
                 }
+            }
+        } else if (isMiniWidgets) {
+            if (!src.startsWith("../")) {
+                img.setAttribute("src", "../" + src);
             }
         }
     });
@@ -1084,6 +1100,8 @@ function toggleLightStylesheet(isLight, callback) {
     if (pathname.includes("/sensunshop/negocioslocales/")) {
         depth = 2;
     } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
+        depth = 1;
+    } else if (pathname.includes("/mini_widgets/") || pathname.includes("/mini_widgets")) {
         depth = 1;
     }
     
