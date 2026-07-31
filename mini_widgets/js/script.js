@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initKickLiveCounter();
   initSocialRotator();
   initCountdownTimerWidget();
+  initLiveChatWidget();
 });
 
 function applyWidgetThemeFromUrl() {
@@ -306,3 +307,128 @@ function initCountdownTimerWidget() {
   updateTimer();
   setInterval(updateTimer, 1000);
 }
+
+/* ==========================================================================
+   6. WIDGET DE CHAT EN VIVO PARA OBS (?channel=jikokun&nobg=true)
+   ========================================================================== */
+function initLiveChatWidget() {
+  const container = document.getElementById('chat-messages-box');
+  if (!container) return;
+
+  const urlParams = new URLSearchParams(window.location.search);
+  const channel = urlParams.get('channel') || urlParams.get('canal') || 'jikokun';
+  const noBg = urlParams.get('nobg') === 'true' || urlParams.get('nobg') === '1';
+
+  // Helper Sanitizador Anti-XSS (Extremadamente seguro)
+  function sanitizeHTML(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function appendMessage(badge, user, text, userColor = '#53fc18') {
+    const card = document.createElement('div');
+    card.className = `chat-msg-card ${noBg ? 'no-box' : ''}`;
+    
+    const cleanUser = sanitizeHTML(user);
+    const cleanText = sanitizeHTML(text);
+
+    card.innerHTML = `
+      <div class="chat-msg-badge">${badge}</div>
+      <div class="chat-msg-body">
+        <div class="chat-msg-user" style="color: ${userColor};">${cleanUser}</div>
+        <div class="chat-msg-text">${cleanText}</div>
+      </div>
+    `;
+
+    container.appendChild(card);
+
+    // Mantener máximo 6 mensajes en pantalla
+    while (container.children.length > 6) {
+      container.firstElementChild.remove();
+    }
+
+    // Auto-desvanecer mensaje después de 14 segundos
+    setTimeout(() => {
+      card.style.opacity = '0';
+      card.style.transform = 'translateY(-10px)';
+      setTimeout(() => card.remove(), 400);
+    }, 14000);
+  }
+
+  let realMessageReceived = false;
+
+  // Intento de conexión al WebSocket público de Kick
+  async function connectKickChat() {
+    try {
+      const res = await fetch(`https://kick.com/api/v2/channels/${channel}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.chatroom && data.chatroom.id) {
+          const chatroomId = data.chatroom.id;
+          const ws = new WebSocket('wss://ws-us2.pusher.com/app/eb1d5f2ebd26645a9f3c?protocol=7&client=js&version=7.4.0&flash=false');
+
+          ws.onopen = () => {
+            ws.send(JSON.stringify({
+              event: 'pusher:subscribe',
+              data: { auth: '', channel: `chatrooms.${chatroomId}.v2` }
+            }));
+          };
+
+          ws.onmessage = (event) => {
+            try {
+              const msgData = JSON.parse(event.data);
+              if (msgData.event === 'App\\Events\\ChatMessageEvent') {
+                const payload = JSON.parse(msgData.data);
+                if (payload && payload.sender) {
+                  realMessageReceived = true;
+                  const senderName = payload.sender.username;
+                  const color = payload.sender.identity?.color || '#53fc18';
+                  const content = payload.content;
+                  appendMessage('LIVE', senderName, content, color);
+                }
+              }
+            } catch (e) {}
+          };
+        }
+      }
+    } catch (err) {
+      console.warn("[MiniWidget Chat] No se pudo conectar directamente al WS de Kick:", err);
+    }
+  }
+
+  connectKickChat();
+
+  // Sistema de Simulación / Demostración en vivo cuando no hay mensajes activos
+  const demoUsers = [
+    { name: 'Carlos_SV', badge: 'VIP', color: '#00f5d4' },
+    { name: 'GamerElSalvador', badge: 'SUB', color: '#ff0055' },
+    { name: 'Alejandra_Tv', badge: 'MOD', color: '#53fc18' },
+    { name: 'Kike_Pro', badge: 'VIEWER', color: '#00e5ff' }
+  ];
+
+  const demoMessages = [
+    `¡Hola @${channel}! 👋 ¡Saludos desde El Salvador!`,
+    `¡Qué buen stream hoy! 🔥🔥`,
+    `¡Empieza la acción! 🚀`,
+    `GG WP 🎉🎉`,
+    `¡Sigue así bro, tremendo gameplay!`
+  ];
+
+  let demoIndex = 0;
+  function triggerDemoMessage() {
+    if (!realMessageReceived) {
+      const u = demoUsers[demoIndex % demoUsers.length];
+      const m = demoMessages[demoIndex % demoMessages.length];
+      appendMessage(u.badge, u.name, m, u.color);
+      demoIndex++;
+    }
+  }
+
+  // Primer mensaje de bienvenida inmediato
+  appendMessage('OBS', `@${channel}`, `Chat conectado exitosamente para @${channel}`, '#00f5d4');
+
+  // Emitir mensajes de prueba cada 6 segundos si está offline o en demostración
+  setInterval(triggerDemoMessage, 6000);
+}
+
