@@ -271,10 +271,15 @@ function handleLinkClick(e) {
         const targetURL = new URL(destination, window.location.href);
         const currentURL = new URL(window.location.href);
         
-        // Comprobar si apunta al mismo documento/ruta
-        const isSamePage = currentURL.pathname === targetURL.pathname || 
-                           (currentURL.pathname.endsWith('/') && targetURL.pathname.endsWith('/index.html')) ||
-                           (currentURL.pathname.endsWith('/index.html') && targetURL.pathname.endsWith('/'));
+        // Normalizar rutas para comparar si corresponden exactamente a la misma página
+        const normalizePath = p => {
+            let path = p.toLowerCase();
+            if (path.endsWith('/index.html')) path = path.slice(0, -10);
+            if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+            return path;
+        };
+
+        const isSamePage = normalizePath(currentURL.pathname) === normalizePath(targetURL.pathname);
 
         if (isSamePage) {
             // Si tiene hash (ej. #productos), permitimos el scroll nativo
