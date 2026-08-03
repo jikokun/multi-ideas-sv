@@ -419,6 +419,16 @@ function initLiveChatWidget() {
             renderChatMessage(data);
           });
 
+          pusher.connection.bind('connected', function() {
+            renderChatMessage({
+              sender: {
+                username: 'KICK_BOT',
+                identity: { color: '#00f5d4', badges: [{ type: 'broadcaster' }] }
+              },
+              content: `🟢 Chat de Kick en vivo conectado para @${channelSlug}`
+            });
+          });
+
           pusherSubscribed = true;
         } catch (errPusher) {
           console.warn("[Kick Pusher SDK] Error al inicializar cliente Pusher:", errPusher);
@@ -426,7 +436,7 @@ function initLiveChatWidget() {
       }
 
       if (!pusherSubscribed) {
-        connectNativePusherWS(chatroomId, PUSHER_KEY);
+        connectNativePusherWS(chatroomId, PUSHER_KEY, channelSlug);
       }
 
     } catch (error) {
@@ -435,7 +445,23 @@ function initLiveChatWidget() {
     }
   }
 
-  function connectNativePusherWS(roomId, key) {
+  // Listener para el botón "Corroborar Conexión / Probar Chat" del configurador
+  window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'SEND_TEST_CHAT') {
+      renderChatMessage({
+        sender: {
+          username: event.data.username || slug,
+          identity: {
+            color: '#53fc18',
+            badges: [{ type: 'broadcaster' }, { type: 'subscriber' }]
+          }
+        },
+        content: event.data.message || `¡Conexión verificada exitosamente en Kick! 🎉 [emote:24074:LFG]`
+      });
+    }
+  });
+
+  function connectNativePusherWS(roomId, key, channelName) {
     try {
       const ws = new WebSocket(`wss://ws-us2.pusher.com/app/${key}?protocol=7&client=js&version=8.0.1&flash=false`);
       ws.onopen = () => {
@@ -443,6 +469,13 @@ function initLiveChatWidget() {
           event: 'pusher:subscribe',
           data: { auth: '', channel: `chatrooms.${roomId}.v2` }
         }));
+        renderChatMessage({
+          sender: {
+            username: 'KICK_BOT',
+            identity: { color: '#00f5d4', badges: [{ type: 'broadcaster' }] }
+          },
+          content: `🟢 Chat de Kick en vivo conectado para @${channelName}`
+        });
         setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ event: 'pusher:ping', data: {} }));

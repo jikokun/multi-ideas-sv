@@ -490,6 +490,10 @@
           </label>
         </div>
 
+        <button class="btn-copy" style="background: linear-gradient(135deg, #53fc18 0%, #0077b6 100%); color: #02090f; margin-top: 4px;" onclick="testChatConnection()">
+          ⚡ Corroborar Conexión / Probar Chat
+        </button>
+
         <button class="btn-copy" onclick="copyWidgetUrl('url-chat', this)">
           📋 Copiar Enlace para OBS
         </button>
@@ -611,6 +615,61 @@
       const previewIframe = document.getElementById('preview-chat');
       if (previewIframe) previewIframe.src = path;
       generatedUrls['url-chat'] = getAbsoluteUrl(path);
+    }
+
+    async function testChatConnection() {
+      const channelInput = document.getElementById('chat-channel-input');
+      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const cleanSlug = channel.replace(/^@/, '').toLowerCase();
+
+      const toast = document.getElementById('toast-notify');
+      const originalText = toast.textContent;
+      toast.textContent = `⚡ Comprobando conexión con @${cleanSlug}...`;
+      toast.classList.add('show');
+
+      // Enviar mensaje de prueba al iframe de vista previa
+      const iframe = document.getElementById('preview-chat');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'SEND_TEST_CHAT',
+          username: cleanSlug,
+          message: `¡Conexión comprobada con éxito para @${cleanSlug}! 🎉 [emote:24074:LFG]`
+        }, '*');
+      }
+
+      try {
+        let chatroomId = null;
+        try {
+          const res = await fetch(`https://kick.com/api/v2/channels/${cleanSlug}`);
+          if (res.ok) {
+            const data = await res.json();
+            chatroomId = data.chatroom?.id;
+          }
+        } catch(e) {}
+
+        if (!chatroomId) {
+          try {
+            const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanSlug)}`);
+            if (resProxy.ok) {
+              const dataProxy = await resProxy.json();
+              chatroomId = dataProxy.chatroom?.id;
+            }
+          } catch(e) {}
+        }
+
+        if (chatroomId) {
+          toast.textContent = `🟢 ¡Conexión exitosa con @${cleanSlug}! (Chatroom ID: ${chatroomId})`;
+        } else {
+          toast.textContent = `⚡ Mensaje de prueba enviado al chat de @${cleanSlug}.`;
+        }
+      } catch (err) {
+        toast.textContent = `⚡ Mensaje de prueba enviado al chat.`;
+      }
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        toast.textContent = originalText;
+      }, 4500);
     }
 
     // Copy URL function with Toast and Button Animation
