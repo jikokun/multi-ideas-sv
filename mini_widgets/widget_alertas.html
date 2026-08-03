@@ -246,6 +246,93 @@
       --accent-glow: rgba(245, 158, 11, 0.25);
       --accent-bg: linear-gradient(90deg, #b45309, #f59e0b);
     }
+
+    /* --------------------------------------------------
+       SIMULADOR DE EVENTOS EN MODO INTERACTUAR DE OBS
+       -------------------------------------------------- */
+    #test-controls {
+      position: fixed;
+      bottom: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1.5px solid rgba(0, 245, 212, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 8px 14px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 15px rgba(0, 245, 212, 0.2);
+      transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+      pointer-events: auto;
+    }
+
+    #test-controls.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translate(-50%, 25px);
+    }
+
+    .test-btn {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 13px;
+      border-radius: 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .test-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .test-btn.btn-follow:hover { background: #16a34a; color: #fff; border-color: #22c55e; }
+    .test-btn.btn-sub:hover { background: #7e22ce; color: #fff; border-color: #a855f7; }
+    .test-btn.btn-gift:hover { background: #be185d; color: #fff; border-color: #ec4899; }
+    .test-btn.btn-raid:hover { background: #c2410c; color: #fff; border-color: #f97316; }
+    .test-btn.btn-kicks:hover { background: #b45309; color: #fff; border-color: #f59e0b; }
+
+    .close-test-btn {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #ef4444;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 900;
+      margin-left: 4px;
+      transition: all 0.2s ease;
+    }
+    .close-test-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #53fc18;
+      box-shadow: 0 0 8px #53fc18;
+      display: inline-block;
+    }
   </style>
 </head>
 <body>
@@ -280,7 +367,37 @@
 
   </div>
 
+  <!-- Panel de Pruebas Flotante (Se muestra al hacer Clic / Modo Interactuar de OBS) -->
+  <div id="test-controls" class="hidden">
+    <span class="status-dot" title="Streamer.bot Conectado"></span>
+    <span style="font-size: 0.75rem; color: #94a3b8; margin-right: 4px; font-weight: 800;">Simulador OBS</span>
+    <button class="test-btn btn-follow" onclick="triggerTestAlert('follow'); event.stopPropagation();">💚 Follow</button>
+    <button class="test-btn btn-sub" onclick="triggerTestAlert('sub'); event.stopPropagation();">⭐ Sub</button>
+    <button class="test-btn btn-gift" onclick="triggerTestAlert('gift'); event.stopPropagation();">🎁 Gift</button>
+    <button class="test-btn btn-raid" onclick="triggerTestAlert('raid'); event.stopPropagation();">🚀 Raid</button>
+    <button class="test-btn btn-kicks" onclick="triggerTestAlert('donation'); event.stopPropagation();">💎 Kicks</button>
+    <button class="close-test-btn" onclick="toggleTestPanel(false); event.stopPropagation();" title="Cerrar Simulador">✖</button>
+  </div>
+
   <script>
+    function toggleTestPanel(forceState) {
+      const panel = document.getElementById('test-controls');
+      if (!panel) return;
+      if (typeof forceState === 'boolean') {
+        if (forceState) panel.classList.remove('hidden');
+        else panel.classList.add('hidden');
+      } else {
+        panel.classList.toggle('hidden');
+      }
+    }
+
+    // Al hacer clic en pantalla (modo interactuar de OBS), alternar visibilidad del simulador
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('test-controls');
+      if (panel && !panel.contains(e.target)) {
+        toggleTestPanel();
+      }
+    });
     // -----------------------------------------------------------------------
     // CONFIGURACIÓN DE PARÁMETROS URL
     // -----------------------------------------------------------------------
@@ -510,36 +627,42 @@
     }
 
     // -----------------------------------------------------------------------
-    // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:PORT/)
+    // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:PORT/ o ws://localhost:PORT/)
     // -----------------------------------------------------------------------
     let streamerBotSocket = null;
     let streamerBotConnected = false;
 
     function connectStreamerBot(port) {
-      const portsToTry = [port, '4445', '8080'];
+      const portsToTry = [
+        `ws://127.0.0.1:${port}/`,
+        `ws://localhost:${port}/`,
+        `ws://127.0.0.1:4445/`,
+        `ws://localhost:4445/`,
+        `ws://127.0.0.1:8080/`,
+        `ws://localhost:8080/`
+      ];
       let currentPortIndex = 0;
 
-      function tryConnectPort(p) {
+      function tryConnectPort(url) {
         try {
-          const wsUrl = `ws://127.0.0.1:${p}/`;
-          console.log(`[Streamer.bot Alertas] Conectando a ${wsUrl}...`);
+          console.log(`[Streamer.bot Alertas] Conectando a ${url}...`);
           
-          streamerBotSocket = new WebSocket(wsUrl);
+          streamerBotSocket = new WebSocket(url);
 
           streamerBotSocket.onopen = function() {
             streamerBotConnected = true;
-            console.log(`[Streamer.bot Alertas] 🟢 Conectado exitosamente en puerto ${p}`);
-            updateStatusDot(true);
+            console.log(`[Streamer.bot Alertas] 🟢 Conectado exitosamente en ${url}`);
 
-            // Suscribirse a eventos de Alertas (Follow, Sub, Gift, Raid, Cheer, Tips) en Kick, Twitch, YouTube
+            // Suscribirse a eventos de Alertas (Follow, Sub, Gift, Raid, Cheer, Tips) con comodines y fuentes soportadas
             streamerBotSocket.send(JSON.stringify({
               request: "Subscribe",
               id: "fox-alerts-overlay",
               events: {
-                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid"],
-                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer"],
-                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift"],
-                StreamerBot: ["Custom"]
+                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid", "*"],
+                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer", "*"],
+                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift", "*"],
+                General: ["*"],
+                StreamerBot: ["Custom", "*"]
               }
             }));
           };
@@ -547,20 +670,19 @@
           streamerBotSocket.onmessage = function(event) {
             try {
               const data = JSON.parse(event.data);
+              console.log("[Streamer.bot Alertas] Paquete recibido:", data);
               parseStreamerBotEvent(data);
             } catch(e) {
               console.warn("[Streamer.bot Alertas] Error al parsear paquete:", e);
             }
           };
 
-          streamerBotSocket.onerror = function() {
+          streamerBotSocket.onerror = function(err) {
             streamerBotConnected = false;
-            updateStatusDot(false);
           };
 
           streamerBotSocket.onclose = function() {
             streamerBotConnected = false;
-            updateStatusDot(false);
             currentPortIndex++;
             if (currentPortIndex < portsToTry.length) {
               setTimeout(() => tryConnectPort(portsToTry[currentPortIndex]), 1500);
@@ -569,23 +691,11 @@
             }
           };
         } catch(e) {
-          console.warn(`[Streamer.bot Alertas] No se pudo conectar a ws en puerto ${p}`);
-          updateStatusDot(false);
+          console.warn(`[Streamer.bot Alertas] No se pudo conectar a ${url}`);
         }
       }
 
       tryConnectPort(portsToTry[0]);
-    }
-
-    function updateStatusDot(connected) {
-      const dot = document.getElementById('sb-status-dot');
-      if (connected) {
-        dot.classList.add('connected');
-        dot.title = "🟢 Conectado a Streamer.bot";
-      } else {
-        dot.classList.remove('connected');
-        dot.title = "🔴 Desconectado de Streamer.bot";
-      }
     }
 
     // Parsea los eventos entrantes de Streamer.bot
@@ -594,11 +704,48 @@
 
       const eventInfo = data.event || {};
       const payload = data.data || data;
-      const eventType = (eventInfo.type || data.type || '').toLowerCase();
-      const source = eventInfo.source || data.source || 'Kick';
 
-      const user = payload.user || payload.sender || payload.recipient || {};
-      const username = user.name || user.username || payload.user_name || payload.userName || payload.displayName || 'Usuario';
+      // 1. Extraer nombre de tipo de evento con máxima flexibilidad
+      let eventType = '';
+      if (typeof data.event === 'string') {
+        eventType = data.event;
+      } else if (data.event && typeof data.event === 'object' && data.event.type) {
+        eventType = data.event.type;
+      } else if (data.type) {
+        eventType = data.type;
+      } else if (data.action && data.action.name) {
+        eventType = data.action.name;
+      }
+      eventType = (eventType || '').toString().toLowerCase();
+
+      if (payload && payload.type) eventType += ' ' + payload.type.toString().toLowerCase();
+      if (payload && payload.event) eventType += ' ' + payload.event.toString().toLowerCase();
+
+      const source = ((eventInfo.source || data.source || payload.source || 'Kick') + '').toLowerCase();
+
+      // 2. Extraer nombre de usuario / emisor con máxima flexibilidad
+      let username = '';
+      const candidates = [
+        payload.user, payload.follower, payload.subscriber, payload.sender, payload.recipient,
+        payload.user_name, payload.userName, payload.user_login, payload.userLogin, payload.displayName, payload.display_name, payload.name, payload.username
+      ];
+
+      for (let cand of candidates) {
+        if (!cand) continue;
+        if (typeof cand === 'string' && cand.trim()) {
+          username = cand.trim();
+          break;
+        } else if (typeof cand === 'object') {
+          const nameProp = cand.displayName || cand.display_name || cand.name || cand.username || cand.user_name || cand.login;
+          if (nameProp && typeof nameProp === 'string' && nameProp.trim()) {
+            username = nameProp.trim();
+            break;
+          }
+        }
+      }
+      if (!username) username = 'Usuario';
+
+      console.log(`[Streamer.bot Alertas] Evento identificado: '${eventType}' (Fuente: ${source}) - Usuario: '${username}'`);
 
       // 1. EVENTO DE REGALO DE SUBS (Gift Sub / Sub Bomb / GiftSubscription) - Verificar primero
       if (eventType.includes('gift') || eventType.includes('bomb')) {
@@ -629,8 +776,8 @@
           message: payload.message || payload.subMessage || ''
         });
       }
-      // 3. EVENTO DE SEGUIDOR (Follow)
-      else if (eventType.includes('follow') || (source.toLowerCase() === 'youtube' && eventType.includes('subscribe'))) {
+      // 3. EVENTO DE SEGUIDOR (Follow / Follower / NewFollower)
+      else if (eventType.includes('follow') || eventType.includes('subscriber') || (source.includes('youtube') && eventType.includes('subscribe'))) {
         queueAlert({
           theme: 'follow',
           icon: '💚',
