@@ -97,7 +97,19 @@
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const channelName = urlParams.get('channel') || urlParams.get('username') || urlParams.get('canal') || 'streamer';
-    const sbPort = urlParams.get('port') || urlParams.get('sbport') || '8080';
+    const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
+    
+    // Parámetros de Personalización Avanzada
+    const customFontSize = urlParams.get('fontsize') || '15';
+    const customTextColor = urlParams.get('textcolor') || '#e2e8f0';
+    const customBgColor = urlParams.get('bgcolor') || 'rgba(18, 18, 20, 0.85)';
+    const customBorderColor = urlParams.get('bordercolor') || '#53fc18';
+    const isAutoAccent = urlParams.get('autoaccent') !== 'false';
+    const rawIgnored = urlParams.get('ignored') || '';
+    const ignoredList = rawIgnored.toLowerCase().split(',').map(s => s.trim()).filter(Boolean);
+    const isNoBg = urlParams.get('nobg') === 'true';
+    const isLightTheme = urlParams.get('theme') === 'light';
+
     const chatContainer = document.getElementById('chat-container');
 
     let streamerBotConnected = false;
@@ -107,10 +119,10 @@
     initChatWidget();
 
     function initChatWidget() {
-      // 1. Intentar conectar primero al WebSocket de Streamer.bot Local (Puerto 8080 por defecto, o 4445)
+      // 1. Conectar a Streamer.bot Local (Puerto 4445 por defecto, o 8080)
       connectStreamerBot(sbPort);
 
-      // 2. Intentar también conectar a Kick Pusher como respaldo remoto
+      // 2. Conectar a Kick Pusher como respaldo remoto
       initKickPusher(channelName.toLowerCase().trim());
     }
 
@@ -118,7 +130,7 @@
     // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:PORT/)
     // -----------------------------------------------------------------------
     function connectStreamerBot(port) {
-      const portsToTry = [port, '8080', '4445'];
+      const portsToTry = [port, '4445', '8080'];
       let currentPortIndex = 0;
 
       function tryConnectPort(p) {
@@ -160,12 +172,10 @@
 
           streamerBotSocket.onclose = function() {
             streamerBotConnected = false;
-            // Si falla el puerto, probar el siguiente puerto de la lista
             currentPortIndex++;
             if (currentPortIndex < portsToTry.length) {
               setTimeout(() => tryConnectPort(portsToTry[currentPortIndex]), 1500);
             } else {
-              // Reintentar reconexión cada 5 segundos
               setTimeout(() => tryConnectPort(portsToTry[0]), 5000);
             }
           };
@@ -182,9 +192,7 @@
       if (!data) return;
       
       const payload = data.data || data;
-      const eventType = data.event ? (data.event.type || data.event) : '';
 
-      // Si es mensaje de Kick / Twitch / YouTube
       if (payload && (payload.message || payload.messageText || payload.text)) {
         const msgObj = payload.message || payload;
         const userObj = msgObj.user || payload.user || payload.sender || {};
@@ -250,7 +258,6 @@
         const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
 
         const handleKickPusherMsg = function(raw) {
-          // Solo renderizar de Pusher si Streamer.bot no está conectado activamente
           if (streamerBotConnected) return;
 
           let data = raw;
@@ -296,17 +303,39 @@
     // RENDERIZADO DE MENSAJES EN PANTALLA
     // -----------------------------------------------------------------------
     function renderChatMessage({ username, color, text, badges = [] }) {
-      if (!text) return;
+      if (!text || !username) return;
+
+      // 1. Filtrar usuarios o bots ignorados
+      if (ignoredList.includes(username.toLowerCase().trim())) {
+        console.log(`[Kick Chat Filter] Usuario o bot ignorado omitido: ${username}`);
+        return;
+      }
 
       let content = text;
+      const emoteHeight = Math.max(20, parseInt(customFontSize) + 8);
+
       // Reemplazo de emotes [emote:ID:NOMBRE] por CDN de Kick
       content = content.replace(/\[emote:(\d+):([\w-]+)\]/g, (match, id, name) => {
-        return `<img class="kick-emote" src="https://files.kick.com/emotes/${id}/fullsize" title="${name}" alt="${name}">`;
+        return `<img class="kick-emote" style="height:${emoteHeight}px;" src="https://files.kick.com/emotes/${id}/fullsize" title="${name}" alt="${name}">`;
       });
 
       const card = document.createElement('div');
       card.className = 'message-card';
-      card.style.borderLeftColor = color || '#53fc18';
+
+      // Aplicar Fondo de Burbuja personalizado
+      if (isNoBg) {
+        card.style.background = 'transparent';
+        card.style.boxShadow = 'none';
+      } else if (isLightTheme) {
+        card.style.background = (customBgColor !== 'rgba(18, 18, 20, 0.85)' && customBgColor !== '#121214') ? customBgColor : 'rgba(255, 255, 255, 0.92)';
+      } else {
+        card.style.background = customBgColor;
+      }
+
+      // Aplicar Realce Izquierdo (Color Automático de usuario vs Color Personalizado)
+      const finalBorderColor = isAutoAccent ? (color || customBorderColor || '#53fc18') : customBorderColor;
+      card.style.borderLeftColor = finalBorderColor;
+      card.style.fontSize = `${customFontSize}px`;
 
       const header = document.createElement('div');
       header.className = 'user-header';
@@ -326,12 +355,15 @@
       const userSpan = document.createElement('span');
       userSpan.className = 'username';
       userSpan.style.color = color || '#53fc18';
+      userSpan.style.fontSize = `${Math.max(12, parseInt(customFontSize) - 1)}px`;
       userSpan.textContent = username;
 
       header.appendChild(userSpan);
 
       const textDiv = document.createElement('div');
       textDiv.className = 'message-text';
+      textDiv.style.color = isLightTheme ? '#0f172a' : customTextColor;
+      textDiv.style.fontSize = `${customFontSize}px`;
       textDiv.innerHTML = content;
 
       card.appendChild(header);
@@ -357,13 +389,41 @@
       }, 7000);
     }
 
+    // -----------------------------------------------------------------------
+    // MODO VISTA PREVIA (Mensajes de demostración para el configurador web)
+    // -----------------------------------------------------------------------
+    const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top;
+
+    if (isPreviewMode) {
+      setTimeout(() => {
+        renderChatMessage({
+          username: 'AlexStreamer',
+          color: '#ff4757',
+          text: '¡Hola a todos! Bienvenidos al directo 🚀',
+          badges: ['STREAMER 👑']
+        });
+        renderChatMessage({
+          username: 'KickFan99',
+          color: '#53fc18',
+          text: '¡Este tamaño de letra, fondo y realce se ven geniales! 🔥',
+          badges: ['SUB ⭐']
+        });
+        renderChatMessage({
+          username: 'Moderador_Vip',
+          color: '#70a1ff',
+          text: 'Probando el color de fondo y borde izquierdo en tiempo real.',
+          badges: ['MOD 🛡️']
+        });
+      }, 150);
+    }
+
     // Escuchar mensajes de prueba del configurador (postMessage)
     window.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'SEND_TEST_CHAT') {
         renderChatMessage({
           username: event.data.username || channelName || 'TestUser',
           color: '#53fc18',
-          text: event.data.message || '¡Prueba de Chat desde Streamer.bot exitosa!',
+          text: event.data.message || '¡Prueba de Chat personalizada!',
           badges: ['STREAMER 👑', 'SUB ⭐']
         });
       }

@@ -62,13 +62,14 @@
     }
 
     .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(440px, 1fr));
-      gap: 35px;
+      columns: 2 440px;
+      column-gap: 35px;
       width: 100%;
     }
 
     .card {
+      break-inside: avoid;
+      margin-bottom: 35px;
       background: rgba(4, 20, 32, 0.85);
       border: 1.5px solid rgba(0, 245, 212, 0.35);
       border-radius: 20px;
@@ -328,7 +329,7 @@
           <span>☀️ Tema Claro para Widget</span>
         </label>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-height: 220px; overflow-y: auto; padding-right: 6px;" class="custom-scroll">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 175px; overflow-y: auto; padding-right: 6px;" class="custom-scroll">
           <!-- Kick -->
           <div class="form-group" style="background: rgba(2,9,15,0.5); padding: 10px; border-radius: 10px; border: 1px solid rgba(83,252,24,0.25);">
             <label class="checkbox-group">
@@ -471,7 +472,7 @@
       <div class="card" id="card-chat">
         <h2>💚 6. Widget Chat de Kick en Vivo</h2>
         <div class="iframe-preview">
-          <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun"></iframe>
+          <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&port=4445"></iframe>
         </div>
         
         <div class="form-group">
@@ -479,7 +480,38 @@
           <input type="text" id="chat-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateChatWidget()">
         </div>
 
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-fontsize-input">🔤 Tamaño de Letra (px):</label>
+            <input type="number" id="chat-fontsize-input" class="input-field" value="15" min="10" max="32" oninput="updateChatWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-textcolor-input">🎨 Color de Texto:</label>
+            <input type="color" id="chat-textcolor-input" class="input-field" value="#e2e8f0" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-bgcolor-input">🎨 Fondo de Burbuja:</label>
+            <input type="color" id="chat-bgcolor-input" class="input-field" value="#121214" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-bordercolor-input">✨ Realce Izquierdo:</label>
+            <input type="color" id="chat-bordercolor-input" class="input-field" value="#53fc18" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="chat-ignored-input">🚫 Usuarios o Bots a Ignorar (separados por coma):</label>
+          <input type="text" id="chat-ignored-input" class="input-field" value="botrix, nightbot, streamelements" placeholder="Ej: botrix, nightbot, bot_chat" oninput="updateChatWidget()">
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="chat-autoaccent" checked onchange="updateChatWidget()">
+            <span>🌈 Usar Color Automático de Usuario en Realce Izquierdo</span>
+          </label>
           <label class="checkbox-group">
             <input type="checkbox" class="custom-checkbox" id="chat-nobg" onchange="updateChatWidget()">
             <span>Modo Transparente Sin Caja (Solo texto)</span>
@@ -516,9 +548,6 @@
     const generatedUrls = {};
 
     function getAbsoluteUrl(relativePath) {
-      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-        return PRODUCTION_DOMAIN + relativePath;
-      }
       let base = window.location.origin + window.location.pathname;
       if (!base.endsWith('/')) {
         base = base.substring(0, base.lastIndexOf('/') + 1);
@@ -604,17 +633,34 @@
     function updateChatWidget() {
       const channelInput = document.getElementById('chat-channel-input');
       const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const fontSize = document.getElementById('chat-fontsize-input') ? document.getElementById('chat-fontsize-input').value : '15';
+      const textColor = document.getElementById('chat-textcolor-input') ? document.getElementById('chat-textcolor-input').value : '#e2e8f0';
+      const bgColor = document.getElementById('chat-bgcolor-input') ? document.getElementById('chat-bgcolor-input').value : '#121214';
+      const borderColor = document.getElementById('chat-bordercolor-input') ? document.getElementById('chat-bordercolor-input').value : '#53fc18';
+      const autoAccent = document.getElementById('chat-autoaccent') ? document.getElementById('chat-autoaccent').checked : true;
+      const ignored = document.getElementById('chat-ignored-input') ? document.getElementById('chat-ignored-input').value.trim() : '';
       const noBg = document.getElementById('chat-nobg') ? document.getElementById('chat-nobg').checked : false;
       const isLight = document.getElementById('chat-theme-light') ? document.getElementById('chat-theme-light').checked : false;
 
-      const params = new URLSearchParams({ channel });
+      const params = new URLSearchParams({ channel, port: '4445' });
+      if (fontSize && fontSize !== '15') params.set('fontsize', fontSize);
+      if (textColor && textColor !== '#e2e8f0') params.set('textcolor', textColor);
+      if (bgColor && bgColor !== '#121214') params.set('bgcolor', bgColor);
+      if (borderColor && borderColor !== '#53fc18') params.set('bordercolor', borderColor);
+      if (!autoAccent) params.set('autoaccent', 'false');
+      if (ignored) params.set('ignored', ignored);
       if (noBg) params.set('nobg', 'true');
       if (isLight) params.set('theme', 'light');
 
-      const path = `widget_chat_live.html?${params.toString()}`;
+      // URL limpia para OBS (sin preview)
+      const obsPath = `widget_chat_live.html?${params.toString()}`;
+      generatedUrls['url-chat'] = getAbsoluteUrl(obsPath);
+
+      // URL para el iframe de vista previa en la web (con mensajes de muestra)
+      params.set('preview', 'true');
+      const previewPath = `widget_chat_live.html?${params.toString()}`;
       const previewIframe = document.getElementById('preview-chat');
-      if (previewIframe) previewIframe.src = path;
-      generatedUrls['url-chat'] = getAbsoluteUrl(path);
+      if (previewIframe) previewIframe.src = previewPath;
     }
 
     async function testChatConnection() {
