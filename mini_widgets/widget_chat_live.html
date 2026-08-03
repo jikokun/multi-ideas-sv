@@ -82,38 +82,43 @@
       try {
         let chatroomId = null;
 
-        // 1. Obtener chatroom_id mediante nuestro proxy PHP get_chatroom.php en el servidor
+        // 1. Petición directa a la API v2 de Kick (Funciona NATIVAMENTE en OBS Studio Browser Source)
         try {
-          const response = await fetch(`get_chatroom.php?channel=${encodeURIComponent(channel)}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data && data.chatroom_id) {
-              chatroomId = data.chatroom_id;
+          const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
+          if (directRes.ok) {
+            const directData = await directRes.json();
+            if (directData && directData.chatroom && directData.chatroom.id) {
+              chatroomId = directData.chatroom.id;
             }
           }
         } catch (e) {
-          console.warn("[Kick Chat] get_chatroom.php no disponible localmente, probando fallback...");
+          console.warn("[Kick Chat] Petición directa restringida por navegador. Usando proxy de respaldo...");
         }
 
-        // 1b. Fallback: Consulta REST directa de Kick API v2 o proxies CORS si get_chatroom.php no devuelve datos
-        if (!chatroomId) {
-          try {
-            const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
-            if (directRes.ok) {
-              const directData = await directRes.json();
-              chatroomId = directData.chatroom?.id;
-            }
-          } catch(e) {}
-        }
-
+        // 2. Proxy de respaldo AllOrigins (Para vistas previas en navegadores web locales)
         if (!chatroomId) {
           try {
             const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
             if (proxyRes.ok) {
               const proxyData = await proxyRes.json();
-              chatroomId = proxyData.chatroom?.id;
+              if (proxyData && proxyData.chatroom && proxyData.chatroom.id) {
+                chatroomId = proxyData.chatroom.id;
+              }
             }
-          } catch(e) {}
+          } catch (e) {}
+        }
+
+        // 3. Proxy de respaldo CorsProxy.io
+        if (!chatroomId) {
+          try {
+            const proxyRes2 = await fetch(`https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
+            if (proxyRes2.ok) {
+              const proxyData2 = await proxyRes2.json();
+              if (proxyData2 && proxyData2.chatroom && proxyData2.chatroom.id) {
+                chatroomId = proxyData2.chatroom.id;
+              }
+            }
+          } catch (e) {}
         }
 
         if (!chatroomId) {
@@ -122,7 +127,7 @@
 
         console.log(`[Kick API] Canal: ${channel} | Chatroom ID: ${chatroomId}`);
 
-        // 2. Conexión al Clúster WebSocket de Pusher usado por Kick
+        // 4. Conexión al Clúster WebSocket de Pusher usado por Kick
         const PUSHER_KEY = "eb1d5f28b619a93b7726";
         const PUSHER_CLUSTER = "us2";
 
@@ -135,7 +140,7 @@
           forceTLS: true
         });
 
-        // Suscribirse a la sala del canal
+        // Suscribirse a la sala del canal v2
         const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
 
         // Handler unificado para eventos
@@ -143,12 +148,12 @@
           renderMessage(msgData);
         };
 
-        // 3. Escuchar mensajes del chat en tiempo real
+        // Escuchar mensajes del chat en tiempo real
         pusherChannel.bind('App\\Events\\ChatMessageEvent', eventHandler);
         pusherChannel.bind('App\Events\ChatMessageEvent', eventHandler);
         pusherChannel.bind('ChatMessageEvent', eventHandler);
 
-        // Captura global de eventos en el canal por si varía la estructura
+        // Captura global de eventos por si varía el namespace del evento
         pusherChannel.bind_global(function(eventName, data) {
           if (eventName && (eventName.includes('ChatMessage') || eventName.includes('Message'))) {
             renderMessage(data);
