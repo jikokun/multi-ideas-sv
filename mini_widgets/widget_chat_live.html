@@ -3,21 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kick Overlay Chat Widget</title>
-  <!-- CDN Oficial de Pusher JS para escuchar el WebSocket de Kick -->
+  <title>Kick Live Chat Widget</title>
+  <!-- Cliente Pusher JS para escuchar WebSocket de Kick -->
   <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
   <style>
-    /* Estilos optimizados para OBS Browser Source (Fondo Transparente) */
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
     body, html {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      background-color: transparent !important;
-      font-family: 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif;
+      margin: 0; padding: 0;
+      width: 100%; height: 100%;
+      background: transparent !important;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       overflow: hidden;
       color: #ffffff;
     }
@@ -27,67 +22,44 @@
       flex-direction: column;
       justify-content: flex-end;
       height: 100vh;
-      padding: 15px;
-      gap: 10px;
+      padding: 12px;
+      gap: 8px;
     }
 
     .message-card {
-      background: rgba(18, 18, 20, 0.82);
+      background: rgba(15, 15, 18, 0.85);
       backdrop-filter: blur(4px);
-      border-left: 4px solid #53fc18; /* Verde Neón de Kick */
+      border-left: 4px solid #53fc18;
       border-radius: 6px;
-      padding: 10px 14px;
+      padding: 8px 12px;
       font-size: 15px;
       line-height: 1.4;
-      word-break: break-word;
-      animation: slideIn 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      word-wrap: break-word;
+      animation: fadeIn 0.2s ease-out;
     }
 
-    @keyframes slideIn {
-      from {
-        opacity: 0;
-        transform: translateX(-20px);
-      }
-      to {
-        opacity: 1;
-        transform: translateX(0);
-      }
-    }
-
-    .user-header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      margin-bottom: 4px;
-    }
-
-    .badge {
-      height: 16px;
-      width: auto;
-      vertical-align: middle;
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     .username {
-      font-weight: 700;
+      font-weight: bold;
+      margin-right: 6px;
       font-size: 14px;
     }
 
-    .message-text {
-      color: #e2e8f0;
-      font-weight: 400;
-    }
+    .message-text { color: #f1f5f9; }
 
-    /* Renderizado de Emotes dinámicos de Kick */
     .kick-emote {
-      height: 26px;
+      height: 24px;
       vertical-align: middle;
-      margin: -2px 2px 0 2px;
+      margin: 0 2px;
     }
 
-    .error-card {
-      background: rgba(220, 38, 38, 0.85);
-      border-left: 4px solid #f87171;
+    .status-card {
+      background: rgba(239, 68, 68, 0.8);
+      border-left-color: #f87171;
     }
   </style>
 </head>
@@ -96,43 +68,61 @@
   <div id="chat-container"></div>
 
   <script>
-    // 1. Obtención del usuario desde los parámetros URL (ej: ?channel=XRufus)
     const urlParams = new URLSearchParams(window.location.search);
-    const channelSlug = urlParams.get('channel') || urlParams.get('username') || urlParams.get('canal');
-
+    const channelName = urlParams.get('channel') || urlParams.get('username') || urlParams.get('canal');
     const chatContainer = document.getElementById('chat-container');
 
-    if (!channelSlug) {
-      showError("Error: Falta el parámetro ?channel=NOMBRE_DE_USUARIO en la URL.");
+    if (!channelName) {
+      displayStatus("Ingresa el parámetro ?channel=tu_usuario en la URL", true);
     } else {
-      initKickWidget(channelSlug.toLowerCase().trim());
+      initChatWidget(channelName.toLowerCase().trim());
     }
 
-    async function initKickWidget(slug) {
+    async function initChatWidget(channel) {
       try {
-        // 2. Consulta REST pública para traducir 'slug' -> 'chatroom_id' y metadatos
-        let response;
+        let chatroomId = null;
+
+        // 1. Obtener chatroom_id mediante nuestro proxy PHP get_chatroom.php en el servidor
         try {
-          response = await fetch(`https://kick.com/api/v2/channels/${slug}`);
-        } catch (errDirect) {
-          // Respaldo de proxy CORS si falla fetch directo en el navegador
-          response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + slug)}`);
-        }
-        
-        if (!response || !response.ok) {
-          throw new Error(`Canal "${slug}" no encontrado o bloqueo CORS/Cloudflare.`);
+          const response = await fetch(`get_chatroom.php?channel=${encodeURIComponent(channel)}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data && data.chatroom_id) {
+              chatroomId = data.chatroom_id;
+            }
+          }
+        } catch (e) {
+          console.warn("[Kick Chat] get_chatroom.php no disponible localmente, probando fallback...");
         }
 
-        const channelData = await response.json();
-        const chatroomId = channelData.chatroom?.id;
+        // 1b. Fallback: Consulta REST directa de Kick API v2 o proxies CORS si get_chatroom.php no devuelve datos
+        if (!chatroomId) {
+          try {
+            const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
+            if (directRes.ok) {
+              const directData = await directRes.json();
+              chatroomId = directData.chatroom?.id;
+            }
+          } catch(e) {}
+        }
 
         if (!chatroomId) {
-          throw new Error("No se pudo extraer el chatroom_id del canal.");
+          try {
+            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
+            if (proxyRes.ok) {
+              const proxyData = await proxyRes.json();
+              chatroomId = proxyData.chatroom?.id;
+            }
+          } catch(e) {}
         }
 
-        console.log(`[Kick API] Canal: ${slug} | Chatroom ID: ${chatroomId}`);
-        
-        // 3. Conexión al clúster público WebSocket de Pusher usado por Kick
+        if (!chatroomId) {
+          throw new Error(`No se pudo recuperar el ID del canal @${channel}.`);
+        }
+
+        console.log(`[Kick API] Canal: ${channel} | Chatroom ID: ${chatroomId}`);
+
+        // 2. Conexión al Clúster WebSocket de Pusher usado por Kick
         const PUSHER_KEY = "eb1d5f28b619a93b7726";
         const PUSHER_CLUSTER = "us2";
 
@@ -145,92 +135,102 @@
           forceTLS: true
         });
 
-        // Suscripción al canal específico de la sala de chat
-        const channelName = `chatrooms.${chatroomId}.v2`;
-        const channel = pusher.subscribe(channelName);
+        // Suscribirse a la sala del canal
+        const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
 
-        // 4. Escuchar evento en vivo de nuevos mensajes
-        channel.bind('App\\Events\\ChatMessageEvent', function(data) {
-          renderChatMessage(data);
+        // Handler unificado para eventos
+        const eventHandler = function(msgData) {
+          renderMessage(msgData);
+        };
+
+        // 3. Escuchar mensajes del chat en tiempo real
+        pusherChannel.bind('App\\Events\\ChatMessageEvent', eventHandler);
+        pusherChannel.bind('App\Events\ChatMessageEvent', eventHandler);
+        pusherChannel.bind('ChatMessageEvent', eventHandler);
+
+        // Captura global de eventos en el canal por si varía la estructura
+        pusherChannel.bind_global(function(eventName, data) {
+          if (eventName && (eventName.includes('ChatMessage') || eventName.includes('Message'))) {
+            renderMessage(data);
+          }
         });
 
-      } catch (error) {
-        console.error(error);
-        showError(error.message);
+      } catch (err) {
+        displayStatus(err.message, true);
       }
     }
 
-    function renderChatMessage(data) {
-      if (!data || !data.sender) return;
+    // Parsea cualquier tipo de payload retornado por Pusher (string JSON u objeto anidado)
+    function parsePusherPayload(raw) {
+      if (!raw) return null;
+      let payload = raw;
+      if (typeof payload === 'string') {
+        try { payload = JSON.parse(payload); } catch(e) {}
+      }
+      if (payload && payload.data) {
+        if (typeof payload.data === 'string') {
+          try { payload = JSON.parse(payload.data); } catch(e) {}
+        } else if (typeof payload.data === 'object') {
+          payload = payload.data;
+        }
+      }
+      return payload;
+    }
 
-      // Extracción de datos según la estructura del payload del WebSocket
-      const sender = data.sender;
-      const username = sender.username || sender.slug || 'Usuario';
-      const userColor = sender.identity?.color || '#53fc18'; // Color personalizado o Verde Kick por defecto
-      let content = data.content || '';
+    function renderMessage(rawData) {
+      const data = parsePusherPayload(rawData);
+      if (!data) return;
 
-      // Parseo de Emoticonos: Reemplazar [emote:ID:NOMBRE] con la etiqueta <img> apuntando a la CDN de Kick
+      const sender = data.sender || data.user || data.author || {};
+      const username = sender.username || sender.slug || data.username || 'Usuario';
+      const color = sender.identity?.color || sender.color || '#53fc18';
+      let content = data.content || data.message || data.text || '';
+
+      if (!content) return;
+
+      // Reemplazo de sintaxis de emotes [emote:ID:NOMBRE] por imagen CDN de Kick
       content = content.replace(/\[emote:(\d+):([\w-]+)\]/g, (match, id, name) => {
         return `<img class="kick-emote" src="https://files.kick.com/emotes/${id}/fullsize" title="${name}" alt="${name}">`;
       });
 
-      // Creación dinámica de componentes HTML
       const card = document.createElement('div');
       card.className = 'message-card';
-      card.style.borderLeftColor = userColor;
-
-      const header = document.createElement('div');
-      header.className = 'user-header';
-
-      // Parseo básico de Insignias (Badges) si existen
-      if (sender.identity && sender.identity.badges) {
-        sender.identity.badges.forEach(badge => {
-          if (badge.type === 'subscriber') {
-            const img = document.createElement('img');
-            img.className = 'badge';
-            img.src = 'https://kick.com/favicon.ico'; // Placeholder para badges
-            header.appendChild(img);
-          }
-        });
-      }
+      card.style.borderLeftColor = color;
 
       const userSpan = document.createElement('span');
       userSpan.className = 'username';
-      userSpan.style.color = userColor;
-      userSpan.textContent = username;
+      userSpan.style.color = color;
+      userSpan.textContent = username + ':';
 
-      header.appendChild(userSpan);
+      const textSpan = document.createElement('span');
+      textSpan.className = 'message-text';
+      textSpan.innerHTML = content;
 
-      const textDiv = document.createElement('div');
-      textDiv.className = 'message-text';
-      textDiv.innerHTML = content;
-
-      card.appendChild(header);
-      card.appendChild(textDiv);
+      card.appendChild(userSpan);
+      card.appendChild(textSpan);
 
       chatContainer.appendChild(card);
 
-      // Limitar cantidad de mensajes en pantalla (Máximo 10) para evitar sobrecarga del render de OBS
-      while (chatContainer.children.length > 10) {
+      // Limitar a los últimos 12 mensajes en pantalla
+      while (chatContainer.children.length > 12) {
         chatContainer.removeChild(chatContainer.firstChild);
       }
 
-      // Desplazamiento automático hacia abajo
       chatContainer.scrollTop = chatContainer.scrollHeight;
     }
 
-    function showError(msg) {
-      const errCard = document.createElement('div');
-      errCard.className = 'message-card error-card';
-      errCard.innerHTML = `<strong>Kick Widget Error:</strong> ${msg}`;
-      chatContainer.appendChild(errCard);
+    function displayStatus(msg, isError = false) {
+      const card = document.createElement('div');
+      card.className = isError ? 'message-card status-card' : 'message-card';
+      card.innerHTML = `<strong>Widget Status:</strong> ${msg}`;
+      chatContainer.appendChild(card);
     }
 
     // Escuchar mensajes de prueba del configurador (postMessage)
     window.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'SEND_TEST_CHAT') {
-        renderChatMessage({
-          sender: { username: event.data.username || channelSlug || 'TestUser', identity: { color: '#53fc18' } },
+        renderMessage({
+          sender: { username: event.data.username || channelName || 'TestUser', identity: { color: '#53fc18' } },
           content: event.data.message || '¡Prueba de Chat de Kick exitosa!'
         });
       }
