@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Kick Live Chat Widget</title>
-  <!-- Cliente Pusher JS para escuchar WebSocket de Kick -->
+  <title>Kick / Streamer.bot Live Chat Overlay</title>
+  <!-- Cliente Pusher JS para respaldo WebSocket de Kick -->
   <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
   <style>
     * { box-sizing: border-box; }
@@ -12,7 +12,7 @@
       margin: 0; padding: 0;
       width: 100%; height: 100%;
       background: transparent !important;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      font-family: 'Segoe UI', Inter, Roboto, sans-serif;
       overflow: hidden;
       color: #ffffff;
     }
@@ -22,44 +22,71 @@
       flex-direction: column;
       justify-content: flex-end;
       height: 100vh;
-      padding: 12px;
-      gap: 8px;
+      padding: 15px;
+      gap: 10px;
     }
 
     .message-card {
-      background: rgba(15, 15, 18, 0.85);
+      background: rgba(18, 18, 20, 0.85);
       backdrop-filter: blur(4px);
       border-left: 4px solid #53fc18;
       border-radius: 6px;
-      padding: 8px 12px;
+      padding: 10px 14px;
       font-size: 15px;
       line-height: 1.4;
-      word-wrap: break-word;
-      animation: fadeIn 0.2s ease-out;
+      word-break: break-word;
+      animation: slideIn 0.25s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
     }
 
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-20px); }
+      to { opacity: 1; transform: translateX(0); }
     }
+
+    .user-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .badge {
+      font-size: 0.7rem;
+      font-weight: 900;
+      padding: 1px 5px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+    .badge-broadcaster { background: rgba(255, 71, 87, 0.3); color: #ff4757; border: 1px solid #ff4757; }
+    .badge-mod { background: rgba(46, 213, 115, 0.3); color: #2ed573; border: 1px solid #2ed573; }
+    .badge-sub { background: rgba(83, 252, 24, 0.3); color: #53fc18; border: 1px solid #53fc18; }
+    .badge-vip { background: rgba(112, 161, 255, 0.3); color: #70a1ff; border: 1px solid #70a1ff; }
 
     .username {
-      font-weight: bold;
-      margin-right: 6px;
+      font-weight: 700;
       font-size: 14px;
     }
 
-    .message-text { color: #f1f5f9; }
+    .message-text { color: #e2e8f0; font-weight: 400; }
 
     .kick-emote {
-      height: 24px;
+      height: 26px;
       vertical-align: middle;
-      margin: 0 2px;
+      margin: -2px 2px 0 2px;
     }
 
     .status-card {
-      background: rgba(239, 68, 68, 0.8);
+      background: rgba(15, 23, 42, 0.85);
+      border-left: 4px solid #00f5d4;
+      font-size: 13px;
+      color: #00f5d4;
+    }
+    .status-card.error {
+      background: rgba(220, 38, 38, 0.85);
       border-left-color: #f87171;
+      color: #ffffff;
     }
   </style>
 </head>
@@ -69,65 +96,145 @@
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
-    const channelName = urlParams.get('channel') || urlParams.get('username') || urlParams.get('canal');
+    const channelName = urlParams.get('channel') || urlParams.get('username') || urlParams.get('canal') || 'streamer';
+    const sbPort = urlParams.get('port') || urlParams.get('sbport') || '8080';
     const chatContainer = document.getElementById('chat-container');
 
-    if (!channelName) {
-      displayStatus("Ingresa el parámetro ?channel=tu_usuario en la URL", true);
-    } else {
-      initChatWidget(channelName.toLowerCase().trim());
+    let streamerBotConnected = false;
+    let streamerBotSocket = null;
+
+    // Inicializar widget con Streamer.bot Local + Respaldo de Kick Pusher
+    initChatWidget();
+
+    function initChatWidget() {
+      // 1. Intentar conectar primero al WebSocket de Streamer.bot Local (Puerto 8080 por defecto, o 4445)
+      connectStreamerBot(sbPort);
+
+      // 2. Intentar también conectar a Kick Pusher como respaldo remoto
+      initKickPusher(channelName.toLowerCase().trim());
     }
 
-    async function initChatWidget(channel) {
+    // -----------------------------------------------------------------------
+    // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:PORT/)
+    // -----------------------------------------------------------------------
+    function connectStreamerBot(port) {
+      const portsToTry = [port, '8080', '4445'];
+      let currentPortIndex = 0;
+
+      function tryConnectPort(p) {
+        try {
+          const wsUrl = `ws://127.0.0.1:${p}/`;
+          console.log(`[Streamer.bot] Conectando a ${wsUrl}...`);
+          
+          streamerBotSocket = new WebSocket(wsUrl);
+
+          streamerBotSocket.onopen = function() {
+            streamerBotConnected = true;
+            console.log(`[Streamer.bot] 🟢 Conectado exitosamente en puerto ${p}`);
+            displayStatus(`🟢 Conectado a Streamer.bot Local (Puerto ${p})`);
+
+            // Suscribirse a eventos de Chat de Kick / Twitch / YouTube en Streamer.bot
+            streamerBotSocket.send(JSON.stringify({
+              request: "Subscribe",
+              id: "kick-chat-overlay",
+              events: {
+                Kick: ["ChatMessage", "UserBanned", "MessageDeleted"],
+                Twitch: ["ChatMessage"],
+                YouTube: ["Message"]
+              }
+            }));
+          };
+
+          streamerBotSocket.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              parseStreamerBotMessage(data);
+            } catch(e) {
+              console.warn("[Streamer.bot] Error procesando mensaje:", e);
+            }
+          };
+
+          streamerBotSocket.onerror = function() {
+            streamerBotConnected = false;
+          };
+
+          streamerBotSocket.onclose = function() {
+            streamerBotConnected = false;
+            // Si falla el puerto, probar el siguiente puerto de la lista
+            currentPortIndex++;
+            if (currentPortIndex < portsToTry.length) {
+              setTimeout(() => tryConnectPort(portsToTry[currentPortIndex]), 1500);
+            } else {
+              // Reintentar reconexión cada 5 segundos
+              setTimeout(() => tryConnectPort(portsToTry[0]), 5000);
+            }
+          };
+        } catch(e) {
+          console.warn(`[Streamer.bot] No se pudo crear WebSocket en puerto ${p}`);
+        }
+      }
+
+      tryConnectPort(portsToTry[0]);
+    }
+
+    // Parsea los mensajes emitidos por el WebSocket de Streamer.bot
+    function parseStreamerBotMessage(data) {
+      if (!data) return;
+      
+      const payload = data.data || data;
+      const eventType = data.event ? (data.event.type || data.event) : '';
+
+      // Si es mensaje de Kick / Twitch / YouTube
+      if (payload && (payload.message || payload.messageText || payload.text)) {
+        const msgObj = payload.message || payload;
+        const userObj = msgObj.user || payload.user || payload.sender || {};
+
+        const username = userObj.name || userObj.username || userObj.login || 'Usuario';
+        const color = userObj.color || userObj.roleColor || '#53fc18';
+        const text = msgObj.message || msgObj.text || payload.messageText || payload.text || '';
+        
+        const badges = [];
+        if (userObj.isBroadcaster) badges.push('STREAMER 👑');
+        if (userObj.isModerator || userObj.isMod) badges.push('MOD 🛡️');
+        if (userObj.isSubscriber || userObj.isSub) badges.push('SUB ⭐');
+        if (userObj.isVip) badges.push('VIP 💎');
+
+        renderChatMessage({
+          username: username,
+          color: color,
+          text: text,
+          badges: badges
+        });
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // CONEXIÓN RESPALDO REMOTE (PUSHER WEBSOCKET DE KICK)
+    // -----------------------------------------------------------------------
+    async function initKickPusher(channel) {
+      if (!channel) return;
       try {
         let chatroomId = null;
-
-        // 1. Petición directa a la API v2 de Kick (Funciona NATIVAMENTE en OBS Studio Browser Source)
         try {
           const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
           if (directRes.ok) {
             const directData = await directRes.json();
-            if (directData && directData.chatroom && directData.chatroom.id) {
-              chatroomId = directData.chatroom.id;
-            }
+            chatroomId = directData.chatroom?.id;
           }
-        } catch (e) {
-          console.warn("[Kick Chat] Petición directa restringida por navegador. Usando proxy de respaldo...");
-        }
+        } catch(e) {}
 
-        // 2. Proxy de respaldo AllOrigins (Para vistas previas en navegadores web locales)
         if (!chatroomId) {
           try {
             const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
             if (proxyRes.ok) {
               const proxyData = await proxyRes.json();
-              if (proxyData && proxyData.chatroom && proxyData.chatroom.id) {
-                chatroomId = proxyData.chatroom.id;
-              }
+              chatroomId = proxyData.chatroom?.id;
             }
-          } catch (e) {}
+          } catch(e) {}
         }
 
-        // 3. Proxy de respaldo CorsProxy.io
-        if (!chatroomId) {
-          try {
-            const proxyRes2 = await fetch(`https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
-            if (proxyRes2.ok) {
-              const proxyData2 = await proxyRes2.json();
-              if (proxyData2 && proxyData2.chatroom && proxyData2.chatroom.id) {
-                chatroomId = proxyData2.chatroom.id;
-              }
-            }
-          } catch (e) {}
-        }
+        if (!chatroomId) return;
 
-        if (!chatroomId) {
-          throw new Error(`No se pudo recuperar el ID del canal @${channel}.`);
-        }
-
-        console.log(`[Kick API] Canal: ${channel} | Chatroom ID: ${chatroomId}`);
-
-        // 4. Conexión al Clúster WebSocket de Pusher usado por Kick
         const PUSHER_KEY = "eb1d5f28b619a93b7726";
         const PUSHER_CLUSTER = "us2";
 
@@ -140,88 +247,99 @@
           forceTLS: true
         });
 
-        // Suscribirse a la sala del canal v2
         const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
 
-        // Handler unificado para eventos
-        const eventHandler = function(msgData) {
-          renderMessage(msgData);
+        const handleKickPusherMsg = function(raw) {
+          // Solo renderizar de Pusher si Streamer.bot no está conectado activamente
+          if (streamerBotConnected) return;
+
+          let data = raw;
+          if (typeof data === 'string') {
+            try { data = JSON.parse(data); } catch(e) {}
+          }
+          if (data && data.data) {
+            if (typeof data.data === 'string') {
+              try { data = JSON.parse(data.data); } catch(e) {}
+            } else {
+              data = data.data;
+            }
+          }
+
+          if (!data || !data.content) return;
+          const sender = data.sender || {};
+          
+          renderChatMessage({
+            username: sender.username || sender.slug || 'Usuario',
+            color: sender.identity?.color || '#53fc18',
+            text: data.content || '',
+            badges: []
+          });
         };
 
-        // Escuchar mensajes del chat en tiempo real
-        pusherChannel.bind('App\\Events\\ChatMessageEvent', eventHandler);
-        pusherChannel.bind('App\Events\ChatMessageEvent', eventHandler);
-        pusherChannel.bind('ChatMessageEvent', eventHandler);
+        pusherChannel.bind('App\\Events\\ChatMessageEvent', handleKickPusherMsg);
+        pusherChannel.bind_global(function(ev, d) {
+          if (ev && ev.includes('ChatMessage')) handleKickPusherMsg(d);
+        });
 
-        // Captura global de eventos por si varía el namespace del evento
-        pusherChannel.bind_global(function(eventName, data) {
-          if (eventName && (eventName.includes('ChatMessage') || eventName.includes('Message'))) {
-            renderMessage(data);
+        pusher.connection.bind('connected', function() {
+          if (!streamerBotConnected) {
+            displayStatus(`🟢 Conectado al chat de Kick para @${channel} (WebSockets Kick)`);
           }
         });
 
-        // Notificación de estado al conectar
-        pusher.connection.bind('connected', function() {
-          displayStatus(`🟢 Conectado al chat de Kick para @${channel}. Esperando mensajes en vivo...`);
-        });
-
       } catch (err) {
-        displayStatus(err.message, true);
+        console.warn("[Kick Pusher Backup] Error:", err);
       }
     }
 
-    // Parsea cualquier tipo de payload retornado por Pusher (string JSON u objeto anidado)
-    function parsePusherPayload(raw) {
-      if (!raw) return null;
-      let payload = raw;
-      if (typeof payload === 'string') {
-        try { payload = JSON.parse(payload); } catch(e) {}
-      }
-      if (payload && payload.data) {
-        if (typeof payload.data === 'string') {
-          try { payload = JSON.parse(payload.data); } catch(e) {}
-        } else if (typeof payload.data === 'object') {
-          payload = payload.data;
-        }
-      }
-      return payload;
-    }
+    // -----------------------------------------------------------------------
+    // RENDERIZADO DE MENSAJES EN PANTALLA
+    // -----------------------------------------------------------------------
+    function renderChatMessage({ username, color, text, badges = [] }) {
+      if (!text) return;
 
-    function renderMessage(rawData) {
-      const data = parsePusherPayload(rawData);
-      if (!data) return;
-
-      const sender = data.sender || data.user || data.author || {};
-      const username = sender.username || sender.slug || data.username || 'Usuario';
-      const color = sender.identity?.color || sender.color || '#53fc18';
-      let content = data.content || data.message || data.text || '';
-
-      if (!content) return;
-
-      // Reemplazo de sintaxis de emotes [emote:ID:NOMBRE] por imagen CDN de Kick
+      let content = text;
+      // Reemplazo de emotes [emote:ID:NOMBRE] por CDN de Kick
       content = content.replace(/\[emote:(\d+):([\w-]+)\]/g, (match, id, name) => {
         return `<img class="kick-emote" src="https://files.kick.com/emotes/${id}/fullsize" title="${name}" alt="${name}">`;
       });
 
       const card = document.createElement('div');
       card.className = 'message-card';
-      card.style.borderLeftColor = color;
+      card.style.borderLeftColor = color || '#53fc18';
+
+      const header = document.createElement('div');
+      header.className = 'user-header';
+
+      // Renderizar badges si existen
+      badges.forEach(bText => {
+        const badgeSpan = document.createElement('span');
+        badgeSpan.className = 'badge';
+        if (bText.includes('STREAMER')) badgeSpan.className += ' badge-broadcaster';
+        else if (bText.includes('MOD')) badgeSpan.className += ' badge-mod';
+        else if (bText.includes('SUB')) badgeSpan.className += ' badge-sub';
+        else if (bText.includes('VIP')) badgeSpan.className += ' badge-vip';
+        badgeSpan.textContent = bText;
+        header.appendChild(badgeSpan);
+      });
 
       const userSpan = document.createElement('span');
       userSpan.className = 'username';
-      userSpan.style.color = color;
-      userSpan.textContent = username + ':';
+      userSpan.style.color = color || '#53fc18';
+      userSpan.textContent = username;
 
-      const textSpan = document.createElement('span');
-      textSpan.className = 'message-text';
-      textSpan.innerHTML = content;
+      header.appendChild(userSpan);
 
-      card.appendChild(userSpan);
-      card.appendChild(textSpan);
+      const textDiv = document.createElement('div');
+      textDiv.className = 'message-text';
+      textDiv.innerHTML = content;
+
+      card.appendChild(header);
+      card.appendChild(textDiv);
 
       chatContainer.appendChild(card);
 
-      // Limitar a los últimos 12 mensajes en pantalla
+      // Limitar a los últimos 12 mensajes
       while (chatContainer.children.length > 12) {
         chatContainer.removeChild(chatContainer.firstChild);
       }
@@ -231,17 +349,22 @@
 
     function displayStatus(msg, isError = false) {
       const card = document.createElement('div');
-      card.className = isError ? 'message-card status-card' : 'message-card';
-      card.innerHTML = `<strong>Widget Status:</strong> ${msg}`;
+      card.className = isError ? 'message-card status-card error' : 'message-card status-card';
+      card.innerHTML = `<strong>Status:</strong> ${msg}`;
       chatContainer.appendChild(card);
+      setTimeout(() => {
+        if (card.parentNode) card.remove();
+      }, 7000);
     }
 
     // Escuchar mensajes de prueba del configurador (postMessage)
     window.addEventListener('message', function(event) {
       if (event.data && event.data.type === 'SEND_TEST_CHAT') {
-        renderMessage({
-          sender: { username: event.data.username || channelName || 'TestUser', identity: { color: '#53fc18' } },
-          content: event.data.message || '¡Prueba de Chat de Kick exitosa!'
+        renderChatMessage({
+          username: event.data.username || channelName || 'TestUser',
+          color: '#53fc18',
+          text: event.data.message || '¡Prueba de Chat desde Streamer.bot exitosa!',
+          badges: ['STREAMER 👑', 'SUB ⭐']
         });
       }
     });
