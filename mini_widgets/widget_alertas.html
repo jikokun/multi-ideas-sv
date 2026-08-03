@@ -111,10 +111,10 @@
     .alert-card {
       position: absolute;
       z-index: 3;
-      top: 36.5%;
-      left: 19%;
-      width: 63%;
-      height: 45%;
+      top: 34%;
+      left: 15%;
+      width: 70%;
+      height: 50%;
       display: flex;
       flex-direction: column;
       justify-content: center;
@@ -132,18 +132,18 @@
     .event-badge {
       display: inline-flex;
       align-items: center;
-      gap: 5px;
+      gap: 6px;
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.7rem;
+      font-size: 0.85rem;
       font-weight: 900;
       letter-spacing: 2px;
       text-transform: uppercase;
-      padding: 3px 12px;
+      padding: 4px 14px;
       border-radius: 20px;
       color: #ffffff;
       background: var(--accent-bg, linear-gradient(90deg, #15803d, #22c55e));
-      box-shadow: 0 2px 8px var(--accent-shadow, rgba(22, 163, 74, 0.4));
-      margin-bottom: 4px;
+      box-shadow: 0 3px 10px var(--accent-shadow, rgba(22, 163, 74, 0.5));
+      margin-bottom: 5px;
       animation: pulseBadge 2s infinite alternate ease-in-out;
     }
 
@@ -155,11 +155,11 @@
     /* Nombre del Usuario */
     .user-name {
       font-family: 'Orbitron', sans-serif;
-      font-size: 1.65rem;
+      font-size: 2.1rem;
       font-weight: 900;
-      color: var(--accent-dark, #0f172a);
-      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8), 0 0 1px var(--accent-color);
-      letter-spacing: 0.5px;
+      color: #ffffff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.9), 0 0 14px var(--accent-color, #16a34a);
+      letter-spacing: 1px;
       line-height: 1.1;
       margin-bottom: 4px;
       word-break: break-word;
@@ -168,33 +168,35 @@
 
     /* Subtítulo / Detalle del evento */
     .event-detail {
-      font-size: 1.05rem;
+      font-size: 1.25rem;
       font-weight: 800;
-      color: #1e293b;
-      text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
-      line-height: 1.25;
+      color: #ffffff;
+      text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+      line-height: 1.2;
     }
 
     .event-detail span.highlight {
-      color: var(--accent-color, #16a34a);
+      color: #53fc18;
       font-weight: 900;
+      text-shadow: 0 0 10px var(--accent-color, #16a34a);
     }
 
     /* Mensaje opcional adjunto (Ej: mensaje de donación o resub) */
     .user-message {
-      margin-top: 5px;
-      font-size: 0.85rem;
+      margin-top: 6px;
+      font-size: 0.95rem;
+      font-weight: 700;
       font-style: italic;
-      color: #334155;
-      background: rgba(255, 255, 255, 0.75);
-      padding: 3px 10px;
-      border-radius: 6px;
-      border-left: 3px solid var(--accent-color, #16a34a);
+      color: #f8fafc;
+      background: rgba(15, 23, 42, 0.85);
+      padding: 4px 12px;
+      border-radius: 8px;
+      border-left: 4px solid var(--accent-color, #16a34a);
       max-width: 95%;
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
     }
 
     /* --------------------------------------------------
@@ -387,6 +389,8 @@
     const isMuted = urlParams.get('mute') === 'true';
     const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
     const testModeParam = urlParams.get('test');
+    let isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('permanent') === 'true';
+    let currentAlertTimeout = null;
 
     // Ocultar controles flotantes por defecto en OBS salvo que se solicite con ?preview=true o ?testmode=true
     window.addEventListener('DOMContentLoaded', () => {
@@ -400,8 +404,19 @@
 
     // Escuchar mensajes desde el panel configurador index.html
     window.addEventListener('message', (event) => {
-      if (event.data && event.data.type === 'TRIGGER_TEST_ALERT') {
-        triggerTestAlert(event.data.alertType || 'follow');
+      if (event.data) {
+        if (typeof event.data.loop === 'boolean') {
+          isLoopMode = event.data.loop;
+        }
+        if (event.data.type === 'TRIGGER_TEST_ALERT') {
+          triggerTestAlert(event.data.alertType || 'follow');
+        } else if (event.data.type === 'SET_LOOP_MODE') {
+          isLoopMode = !!event.data.isLoop;
+          const stage = document.getElementById('alert-stage');
+          if (isLoopMode && (!stage || !stage.classList.contains('active'))) {
+            triggerTestAlert('follow');
+          }
+        }
       }
     });
 
@@ -521,18 +536,28 @@
       // Activar animación de entrada AGRUPADA (Marco WebM + Texto)
       glow.style.opacity = '1';
 
-      // Esperar duración y ocultar todo el grupo (Marco WebM + Texto)
-      setTimeout(() => {
-        stage.className = `exiting theme-${alert.theme}`;
-        glow.style.opacity = '0';
+      if (currentAlertTimeout) {
+        clearTimeout(currentAlertTimeout);
+        currentAlertTimeout = null;
+      }
 
-        setTimeout(() => {
-          stage.className = '';
-          isShowingAlert = false;
-          processQueue();
-        }, 450); // Tiempo que toma la animación de salida
+      if (isLoopMode) {
+        // En modo bucle/loop continuo, la alerta permanece activa en pantalla
+        isShowingAlert = false;
+      } else {
+        // Esperar duración y ocultar todo el grupo (Marco WebM + Texto)
+        currentAlertTimeout = setTimeout(() => {
+          stage.className = `exiting theme-${alert.theme}`;
+          glow.style.opacity = '0';
 
-      }, alertDuration);
+          setTimeout(() => {
+            stage.className = '';
+            isShowingAlert = false;
+            processQueue();
+          }, 450); // Tiempo que toma la animación de salida
+
+        }, alertDuration);
+      }
     }
 
     // -----------------------------------------------------------------------
@@ -770,11 +795,11 @@
       // Iniciar WebSocket de Streamer.bot
       connectStreamerBot(sbPort);
 
-      // Si la URL requiere una alerta de prueba automática al cargar (?test=follow / ?test=sub, etc.)
-      if (testModeParam) {
+      // Si la URL requiere una alerta inicial o es vista previa/loop
+      if (isPreview || isLoopMode || testModeParam) {
         setTimeout(() => {
-          triggerTestAlert(testModeParam);
-        }, 800);
+          triggerTestAlert(testModeParam || 'follow');
+        }, 400);
       }
     });
   </script>

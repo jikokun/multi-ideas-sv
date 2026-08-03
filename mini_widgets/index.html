@@ -534,8 +534,8 @@
       <!-- Card 7: Alertas Dinámicas Streamer.bot (Marco Fox WebM) -->
       <div class="card" id="card-alerts">
         <h2>🔥 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h2>
-        <div class="iframe-preview" style="height: 230px;">
-          <iframe id="preview-alerts" src="widget_alertas.html?preview=true"></iframe>
+        <div class="iframe-preview" style="height: 280px;">
+          <iframe id="preview-alerts" src="widget_alertas.html?preview=true&loop=true"></iframe>
         </div>
         
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
@@ -555,6 +555,10 @@
         </div>
 
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="alert-loop" checked onchange="updateAlertsWidget()">
+            <span>🔄 Modo Vista Previa Continua (Mantener alerta visible en bucle)</span>
+          </label>
           <label class="checkbox-group">
             <input type="checkbox" class="custom-checkbox" id="alert-mute" onchange="updateAlertsWidget()">
             <span>🔇 Silenciar Audio de Alertas (Modo Mute)</span>
@@ -772,30 +776,38 @@
       const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
       const soundUrl = document.getElementById('alert-sound-input') ? document.getElementById('alert-sound-input').value.trim() : '';
       const isMuted = document.getElementById('alert-mute') ? document.getElementById('alert-mute').checked : false;
+      const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
 
-      const params = new URLSearchParams();
-      if (port && port !== '4445') params.set('port', port);
-      if (durationMs !== 6000) params.set('duration', durationMs.toString());
-      if (soundUrl) params.set('sound', soundUrl);
-      if (isMuted) params.set('mute', 'true');
+      // 1. URL limpia para OBS (Aplica la duración y configuraciones reales seleccionadas SIN loop continuo)
+      const obsParams = new URLSearchParams();
+      if (port && port !== '4445') obsParams.set('port', port);
+      if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
+      if (soundUrl) obsParams.set('sound', soundUrl);
+      if (isMuted) obsParams.set('mute', 'true');
 
-      // URL limpia para OBS (sin preview)
-      const obsPath = `widget_alertas.html${params.toString() ? '?' + params.toString() : ''}`;
+      const obsPath = `widget_alertas.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
       generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
 
-      // URL para el iframe de vista previa en la web
-      params.set('preview', 'true');
-      const previewPath = `widget_alertas.html?${params.toString()}`;
+      // 2. URL para la Vista Previa Web (con preview=true y opcionalmente loop=true)
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+      if (isLoop) previewParams.set('loop', 'true');
+
+      const previewPath = `widget_alertas.html?${previewParams.toString()}`;
       const previewIframe = document.getElementById('preview-alerts');
-      if (previewIframe) previewIframe.src = previewPath;
+      if (previewIframe) {
+        previewIframe.src = previewPath;
+      }
     }
 
     function triggerAlertTest(alertType) {
+      const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
       const iframe = document.getElementById('preview-alerts');
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({
           type: 'TRIGGER_TEST_ALERT',
-          alertType: alertType || 'follow'
+          alertType: alertType || 'follow',
+          loop: isLoop
         }, '*');
       }
 
