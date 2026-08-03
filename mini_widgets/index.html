@@ -531,6 +531,52 @@
         </button>
       </div>
 
+      <!-- Card 7: Alertas Dinámicas Streamer.bot (Marco Fox WebM) -->
+      <div class="card" id="card-alerts">
+        <h2>🔥 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h2>
+        <div class="iframe-preview" style="height: 230px;">
+          <iframe id="preview-alerts" src="widget_alertas.html?preview=true"></iframe>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+          <div class="form-group">
+            <label for="alert-port-input">🔌 Puerto Streamer.bot WebSocket:</label>
+            <input type="text" id="alert-port-input" class="input-field" value="4445" placeholder="Ej: 4445 o 8080" oninput="updateAlertsWidget()">
+          </div>
+          <div class="form-group">
+            <label for="alert-duration-input">⏱️ Duración de Alerta (seg):</label>
+            <input type="number" id="alert-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateAlertsWidget()">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="alert-sound-input">🎵 URL Sonido Personalizado (Opcional):</label>
+          <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://ejemplo.com/sonido.mp3" oninput="updateAlertsWidget()">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="alert-mute" onchange="updateAlertsWidget()">
+            <span>🔇 Silenciar Audio de Alertas (Modo Mute)</span>
+          </label>
+        </div>
+
+        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: #00f5d4; text-transform: uppercase;">🧪 Probar Alerta en la Vista Previa:</label>
+          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('follow')">💚 Follow</button>
+            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('sub')">⭐ Sub</button>
+            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('gift')">🎁 Gift</button>
+            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('raid')">🚀 Raid</button>
+            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('donation')">💎 Tip</button>
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Alertas para OBS
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -718,6 +764,65 @@
       }, 4500);
     }
 
+    // 7. Streamer.bot Dynamic Alerts Widget Update
+    function updateAlertsWidget() {
+      const portInput = document.getElementById('alert-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+      const durationSec = document.getElementById('alert-duration-input') ? document.getElementById('alert-duration-input').value : '6';
+      const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
+      const soundUrl = document.getElementById('alert-sound-input') ? document.getElementById('alert-sound-input').value.trim() : '';
+      const isMuted = document.getElementById('alert-mute') ? document.getElementById('alert-mute').checked : false;
+
+      const params = new URLSearchParams();
+      if (port && port !== '4445') params.set('port', port);
+      if (durationMs !== 6000) params.set('duration', durationMs.toString());
+      if (soundUrl) params.set('sound', soundUrl);
+      if (isMuted) params.set('mute', 'true');
+
+      // URL limpia para OBS (sin preview)
+      const obsPath = `widget_alertas.html${params.toString() ? '?' + params.toString() : ''}`;
+      generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
+
+      // URL para el iframe de vista previa en la web
+      params.set('preview', 'true');
+      const previewPath = `widget_alertas.html?${params.toString()}`;
+      const previewIframe = document.getElementById('preview-alerts');
+      if (previewIframe) previewIframe.src = previewPath;
+    }
+
+    function triggerAlertTest(alertType) {
+      const iframe = document.getElementById('preview-alerts');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow'
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+
+        const names = {
+          follow: '💚 Seguidor (Follow)',
+          sub: '⭐ Suscripción (Sub / Resub)',
+          gift: '🎁 Sub Regalada (Gift Sub)',
+          raid: '🚀 Raid / Host',
+          donation: '💎 Donación / Tip'
+        };
+
+        toast.textContent = `⚡ Lanzando Alerta de Prueba en Vista Previa: ${names[alertType] || alertType}`;
+        toast.classList.add('show');
+
+        if (window._alertToastTimeout) clearTimeout(window._alertToastTimeout);
+        window._alertToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    }
+
     // Copy URL function with Toast and Button Animation
     function copyWidgetUrl(urlKey, btn) {
       const urlText = generatedUrls[urlKey];
@@ -751,6 +856,7 @@
       updateCountdownWidget();
       updateDigitalWidget();
       updateChatWidget();
+      updateAlertsWidget();
     });
   </script>
 

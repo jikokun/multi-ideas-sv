@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streamer.bot Dynamic Alert Overlay - Marco Fox</title>
+  
+  <!-- Fuentes modernas de alta calidad -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700;900&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: 'Rajdhani', 'Nunito', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* --------------------------------------------------
+       CONTENEDOR PRINCIPAL Y MARCO ANIMADO WEBM
+       -------------------------------------------------- */
+    #alert-stage {
+      position: relative;
+      width: 580px;
+      height: 320px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      perspective: 1000px;
+      transform-origin: center center;
+
+      /* Estado oculto por defecto: Todo el conjunto (Marco WebM + Texto) está invisible */
+      opacity: 0;
+      transform: scale(0.7) translateY(30px);
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+
+    /* Estado Activo: Aparece todo el conjunto agrupado */
+    #alert-stage.active {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Estado de Salida: Desaparece todo el conjunto agrupado */
+    #alert-stage.exiting {
+      opacity: 0;
+      transform: scale(1.08) translateY(-25px);
+      transition: all 0.4s ease-in;
+    }
+
+    /* Adaptabilidad automática en vistas previas / marcos pequeños */
+    @media (max-width: 620px), (max-height: 340px) {
+      #alert-stage {
+        transform: scale(0.68) translateY(20px);
+      }
+      #alert-stage.active {
+        transform: scale(0.72) translateY(0);
+      }
+      #alert-stage.exiting {
+        transform: scale(0.78) translateY(-20px);
+      }
+    }
+
+    /* Video Marco Fox WebM */
+    .fox-frame-video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      pointer-events: none;
+      z-index: 2;
+      filter: drop-shadow(0 0 15px rgba(255, 110, 0, 0.4));
+    }
+
+    /* Resplandor ambiental de fondo dinámico */
+    .ambient-glow {
+      position: absolute;
+      top: 8%;
+      left: 7.5%;
+      width: 85%;
+      height: 80%;
+      border-radius: 50%;
+      background: radial-gradient(ellipse at center, var(--accent-glow, rgba(34, 197, 94, 0.55)) 0%, rgba(0,0,0,0) 70%);
+      opacity: 0;
+      transition: opacity 0.5s ease, background 0.5s ease;
+      z-index: 1;
+      pointer-events: none;
+      filter: blur(10px);
+    }
+
+    /* --------------------------------------------------
+       TARJETA CONTENIDO DE LA ALERTA (Solo Texto sin Marco Adicional)
+       -------------------------------------------------- */
+    .alert-card {
+      position: absolute;
+      z-index: 3;
+      top: 36.5%;
+      left: 19%;
+      width: 63%;
+      height: 45%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4px 10px;
+      background: transparent !important;
+      border: none !important;
+      box-shadow: none !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+    }
+
+    /* Insignia / Tag del Evento */
+    .event-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.7rem;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 3px 12px;
+      border-radius: 20px;
+      color: #ffffff;
+      background: var(--accent-bg, linear-gradient(90deg, #15803d, #22c55e));
+      box-shadow: 0 2px 8px var(--accent-shadow, rgba(22, 163, 74, 0.4));
+      margin-bottom: 4px;
+      animation: pulseBadge 2s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseBadge {
+      0% { transform: scale(1); }
+      100% { transform: scale(1.05); }
+    }
+
+    /* Nombre del Usuario */
+    .user-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.65rem;
+      font-weight: 900;
+      color: var(--accent-dark, #0f172a);
+      text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8), 0 0 1px var(--accent-color);
+      letter-spacing: 0.5px;
+      line-height: 1.1;
+      margin-bottom: 4px;
+      word-break: break-word;
+      max-width: 100%;
+    }
+
+    /* Subtítulo / Detalle del evento */
+    .event-detail {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #1e293b;
+      text-shadow: 0 1px 1px rgba(255, 255, 255, 0.9);
+      line-height: 1.25;
+    }
+
+    .event-detail span.highlight {
+      color: var(--accent-color, #16a34a);
+      font-weight: 900;
+    }
+
+    /* Mensaje opcional adjunto (Ej: mensaje de donación o resub) */
+    .user-message {
+      margin-top: 5px;
+      font-size: 0.85rem;
+      font-style: italic;
+      color: #334155;
+      background: rgba(255, 255, 255, 0.75);
+      padding: 3px 10px;
+      border-radius: 6px;
+      border-left: 3px solid var(--accent-color, #16a34a);
+      max-width: 95%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* --------------------------------------------------
+       TEMAS DE COLOR ADAPTADOS AL RECTÁNGULO DE MARCO FOX
+       -------------------------------------------------- */
+    /* Follower: Verde Bosque / Kick Green */
+    .theme-follow {
+      --accent-color: #16a34a;
+      --accent-dark: #0f172a;
+      --accent-shadow: rgba(22, 163, 74, 0.4);
+      --accent-glow: rgba(34, 197, 94, 0.25);
+      --accent-bg: linear-gradient(90deg, #15803d, #22c55e);
+    }
+
+    /* Subscriber: Morado Elegante */
+    .theme-sub {
+      --accent-color: #9333ea;
+      --accent-dark: #3b0764;
+      --accent-shadow: rgba(147, 51, 234, 0.4);
+      --accent-glow: rgba(168, 85, 247, 0.25);
+      --accent-bg: linear-gradient(90deg, #7e22ce, #a855f7);
+    }
+
+    /* Gift Sub: Rosa / Magenta */
+    .theme-gift {
+      --accent-color: #db2777;
+      --accent-dark: #831843;
+      --accent-shadow: rgba(219, 39, 119, 0.4);
+      --accent-glow: rgba(236, 72, 153, 0.25);
+      --accent-bg: linear-gradient(90deg, #be185d, #ec4899);
+    }
+
+    /* Raid / Host: Naranja Fuego Fox */
+    .theme-raid {
+      --accent-color: #ea580c;
+      --accent-dark: #7c2d12;
+      --accent-shadow: rgba(234, 88, 12, 0.4);
+      --accent-glow: rgba(249, 115, 22, 0.25);
+      --accent-bg: linear-gradient(90deg, #c2410c, #f97316);
+    }
+
+    /* Donación / Bits / Tips: Dorado / Ámbar */
+    .theme-donation {
+      --accent-color: #d97706;
+      --accent-dark: #78350f;
+      --accent-shadow: rgba(217, 119, 6, 0.4);
+      --accent-glow: rgba(245, 158, 11, 0.25);
+      --accent-bg: linear-gradient(90deg, #b45309, #f59e0b);
+    }
+
+    /* --------------------------------------------------
+       PANEL DE CONTROL DE PRUEBAS FLOOTANTE (Auto-ocultable)
+       -------------------------------------------------- */
+    #test-controls {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.92);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      backdrop-filter: blur(10px);
+      padding: 8px 14px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+    }
+
+    #test-controls.hidden {
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, 20px);
+    }
+
+    .test-btn {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 5px 12px;
+      border-radius: 15px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .test-btn:hover {
+      background: #53fc18;
+      color: #02090f;
+      border-color: #53fc18;
+      box-shadow: 0 0 10px rgba(83, 252, 24, 0.5);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ef4444;
+      display: inline-block;
+    }
+
+    .status-dot.connected {
+      background: #53fc18;
+      box-shadow: 0 0 8px #53fc18;
+    }
+
+    .toggle-test-btn {
+      position: fixed;
+      bottom: 12px;
+      right: 12px;
+      z-index: 101;
+      background: rgba(15, 23, 42, 0.7);
+      color: #94a3b8;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .toggle-test-btn:hover {
+      color: #fff;
+      background: rgba(15, 23, 42, 0.95);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Escenario de Alerta con Marco Fox WebM -->
+  <div id="alert-stage">
+    
+    <!-- Resplandor ambiental de fondo -->
+    <div id="ambient-glow" class="ambient-glow"></div>
+
+    <!-- Video WebM animado Marco Fox -->
+    <video 
+      id="fox-video"
+      class="fox-frame-video" 
+      src="https://res.cloudinary.com/dn6fmqae9/video/upload/v1785731846/marcofox_kteidr.webm" 
+      autoplay 
+      loop 
+      muted 
+      playsinline 
+      crossorigin="anonymous">
+    </video>
+
+    <!-- Tarjeta Dinámica de Alerta -->
+    <div id="alert-card" class="alert-card theme-follow">
+      <div id="event-badge" class="event-badge">
+        <span id="badge-icon">⭐</span> <span id="badge-text">NUEVO SEGUIDOR</span>
+      </div>
+      <div id="user-name" class="user-name">StreamerFan</div>
+      <div id="event-detail" class="event-detail">¡Se ha unido a la manada!</div>
+      <div id="user-message" class="user-message" style="display: none;"></div>
+    </div>
+
+  </div>
+
+  <!-- Panel de Pruebas Flotante -->
+  <div id="test-controls">
+    <span id="sb-status-dot" class="status-dot" title="Desconectado de Streamer.bot"></span>
+    <span style="font-size: 0.75rem; color: #94a3b8; margin-right: 4px;">Streamer.bot</span>
+    <button class="test-btn" onclick="triggerTestAlert('follow')">💚 Follow</button>
+    <button class="test-btn" onclick="triggerTestAlert('sub')">⭐ Sub</button>
+    <button class="test-btn" onclick="triggerTestAlert('gift')">🎁 Gift x5</button>
+    <button class="test-btn" onclick="triggerTestAlert('raid')">🚀 Raid</button>
+    <button class="test-btn" onclick="triggerTestAlert('donation')">💎 Donación</button>
+  </div>
+
+  <button class="toggle-test-btn" title="Ocultar/Mostrar Controles de Prueba" onclick="toggleTestPanel()">⚙️</button>
+
+  <script>
+    // -----------------------------------------------------------------------
+    // CONFIGURACIÓN DE PARÁMETROS URL
+    // -----------------------------------------------------------------------
+    const urlParams = new URLSearchParams(window.location.search);
+    const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
+    const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
+    const customSoundUrl = urlParams.get('sound') || '';
+    const isMuted = urlParams.get('mute') === 'true';
+    const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
+    const testModeParam = urlParams.get('test');
+
+    // Ocultar controles flotantes por defecto en OBS salvo que se solicite con ?preview=true o ?testmode=true
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!isPreview) {
+        const testControls = document.getElementById('test-controls');
+        const toggleBtn = document.querySelector('.toggle-test-btn');
+        if (testControls) testControls.style.display = 'none';
+        if (toggleBtn) toggleBtn.style.display = 'none';
+      }
+    });
+
+    // Escuchar mensajes desde el panel configurador index.html
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'TRIGGER_TEST_ALERT') {
+        triggerTestAlert(event.data.alertType || 'follow');
+      }
+    });
+
+    // -----------------------------------------------------------------------
+    // SISTEMA DE SÍNTESIS DE AUDIO (Web Audio API Chime Synth)
+    // -----------------------------------------------------------------------
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSynthesizedAlertSound(theme) {
+      if (isMuted) return;
+
+      // Si se proporcionó una URL de audio personalizada
+      if (customSoundUrl) {
+        const audio = new Audio(customSoundUrl);
+        audio.volume = 0.8;
+        audio.play().catch(e => console.warn("Error reproduciendo audio custom:", e));
+        return;
+      }
+
+      try {
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+
+        const now = audioCtx.currentTime;
+        const masterGain = audioCtx.createGain();
+        masterGain.gain.setValueAtTime(0.3, now);
+        masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
+        masterGain.connect(audioCtx.destination);
+
+        // Arpegio según tipo de alerta
+        let freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (Mayor / Bright)
+        if (theme === 'sub') freqs = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
+        if (theme === 'gift') freqs = [587.33, 739.99, 880, 1174.66]; // D5, F#5, A5, D6
+        if (theme === 'raid') freqs = [392, 523.25, 659.25, 783.99]; // G4, C5, E5, G5
+        if (theme === 'donation') freqs = [659.25, 830.61, 987.77, 1318.51]; // E5, G#5, B5, E6
+
+        freqs.forEach((freq, index) => {
+          const osc = audioCtx.createOscillator();
+          const noteGain = audioCtx.createGain();
+          
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now + index * 0.08);
+
+          noteGain.gain.setValueAtTime(0.2, now + index * 0.08);
+          noteGain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.08 + 0.5);
+
+          osc.connect(noteGain);
+          noteGain.connect(masterGain);
+
+          osc.start(now + index * 0.08);
+          osc.stop(now + index * 0.08 + 0.6);
+        });
+      } catch (err) {
+        console.warn("Audio synthesis error:", err);
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // COLA Y GESTIÓN DE ALERTAS (Queue System)
+    // -----------------------------------------------------------------------
+    const alertQueue = [];
+    let isShowingAlert = false;
+
+    function queueAlert(alertData) {
+      alertQueue.push(alertData);
+      processQueue();
+    }
+
+    function processQueue() {
+      if (isShowingAlert || alertQueue.length === 0) return;
+
+      isShowingAlert = true;
+      const currentAlert = alertQueue.shift();
+      displayAlert(currentAlert);
+    }
+
+    function displayAlert(alert) {
+      const stage = document.getElementById('alert-stage');
+      const card = document.getElementById('alert-card');
+      const video = document.getElementById('fox-video');
+      const glow = document.getElementById('ambient-glow');
+      const badgeIcon = document.getElementById('badge-icon');
+      const badgeText = document.getElementById('badge-text');
+      const userName = document.getElementById('user-name');
+      const eventDetail = document.getElementById('event-detail');
+      const userMessage = document.getElementById('user-message');
+
+      // Asignar clase de tema a la escena y tarjeta para propagación de resplandor ambiental
+      stage.className = `active theme-${alert.theme}`;
+      card.className = `alert-card theme-${alert.theme}`;
+
+      // Configurar contenido de texto
+      badgeIcon.textContent = alert.icon || '⭐';
+      badgeText.textContent = alert.badgeText || 'ALERTA';
+      userName.textContent = alert.username || 'Usuario';
+      eventDetail.innerHTML = alert.detailHtml || alert.detail || '';
+
+      if (alert.message) {
+        userMessage.textContent = `"${alert.message}"`;
+        userMessage.style.display = 'block';
+      } else {
+        userMessage.style.display = 'none';
+      }
+
+      // Reiniciar reproducción del video al inicio de la alerta
+      if (video) {
+        try {
+          video.currentTime = 0;
+          video.play().catch(e => {});
+        } catch(e) {}
+      }
+
+      // Reproducir sonido de alerta
+      playSynthesizedAlertSound(alert.theme);
+
+      // Activar animación de entrada AGRUPADA (Marco WebM + Texto)
+      glow.style.opacity = '1';
+
+      // Esperar duración y ocultar todo el grupo (Marco WebM + Texto)
+      setTimeout(() => {
+        stage.className = `exiting theme-${alert.theme}`;
+        glow.style.opacity = '0';
+
+        setTimeout(() => {
+          stage.className = '';
+          isShowingAlert = false;
+          processQueue();
+        }, 450); // Tiempo que toma la animación de salida
+
+      }, alertDuration);
+    }
+
+    // -----------------------------------------------------------------------
+    // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:PORT/)
+    // -----------------------------------------------------------------------
+    let streamerBotSocket = null;
+    let streamerBotConnected = false;
+
+    function connectStreamerBot(port) {
+      const portsToTry = [port, '4445', '8080'];
+      let currentPortIndex = 0;
+
+      function tryConnectPort(p) {
+        try {
+          const wsUrl = `ws://127.0.0.1:${p}/`;
+          console.log(`[Streamer.bot Alertas] Conectando a ${wsUrl}...`);
+          
+          streamerBotSocket = new WebSocket(wsUrl);
+
+          streamerBotSocket.onopen = function() {
+            streamerBotConnected = true;
+            console.log(`[Streamer.bot Alertas] 🟢 Conectado exitosamente en puerto ${p}`);
+            updateStatusDot(true);
+
+            // Suscribirse a eventos de Alertas (Follow, Sub, Gift, Raid, Cheer, Tips) en Kick, Twitch, YouTube
+            streamerBotSocket.send(JSON.stringify({
+              request: "Subscribe",
+              id: "fox-alerts-overlay",
+              events: {
+                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid"],
+                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer"],
+                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift"],
+                StreamerBot: ["Custom"]
+              }
+            }));
+          };
+
+          streamerBotSocket.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              parseStreamerBotEvent(data);
+            } catch(e) {
+              console.warn("[Streamer.bot Alertas] Error al parsear paquete:", e);
+            }
+          };
+
+          streamerBotSocket.onerror = function() {
+            streamerBotConnected = false;
+            updateStatusDot(false);
+          };
+
+          streamerBotSocket.onclose = function() {
+            streamerBotConnected = false;
+            updateStatusDot(false);
+            currentPortIndex++;
+            if (currentPortIndex < portsToTry.length) {
+              setTimeout(() => tryConnectPort(portsToTry[currentPortIndex]), 1500);
+            } else {
+              setTimeout(() => tryConnectPort(portsToTry[0]), 5000);
+            }
+          };
+        } catch(e) {
+          console.warn(`[Streamer.bot Alertas] No se pudo conectar a ws en puerto ${p}`);
+          updateStatusDot(false);
+        }
+      }
+
+      tryConnectPort(portsToTry[0]);
+    }
+
+    function updateStatusDot(connected) {
+      const dot = document.getElementById('sb-status-dot');
+      if (connected) {
+        dot.classList.add('connected');
+        dot.title = "🟢 Conectado a Streamer.bot";
+      } else {
+        dot.classList.remove('connected');
+        dot.title = "🔴 Desconectado de Streamer.bot";
+      }
+    }
+
+    // Parsea los eventos entrantes de Streamer.bot
+    function parseStreamerBotEvent(data) {
+      if (!data) return;
+
+      const eventInfo = data.event || {};
+      const payload = data.data || data;
+      const eventType = (eventInfo.type || data.type || '').toLowerCase();
+      const source = eventInfo.source || data.source || 'Kick';
+
+      const user = payload.user || payload.sender || payload.recipient || {};
+      const username = user.name || user.username || payload.user_name || payload.userName || payload.displayName || 'Usuario';
+
+      // 1. EVENTO DE REGALO DE SUBS (Gift Sub / Sub Bomb / GiftSubscription) - Verificar primero
+      if (eventType.includes('gift') || eventType.includes('bomb')) {
+        const giftCount = payload.gifts || payload.totalGifts || payload.giftCount || 1;
+        const recipientName = payload.recipient?.name || payload.recipientUser || payload.recipient_name || '';
+
+        queueAlert({
+          theme: 'gift',
+          icon: '🎁',
+          badgeText: '¡SUB REGALADA!',
+          username: username,
+          detailHtml: giftCount > 1 
+            ? `Ha regalado <span class="highlight">${giftCount} Suscripciones</span>` 
+            : `Le regaló una sub a <span class="highlight">${recipientName || 'un viewer'}</span>`
+        });
+      }
+      // 2. EVENTO DE SUSCRIPCIÓN (Sub / Resub / Subscription)
+      else if (eventType.includes('sub') || eventType.includes('subscription')) {
+        const months = payload.months || payload.cumulativeMonths || 1;
+        const tier = payload.tier || '1';
+        
+        queueAlert({
+          theme: 'sub',
+          icon: '⭐',
+          badgeText: months > 1 ? '¡RESUSCRIPCIÓN!' : 'NUEVA SUSCRIPCIÓN',
+          username: username,
+          detailHtml: months > 1 ? `Lleva <span class="highlight">${months} meses</span> en el canal` : `¡Nuevo Suscriptor Tier ${tier}!`,
+          message: payload.message || payload.subMessage || ''
+        });
+      }
+      // 3. EVENTO DE SEGUIDOR (Follow)
+      else if (eventType.includes('follow') || (source.toLowerCase() === 'youtube' && eventType.includes('subscribe'))) {
+        queueAlert({
+          theme: 'follow',
+          icon: '💚',
+          badgeText: 'NUEVO SEGUIDOR',
+          username: username,
+          detailHtml: '¡Se ha unido a la manada!'
+        });
+      }
+      // 4. EVENTO DE RAID / HOST
+      else if (eventType.includes('raid') || eventType.includes('host')) {
+        const viewers = payload.viewers || payload.viewerCount || payload.number || 0;
+
+        queueAlert({
+          theme: 'raid',
+          icon: '🚀',
+          badgeText: '¡NUEVA RAID!',
+          username: username,
+          detailHtml: `¡Nos visita con <span class="highlight">${viewers} espectadores</span>!`
+        });
+      }
+      // 5. EVENTO DE DONACIÓN / BITS / TIPS / KICKS / SUPERCHAT
+      else if (eventType.includes('cheer') || eventType.includes('super') || eventType.includes('tip') || eventType.includes('donation') || eventType.includes('kick')) {
+        const amount = payload.amount || payload.bits || payload.formattedAmount || '$5.00';
+
+        queueAlert({
+          theme: 'donation',
+          icon: '💎',
+          badgeText: '¡NUEVA DONACIÓN!',
+          username: username,
+          detailHtml: `Ha apoyado con <span class="highlight">${amount}</span>`,
+          message: payload.message || payload.comment || ''
+        });
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // GENERADOR DE ALERTAS DE PRUEBA
+    // -----------------------------------------------------------------------
+    function triggerTestAlert(type) {
+      const testNames = ['Jikokun', 'FoxMaster', 'CyberKick', 'NekoGamer', 'AstroWolf', 'Valkyrie'];
+      const randomUser = testNames[Math.floor(Math.random() * testNames.length)];
+
+      switch (type) {
+        case 'follow':
+          queueAlert({
+            theme: 'follow',
+            icon: '💚',
+            badgeText: 'NUEVO SEGUIDOR',
+            username: randomUser,
+            detailHtml: '¡Se ha unido a la manada!'
+          });
+          break;
+
+        case 'sub':
+          const months = Math.floor(Math.random() * 12) + 1;
+          queueAlert({
+            theme: 'sub',
+            icon: '⭐',
+            badgeText: months > 1 ? '¡RESUSCRIPCIÓN!' : 'NUEVA SUSCRIPCIÓN',
+            username: randomUser,
+            detailHtml: months > 1 ? `Lleva <span class="highlight">${months} meses</span> en el canal` : '¡Nuevo Suscriptor!',
+            message: months > 1 ? '¡Gracias por seguir apoyando el canal bro!' : ''
+          });
+          break;
+
+        case 'gift':
+          const gifts = [1, 5, 10, 20][Math.floor(Math.random() * 4)];
+          queueAlert({
+            theme: 'gift',
+            icon: '🎁',
+            badgeText: '¡SUB REGALADA!',
+            username: randomUser,
+            detailHtml: gifts > 1 ? `Ha regalado <span class="highlight">${gifts} Suscripciones</span>` : `Le regaló una sub a <span class="highlight">ViewerKicker</span>`
+          });
+          break;
+
+        case 'raid':
+          const viewers = Math.floor(Math.random() * 250) + 15;
+          queueAlert({
+            theme: 'raid',
+            icon: '🚀',
+            badgeText: '¡NUEVA RAID!',
+            username: randomUser,
+            detailHtml: `¡Nos visita con <span class="highlight">${viewers} espectadores</span>!`
+          });
+          break;
+
+        case 'donation':
+          const amounts = ['$5.00', '500 Bits', '$20.00', '$50.00', '1000 Kicks'];
+          const amount = amounts[Math.floor(Math.random() * amounts.length)];
+          queueAlert({
+            theme: 'donation',
+            icon: '💎',
+            badgeText: '¡NUEVA DONACIÓN!',
+            username: randomUser,
+            detailHtml: `Ha apoyado con <span class="highlight">${amount}</span>`,
+            message: '¡Excelente stream! Sigue así 🚀'
+          });
+          break;
+      }
+    }
+
+    function toggleTestPanel() {
+      document.getElementById('test-controls').classList.toggle('hidden');
+    }
+
+    // -----------------------------------------------------------------------
+    // INICIALIZACIÓN
+    // -----------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      // Iniciar WebSocket de Streamer.bot
+      connectStreamerBot(sbPort);
+
+      // Si la URL requiere una alerta de prueba automática al cargar (?test=follow / ?test=sub, etc.)
+      if (testModeParam) {
+        setTimeout(() => {
+          triggerTestAlert(testModeParam);
+        }, 800);
+      }
+    });
+  </script>
+</body>
+</html>
