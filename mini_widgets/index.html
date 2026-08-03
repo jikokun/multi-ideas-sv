@@ -534,6 +534,15 @@
       <!-- Card 7: Alertas Dinámicas Streamer.bot (Marco Fox WebM) -->
       <div class="card" id="card-alerts">
         <h2>🔥 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h2>
+
+        <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Requisito de Conexión:</strong> Es necesario tener <strong>Streamer.bot</strong> abierto en tu PC con el servidor WebSocket activo (<strong>Puerto 4445</strong> por defecto) para recibir y mostrar las alertas en tiempo real durante tu directo.
+          </p>
+        </div>
+
         <div class="iframe-preview" style="height: 280px;">
           <iframe id="preview-alerts" src="widget_alertas.html?preview=true&loop=true"></iframe>
         </div>
@@ -554,6 +563,35 @@
           <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://ejemplo.com/sonido.mp3" oninput="updateAlertsWidget()">
         </div>
 
+        <!-- Personalización de Colores de Resplandor por Alerta -->
+        <div class="alert-colors-container">
+          <label class="alert-colors-title">
+            🎨 Colores de Resplandor por Alerta:
+          </label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-follow" class="color-picker-label lbl-follow">💚 Follow</label>
+              <input type="color" id="color-follow" class="input-field" value="#16a34a" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-sub" class="color-picker-label lbl-sub">⭐ Sub</label>
+              <input type="color" id="color-sub" class="input-field" value="#9333ea" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-gift" class="color-picker-label lbl-gift">🎁 Gift Sub</label>
+              <input type="color" id="color-gift" class="input-field" value="#db2777" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-raid" class="color-picker-label lbl-raid">🚀 Raid</label>
+              <input type="color" id="color-raid" class="input-field" value="#ea580c" style="height: 34px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-kicks" class="color-picker-label lbl-kicks">💎 Kicks</label>
+              <input type="color" id="color-kicks" class="input-field" value="#d97706" style="height: 34px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+          </div>
+        </div>
+
         <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
           <label class="checkbox-group">
             <input type="checkbox" class="custom-checkbox" id="alert-loop" checked onchange="updateAlertsWidget()">
@@ -565,14 +603,14 @@
           </label>
         </div>
 
-        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-          <label style="font-size: 0.85rem; font-weight: 800; color: #00f5d4; text-transform: uppercase;">🧪 Probar Alerta en la Vista Previa:</label>
-          <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('follow')">💚 Follow</button>
-            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('sub')">⭐ Sub</button>
-            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('gift')">🎁 Gift</button>
-            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('raid')">🚀 Raid</button>
-            <button class="test-btn" style="flex: 1; padding: 7px 10px; font-size: 0.8rem;" onclick="triggerAlertTest('donation')">💎 Tip</button>
+        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: var(--neon-blue); text-transform: uppercase;">🧪 Probar Alerta en la Vista Previa:</label>
+          <div class="test-btn-group">
+            <button class="test-btn-tech btn-test-follow" onclick="triggerAlertTest('follow')">💚 Follow</button>
+            <button class="test-btn-tech btn-test-sub" onclick="triggerAlertTest('sub')">⭐ Sub</button>
+            <button class="test-btn-tech btn-test-gift" onclick="triggerAlertTest('gift')">🎁 Gift</button>
+            <button class="test-btn-tech btn-test-raid" onclick="triggerAlertTest('raid')">🚀 Raid</button>
+            <button class="test-btn-tech btn-test-kicks" onclick="triggerAlertTest('donation')">💎 Kicks</button>
           </div>
         </div>
 
@@ -778,12 +816,25 @@
       const isMuted = document.getElementById('alert-mute') ? document.getElementById('alert-mute').checked : false;
       const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
 
+      // Colores de Resplandor por Alerta
+      const cFollow = document.getElementById('color-follow') ? document.getElementById('color-follow').value.replace('#', '') : '16a34a';
+      const cSub = document.getElementById('color-sub') ? document.getElementById('color-sub').value.replace('#', '') : '9333ea';
+      const cGift = document.getElementById('color-gift') ? document.getElementById('color-gift').value.replace('#', '') : 'db2777';
+      const cRaid = document.getElementById('color-raid') ? document.getElementById('color-raid').value.replace('#', '') : 'ea580c';
+      const cKicks = document.getElementById('color-kicks') ? document.getElementById('color-kicks').value.replace('#', '') : 'd97706';
+
       // 1. URL limpia para OBS (Aplica la duración y configuraciones reales seleccionadas SIN loop continuo)
       const obsParams = new URLSearchParams();
       if (port && port !== '4445') obsParams.set('port', port);
       if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
       if (soundUrl) obsParams.set('sound', soundUrl);
       if (isMuted) obsParams.set('mute', 'true');
+
+      if (cFollow !== '16a34a') obsParams.set('cf', cFollow);
+      if (cSub !== '9333ea') obsParams.set('cs', cSub);
+      if (cGift !== 'db2777') obsParams.set('cg', cGift);
+      if (cRaid !== 'ea580c') obsParams.set('cr', cRaid);
+      if (cKicks !== 'd97706') obsParams.set('ck', cKicks);
 
       const obsPath = `widget_alertas.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
       generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
@@ -802,12 +853,25 @@
 
     function triggerAlertTest(alertType) {
       const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
+      const cFollow = document.getElementById('color-follow') ? document.getElementById('color-follow').value : '#16a34a';
+      const cSub = document.getElementById('color-sub') ? document.getElementById('color-sub').value : '#9333ea';
+      const cGift = document.getElementById('color-gift') ? document.getElementById('color-gift').value : '#db2777';
+      const cRaid = document.getElementById('color-raid') ? document.getElementById('color-raid').value : '#ea580c';
+      const cKicks = document.getElementById('color-kicks') ? document.getElementById('color-kicks').value : '#d97706';
+
       const iframe = document.getElementById('preview-alerts');
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({
           type: 'TRIGGER_TEST_ALERT',
           alertType: alertType || 'follow',
-          loop: isLoop
+          loop: isLoop,
+          colors: {
+            follow: cFollow,
+            sub: cSub,
+            gift: cGift,
+            raid: cRaid,
+            donation: cKicks
+          }
         }, '*');
       }
 

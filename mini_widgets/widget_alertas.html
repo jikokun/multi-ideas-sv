@@ -246,91 +246,6 @@
       --accent-glow: rgba(245, 158, 11, 0.25);
       --accent-bg: linear-gradient(90deg, #b45309, #f59e0b);
     }
-
-    /* --------------------------------------------------
-       PANEL DE CONTROL DE PRUEBAS FLOOTANTE (Auto-ocultable)
-       -------------------------------------------------- */
-    #test-controls {
-      position: fixed;
-      bottom: 12px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 100;
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(83, 252, 24, 0.3);
-      backdrop-filter: blur(10px);
-      padding: 8px 14px;
-      border-radius: 30px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
-      transition: opacity 0.3s ease, transform 0.3s ease;
-    }
-
-    #test-controls.hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: translate(-50%, 20px);
-    }
-
-    .test-btn {
-      background: rgba(30, 41, 59, 0.9);
-      color: #f8fafc;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      padding: 5px 12px;
-      border-radius: 15px;
-      font-family: 'Rajdhani', sans-serif;
-      font-size: 0.85rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    .test-btn:hover {
-      background: #53fc18;
-      color: #02090f;
-      border-color: #53fc18;
-      box-shadow: 0 0 10px rgba(83, 252, 24, 0.5);
-    }
-
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #ef4444;
-      display: inline-block;
-    }
-
-    .status-dot.connected {
-      background: #53fc18;
-      box-shadow: 0 0 8px #53fc18;
-    }
-
-    .toggle-test-btn {
-      position: fixed;
-      bottom: 12px;
-      right: 12px;
-      z-index: 101;
-      background: rgba(15, 23, 42, 0.7);
-      color: #94a3b8;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    .toggle-test-btn:hover {
-      color: #fff;
-      background: rgba(15, 23, 42, 0.95);
-    }
   </style>
 </head>
 <body>
@@ -365,19 +280,6 @@
 
   </div>
 
-  <!-- Panel de Pruebas Flotante -->
-  <div id="test-controls">
-    <span id="sb-status-dot" class="status-dot" title="Desconectado de Streamer.bot"></span>
-    <span style="font-size: 0.75rem; color: #94a3b8; margin-right: 4px;">Streamer.bot</span>
-    <button class="test-btn" onclick="triggerTestAlert('follow')">💚 Follow</button>
-    <button class="test-btn" onclick="triggerTestAlert('sub')">⭐ Sub</button>
-    <button class="test-btn" onclick="triggerTestAlert('gift')">🎁 Gift x5</button>
-    <button class="test-btn" onclick="triggerTestAlert('raid')">🚀 Raid</button>
-    <button class="test-btn" onclick="triggerTestAlert('donation')">💎 Donación</button>
-  </div>
-
-  <button class="toggle-test-btn" title="Ocultar/Mostrar Controles de Prueba" onclick="toggleTestPanel()">⚙️</button>
-
   <script>
     // -----------------------------------------------------------------------
     // CONFIGURACIÓN DE PARÁMETROS URL
@@ -392,19 +294,55 @@
     let isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('permanent') === 'true';
     let currentAlertTimeout = null;
 
-    // Ocultar controles flotantes por defecto en OBS salvo que se solicite con ?preview=true o ?testmode=true
-    window.addEventListener('DOMContentLoaded', () => {
-      if (!isPreview) {
-        const testControls = document.getElementById('test-controls');
-        const toggleBtn = document.querySelector('.toggle-test-btn');
-        if (testControls) testControls.style.display = 'none';
-        if (toggleBtn) toggleBtn.style.display = 'none';
+    // Colores de Resplandor Personalizados por Alerta
+    const customColors = {
+      follow: urlParams.get('cf') || urlParams.get('color_follow') || '',
+      sub: urlParams.get('cs') || urlParams.get('color_sub') || '',
+      gift: urlParams.get('cg') || urlParams.get('color_gift') || '',
+      raid: urlParams.get('cr') || urlParams.get('color_raid') || '',
+      donation: urlParams.get('ck') || urlParams.get('color_kicks') || urlParams.get('cd') || ''
+    };
+
+    function hexToRgb(hex) {
+      if (!hex) return null;
+      let cleanHex = hex.replace('#', '').trim();
+      if (cleanHex.length === 3) {
+        cleanHex = cleanHex.split('').map(c => c + c).join('');
       }
-    });
+      const num = parseInt(cleanHex, 16);
+      if (isNaN(num)) return null;
+      return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+      };
+    }
+
+    function applyThemeCustomColors(themeName, hexColor) {
+      if (!hexColor) return;
+      const formattedHex = hexColor.startsWith('#') ? hexColor : `#${hexColor}`;
+      const rgb = hexToRgb(formattedHex);
+      if (!rgb) return;
+
+      const stage = document.getElementById('alert-stage');
+      if (stage) {
+        const darkR = Math.max(0, Math.floor(rgb.r * 0.35));
+        const darkG = Math.max(0, Math.floor(rgb.g * 0.35));
+        const darkB = Math.max(0, Math.floor(rgb.b * 0.35));
+
+        stage.style.setProperty('--accent-color', formattedHex);
+        stage.style.setProperty('--accent-glow', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.55)`);
+        stage.style.setProperty('--accent-shadow', `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.6)`);
+        stage.style.setProperty('--accent-bg', `linear-gradient(90deg, rgb(${darkR}, ${darkG}, ${darkB}), ${formattedHex})`);
+      }
+    }
 
     // Escuchar mensajes desde el panel configurador index.html
     window.addEventListener('message', (event) => {
       if (event.data) {
+        if (event.data.colors) {
+          Object.assign(customColors, event.data.colors);
+        }
         if (typeof event.data.loop === 'boolean') {
           isLoopMode = event.data.loop;
         }
@@ -508,6 +446,17 @@
       // Asignar clase de tema a la escena y tarjeta para propagación de resplandor ambiental
       stage.className = `active theme-${alert.theme}`;
       card.className = `alert-card theme-${alert.theme}`;
+
+      // Aplicar color personalizado de resplandor si fue especificado
+      const customHex = customColors[alert.theme];
+      if (customHex) {
+        applyThemeCustomColors(alert.theme, customHex);
+      } else {
+        stage.style.removeProperty('--accent-color');
+        stage.style.removeProperty('--accent-glow');
+        stage.style.removeProperty('--accent-shadow');
+        stage.style.removeProperty('--accent-bg');
+      }
 
       // Configurar contenido de texto
       badgeIcon.textContent = alert.icon || '⭐';
@@ -770,12 +719,12 @@
           break;
 
         case 'donation':
-          const amounts = ['$5.00', '500 Bits', '$20.00', '$50.00', '1000 Kicks'];
+          const amounts = ['1000 Kicks', '500 Kicks', '$5.00', '500 Bits', '$20.00', '2500 Kicks'];
           const amount = amounts[Math.floor(Math.random() * amounts.length)];
           queueAlert({
             theme: 'donation',
             icon: '💎',
-            badgeText: '¡NUEVA DONACIÓN!',
+            badgeText: '¡NUEVO APORTE / KICKS!',
             username: randomUser,
             detailHtml: `Ha apoyado con <span class="highlight">${amount}</span>`,
             message: '¡Excelente stream! Sigue así 🚀'
