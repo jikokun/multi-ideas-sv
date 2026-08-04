@@ -156,18 +156,71 @@ function initDigitalClock() {
    3. WIDGET DE CONTADOR KICK EN VIVO (?channel=jikokun)
    ========================================================================== */
 function initKickLiveCounter() {
-  const channelEl = document.getElementById('kick-channel-name');
+  const containerEl = document.querySelector('.kick-live-widget');
+  const channelTextEl = document.getElementById('kick-channel-text') || document.getElementById('kick-channel-name');
   const avatarEl = document.getElementById('kick-avatar-img');
   const followersEl = document.getElementById('kick-followers-count');
   const viewersEl = document.getElementById('kick-viewers-count');
   const liveBadgeEl = document.getElementById('kick-live-badge');
 
-  if (!channelEl && !viewersEl) return;
+  if (!channelTextEl && !viewersEl) return;
 
   const urlParams = new URLSearchParams(window.location.search);
   const channel = urlParams.get('channel') || urlParams.get('canal') || 'jikokun';
 
-  if (channelEl) channelEl.textContent = `@${channel}`;
+  // Personalización Visual: Borde, Resplandor, Fondo y Colores de Texto
+  const customBorder = urlParams.get('bordercolor') || urlParams.get('border') || urlParams.get('bc');
+  const customGlow = urlParams.get('glowcolor') || urlParams.get('glow') || urlParams.get('gc');
+  const customBg = urlParams.get('bgcolor') || urlParams.get('bg') || urlParams.get('bgc');
+  const customUserColor = urlParams.get('usercolor') || urlParams.get('userc') || urlParams.get('uc');
+  const customStatColor = urlParams.get('statcolor') || urlParams.get('statc') || urlParams.get('sc');
+
+  if (containerEl) {
+    if (customBorder) {
+      const bColor = customBorder.startsWith('#') ? customBorder : `#${customBorder}`;
+      containerEl.style.borderColor = bColor;
+      if (avatarEl && avatarEl.parentElement) {
+        avatarEl.parentElement.style.borderColor = bColor;
+      }
+    }
+
+    if (customGlow) {
+      const gColor = customGlow.startsWith('#') ? customGlow : `#${customGlow}`;
+      containerEl.style.boxShadow = `0 0 20px ${gColor}88, inset 0 0 10px ${gColor}44`;
+      if (avatarEl && avatarEl.parentElement) {
+        avatarEl.parentElement.style.boxShadow = `0 0 12px ${gColor}99`;
+      }
+    } else if (customBorder) {
+      const bColor = customBorder.startsWith('#') ? customBorder : `#${customBorder}`;
+      containerEl.style.boxShadow = `0 0 20px ${bColor}88, inset 0 0 10px ${bColor}44`;
+    }
+
+    if (customBg) {
+      let bgColor = customBg.startsWith('#') ? customBg : `#${customBg}`;
+      if (bgColor.length === 7) {
+        const r = parseInt(bgColor.slice(1, 3), 16);
+        const g = parseInt(bgColor.slice(3, 5), 16);
+        const b = parseInt(bgColor.slice(5, 7), 16);
+        containerEl.style.background = `rgba(${r}, ${g}, ${b}, 0.85)`;
+      } else {
+        containerEl.style.background = bgColor;
+      }
+    }
+  }
+
+  if (channelTextEl) {
+    channelTextEl.textContent = `${channel}`;
+    if (customUserColor) {
+      const uColor = customUserColor.startsWith('#') ? customUserColor : `#${customUserColor}`;
+      channelTextEl.style.color = uColor;
+    }
+  }
+
+  if (customStatColor) {
+    const sColor = customStatColor.startsWith('#') ? customStatColor : `#${customStatColor}`;
+    const statsRow = document.querySelector('.kick-stats-row');
+    if (statsRow) statsRow.style.color = sColor;
+  }
 
   async function fetchKickData() {
     try {
@@ -183,7 +236,7 @@ function initKickLiveCounter() {
           }
           if (data.livestream) {
             if (viewersEl) viewersEl.textContent = Number(data.livestream.viewer_count || 0).toLocaleString('es-SV');
-            if (liveBadgeEl) liveBadgeEl.style.display = 'flex';
+            if (liveBadgeEl) liveBadgeEl.style.display = 'inline-block';
           } else {
             if (viewersEl) viewersEl.textContent = '0';
             if (liveBadgeEl) liveBadgeEl.style.display = 'none';
@@ -194,6 +247,7 @@ function initKickLiveCounter() {
       console.warn("[MiniWidget Kick] Usando valores simulados para Kick:", e);
       if (followersEl) followersEl.textContent = '1,450';
       if (viewersEl) viewersEl.textContent = '84';
+      if (liveBadgeEl) liveBadgeEl.style.display = 'inline-block';
       if (avatarEl && !avatarEl.src) avatarEl.src = 'https://files.kick.com/images/user/default_avatar.png';
     }
   }
