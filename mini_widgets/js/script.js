@@ -1,3 +1,84 @@
+// ==========================================================================
+// MÓDULO GLOBAL DE PROTECCIÓN DE CONTENIDO Y CÓDIGO FUENTE (MINI WIDGETS)
+// ==========================================================================
+(function initMiniWidgetProtection() {
+    const style = document.createElement('style');
+    style.id = 'mini-protection-styles';
+    style.innerHTML = `
+        img, video, canvas, svg, audio {
+            -webkit-user-drag: none !important;
+            -khtml-user-drag: none !important;
+            -moz-user-drag: none !important;
+            -o-user-drag: none !important;
+            user-drag: none !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            pointer-events: auto;
+        }
+        input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+        textarea,
+        [contenteditable="true"] {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+        }
+    `;
+    if (document.head) {
+        document.head.appendChild(style);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.head && !document.getElementById('mini-protection-styles')) {
+                document.head.appendChild(style);
+            }
+        });
+    }
+
+    document.addEventListener('contextmenu', function(e) {
+        const target = e.target;
+        const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+        if (!isInputField) {
+            e.preventDefault();
+            return false;
+        }
+    }, true);
+
+    document.addEventListener('dragstart', function(e) {
+        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'A') {
+            e.preventDefault();
+            return false;
+        }
+    }, true);
+
+    document.addEventListener('keydown', function(e) {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+        const key = e.key ? e.key.toUpperCase() : '';
+        const keyCode = e.keyCode || e.which;
+
+        if (key === 'F12' || keyCode === 123) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        if (ctrlOrCmd) {
+            if (key === 'U' || keyCode === 85 || key === 'S' || keyCode === 83 || key === 'P' || keyCode === 80) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+            if (e.shiftKey && (key === 'I' || key === 'J' || key === 'C' || keyCode === 73 || keyCode === 74 || keyCode === 67)) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+    }, true);
+})();
+
 /* ==========================================================================
    MINI WIDGETS STANDALONE DE STREAM - SCRIPT PRINCIPAL
    ========================================================================== */

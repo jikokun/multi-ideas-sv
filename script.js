@@ -1,4 +1,113 @@
 // ==========================================================================
+// MÓDULO GLOBAL DE PROTECCIÓN DE CONTENIDO Y CÓDIGO FUENTE (MULTI IDEAS SV)
+// ==========================================================================
+(function initGlobalSiteProtection() {
+    // 1. Inyectar CSS global anti-selección y anti-arrastre de imágenes
+    const style = document.createElement('style');
+    style.id = 'multi-protection-styles';
+    style.innerHTML = `
+        /* Deshabilitar arrastre y selección de imágenes, videos y código */
+        img, video, canvas, svg, audio {
+            -webkit-user-drag: none !important;
+            -khtml-user-drag: none !important;
+            -moz-user-drag: none !important;
+            -o-user-drag: none !important;
+            user-drag: none !important;
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            -moz-user-select: none !important;
+            -ms-user-select: none !important;
+            pointer-events: auto;
+        }
+
+        /* Permitir selección únicamente en elementos interactivos de escritura */
+        input:not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+        textarea,
+        [contenteditable="true"] {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+        }
+    `;
+    
+    if (document.head) {
+        document.head.appendChild(style);
+    } else {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (document.head && !document.getElementById('multi-protection-styles')) {
+                document.head.appendChild(style);
+            }
+        });
+    }
+
+    // 2. Bloquear Clic Derecho (Menú Contextual)
+    document.addEventListener('contextmenu', function(e) {
+        const target = e.target;
+        const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+        if (!isInputField) {
+            e.preventDefault();
+            return false;
+        }
+    }, true);
+
+    // 3. Bloquear Arrastre de Imágenes, Videos y Enlaces
+    document.addEventListener('dragstart', function(e) {
+        if (e.target.tagName === 'IMG' || e.target.tagName === 'VIDEO' || e.target.tagName === 'A') {
+            e.preventDefault();
+            return false;
+        }
+    }, true);
+
+    // 4. Bloquear Atajos de Teclado (DevTools, Código Fuente, Guardar Página, Imprimir)
+    document.addEventListener('keydown', function(e) {
+        const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+        const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+        const key = e.key ? e.key.toUpperCase() : '';
+        const keyCode = e.keyCode || e.which;
+
+        // F12 (DevTools)
+        if (key === 'F12' || keyCode === 123) {
+            e.preventDefault();
+            e.stopPropagation();
+            return false;
+        }
+
+        if (ctrlOrCmd) {
+            // Ctrl + U (Ver Código Fuente)
+            if (key === 'U' || keyCode === 85) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+
+            // Ctrl + S (Guardar Página)
+            if (key === 'S' || keyCode === 83) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+
+            // Ctrl + P (Imprimir / Guardar PDF)
+            if (key === 'P' || keyCode === 80) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+
+            // Ctrl + Shift + I (Inspect Element)
+            // Ctrl + Shift + J (DevTools Console)
+            // Ctrl + Shift + C (Select Element)
+            if (e.shiftKey && (key === 'I' || key === 'J' || key === 'C' || keyCode === 73 || keyCode === 74 || keyCode === 67)) {
+                e.preventDefault();
+                e.stopPropagation();
+                return false;
+            }
+        }
+    }, true);
+})();
+
+// ==========================================================================
 // CONFIGURACIÓN GLOBAL Y TIEMPOS
 // ==========================================================================
 const TRANSITION_DURATION = 200;
