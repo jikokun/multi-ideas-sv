@@ -4,7 +4,7 @@
         <button id="profile-modal-close" class="auth-close-btn" aria-label="Cerrar modal">&times;</button>
         
         <div class="profile-header">
-            <div class="profile-avatar-large" id="profile-avatar-char" style="width: 70px; height: 70px; border-radius: 50%; background: var(--cyan); color: #0a0c10; font-size: 2.2rem; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 0 15px var(--cyan-glow);">U</div>
+            <div class="profile-avatar-large" id="profile-avatar-char" style="width: 75px; height: 75px; border-radius: 50%; background: var(--cyan); color: #0a0c10; font-size: 2.2rem; font-weight: 800; display: flex; align-items: center; justify-content: center; margin: 0 auto; box-shadow: 0 0 15px var(--cyan-glow); cursor: pointer; transition: transform 0.2s; position: relative;" title="Haz clic para ampliar la foto">U</div>
             <div class="profile-name-container" style="width: 100%; margin-top: 15px; display: flex; flex-direction: column; align-items: center; gap: 8px; position: relative;">
                 <label style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Nombre Completo</label>
                 
@@ -41,51 +41,41 @@
             </div>
         </div>
 
-        <!-- Personalizar Avatar -->
+        <!-- Personalizar Foto de Perfil -->
         <div class="profile-avatar-customizer" style="width: 100%; margin-top: 15px; text-align: left; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 15px;">
             <label style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">Foto de Perfil Personalizada</label>
             
             <!-- Subir Foto propia a Google Drive (Máx 5MB) -->
-            <div style="text-align: center; margin-bottom: 15px;">
-                <input type="file" id="custom-avatar-file-input" accept="image/png, image/jpeg, image/webp, image/gif" style="display: none;">
-                <button type="button" id="custom-avatar-upload-btn" class="auth-submit-btn" style="padding: 8px 16px; font-size: 0.82rem; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%); color: #02090f; font-weight: 800; border: none; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s;">
-                    📸 Subir Tu Foto de Perfil (Máx 5MB)
+            <div style="text-align: center; margin-bottom: 12px;">
+                <input type="file" id="custom-avatar-file-input" accept="image/*" style="display: none;">
+                <label for="custom-avatar-file-input" id="custom-avatar-upload-btn" class="auth-submit-btn" style="padding: 8px 16px; font-size: 0.82rem; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%); color: #02090f; font-weight: 800; border: none; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; user-select: none;">
+                    📸 Seleccionar Nueva Foto (Máx 5MB)
+                </label>
+
+                <!-- Barra de Carga Moderna -->
+                <div id="avatar-upload-progress-container" style="display: none; margin-top: 12px; text-align: left;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.72rem; color: var(--cyan); font-weight: 700; margin-bottom: 4px;">
+                        <span id="avatar-upload-progress-text">⏳ Subiendo imagen a tu Google Drive...</span>
+                        <span id="avatar-upload-progress-percent">0%</span>
+                    </div>
+                    <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; position: relative;">
+                        <div id="avatar-upload-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #00f5d4 0%, #0077b6 100%); border-radius: 10px; transition: width 0.3s ease; box-shadow: 0 0 10px rgba(0, 245, 212, 0.6);"></div>
+                    </div>
+                </div>
+
+                <!-- Botón de Guardar Cambios de Perfil (Aparece al subir la imagen) -->
+                <button type="button" id="confirm-save-avatar-btn" class="auth-submit-btn" style="display: none; margin-top: 12px; padding: 10px 16px; font-size: 0.85rem; border-radius: 12px; width: 100%; background: linear-gradient(135deg, #2ea043 0%, #1e7e34 100%); color: #ffffff; font-weight: 800; border: none; cursor: pointer; box-shadow: 0 0 15px rgba(46, 160, 67, 0.4); transition: transform 0.2s;">
+                    💾 Guardar Cambios de Foto
                 </button>
+
                 <div id="custom-avatar-upload-status" style="font-size: 0.78rem; color: var(--cyan); margin-top: 6px; font-weight: 600; display: none;"></div>
             </div>
 
-            <label style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">O Selecciona un Avatar Prediseñado</label>
-            
-            <!-- 4 Opciones de Iconos -->
-            <div class="avatar-icon-options" style="display: flex; gap: 10px; margin-bottom: 15px; justify-content: center;">
-                <div class="avatar-option-btn" data-avatar="male1" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.05); padding: 5px; box-sizing: border-box;">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; width: 100%; height: 100%;"><circle cx="12" cy="10" r="4.5"></circle><path d="M8.5 7.5c1-1.5 2.5-2 3.5-2s2.5.5 3.5 2M8 9.5c0-1.5 1.5-2.5 4-2.5s4 1 4 2.5" stroke-width="2.2"></path><path d="M5 20a7 7 0 0 1 14 0"></path><path d="M10 14.5v2l2 2 2-2v-2"></path></svg>
-                </div>
-                <div class="avatar-option-btn" data-avatar="male2" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.05); padding: 5px; box-sizing: border-box;">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; width: 100%; height: 100%;"><path d="M8.5 9a3.5 3.5 0 0 1 7 0v2a3.5 3.5 0 0 1-7 0V9z"></path><path d="M8 7.5c.5-2 2-3 4-3s3.5 1 4 3" stroke-width="2.2"></path><path d="M8.5 11c0 2 1.5 3.5 3.5 3.5s3.5-1.5 3.5-3.5" stroke-width="2.2"></path><path d="M5 20.5a7 7 0 0 1 14 0"></path></svg>
-                </div>
-                <div class="avatar-option-btn" data-avatar="female1" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.05); padding: 5px; box-sizing: border-box;">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; width: 100%; height: 100%;"><circle cx="12" cy="10" r="4"></circle><path d="M7.5 9c0-3.5 2.5-4.5 4.5-4.5s4.5 1 4.5 4.5v5.5c0 .5-.5 1.5-1 1.5s-1-1-1-1.5V11" stroke-width="2.2"></path><path d="M7.5 9v5.5c0 .5.5 1.5 1 1.5s1-1 1-1.5V11" stroke-width="2.2"></path><path d="M5 20a7 7 0 0 1 14 0"></path></svg>
-                </div>
-                <div class="avatar-option-btn" data-avatar="female2" style="width: 45px; height: 45px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.05); padding: 5px; box-sizing: border-box;">
-                    <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" style="color: #ffffff; width: 100%; height: 100%;"><circle cx="12" cy="4.5" r="2" stroke-width="2.2"></circle><circle cx="12" cy="11" r="4"></circle><path d="M8 9.5c1-1 2-1.5 4-1.5s3 .5 4 1.5" stroke-width="2.2"></path><circle cx="7.5" cy="12" r="0.8" fill="currentColor"></circle><circle cx="16.5" cy="12" r="0.8" fill="currentColor"></circle><path d="M5 20.5a7 7 0 0 1 14 0"></path><path d="M10 16.5a2 2 0 0 0 4 0"></path></svg>
-                </div>
-            </div>
-
-            <label style="font-size: 0.75rem; color: var(--text-gray); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 10px;">Color de Fondo</label>
-            <!-- 8 Colores de Fondo -->
-            <div class="avatar-color-options" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px;">
-                <div class="color-option-btn" data-color="#00adb5" style="width: 28px; height: 28px; border-radius: 50%; background: #00adb5; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#ff7a00" style="width: 28px; height: 28px; border-radius: 50%; background: #ff7a00; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#8e44ad" style="width: 28px; height: 28px; border-radius: 50%; background: #8e44ad; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#2980b9" style="width: 28px; height: 28px; border-radius: 50%; background: #2980b9; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#27ae60" style="width: 28px; height: 28px; border-radius: 50%; background: #27ae60; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#c0392b" style="width: 28px; height: 28px; border-radius: 50%; background: #c0392b; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#e84393" style="width: 28px; height: 28px; border-radius: 50%; background: #e84393; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-                <div class="color-option-btn" data-color="#3f51b5" style="width: 28px; height: 28px; border-radius: 50%; background: #3f51b5; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s;"></div>
-            </div>
-            <div style="text-align: center; margin-top: 15px;">
-                <button id="profile-save-avatar-btn" class="auth-submit-btn" style="padding: 6px 15px; font-size: 0.8rem; border-radius: 12px; width: auto;">Guardar Avatar</button>
+            <!-- Opción para Restablecer a Avatar Genérico por Defecto -->
+            <div style="text-align: center; margin-bottom: 5px;">
+                <button type="button" id="reset-default-avatar-btn" style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text-gray); font-size: 0.75rem; padding: 6px 12px; border-radius: 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
+                    👤 Usar Avatar Genérico por Defecto
+                </button>
             </div>
         </div>
 
@@ -166,5 +156,14 @@
         <div id="favorites-modal-list" style="max-height: 350px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding-right: 5px; width: 100%;" class="scrollbar-thin">
             <!-- Cargados dinámicamente -->
         </div>
+    </div>
+</div>
+
+<!-- Modal Zoom de Avatar (Lightbox) -->
+<div id="avatar-lightbox-modal" class="auth-modal-overlay" style="display: none; justify-content: center; align-items: center; z-index: 100000; background: rgba(2, 9, 15, 0.88); backdrop-filter: blur(15px); transition: all 0.3s ease;">
+    <div style="position: relative; text-align: center; max-width: 90vw; animation: zoomIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <button id="avatar-lightbox-close" type="button" style="position: absolute; top: -45px; right: -10px; background: rgba(255,255,255,0.15); border: none; color: #ffffff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(5px); transition: transform 0.2s;">&times;</button>
+        <div id="avatar-lightbox-frame" style="width: 280px; height: 280px; max-width: 80vw; max-height: 80vw; border-radius: 50%; border: 4px solid var(--cyan); box-shadow: 0 0 35px rgba(0, 245, 212, 0.5); overflow: hidden; background: #0b131e; display: flex; align-items: center; justify-content: center; margin: 0 auto;"></div>
+        <p style="color: var(--text-gray); font-size: 0.8rem; margin-top: 15px; font-weight: 600;">Haz clic en cualquier lugar para cerrar</p>
     </div>
 </div>

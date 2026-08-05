@@ -1928,15 +1928,52 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const avatarOptionBtns = profileModal.querySelectorAll('.avatar-option-btn');
     const colorOptionBtns = profileModal.querySelectorAll('.color-option-btn');
 
-    // Elementos de Carga de Foto a Google Drive
+    // Elementos de Carga de Foto y Barra de Progreso a Google Drive
     const uploadPhotoBtn = profileModal.querySelector('#custom-avatar-upload-btn');
     const uploadFileInput = profileModal.querySelector('#custom-avatar-file-input');
     const uploadStatusDiv = profileModal.querySelector('#custom-avatar-upload-status');
+    const progressContainer = profileModal.querySelector('#avatar-upload-progress-container');
+    const progressBar = profileModal.querySelector('#avatar-upload-progress-bar');
+    const progressPercent = profileModal.querySelector('#avatar-upload-progress-percent');
+    const progressText = profileModal.querySelector('#avatar-upload-progress-text');
+    const confirmSaveBtn = profileModal.querySelector('#confirm-save-avatar-btn');
     const GOOGLE_DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec";
 
-    if (uploadPhotoBtn && uploadFileInput) {
-        uploadPhotoBtn.addEventListener('click', () => uploadFileInput.click());
+    let pendingUploadedDriveUrl = '';
 
+    // Manejador del Modal Lightbox para ampliar la foto de perfil al tocarla
+    if (labelAvatar) {
+        labelAvatar.addEventListener('click', () => {
+            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
+            const initials = user ? (user.displayName || user.email || 'U').charAt(0).toUpperCase() : 'U';
+            const imgInside = labelAvatar.querySelector('img');
+            const currentPhoto = (imgInside && imgInside.src) ? imgInside.src : (user ? user.photoURL : '');
+            
+            const lightboxModal = document.querySelector('#avatar-lightbox-modal');
+            const lightboxFrame = document.querySelector('#avatar-lightbox-frame');
+            if (lightboxModal && lightboxFrame) {
+                applyAvatarToElement(lightboxFrame, currentPhoto, initials);
+                lightboxModal.style.display = 'flex';
+            }
+        });
+    }
+
+    const lightboxModal = document.querySelector('#avatar-lightbox-modal');
+    const lightboxClose = document.querySelector('#avatar-lightbox-close');
+    if (lightboxModal) {
+        if (lightboxClose) {
+            lightboxClose.addEventListener('click', () => {
+                lightboxModal.style.display = 'none';
+            });
+        }
+        lightboxModal.addEventListener('click', (e) => {
+            if (e.target === lightboxModal) {
+                lightboxModal.style.display = 'none';
+            }
+        });
+    }
+
+    if (uploadFileInput) {
         uploadFileInput.addEventListener('change', async () => {
             const file = uploadFileInput.files[0];
             if (!file) return;
@@ -1954,12 +1991,17 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
                 return;
             }
 
-            uploadPhotoBtn.disabled = true;
-            uploadPhotoBtn.style.opacity = '0.6';
-            if (uploadStatusDiv) {
-                uploadStatusDiv.style.display = 'block';
-                uploadStatusDiv.style.color = '#00f5d4';
-                uploadStatusDiv.textContent = '⏳ Subiendo foto a tu Google Drive...';
+            if (uploadPhotoBtn) {
+                uploadPhotoBtn.style.pointerEvents = 'none';
+                uploadPhotoBtn.style.opacity = '0.6';
+            }
+
+            if (confirmSaveBtn) confirmSaveBtn.style.display = 'none';
+            if (progressContainer) {
+                progressContainer.style.display = 'block';
+                if (progressBar) progressBar.style.width = '15%';
+                if (progressPercent) progressPercent.textContent = '15%';
+                if (progressText) progressText.textContent = '⏳ Procesando archivo de imagen...';
             }
 
             const reader = new FileReader();
@@ -1972,11 +2014,15 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
                     applyAvatarToElement(labelAvatar, localDataUrl, initials);
                 }
 
+                if (progressBar) progressBar.style.width = '35%';
+                if (progressPercent) progressPercent.textContent = '35%';
+                if (progressText) progressText.textContent = '⏳ Conectando con tu Google Drive...';
+
                 try {
                     const base64Data = localDataUrl.split(',')[1];
                     const extension = file.name.split('.').pop() || 'jpg';
 
-                    // 2. Enviar a Google Apps Script usando URLSearchParams (altamente compatible)
+                    // 2. Enviar a Google Apps Script
                     const postParams = new URLSearchParams();
                     postParams.append('base64', base64Data);
                     postParams.append('mimeType', file.type || 'image/jpeg');
@@ -1984,40 +2030,32 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
                     postParams.append('userName', user.displayName || user.email.split('@')[0]);
                     postParams.append('userEmail', user.email || 'usuario_anonimo');
 
-                    console.log("[Google Drive Upload] Enviando imagen a Google Apps Script...");
+                    if (progressBar) progressBar.style.width = '65%';
+                    if (progressPercent) progressPercent.textContent = '65%';
+                    if (progressText) progressText.textContent = '📤 Transfiriendo a tu carpeta de Drive...';
 
                     const response = await fetch(GOOGLE_DRIVE_UPLOAD_URL, {
                         method: 'POST',
                         body: postParams
                     });
 
+                    if (progressBar) progressBar.style.width = '90%';
+                    if (progressPercent) progressPercent.textContent = '90%';
+
                     const res = await response.json();
                     console.log("[Google Drive Upload] Respuesta del servidor:", res);
 
                     if (res && res.status === 'success' && res.fileUrl) {
-                        const newPhotoURL = res.fileUrl;
+                        pendingUploadedDriveUrl = res.fileUrl;
                         
-                        // 3. Guardar enlace público de Google Drive en Firebase photoURL
-                        if (window.firebaseUpdateProfile && window.firebaseAuth && window.firebaseAuth.currentUser) {
-                            await window.firebaseUpdateProfile(window.firebaseAuth.currentUser, { photoURL: newPhotoURL });
-                            window.firebaseUserInstance = window.firebaseAuth.currentUser;
-                        }
+                        if (progressBar) progressBar.style.width = '100%';
+                        if (progressPercent) progressPercent.textContent = '100%';
+                        if (progressText) progressText.textContent = '✅ Subido a Google Drive. ¡Haz clic en Guardar!';
 
-                        // Desmarcar selección de avatares prediseñados para que quede activa la foto
-                        clearPredesignedAvatarSelections();
-                        isCustomPhotoUploaded = true;
-
-                        // 4. Actualizar insignias de avatar en el encabezado
-                        const headerBadges = document.querySelectorAll('.user-profile-badge');
-                        headerBadges.forEach(badge => {
-                            applyAvatarToElement(badge, newPhotoURL, initials);
-                        });
-
-                        showNotification('Foto Guardada', '¡Tu foto se guardó en tu Google Drive y se aplicó a tu perfil con éxito!', 'success');
-                        if (uploadStatusDiv) {
-                            uploadStatusDiv.style.color = '#00f5d4';
-                            uploadStatusDiv.textContent = '✅ ¡Foto guardada en tu Google Drive!';
-                            setTimeout(() => { uploadStatusDiv.style.display = 'none'; }, 4000);
+                        // Mostrar el botón de guardar cambios
+                        if (confirmSaveBtn) {
+                            confirmSaveBtn.style.display = 'block';
+                            confirmSaveBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                         }
                     } else {
                         throw new Error((res && res.message) ? res.message : 'No se pudo obtener la URL de Google Drive');
@@ -2025,17 +2063,93 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
                 } catch (err) {
                     console.error('Error al subir foto de perfil a Google Drive:', err);
                     showNotification('Error de Carga', 'Ocurrió un inconveniente al guardar en Google Drive: ' + err.message, 'error');
-                    if (uploadStatusDiv) {
-                        uploadStatusDiv.style.color = '#f87171';
-                        uploadStatusDiv.textContent = '❌ Error al subir imagen a Google Drive.';
-                    }
+                    if (progressText) progressText.textContent = '❌ Error al subir a Google Drive';
+                    if (progressBar) progressBar.style.background = '#f87171';
                 } finally {
-                    uploadPhotoBtn.disabled = false;
-                    uploadPhotoBtn.style.opacity = '1';
+                    if (uploadPhotoBtn) {
+                        uploadPhotoBtn.style.pointerEvents = 'auto';
+                        uploadPhotoBtn.style.opacity = '1';
+                    }
                     uploadFileInput.value = '';
                 }
             };
             reader.readAsDataURL(file);
+        });
+    }
+
+    // Botón de Confirmación para aplicar los cambios de foto de perfil
+    if (confirmSaveBtn) {
+        confirmSaveBtn.addEventListener('click', async () => {
+            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
+            if (!user || !pendingUploadedDriveUrl) return;
+
+            confirmSaveBtn.disabled = true;
+            confirmSaveBtn.style.opacity = '0.6';
+
+            try {
+                if (window.firebaseUpdateProfile && window.firebaseAuth && window.firebaseAuth.currentUser) {
+                    await window.firebaseUpdateProfile(window.firebaseAuth.currentUser, { photoURL: pendingUploadedDriveUrl });
+                    window.firebaseUserInstance = window.firebaseAuth.currentUser;
+                }
+
+                const initials = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                if (labelAvatar) {
+                    applyAvatarToElement(labelAvatar, pendingUploadedDriveUrl, initials);
+                }
+
+                // Actualizar insignias de avatar en el encabezado
+                const headerBadges = document.querySelectorAll('.user-profile-badge');
+                headerBadges.forEach(badge => {
+                    applyAvatarToElement(badge, pendingUploadedDriveUrl, initials);
+                });
+
+                showNotification('¡Foto Actualizada!', 'Tu foto de perfil ha sido guardada y actualizada con éxito.', 'success');
+
+                confirmSaveBtn.style.display = 'none';
+                if (progressContainer) progressContainer.style.display = 'none';
+                pendingUploadedDriveUrl = '';
+
+            } catch (err) {
+                console.error("Error al actualizar la foto de perfil en Firebase:", err);
+                showNotification('Error', 'No se pudo guardar la nueva foto de perfil.', 'error');
+            } finally {
+                confirmSaveBtn.disabled = false;
+                confirmSaveBtn.style.opacity = '1';
+            }
+        });
+    }
+
+    // Botón para restablecer al avatar genérico por defecto
+    const resetDefaultAvatarBtn = profileModal.querySelector('#reset-default-avatar-btn');
+    if (resetDefaultAvatarBtn) {
+        resetDefaultAvatarBtn.addEventListener('click', async () => {
+            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
+            if (!user) return;
+
+            resetDefaultAvatarBtn.disabled = true;
+            try {
+                if (window.firebaseUpdateProfile && window.firebaseAuth && window.firebaseAuth.currentUser) {
+                    await window.firebaseUpdateProfile(window.firebaseAuth.currentUser, { photoURL: "" });
+                    window.firebaseUserInstance = window.firebaseAuth.currentUser;
+                }
+
+                const initials = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+                if (labelAvatar) {
+                    applyAvatarToElement(labelAvatar, "", initials);
+                }
+
+                const headerBadges = document.querySelectorAll('.user-profile-badge');
+                headerBadges.forEach(badge => {
+                    applyAvatarToElement(badge, "", initials);
+                });
+
+                showNotification('Avatar Genérico', 'Se ha restablecido la inicial genérica como tu avatar.', 'info');
+            } catch (err) {
+                console.error("Error al restablecer avatar:", err);
+                showNotification('Error', 'No se pudo restablecer el avatar.', 'error');
+            } finally {
+                resetDefaultAvatarBtn.disabled = false;
+            }
         });
     }
 
@@ -2383,55 +2497,7 @@ function connectFirebaseToProfile(profileUI, fb) {
         });
     }
 
-    // Al guardar avatar prediseñado (Iconos SVG)
-    if (saveAvatarBtn) {
-        saveAvatarBtn.addEventListener('click', async () => {
-            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
-            if (!user) return;
 
-            const avatar = getSelectedAvatar();
-            const color = getSelectedColor();
-
-            // Si el usuario ya subió su propia foto a Google Drive y no eligió ningún icono prediseñado
-            if (isCustomPhotoUploaded || (!avatar && !color && user.photoURL && user.photoURL.startsWith('http'))) {
-                showNotification('Foto de Perfil Activa', '¡Tu foto personalizada de Google Drive ya está guardada y activa!', 'info');
-                return;
-            }
-
-            if (!avatar || !color) {
-                showNotification('Personaliza tu Avatar', 'Por favor elige un avatar prediseñado y un color de fondo, o sube tu propia foto.', 'warning');
-                return;
-            }
-
-            saveAvatarBtn.disabled = true;
-            try {
-                const newPhotoURL = `${avatar}|${color}`;
-                await updateProfile(user, { photoURL: newPhotoURL });
-                showNotification('Avatar Actualizado', 'Tu avatar personalizado ha sido guardado con éxito.', 'success');
-
-                // Actualizar la instancia local
-                window.firebaseUserInstance = auth.currentUser;
-
-                // Forzar actualización inmediata del avatar en el modal de perfil
-                const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-                if (labelAvatar) {
-                    applyAvatarToElement(labelAvatar, newPhotoURL, initials);
-                }
-
-                // Forzar actualización inmediata en todos los encabezados del DOM
-                const headerBadges = document.querySelectorAll('.user-profile-badge');
-                headerBadges.forEach(badge => {
-                    applyAvatarToElement(badge, newPhotoURL, initials);
-                });
-
-            } catch (err) {
-                console.error("Error al guardar avatar:", err);
-                showNotification('Error', 'No se pudo guardar el avatar personalizado.', 'error');
-            } finally {
-                saveAvatarBtn.disabled = false;
-            }
-        });
-    }
 
     // Al confirmar salida en modal de cierre de sesión
     if (logoutYesBtn) {
