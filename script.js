@@ -1728,9 +1728,10 @@ document.addEventListener('click', (e) => {
                 const labelEmail = document.querySelector('#profile-user-email');
                 const labelAvatar = document.querySelector('#profile-avatar-char');
                 
+                const initials = (user.displayName || user.email).charAt(0).toUpperCase();
                 if (inputName) inputName.value = user.displayName || user.email.split('@')[0];
                 if (labelEmail) labelEmail.textContent = user.email;
-                if (labelAvatar) labelAvatar.textContent = (user.displayName || user.email).charAt(0).toUpperCase();
+                if (labelAvatar) applyAvatarToElement(labelAvatar, user.photoURL, initials);
             }
             window.openProfileModal();
         }
@@ -1799,14 +1800,24 @@ function applyAvatarToElement(element, photoURL, initials = 'U') {
         bgColor = parts[1];
     }
     
-    if (avatarKey && bgColor) {
+    // Si photoURL es una URL de imagen directa (Google Drive, Cloudinary, etc.)
+    if (photoURL && (photoURL.startsWith('http://') || photoURL.startsWith('https://') || photoURL.startsWith('data:image/'))) {
+        element.style.backgroundColor = 'transparent';
+        element.style.color = '#ffffff';
+        element.style.padding = '0';
+        element.style.overflow = 'hidden';
+        element.style.borderRadius = '50%';
+        element.style.display = 'flex';
+        element.style.alignItems = 'center';
+        element.style.justifyContent = 'center';
+        element.innerHTML = `<img src="${photoURL}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; margin: 0; padding: 0;">`;
+    } else if (avatarKey && bgColor) {
         element.style.backgroundColor = bgColor;
         element.style.color = '#ffffff';
         element.innerHTML = getAvatarSvg(avatarKey, '#ffffff');
-        // Quitar estilos de texto
         element.style.fontSize = '0';
         element.style.lineHeight = '0';
-        element.style.padding = '5px'; // Dar espacio interno para que el SVG no toque los bordes
+        element.style.padding = '5px';
         element.style.boxSizing = 'border-box';
     } else {
         // Restaurar valores por defecto (Inicial)
@@ -1917,6 +1928,117 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const avatarOptionBtns = profileModal.querySelectorAll('.avatar-option-btn');
     const colorOptionBtns = profileModal.querySelectorAll('.color-option-btn');
 
+    // Elementos de Carga de Foto a Google Drive
+    const uploadPhotoBtn = profileModal.querySelector('#custom-avatar-upload-btn');
+    const uploadFileInput = profileModal.querySelector('#custom-avatar-file-input');
+    const uploadStatusDiv = profileModal.querySelector('#custom-avatar-upload-status');
+    const GOOGLE_DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec";
+
+    if (uploadPhotoBtn && uploadFileInput) {
+        uploadPhotoBtn.addEventListener('click', () => uploadFileInput.click());
+
+        uploadFileInput.addEventListener('change', async () => {
+            const file = uploadFileInput.files[0];
+            if (!file) return;
+
+            // Validar límite máximo de 5MB por imagen
+            if (file.size > 5 * 1024 * 1024) {
+                showNotification('Archivo muy grande', 'La foto de perfil no debe superar los 5 MB.', 'warning');
+                uploadFileInput.value = '';
+                return;
+            }
+
+            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
+            if (!user) {
+                showNotification('Sesión requerida', 'Debes iniciar sesión para actualizar tu foto de perfil.', 'warning');
+                return;
+            }
+
+            uploadPhotoBtn.disabled = true;
+            uploadPhotoBtn.style.opacity = '0.6';
+            if (uploadStatusDiv) {
+                uploadStatusDiv.style.display = 'block';
+                uploadStatusDiv.style.color = '#00f5d4';
+                uploadStatusDiv.textContent = '⏳ Subiendo foto a tu Google Drive...';
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const localDataUrl = reader.result;
+                const initials = (user.displayName || user.email || 'U').charAt(0).toUpperCase();
+
+                // 1. Mostrar vista previa visual inmediata en el círculo del perfil
+                if (labelAvatar) {
+                    applyAvatarToElement(labelAvatar, localDataUrl, initials);
+                }
+
+                try {
+                    const base64Data = localDataUrl.split(',')[1];
+                    const extension = file.name.split('.').pop() || 'jpg';
+
+                    // 2. Enviar a Google Apps Script usando URLSearchParams (altamente compatible)
+                    const postParams = new URLSearchParams();
+                    postParams.append('base64', base64Data);
+                    postParams.append('mimeType', file.type || 'image/jpeg');
+                    postParams.append('filename', `avatar_${user.uid || 'user'}_${Date.now()}.${extension}`);
+                    postParams.append('userName', user.displayName || user.email.split('@')[0]);
+                    postParams.append('userEmail', user.email || 'usuario_anonimo');
+
+                    console.log("[Google Drive Upload] Enviando imagen a Google Apps Script...");
+
+                    const response = await fetch(GOOGLE_DRIVE_UPLOAD_URL, {
+                        method: 'POST',
+                        body: postParams
+                    });
+
+                    const res = await response.json();
+                    console.log("[Google Drive Upload] Respuesta del servidor:", res);
+
+                    if (res && res.status === 'success' && res.fileUrl) {
+                        const newPhotoURL = res.fileUrl;
+                        
+                        // 3. Guardar enlace público de Google Drive en Firebase photoURL
+                        if (window.firebaseUpdateProfile && window.firebaseAuth && window.firebaseAuth.currentUser) {
+                            await window.firebaseUpdateProfile(window.firebaseAuth.currentUser, { photoURL: newPhotoURL });
+                            window.firebaseUserInstance = window.firebaseAuth.currentUser;
+                        }
+
+                        // Desmarcar selección de avatares prediseñados para que quede activa la foto
+                        clearPredesignedAvatarSelections();
+                        isCustomPhotoUploaded = true;
+
+                        // 4. Actualizar insignias de avatar en el encabezado
+                        const headerBadges = document.querySelectorAll('.user-profile-badge');
+                        headerBadges.forEach(badge => {
+                            applyAvatarToElement(badge, newPhotoURL, initials);
+                        });
+
+                        showNotification('Foto Guardada', '¡Tu foto se guardó en tu Google Drive y se aplicó a tu perfil con éxito!', 'success');
+                        if (uploadStatusDiv) {
+                            uploadStatusDiv.style.color = '#00f5d4';
+                            uploadStatusDiv.textContent = '✅ ¡Foto guardada en tu Google Drive!';
+                            setTimeout(() => { uploadStatusDiv.style.display = 'none'; }, 4000);
+                        }
+                    } else {
+                        throw new Error((res && res.message) ? res.message : 'No se pudo obtener la URL de Google Drive');
+                    }
+                } catch (err) {
+                    console.error('Error al subir foto de perfil a Google Drive:', err);
+                    showNotification('Error de Carga', 'Ocurrió un inconveniente al guardar en Google Drive: ' + err.message, 'error');
+                    if (uploadStatusDiv) {
+                        uploadStatusDiv.style.color = '#f87171';
+                        uploadStatusDiv.textContent = '❌ Error al subir imagen a Google Drive.';
+                    }
+                } finally {
+                    uploadPhotoBtn.disabled = false;
+                    uploadPhotoBtn.style.opacity = '1';
+                    uploadFileInput.value = '';
+                }
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
     // Ocultar botón de favoritos si no estamos en sensunshop
     const favoritesBtn = profileModal.querySelector('#profile-favorites-btn');
     if (favoritesBtn) {
@@ -1931,9 +2053,24 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
 
     let selectedAvatar = '';
     let selectedColor = '';
+    let isCustomPhotoUploaded = false;
+
+    function clearPredesignedAvatarSelections() {
+        avatarOptionBtns.forEach(b => {
+            b.style.borderColor = 'rgba(255,255,255,0.1)';
+            b.style.background = 'rgba(255,255,255,0.05)';
+        });
+        colorOptionBtns.forEach(b => {
+            b.style.transform = 'scale(1)';
+            b.style.borderColor = 'transparent';
+        });
+        selectedAvatar = '';
+        selectedColor = '';
+    }
 
     avatarOptionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            isCustomPhotoUploaded = false;
             avatarOptionBtns.forEach(b => {
                 b.style.borderColor = 'rgba(255,255,255,0.1)';
                 b.style.background = 'rgba(255,255,255,0.05)';
@@ -1946,6 +2083,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
 
     colorOptionBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            isCustomPhotoUploaded = false;
             colorOptionBtns.forEach(b => {
                 b.style.transform = 'scale(1)';
                 b.style.borderColor = 'transparent';
@@ -2034,6 +2172,14 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     // Funciones del modal de Perfil
     function openProfile() {
         resetEditState();
+        const user = window.firebaseUserInstance;
+        if (user) {
+            const initials = (user.displayName || user.email).charAt(0).toUpperCase();
+            if (inputName) inputName.value = user.displayName || user.email.split('@')[0];
+            if (labelEmail) labelEmail.textContent = user.email;
+            if (labelAvatar) applyAvatarToElement(labelAvatar, user.photoURL, initials);
+            setSelectedAvatarUI(user.photoURL);
+        }
         profileModal.classList.add('active');
         window.updateBodyScroll();
     }
@@ -2155,6 +2301,8 @@ function connectFirebaseToProfile(profileUI, fb) {
         signOut
     } = fb;
 
+    window.firebaseUpdateProfile = updateProfile;
+
     const { 
         inputName, 
         saveNameBtn, 
@@ -2235,17 +2383,23 @@ function connectFirebaseToProfile(profileUI, fb) {
         });
     }
 
-    // Al guardar avatar personalizado
+    // Al guardar avatar prediseñado (Iconos SVG)
     if (saveAvatarBtn) {
         saveAvatarBtn.addEventListener('click', async () => {
-            const user = auth.currentUser;
+            const user = (window.firebaseAuth && window.firebaseAuth.currentUser) || window.firebaseUserInstance;
             if (!user) return;
 
             const avatar = getSelectedAvatar();
             const color = getSelectedColor();
 
+            // Si el usuario ya subió su propia foto a Google Drive y no eligió ningún icono prediseñado
+            if (isCustomPhotoUploaded || (!avatar && !color && user.photoURL && user.photoURL.startsWith('http'))) {
+                showNotification('Foto de Perfil Activa', '¡Tu foto personalizada de Google Drive ya está guardada y activa!', 'info');
+                return;
+            }
+
             if (!avatar || !color) {
-                showNotification('Personaliza tu Avatar', 'Por favor elige un avatar y un color de fondo.', 'warning');
+                showNotification('Personaliza tu Avatar', 'Por favor elige un avatar prediseñado y un color de fondo, o sube tu propia foto.', 'warning');
                 return;
             }
 
