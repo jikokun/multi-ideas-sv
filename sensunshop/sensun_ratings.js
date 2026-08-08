@@ -71,7 +71,7 @@ const styles = `
     .rating-auth-modal {
         position: fixed;
         inset: 0;
-        z-index: 100;
+        z-index: 25000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -658,25 +658,26 @@ const styles = `
         width: 36px;
         height: 36px;
         border-radius: 50%;
-        background: rgba(10, 13, 20, 0.75);
+        background: rgba(10, 13, 20, 0.85);
         backdrop-filter: blur(8px);
         -webkit-backdrop-filter: blur(8px);
-        border: 1px solid rgba(255, 255, 255, 0.15);
-        color: rgba(255, 255, 255, 0.8);
-        font-size: 1.3rem;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 1.4rem;
         line-height: 1;
         cursor: pointer;
         display: flex;
         align-items: center;
         justify-content: center;
         transition: all 0.2s ease;
-        z-index: 30;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        z-index: 9999 !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+        pointer-events: auto !important;
     }
     .card-expand-close-btn:hover {
-        background: rgba(234, 67, 53, 0.85);
+        background: rgba(234, 67, 53, 0.95);
         color: #ffffff;
-        border-color: rgba(234, 67, 53, 0.9);
+        border-color: rgba(234, 67, 53, 1);
         transform: scale(1.1);
     }
     .card-expand-modal-card .producto-card,
@@ -807,7 +808,7 @@ const styles = `
     .comments-modal {
         position: fixed;
         inset: 0;
-        z-index: 999;
+        z-index: 15000;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -2341,7 +2342,7 @@ function initTagsCarousel() {
     });
 }
 
-// Inicializar Modal de Ficha Ampliada (Zoom al tocar Título o Descripción en la cartelera principal)
+// Inicializar Modal de Ficha Ampliada (Perfil de negocio flotante al tocar Imagen, Título o Descripción en la cartelera)
 function initCardExpandModal() {
     let modal = document.getElementById("card-expand-modal");
     if (!modal) {
@@ -2350,15 +2351,71 @@ function initCardExpandModal() {
         modal.className = "card-expand-modal-overlay";
         modal.innerHTML = `
             <div class="card-expand-modal-card">
-                <button class="card-expand-close-btn" aria-label="Cerrar">&times;</button>
                 <div class="card-expand-modal-body"></div>
+                <button type="button" class="card-expand-close-btn" id="card-expand-close-btn-el" aria-label="Cerrar">&times;</button>
             </div>
         `;
         document.body.appendChild(modal);
 
         modal.addEventListener("click", (e) => {
-            if (e.target === modal || e.target.closest(".card-expand-close-btn")) {
+            // 1. Cerrar al tocar backdrop o botón X (circulo)
+            const closeBtn = e.target.closest(".card-expand-close-btn, #card-expand-close-btn-el");
+            if (e.target === modal || closeBtn) {
+                e.preventDefault();
+                e.stopPropagation();
                 modal.classList.remove("active");
+                return;
+            }
+
+            // 2. Tocar Botón de Comentarios (💬) dentro del perfil flotante -> Abrir modal de comentarios
+            const commentBtn = e.target.closest(".compact-comment-circle-btn, .btn-comment, .comment-trigger-btn");
+            if (commentBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const clonedCard = modal.querySelector(".producto-card, .negocio-card");
+                const ratingWidget = clonedCard ? clonedCard.querySelector(".sensun-rating-widget") : null;
+                let businessId = commentBtn.dataset.businessId || (clonedCard ? clonedCard.dataset.businessId : null) || (ratingWidget ? ratingWidget.dataset.businessId : null);
+                const titleEl = clonedCard ? clonedCard.querySelector("h3") : null;
+                const titleText = titleEl ? titleEl.textContent.trim() : "";
+                
+                if (!businessId && titleText) {
+                    businessId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                }
+                if (businessId) {
+                    openCommentsModal(businessId, titleText);
+                }
+                return;
+            }
+
+            // 3. Tocar Botón de Favorito (★) dentro del perfil flotante -> Alternar favorito
+            const favBtn = e.target.closest(".favorite-toggle-btn, .btn-favorite");
+            if (favBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const clonedCard = modal.querySelector(".producto-card, .negocio-card");
+                const ratingWidget = clonedCard ? clonedCard.querySelector(".sensun-rating-widget") : null;
+                let businessId = favBtn.dataset.businessId || (clonedCard ? clonedCard.dataset.businessId : null) || (ratingWidget ? ratingWidget.dataset.businessId : null);
+                if (!businessId && clonedCard && clonedCard.id) {
+                    businessId = clonedCard.id.toLowerCase();
+                }
+                if (businessId) {
+                    toggleFavorite(businessId);
+                }
+                return;
+            }
+
+            // 4. Tocar FOTO dentro del perfil flotante -> Ampliar foto en Lightbox
+            const img = e.target.closest(".producto-img img, .producto-foto, img.main-card-img, img");
+            const isInteractiveBtn = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn");
+            if (img && !isInteractiveBtn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const lightbox = document.getElementById("sensun-image-lightbox");
+                const src = img.getAttribute("src");
+                if (src && lightbox) {
+                    openImageLightbox(src, img.getAttribute("alt") || "Imagen ampliada del negocio", lightbox);
+                }
+                return;
             }
         });
 
@@ -2369,25 +2426,20 @@ function initCardExpandModal() {
         });
     }
 
-    // Delegación de eventos estricta en la cartelera principal (#negocios-container o .negocios-grid-section)
+    // Delegación de eventos en las tarjetas de la cartelera del catálogo
     document.addEventListener("click", (e) => {
-        // FILTRO ESTRICTO: Solo se activa en la cartelera/cuadrícula principal del catálogo
-        const gridContainer = e.target.closest("#negocios-container, .negocios-grid-section");
-        if (!gridContainer) return; // Se ignoran Novedades (slider), Boletines, etc.
+        // Ignorar si el clic ocurrió DENTRO de un modal flotante abierto
+        if (e.target.closest("#card-expand-modal, #sensun-comments-modal, #sensun-image-lightbox")) return;
 
         const card = e.target.closest(".producto-card, .negocio-card");
         if (!card) return;
 
-        // Comprobar si el clic fue en el Título (h3) o en la Breve Info (p)
-        const isHeading = e.target.closest("h3");
-        const isParagraph = e.target.closest("p");
+        // Comprobar si el clic fue en un elemento interactivo directo
+        const isInteractive = e.target.closest("a, button, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn");
+        if (isInteractive) return;
 
-        // Excluir elementos interactivos como enlaces, WhatsApp, Ubicación, Favoritos, Reseñas o Tags
-        const isInteractive = e.target.closest("a, button, .sensun-rating-widget, .tag, .favorite-toggle-btn, .comment-trigger-btn");
-
-        if ((isHeading || isParagraph) && !isInteractive) {
-            openCardExpandModal(card, modal);
-        }
+        // Abrir el perfil flotante / Ficha Ampliada al tocar la imagen, el título, la descripción o la tarjeta
+        openCardExpandModal(card, modal);
     });
 }
 
@@ -2396,23 +2448,61 @@ function openCardExpandModal(card, modal) {
     if (!modalBody) return;
 
     const clonedCard = card.cloneNode(true);
+    const originalId = card.id ? card.id.toLowerCase() : "";
     clonedCard.removeAttribute("id");
 
+    const ratingWidget = clonedCard.querySelector(".sensun-rating-widget");
+    let businessId = card.dataset.businessId || clonedCard.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null) || originalId;
+    const titleEl = clonedCard.querySelector("h3");
+    const titleText = titleEl ? titleEl.textContent.trim() : "";
+
+    if (!businessId && titleText) {
+        businessId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    }
+
+    if (businessId) {
+        clonedCard.dataset.businessId = businessId;
+    }
+
+    // Asegurar que el párrafo de descripción muestre el texto completo
     const clonedP = clonedCard.querySelector("p");
     if (clonedP) {
         clonedP.style.webkitLineClamp = "unset";
+        clonedP.style.lineClamp = "unset";
         clonedP.style.display = "block";
         clonedP.style.overflow = "visible";
+    }
+
+    // Mantener la sincronización en tiempo real del contador de comentarios en el modal
+    const commentBtn = clonedCard.querySelector(".compact-comment-circle-btn");
+    if (commentBtn && businessId) {
+        commentBtn.dataset.businessId = businessId;
+        const countBadge = commentBtn.querySelector(".comment-micro-badge");
+        if (countBadge) {
+            const commentsRef = ref(rtdb, `comments/${businessId}`);
+            onValue(commentsRef, (snapshot) => {
+                const val = snapshot.val() || {};
+                const count = Object.keys(val).length;
+                if (countBadge) countBadge.textContent = count;
+            });
+        }
+    }
+
+    // Mantener sincronizado el botón de favorito en el modal
+    const favBtn = clonedCard.querySelector(".favorite-toggle-btn");
+    if (favBtn && businessId) {
+        favBtn.dataset.businessId = businessId;
     }
 
     modalBody.innerHTML = "";
     modalBody.appendChild(clonedCard);
     modal.classList.add("active");
+    syncFavoritesUI();
 }
 
 window.initCardExpandModal = initCardExpandModal;
 
-// Inicializar Modal de Imagen Ampliada (Lightbox al tocar Foto/Logo)
+// Inicializar Modal de Imagen Ampliada (Lightbox)
 function initImageLightboxModal() {
     let lightbox = document.getElementById("sensun-image-lightbox");
     if (!lightbox) {
@@ -2440,12 +2530,20 @@ function initImageLightboxModal() {
         });
     }
 
-    // Escuchar clics en fotos o logotipos dentro de tarjetas de negocio o sliders
+    // Escuchar clics en imágenes fuera del perfil flotante (para páginas o elementos fuera de carteleras)
     document.addEventListener("click", (e) => {
         const img = e.target.closest(".producto-img img, .slider-card-img img, .producto-foto");
         if (!img) return;
 
-        // Ignorar si el clic fue en botones interactivos (como el botón de favorito ★)
+        // Si la imagen pertenece a una tarjeta de la cartelera y NO estamos dentro del perfil flotante,
+        // ignorar aquí ya que la cartelera abrirá el perfil flotante (#card-expand-modal)
+        const inExpandModal = e.target.closest("#card-expand-modal");
+        const inGridCard = e.target.closest(".producto-card, .negocio-card");
+
+        if (inGridCard && !inExpandModal) {
+            return;
+        }
+
         const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite");
         if (isInteractive) return;
 
@@ -2457,12 +2555,14 @@ function initImageLightboxModal() {
 }
 
 function openImageLightbox(src, alt, lightbox) {
-    const imgEl = lightbox.querySelector("#image-lightbox-img-el");
+    const lb = lightbox || document.getElementById("sensun-image-lightbox");
+    if (!lb) return;
+    const imgEl = lb.querySelector("#image-lightbox-img-el");
     if (!imgEl) return;
 
     imgEl.src = src;
     imgEl.alt = alt || "Imagen ampliada del negocio";
-    lightbox.classList.add("active");
+    lb.classList.add("active");
 }
 
 window.initImageLightboxModal = initImageLightboxModal;

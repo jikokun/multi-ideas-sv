@@ -181,13 +181,17 @@ Dado que en las carteleras principales del catálogo las descripciones cortas es
 
 ### 4.2 Reglas de Activación y Disparadores:
 * **Disparadores Válidos**:
+  - Clic / Tap sobre la **Foto / Imagen del Negocio** (`.producto-img` / `<img>`).
   - Clic / Tap sobre el **Título / Nombre del Cliente** (`<h3>`).
   - Clic / Tap sobre la **Breve Información / Descripción** (`<p>`).
 * **Ámbito Estricto de Aplicación**:
-  - **Solo aplica** en las carteleras/cuadrículas principales del catálogo (`#negocios-container` / `.negocios-grid-section`) en todas las categorías (Emprendedores, Negocios Locales, Servicios Profesionales y Oficios).
-  - **NO aplica** en subsecciones como "Recién Llegados" (sliders/novedades) ni en boletines informativos.
-* **Exclusión de Elementos Interactivos**:
-  - Los clics sobre los botones de **WhatsApp**, **Ubicación**, **Detalles**, **Favoritos (★)**, **Ratings/Comentarios** o **Etiquetas** NO abren el modal de zoom, sino que ejecutan su acción directa correspondiente.
+  - Aplica en las carteleras del catálogo en todas las categorías (Emprendedores, Negocios Locales, Servicios Profesionales y Oficios).
+* **Exclusión de Elementos Interactivos Directos**:
+  - Los clics sobre los botones directos de **WhatsApp**, **Ubicación**, **Detalles**, **Favoritos (★)** o **Comentarios (💬)** en la tarjeta de la cartelera ejecutan su acción directa correspondiente.
+* **Interactividad Completa dentro del Perfil Flotante (Modal Ampliado)**:
+  - **Ampliar Fotos**: Al tocar la fotografía dentro del perfil flotante, se activa el visor de imagen ampliada (*Lightbox*).
+  - **Botón de Comentar**: El botón flotante de comentarios (`💬`) dentro del perfil flotante despliega el modal de comentarios en tiempo real.
+  - **Botón de Favoritos y Enlaces**: Permite alternar favoritos y navegar a WhatsApp, Ubicación o Detalles directamente desde la ventana flotante.
 
 ### 4.3 Características Visuales y Funcionales del Modal Ampliado:
 * **Fondo Glassmorphism**: Capa oscura traslúcida con desenfoque (`backdrop-filter: blur(16px); background: rgba(8, 10, 15, 0.85);`).
