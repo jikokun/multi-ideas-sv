@@ -2435,12 +2435,158 @@ function initCardExpandModal() {
         if (!card) return;
 
         // Comprobar si el clic fue en un elemento interactivo directo
-        const isInteractive = e.target.closest("a, button, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn");
+        const isInteractive = e.target.closest("a, button, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn, .share-card-btn");
         if (isInteractive) return;
 
         // Abrir el perfil flotante / Ficha Ampliada al tocar la imagen, el título, la descripción o la tarjeta
         openCardExpandModal(card, modal);
     });
+}
+
+// Inyección y Lógica para Botones de Compartir (Anclas de Objetos)
+function injectShareButtons() {
+    const cards = document.querySelectorAll(".producto-card, .negocio-card, .slider-card");
+    cards.forEach((card) => {
+        const h3 = card.querySelector(".producto-info h3, .slider-card-content h3, h3");
+        if (!h3 || h3.querySelector(".share-card-btn")) return;
+
+        const ratingWidget = card.querySelector(".sensun-rating-widget");
+        const titleText = h3.textContent.replace("✓", "").trim();
+        let bizId = card.id || card.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null);
+        if (!bizId && titleText) {
+            bizId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+        }
+
+        if (!card.id && bizId) {
+            card.id = bizId;
+        }
+
+        const shareBtn = document.createElement("button");
+        shareBtn.type = "button";
+        shareBtn.className = "share-card-btn";
+        shareBtn.title = "Compartir este negocio";
+        shareBtn.dataset.bizId = bizId || "";
+        shareBtn.innerHTML = `
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+            </svg>
+        `;
+        h3.appendChild(shareBtn);
+    });
+}
+
+// Escuchador global para copiar enlace o compartir vía Web Share API
+document.addEventListener("click", async (e) => {
+    const shareBtn = e.target.closest(".share-card-btn");
+    if (!shareBtn) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const card = shareBtn.closest(".producto-card, .negocio-card, .slider-card");
+    const ratingWidget = card ? card.querySelector(".sensun-rating-widget") : null;
+    const titleEl = card ? card.querySelector("h3") : null;
+    let titleText = titleEl ? titleEl.textContent.replace("✓", "").trim() : "Negocio";
+
+    let bizId = shareBtn.dataset.bizId || (card ? card.id : null) || (card ? card.dataset.businessId : null) || (ratingWidget ? ratingWidget.dataset.businessId : null);
+    if (!bizId && titleText) {
+        bizId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    }
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("biz", bizId);
+    url.hash = bizId;
+    const shareUrl = url.toString();
+
+    if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        try {
+            await navigator.share({
+                title: titleText,
+                text: `Mira la ficha de ${titleText} en Sensun Shop:`,
+                url: shareUrl
+            });
+            return;
+        } catch (err) {
+            // Respaldar a copiar
+        }
+    }
+
+    try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(shareUrl);
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = shareUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand("copy");
+            document.body.removeChild(textArea);
+        }
+
+        shareBtn.classList.add("copied");
+        const originalTitle = shareBtn.title;
+        shareBtn.title = "¡Enlace copiado!";
+
+        if (typeof window.showNotification === "function") {
+            window.showNotification("¡Enlace Copiado!", `Se copió el enlace directo de ${titleText} al portapapeles.`, "success");
+        } else if (typeof window.showToast === "function") {
+            window.showToast("¡Enlace copiado al portapapeles!");
+        } else {
+            alert(`¡Enlace copiado al portapapeles!\n${shareUrl}`);
+        }
+
+        setTimeout(() => {
+            shareBtn.classList.remove("copied");
+            shareBtn.title = originalTitle;
+        }, 2500);
+    } catch (err) {
+        console.error("Error al copiar enlace:", err);
+    }
+});
+
+// Manejo de Ancla Directa al Cargar la Página (Lleva directamente a la ficha y ABRIR la ventana flotante)
+function handleDirectBusinessAnchor() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const bizParam = urlParams.get("biz") || window.location.hash.replace("#", "");
+    if (!bizParam) return;
+
+    const cleanSlug = bizParam.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+    if (!cleanSlug) return;
+
+    const findTargetCard = () => {
+        let targetCard = document.getElementById(bizParam) || document.getElementById(cleanSlug);
+        if (!targetCard) {
+            targetCard = document.querySelector(`[data-business-id="${bizParam}"], [data-business-id="${cleanSlug}"]`);
+        }
+        if (!targetCard) {
+            const allCards = document.querySelectorAll(".producto-card, .negocio-card");
+            for (const c of allCards) {
+                const h3 = c.querySelector("h3");
+                const widget = c.querySelector(".sensun-rating-widget");
+                const wId = widget ? widget.dataset.businessId : null;
+                const tSlug = h3 ? h3.textContent.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : "";
+                if ((c.id && c.id.toLowerCase() === cleanSlug) || wId === cleanSlug || tSlug === cleanSlug) {
+                    targetCard = c;
+                    break;
+                }
+            }
+        }
+        return targetCard;
+    };
+
+    setTimeout(() => {
+        const targetCard = findTargetCard();
+        if (targetCard) {
+            targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+
+            targetCard.classList.add("card-anchor-highlight");
+            setTimeout(() => targetCard.classList.remove("card-anchor-highlight"), 3500);
+
+            const modal = document.getElementById("card-expand-modal");
+            if (modal && typeof openCardExpandModal === "function") {
+                openCardExpandModal(targetCard, modal);
+            }
+        }
+    }, 500);
 }
 
 function openCardExpandModal(card, modal) {
@@ -2454,7 +2600,7 @@ function openCardExpandModal(card, modal) {
     const ratingWidget = clonedCard.querySelector(".sensun-rating-widget");
     let businessId = card.dataset.businessId || clonedCard.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null) || originalId;
     const titleEl = clonedCard.querySelector("h3");
-    const titleText = titleEl ? titleEl.textContent.trim() : "";
+    const titleText = titleEl ? titleEl.textContent.replace("✓", "").trim() : "";
 
     if (!businessId && titleText) {
         businessId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
@@ -2471,6 +2617,63 @@ function openCardExpandModal(card, modal) {
         clonedP.style.lineClamp = "unset";
         clonedP.style.display = "block";
         clonedP.style.overflow = "visible";
+    }
+
+    // Configurar carrusel con flechas activas dentro del modal ampliado
+    const container = clonedCard.querySelector(".producto-img");
+    if (container) {
+        const track = container.querySelector(".card-carousel-track");
+        const slides = track ? track.querySelectorAll("img") : [];
+        if (slides.length > 1) {
+            container.querySelectorAll(".card-car-btn").forEach(b => b.remove());
+
+            const prevBtn = document.createElement("button");
+            prevBtn.type = "button";
+            prevBtn.className = "card-car-btn prev";
+            prevBtn.setAttribute("aria-label", "Foto anterior");
+            prevBtn.innerHTML = "&lsaquo;";
+
+            const nextBtn = document.createElement("button");
+            nextBtn.type = "button";
+            nextBtn.className = "card-car-btn next";
+            nextBtn.setAttribute("aria-label", "Foto siguiente");
+            nextBtn.innerHTML = "&rsaquo;";
+
+            container.appendChild(prevBtn);
+            container.appendChild(nextBtn);
+
+            let currentIndex = parseInt(container.dataset.currentIndex || "0");
+            const updateSlide = (newIndex) => {
+                currentIndex = (newIndex + slides.length) % slides.length;
+                container.dataset.currentIndex = currentIndex;
+                track.style.transform = `translateX(-${currentIndex * 100}%)`;
+
+                const dots = container.querySelectorAll(".card-dot");
+                dots.forEach((dot, idx) => {
+                    if (idx === currentIndex) {
+                        dot.style.background = "#f39c12";
+                        dot.style.width = "16px";
+                        dot.style.borderRadius = "4px";
+                    } else {
+                        dot.style.background = "rgba(255,255,255,0.6)";
+                        dot.style.width = "7px";
+                        dot.style.borderRadius = "50%";
+                    }
+                });
+            };
+
+            prevBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateSlide(currentIndex - 1);
+            });
+
+            nextBtn.addEventListener("click", (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                updateSlide(currentIndex + 1);
+            });
+        }
     }
 
     // Mantener la sincronización en tiempo real del contador de comentarios en el modal
@@ -2501,6 +2704,8 @@ function openCardExpandModal(card, modal) {
 }
 
 window.initCardExpandModal = initCardExpandModal;
+window.injectShareButtons = injectShareButtons;
+window.handleDirectBusinessAnchor = handleDirectBusinessAnchor;
 
 // Inicializar Modal de Imagen Ampliada (Lightbox)
 function initImageLightboxModal() {
@@ -2535,8 +2740,6 @@ function initImageLightboxModal() {
         const img = e.target.closest(".producto-img img, .slider-card-img img, .producto-foto");
         if (!img) return;
 
-        // Si la imagen pertenece a una tarjeta de la cartelera y NO estamos dentro del perfil flotante,
-        // ignorar aquí ya que la cartelera abrirá el perfil flotante (#card-expand-modal)
         const inExpandModal = e.target.closest("#card-expand-modal");
         const inGridCard = e.target.closest(".producto-card, .negocio-card");
 
@@ -2544,7 +2747,7 @@ function initImageLightboxModal() {
             return;
         }
 
-        const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite");
+        const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .share-card-btn");
         if (isInteractive) return;
 
         const src = img.getAttribute("src");
@@ -2571,15 +2774,19 @@ window.initImageLightboxModal = initImageLightboxModal;
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         injectCommentButtons();
+        injectShareButtons();
         initTagsCarousel();
         initCardExpandModal();
         initImageLightboxModal();
+        handleDirectBusinessAnchor();
     });
 } else {
     injectCommentButtons();
+    injectShareButtons();
     initTagsCarousel();
     initCardExpandModal();
     initImageLightboxModal();
+    handleDirectBusinessAnchor();
 }
 
 
