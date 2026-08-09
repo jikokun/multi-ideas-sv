@@ -2404,10 +2404,12 @@ function initCardExpandModal() {
                 return;
             }
 
-            // 4. Tocar FOTO dentro del perfil flotante -> Ampliar foto en Lightbox
-            const img = e.target.closest(".producto-img img, .producto-foto, img.main-card-img, img");
-            const isInteractiveBtn = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn");
-            if (img && !isInteractiveBtn) {
+            // 4. Tocar FOTO dentro del perfil flotante -> Ampliar foto en Lightbox (Ignorar si se tocó un botón de control o flechas del carrusel)
+            const isControlBtn = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .compact-comment-circle-btn, .share-card-btn, .card-car-btn, .card-car-dots, .card-dot, .btn-negocio");
+            if (isControlBtn) return;
+
+            const img = e.target.closest("img");
+            if (img) {
                 e.preventDefault();
                 e.stopPropagation();
                 const lightbox = document.getElementById("sensun-image-lightbox");
@@ -2723,7 +2725,10 @@ function initImageLightboxModal() {
         document.body.appendChild(lightbox);
 
         lightbox.addEventListener("click", (e) => {
-            if (e.target === lightbox || e.target.closest("#image-lightbox-close-btn")) {
+            const isImg = e.target.closest(".image-lightbox-img, #image-lightbox-img-el");
+            if (!isImg || e.target.closest("#image-lightbox-close-btn")) {
+                e.preventDefault();
+                e.stopPropagation();
                 lightbox.classList.remove("active");
             }
         });
@@ -2735,8 +2740,11 @@ function initImageLightboxModal() {
         });
     }
 
-    // Escuchar clics en imágenes fuera del perfil flotante (para páginas o elementos fuera de carteleras)
+    // Escuchar clics en imágenes fuera del perfil flotante
     document.addEventListener("click", (e) => {
+        const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .share-card-btn, .card-car-btn, .card-car-dots, .card-dot, .btn-negocio");
+        if (isInteractive) return;
+
         const img = e.target.closest(".producto-img img, .slider-card-img img, .producto-foto");
         if (!img) return;
 
@@ -2746,9 +2754,6 @@ function initImageLightboxModal() {
         if (inGridCard && !inExpandModal) {
             return;
         }
-
-        const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .share-card-btn");
-        if (isInteractive) return;
 
         const src = img.getAttribute("src");
         if (!src) return;
