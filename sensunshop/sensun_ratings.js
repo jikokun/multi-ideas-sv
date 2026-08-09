@@ -617,7 +617,7 @@ const styles = `
         position: fixed;
         inset: 0;
         z-index: 10000;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         background: rgba(8, 10, 15, 0.85);
@@ -626,11 +626,12 @@ const styles = `
         padding: 20px;
         opacity: 0;
         pointer-events: none;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .card-expand-modal-overlay.active {
-        opacity: 1;
-        pointer-events: auto;
+        display: flex !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
     .card-expand-modal-card {
         background: #121724;
@@ -733,7 +734,7 @@ const styles = `
         position: fixed;
         inset: 0;
         z-index: 20000;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
         background: rgba(5, 7, 12, 0.92);
@@ -742,11 +743,12 @@ const styles = `
         padding: 20px;
         opacity: 0;
         pointer-events: none;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
     }
     .image-lightbox-modal.active {
-        opacity: 1;
-        pointer-events: auto;
+        display: flex !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
     }
     .image-lightbox-container {
         position: relative;
@@ -2357,13 +2359,22 @@ function initCardExpandModal() {
         `;
         document.body.appendChild(modal);
 
+        const closeCardExpandModal = () => {
+            modal.classList.remove("active");
+            setTimeout(() => {
+                if (!modal.classList.contains("active")) {
+                    modal.style.display = "none";
+                }
+            }, 250);
+        };
+
         modal.addEventListener("click", (e) => {
             // 1. Cerrar al tocar backdrop o botón X (circulo)
             const closeBtn = e.target.closest(".card-expand-close-btn, #card-expand-close-btn-el");
             if (e.target === modal || closeBtn) {
                 e.preventDefault();
                 e.stopPropagation();
-                modal.classList.remove("active");
+                closeCardExpandModal();
                 return;
             }
 
@@ -2423,7 +2434,7 @@ function initCardExpandModal() {
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && modal.classList.contains("active")) {
-                modal.classList.remove("active");
+                closeCardExpandModal();
             }
         });
     }
@@ -2701,6 +2712,8 @@ function openCardExpandModal(card, modal) {
 
     modalBody.innerHTML = "";
     modalBody.appendChild(clonedCard);
+    modal.style.display = "flex";
+    modal.offsetHeight;
     modal.classList.add("active");
     syncFavoritesUI();
 }
@@ -2724,18 +2737,27 @@ function initImageLightboxModal() {
         `;
         document.body.appendChild(lightbox);
 
+        const closeLightbox = () => {
+            lightbox.classList.remove("active");
+            setTimeout(() => {
+                if (!lightbox.classList.contains("active")) {
+                    lightbox.style.display = "none";
+                }
+            }, 250);
+        };
+
         lightbox.addEventListener("click", (e) => {
             const isImg = e.target.closest(".image-lightbox-img, #image-lightbox-img-el");
             if (!isImg || e.target.closest("#image-lightbox-close-btn")) {
                 e.preventDefault();
                 e.stopPropagation();
-                lightbox.classList.remove("active");
+                closeLightbox();
             }
         });
 
         document.addEventListener("keydown", (e) => {
             if (e.key === "Escape" && lightbox.classList.contains("active")) {
-                lightbox.classList.remove("active");
+                closeLightbox();
             }
         });
     }
@@ -2770,6 +2792,8 @@ function openImageLightbox(src, alt, lightbox) {
 
     imgEl.src = src;
     imgEl.alt = alt || "Imagen ampliada del negocio";
+    lb.style.display = "flex";
+    lb.offsetHeight;
     lb.classList.add("active");
 }
 
