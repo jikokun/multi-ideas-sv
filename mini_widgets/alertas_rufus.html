@@ -431,7 +431,6 @@
       if (!cleanUrl) return '';
 
       // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
-      // Ej: https://www.myinstants.com/es/instant/actually-good-fahhhh-sfx-34105/?utm_source=... -> https://www.myinstants.com/media/sounds/actually-good-fahhhh-sfx.mp3
       if (cleanUrl.includes('myinstants.com')) {
         if (cleanUrl.includes('/media/sounds/')) {
           return cleanUrl.split('?')[0];
@@ -441,6 +440,14 @@
           const fullSlug = match[1];
           const slugWithoutId = fullSlug.replace(/-\d+$/, '');
           return `https://www.myinstants.com/media/sounds/${slugWithoutId}.mp3`;
+        }
+      }
+
+      // 2. Convertir enlaces compartidos de Google Drive a Streamer/Audio MP3
+      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file')) {
+        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+        if (fileIdMatch && fileIdMatch[1]) {
+          return `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
         }
       }
 
