@@ -1163,6 +1163,11 @@
       let cleanUrl = url.trim();
       if (!cleanUrl) return '';
 
+      // Data URLs (Archivos locales procesados en base64) son válidos directamente
+      if (cleanUrl.startsWith('data:audio/')) {
+        return cleanUrl;
+      }
+
       // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
       if (cleanUrl.includes('myinstants.com')) {
         if (cleanUrl.includes('/media/sounds/')) {
@@ -1176,15 +1181,27 @@
         }
       }
 
-      // 2. Convertir enlaces compartidos de Google Drive a Streamer/Audio MP3
-      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file')) {
-        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i);
+      // 2. Convertir enlaces de Google Drive a URL de reproducción directa CDN (lh3 stream)
+      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file') || cleanUrl.includes('googleusercontent.com')) {
+        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/i);
         if (fileIdMatch && fileIdMatch[1]) {
-          return `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+          return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
         }
       }
 
       return cleanUrl;
+    }
+
+    function getGoogleDriveFallbackUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file') || cleanUrl.includes('googleusercontent.com')) {
+        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/i);
+        if (fileIdMatch && fileIdMatch[1]) {
+          return `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
+        }
+      }
+      return '';
     }
 
     function getMyInstantsFallbackUrl(url) {
@@ -1219,8 +1236,8 @@
         const file = fileInput.files[0];
         if (!file) return;
 
-        if (file.size > 10 * 1024 * 1024) {
-          alert("⚠️ El archivo de audio es demasiado grande. Máximo 10 MB.");
+        if (file.size > 8 * 1024 * 1024) {
+          alert("⚠️ El archivo de audio es demasiado grande. Máximo 8 MB.");
           fileInput.value = '';
           return;
         }
@@ -1229,14 +1246,27 @@
         const toast = document.getElementById('toast-notify');
 
         if (toast) {
-          toast.textContent = `⏳ Subiendo "${file.name}" a tu Google Drive...`;
+          toast.textContent = `⏳ Procesando audio "${file.name}"...`;
           toast.classList.add('show');
         }
 
         const reader = new FileReader();
         reader.onload = async () => {
           try {
-            const base64Data = reader.result.split(',')[1];
+            const dataUrl = reader.result;
+            
+            // Asignar inmediatamente la Data URL para reproducción instantánea 100% garantizada
+            if (targetInput) {
+              targetInput.value = dataUrl;
+              targetInput.dataset.dataUrl = dataUrl;
+              updateAlertsWidget();
+            }
+
+            if (toast) {
+              toast.textContent = `⏳ Guardando copia de respaldo en tu Google Drive...`;
+            }
+
+            const base64Data = dataUrl.split(',')[1];
             const extension = file.name.split('.').pop() || 'mp3';
 
             const postParams = new URLSearchParams();
@@ -1254,23 +1284,28 @@
             const res = await response.json();
             if (res && res.status === 'success' && res.fileUrl) {
               const driveAudioUrl = parseAudioUrl(res.fileUrl);
+              // Actualizar con la URL limpia de Google Drive
               if (targetInput) {
                 targetInput.value = driveAudioUrl;
+                targetInput.dataset.dataUrl = dataUrl;
                 updateAlertsWidget();
               }
 
               if (toast) {
-                toast.textContent = `✅ ¡Audio subido a tu Google Drive y asignado!`;
+                toast.textContent = `✅ ¡Audio subido a Google Drive y asignado!`;
                 setTimeout(() => toast.classList.remove('show'), 3500);
               }
             } else {
-              throw new Error((res && res.message) ? res.message : 'No se pudo guardar en Google Drive');
+              if (toast) {
+                toast.textContent = `✅ Audio cargado y listo para reproducir.`;
+                setTimeout(() => toast.classList.remove('show'), 3500);
+              }
             }
           } catch (err) {
-            console.error("Error al subir audio a Drive:", err);
+            console.warn("Aviso subida Drive:", err);
             if (toast) {
-              toast.textContent = `❌ Error al subir audio: ${err.message}`;
-              setTimeout(() => toast.classList.remove('show'), 4000);
+              toast.textContent = `✅ Audio cargado para reproducción instantánea.`;
+              setTimeout(() => toast.classList.remove('show'), 3500);
             }
           } finally {
             fileInput.value = '';
@@ -1287,13 +1322,14 @@
       const input = document.getElementById(inputId);
       if (!input) return;
       const rawUrl = input.value.trim();
-      const parsedUrl = parseAudioUrl(rawUrl);
+      const localDataUrl = input.dataset ? input.dataset.dataUrl : '';
+      const parsedUrl = parseAudioUrl(rawUrl) || localDataUrl;
 
       const toast = document.getElementById('toast-notify');
 
       if (!parsedUrl) {
         if (toast) {
-          toast.textContent = "⚠️ Por favor, pega un enlace de MyInstants o una URL de audio .mp3 primero.";
+          toast.textContent = "⚠️ Por favor, sube un audio o pega un enlace de MyInstants / .mp3 / Drive.";
           toast.classList.add('show');
           setTimeout(() => toast.classList.remove('show'), 3500);
         }
@@ -1302,7 +1338,14 @@
 
       if (toast) {
         const isMyInstants = rawUrl.includes('myinstants');
-        toast.textContent = `🔊 Probando audio (${isMyInstants ? 'MyInstants Convertido 🎵' : 'Audio Directo'})...`;
+        const isDrive = rawUrl.includes('drive.google.com') || rawUrl.includes('googleusercontent.com');
+        const isData = rawUrl.startsWith('data:audio');
+        let soundType = 'Audio Directo';
+        if (isMyInstants) soundType = 'MyInstants 🎵';
+        if (isDrive) soundType = 'Google Drive 📁';
+        if (isData) soundType = 'Audio Local 📁';
+
+        toast.textContent = `🔊 Probando audio (${soundType})...`;
         toast.classList.add('show');
       }
 
@@ -1312,27 +1355,34 @@
       if (playPromise !== undefined) {
         playPromise.then(() => {
           setTimeout(() => {
-            if (toast) toast.classList.remove('show');
+            if (toast && toast.classList.contains('show') && !toast.textContent.includes('❌')) {
+              toast.classList.remove('show');
+            }
           }, 3000);
         }).catch(err => {
-          // Intentar fallback secundario con ID completo si la versión limpia falló
-          const fallbackUrl = getMyInstantsFallbackUrl(rawUrl);
-          if (fallbackUrl && fallbackUrl !== parsedUrl) {
-            const audioFallback = new Audio(fallbackUrl);
-            audioFallback.volume = 0.85;
-            audioFallback.play().then(() => {
+          console.warn("[Audio Test Error Primary]:", err);
+          const driveFallback = getGoogleDriveFallbackUrl(rawUrl);
+          const instantsFallback = getMyInstantsFallbackUrl(rawUrl);
+          const secondaryUrl = driveFallback || instantsFallback || localDataUrl;
+
+          if (secondaryUrl && secondaryUrl !== parsedUrl) {
+            const audio2 = new Audio(secondaryUrl);
+            audio2.volume = 0.85;
+            audio2.play().then(() => {
               setTimeout(() => {
-                if (toast) toast.classList.remove('show');
+                if (toast && toast.classList.contains('show') && !toast.textContent.includes('❌')) {
+                  toast.classList.remove('show');
+                }
               }, 3000);
             }).catch(err2 => {
               if (toast) {
-                toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
-                setTimeout(() => toast.classList.remove('show'), 4000);
+                toast.textContent = `❌ No se pudo reproducir. Si es de Drive, verifica que el archivo tenga acceso público ("Cualquier persona con el enlace").`;
+                setTimeout(() => toast.classList.remove('show'), 5000);
               }
             });
           } else if (toast) {
-            toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
-            setTimeout(() => toast.classList.remove('show'), 4000);
+            toast.textContent = `❌ No se pudo reproducir. Si es de Drive, verifica que el archivo tenga acceso público ("Cualquier persona con el enlace").`;
+            setTimeout(() => toast.classList.remove('show'), 5000);
           }
         });
       }
