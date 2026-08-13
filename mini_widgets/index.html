@@ -808,20 +808,101 @@
           <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true"></iframe>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
-          <div class="form-group">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
             <label for="alert-port-input">🔌 Puerto Streamer.bot WebSocket:</label>
             <input type="text" id="alert-port-input" class="input-field" value="4445" placeholder="Ej: 4445 o 8080" oninput="updateAlertsWidget()">
           </div>
-          <div class="form-group">
+          <div class="form-group" style="margin-bottom: 0;">
             <label for="alert-duration-input">⏱️ Duración de Alerta (seg):</label>
             <input type="number" id="alert-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateAlertsWidget()">
           </div>
         </div>
 
-        <div class="form-group">
-          <label for="alert-sound-input">🎵 URL Sonido Personalizado (Opcional):</label>
-          <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://ejemplo.com/sonido.mp3" oninput="updateAlertsWidget()">
+        <!-- Botones de Prueba Directa de Alerta (Fila Completa arriba de Sonidos) -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: var(--neon-blue); text-transform: uppercase; margin-bottom: 6px; display: block;">
+            🧪 Probar Alerta en la Vista Previa:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech btn-test-follow" onclick="triggerAlertTest('follow')">💚 Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerAlertTest('sub')">⭐ Sub</button>
+            <button type="button" class="test-btn-tech btn-test-gift" onclick="triggerAlertTest('gift')">🎁 Gift</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerAlertTest('raid')">🚀 Raid</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerAlertTest('donation')">💎 Kicks</button>
+          </div>
+        </div>
+
+        <!-- Personalización de Sonidos por Alerta (Soporte MyInstants y Enlaces Directos) -->
+        <div class="alert-colors-container" style="margin-bottom: 14px; border-color: rgba(245, 158, 11, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label class="alert-colors-title" style="margin: 0; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+              🎵 Sonidos Personalizados por Alerta:
+            </label>
+            <span style="font-size: 0.72rem; color: #f59e0b; background: rgba(245, 158, 11, 0.15); padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800;">
+              Soporta MyInstants & .mp3
+            </span>
+          </div>
+
+          <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 10px; line-height: 1.35; background: rgba(15, 23, 42, 0.75); padding: 7px 10px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+            💡 <strong>Tip MyInstants:</strong> ¡Puedes copiar y pegar cualquier enlace de <strong style="color:#53fc18;">MyInstants</strong>! (Ej: <code>https://www.myinstants.com/es/instant/nombre-sonido/</code>). El sistema lo convertirá a audio jugable automáticamente.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Follow Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-follow" style="font-size: 0.8rem; font-weight: 700; color: #22c55e;">💚 Sonido para Follow:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-follow" class="input-field" value="" placeholder="Pega URL MyInstants o .mp3 para Follow" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('sound-follow')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Sub Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-sub" style="font-size: 0.8rem; font-weight: 700; color: #a855f7;">⭐ Sonido para Sub / Resub:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-sub" class="input-field" value="" placeholder="Pega URL MyInstants o .mp3 para Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('sound-sub')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Gift Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-gift" style="font-size: 0.8rem; font-weight: 700; color: #ec4899;">🎁 Sonido para Gift Sub:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-gift" class="input-field" value="" placeholder="Pega URL MyInstants o .mp3 para Gift Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('sound-gift')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Raid Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-raid" style="font-size: 0.8rem; font-weight: 700; color: #f97316;">🚀 Sonido para Raid:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-raid" class="input-field" value="" placeholder="Pega URL MyInstants o .mp3 para Raid" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('sound-raid')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Kicks / Donation Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-kicks" style="font-size: 0.8rem; font-weight: 700; color: #f59e0b;">💎 Sonido para Donación / Kicks:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-kicks" class="input-field" value="" placeholder="Pega URL MyInstants o .mp3 para Kicks" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('sound-kicks')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Global Default Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="alert-sound-input" style="font-size: 0.8rem; font-weight: 700; color: #94a3b8;">🌐 Sonido Global (Respaldo general si no se asigna uno específico):</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://www.myinstants.com/es/instant/..." oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="test-btn" onclick="testSoundDirect('alert-sound-input')" title="Probar este audio" style="padding: 4px 10px; white-space: nowrap;">🔊 Probar</button>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Personalización de Colores de Resplandor por Alerta -->
@@ -862,17 +943,6 @@
             <input type="checkbox" class="custom-checkbox" id="alert-mute" onchange="updateAlertsWidget()">
             <span>🔇 Silenciar Audio de Alertas (Modo Mute)</span>
           </label>
-        </div>
-
-        <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 8px;">
-          <label style="font-size: 0.85rem; font-weight: 800; color: var(--neon-blue); text-transform: uppercase;">🧪 Probar Alerta en la Vista Previa:</label>
-          <div class="test-btn-group">
-            <button class="test-btn-tech btn-test-follow" onclick="triggerAlertTest('follow')">💚 Follow</button>
-            <button class="test-btn-tech btn-test-sub" onclick="triggerAlertTest('sub')">⭐ Sub</button>
-            <button class="test-btn-tech btn-test-gift" onclick="triggerAlertTest('gift')">🎁 Gift</button>
-            <button class="test-btn-tech btn-test-raid" onclick="triggerAlertTest('raid')">🚀 Raid</button>
-            <button class="test-btn-tech btn-test-kicks" onclick="triggerAlertTest('donation')">💎 Kicks</button>
-          </div>
         </div>
 
         <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)" style="margin-top: 8px;">
@@ -1076,15 +1146,115 @@
       }, 4500);
     }
 
+    // -----------------------------------------------------------------------
+    // PARSER UNIVERSAL DE ENLACES DE AUDIO (Soporte MyInstants & Direct URLs)
+    // -----------------------------------------------------------------------
+    function parseAudioUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (!cleanUrl) return '';
+
+      // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
+      // Ej: https://www.myinstants.com/es/instant/actually-good-fahhhh-sfx-34105/?utm_source=... -> https://www.myinstants.com/media/sounds/actually-good-fahhhh-sfx.mp3
+      if (cleanUrl.includes('myinstants.com')) {
+        if (cleanUrl.includes('/media/sounds/')) {
+          return cleanUrl.split('?')[0];
+        }
+        const match = cleanUrl.match(/\/instant\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          const fullSlug = match[1];
+          const slugWithoutId = fullSlug.replace(/-\d+$/, '');
+          return `https://www.myinstants.com/media/sounds/${slugWithoutId}.mp3`;
+        }
+      }
+
+      return cleanUrl;
+    }
+
+    function getMyInstantsFallbackUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (cleanUrl.includes('myinstants.com') && !cleanUrl.includes('/media/sounds/')) {
+        const match = cleanUrl.match(/\/instant\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          return `https://www.myinstants.com/media/sounds/${match[1]}.mp3`;
+        }
+      }
+      return '';
+    }
+
+    // Probar reproducción directa de un campo de sonido en la web
+    function testSoundDirect(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const rawUrl = input.value.trim();
+      const parsedUrl = parseAudioUrl(rawUrl);
+
+      const toast = document.getElementById('toast-notify');
+
+      if (!parsedUrl) {
+        if (toast) {
+          toast.textContent = "⚠️ Por favor, pega un enlace de MyInstants o una URL de audio .mp3 primero.";
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+        return;
+      }
+
+      if (toast) {
+        const isMyInstants = rawUrl.includes('myinstants');
+        toast.textContent = `🔊 Probando audio (${isMyInstants ? 'MyInstants Convertido 🎵' : 'Audio Directo'})...`;
+        toast.classList.add('show');
+      }
+
+      const audio = new Audio(parsedUrl);
+      audio.volume = 0.85;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setTimeout(() => {
+            if (toast) toast.classList.remove('show');
+          }, 3000);
+        }).catch(err => {
+          // Intentar fallback secundario con ID completo si la versión limpia falló
+          const fallbackUrl = getMyInstantsFallbackUrl(rawUrl);
+          if (fallbackUrl && fallbackUrl !== parsedUrl) {
+            const audioFallback = new Audio(fallbackUrl);
+            audioFallback.volume = 0.85;
+            audioFallback.play().then(() => {
+              setTimeout(() => {
+                if (toast) toast.classList.remove('show');
+              }, 3000);
+            }).catch(err2 => {
+              if (toast) {
+                toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+                setTimeout(() => toast.classList.remove('show'), 4000);
+              }
+            });
+          } else if (toast) {
+            toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+            setTimeout(() => toast.classList.remove('show'), 4000);
+          }
+        });
+      }
+    }
+
     // 7. Streamer.bot Dynamic Alerts Widget Update
     function updateAlertsWidget() {
       const portInput = document.getElementById('alert-port-input');
       const port = portInput ? (portInput.value.trim() || '4445') : '4445';
       const durationSec = document.getElementById('alert-duration-input') ? document.getElementById('alert-duration-input').value : '6';
       const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
-      const soundUrl = document.getElementById('alert-sound-input') ? document.getElementById('alert-sound-input').value.trim() : '';
       const isMuted = document.getElementById('alert-mute') ? document.getElementById('alert-mute').checked : false;
       const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
+
+      // Sonidos Personalizados por Tipo de Alerta
+      const soundGlobal = document.getElementById('alert-sound-input') ? document.getElementById('alert-sound-input').value.trim() : '';
+      const soundFollow = document.getElementById('sound-follow') ? document.getElementById('sound-follow').value.trim() : '';
+      const soundSub = document.getElementById('sound-sub') ? document.getElementById('sound-sub').value.trim() : '';
+      const soundGift = document.getElementById('sound-gift') ? document.getElementById('sound-gift').value.trim() : '';
+      const soundRaid = document.getElementById('sound-raid') ? document.getElementById('sound-raid').value.trim() : '';
+      const soundKicks = document.getElementById('sound-kicks') ? document.getElementById('sound-kicks').value.trim() : '';
 
       // Colores de Resplandor por Alerta
       const cFollow = document.getElementById('color-follow') ? document.getElementById('color-follow').value.replace('#', '') : '16a34a';
@@ -1097,8 +1267,14 @@
       const obsParams = new URLSearchParams();
       if (port && port !== '4445') obsParams.set('port', port);
       if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
-      if (soundUrl) obsParams.set('sound', soundUrl);
       if (isMuted) obsParams.set('mute', 'true');
+
+      if (soundGlobal) obsParams.set('sound', soundGlobal);
+      if (soundFollow) obsParams.set('sf', soundFollow);
+      if (soundSub) obsParams.set('ss', soundSub);
+      if (soundGift) obsParams.set('sg', soundGift);
+      if (soundRaid) obsParams.set('sr', soundRaid);
+      if (soundKicks) obsParams.set('sd', soundKicks);
 
       if (cFollow !== '16a34a') obsParams.set('cf', cFollow);
       if (cSub !== '9333ea') obsParams.set('cs', cSub);
@@ -1131,6 +1307,13 @@
       const cRaid = document.getElementById('color-raid') ? document.getElementById('color-raid').value : '#ea580c';
       const cKicks = document.getElementById('color-kicks') ? document.getElementById('color-kicks').value : '#d97706';
 
+      const soundGlobal = document.getElementById('alert-sound-input') ? document.getElementById('alert-sound-input').value.trim() : '';
+      const soundFollow = document.getElementById('sound-follow') ? document.getElementById('sound-follow').value.trim() : '';
+      const soundSub = document.getElementById('sound-sub') ? document.getElementById('sound-sub').value.trim() : '';
+      const soundGift = document.getElementById('sound-gift') ? document.getElementById('sound-gift').value.trim() : '';
+      const soundRaid = document.getElementById('sound-raid') ? document.getElementById('sound-raid').value.trim() : '';
+      const soundKicks = document.getElementById('sound-kicks') ? document.getElementById('sound-kicks').value.trim() : '';
+
       const iframe = document.getElementById('preview-alerts');
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({
@@ -1143,6 +1326,13 @@
             gift: cGift,
             raid: cRaid,
             donation: cKicks
+          },
+          sounds: {
+            follow: soundFollow || soundGlobal,
+            sub: soundSub || soundGlobal,
+            gift: soundGift || soundGlobal,
+            raid: soundRaid || soundGlobal,
+            donation: soundKicks || soundGlobal
           }
         }, '*');
       }

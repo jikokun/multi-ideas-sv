@@ -423,17 +423,71 @@
     });
 
     // -----------------------------------------------------------------------
+    // PARSER UNIVERSAL DE ENLACES DE AUDIO (Soporte MyInstants & Direct URLs)
+    // -----------------------------------------------------------------------
+    function parseAudioUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (!cleanUrl) return '';
+
+      // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
+      // Ej: https://www.myinstants.com/es/instant/actually-good-fahhhh-sfx-34105/?utm_source=... -> https://www.myinstants.com/media/sounds/actually-good-fahhhh-sfx.mp3
+      if (cleanUrl.includes('myinstants.com')) {
+        if (cleanUrl.includes('/media/sounds/')) {
+          return cleanUrl.split('?')[0];
+        }
+        const match = cleanUrl.match(/\/instant\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          const fullSlug = match[1];
+          const slugWithoutId = fullSlug.replace(/-\d+$/, '');
+          return `https://www.myinstants.com/media/sounds/${slugWithoutId}.mp3`;
+        }
+      }
+
+      return cleanUrl;
+    }
+
+    function getMyInstantsFallbackUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (cleanUrl.includes('myinstants.com') && !cleanUrl.includes('/media/sounds/')) {
+        const match = cleanUrl.match(/\/instant\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          return `https://www.myinstants.com/media/sounds/${match[1]}.mp3`;
+        }
+      }
+      return '';
+    }
+
+    // -----------------------------------------------------------------------
     // CONFIGURACIÓN DE PARÁMETROS URL
     // -----------------------------------------------------------------------
     const urlParams = new URLSearchParams(window.location.search);
     const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
     const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
-    const customSoundUrl = urlParams.get('sound') || '';
     const isMuted = urlParams.get('mute') === 'true';
     const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
     const testModeParam = urlParams.get('test');
     let isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('permanent') === 'true';
     let currentAlertTimeout = null;
+
+    // Almacenar URLs originales y convertidas por Tipo de Alerta
+    const rawSoundUrls = {
+      follow: urlParams.get('sf') || urlParams.get('sound_follow') || urlParams.get('sound') || '',
+      sub: urlParams.get('ss') || urlParams.get('sound_sub') || urlParams.get('sound') || '',
+      gift: urlParams.get('sg') || urlParams.get('sound_gift') || urlParams.get('sound') || '',
+      raid: urlParams.get('sr') || urlParams.get('sound_raid') || urlParams.get('sound') || '',
+      donation: urlParams.get('sd') || urlParams.get('sound_kicks') || urlParams.get('sound_donation') || urlParams.get('sound') || ''
+    };
+
+    const globalDefaultSound = parseAudioUrl(urlParams.get('sound') || '');
+    const customSoundUrls = {
+      follow: parseAudioUrl(rawSoundUrls.follow) || globalDefaultSound,
+      sub: parseAudioUrl(rawSoundUrls.sub) || globalDefaultSound,
+      gift: parseAudioUrl(rawSoundUrls.gift) || globalDefaultSound,
+      raid: parseAudioUrl(rawSoundUrls.raid) || globalDefaultSound,
+      donation: parseAudioUrl(rawSoundUrls.donation) || globalDefaultSound
+    };
 
     // Colores de Resplandor Personalizados por Alerta
     const customColors = {
@@ -484,6 +538,12 @@
         if (event.data.colors) {
           Object.assign(customColors, event.data.colors);
         }
+        if (event.data.sounds) {
+          for (let key in event.data.sounds) {
+            rawSoundUrls[key] = event.data.sounds[key];
+            customSoundUrls[key] = parseAudioUrl(event.data.sounds[key]);
+          }
+        }
         if (typeof event.data.loop === 'boolean') {
           isLoopMode = event.data.loop;
         }
@@ -500,21 +560,45 @@
     });
 
     // -----------------------------------------------------------------------
-    // SISTEMA DE SÍNTESIS DE AUDIO (Web Audio API Chime Synth)
+    // SISTEMA DE AUDIO (Reproductor de Enlaces y Síntesis de Respaldo)
     // -----------------------------------------------------------------------
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function playSynthesizedAlertSound(theme) {
       if (isMuted) return;
 
-      // Si se proporcionó una URL de audio personalizada
-      if (customSoundUrl) {
-        const audio = new Audio(customSoundUrl);
-        audio.volume = 0.8;
-        audio.play().catch(e => console.warn("Error reproduciendo audio custom:", e));
+      const targetSoundUrl = customSoundUrls[theme] || customSoundUrls.follow || globalDefaultSound;
+      const rawOriginal = rawSoundUrls[theme] || targetSoundUrl;
+
+      // Si hay una URL de sonido personalizada especificada para este tipo de alerta
+      if (targetSoundUrl) {
+        const audio = new Audio(targetSoundUrl);
+        audio.volume = 0.85;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(e => {
+            console.warn(`[Audio Rufus] Error al reproducir sonido principal (${targetSoundUrl}):`, e);
+            // Intentar fallback con ID completo si la versión limpia sin ID falló
+            const fallbackUrl = getMyInstantsFallbackUrl(rawOriginal);
+            if (fallbackUrl && fallbackUrl !== targetSoundUrl) {
+              const audioFallback = new Audio(fallbackUrl);
+              audioFallback.volume = 0.85;
+              audioFallback.play().catch(e2 => {
+                console.warn(`[Audio Rufus] Fallback secundario también falló (${fallbackUrl}):`, e2);
+                playFallbackChime(theme);
+              });
+            } else {
+              playFallbackChime(theme);
+            }
+          });
+        }
         return;
       }
 
+      playFallbackChime(theme);
+    }
+
+    function playFallbackChime(theme) {
       try {
         if (audioCtx.state === 'suspended') {
           audioCtx.resume();
@@ -526,12 +610,11 @@
         masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
         masterGain.connect(audioCtx.destination);
 
-        // Arpegio según tipo de alerta
-        let freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (Mayor / Bright)
-        if (theme === 'sub') freqs = [440, 554.37, 659.25, 880]; // A4, C#5, E5, A5
-        if (theme === 'gift') freqs = [587.33, 739.99, 880, 1174.66]; // D5, F#5, A5, D6
-        if (theme === 'raid') freqs = [392, 523.25, 659.25, 783.99]; // G4, C5, E5, G5
-        if (theme === 'donation') freqs = [659.25, 830.61, 987.77, 1318.51]; // E5, G#5, B5, E6
+        let freqs = [523.25, 659.25, 783.99, 1046.50];
+        if (theme === 'sub') freqs = [440, 554.37, 659.25, 880];
+        if (theme === 'gift') freqs = [587.33, 739.99, 880, 1174.66];
+        if (theme === 'raid') freqs = [392, 523.25, 659.25, 783.99];
+        if (theme === 'donation') freqs = [659.25, 830.61, 987.77, 1318.51];
 
         freqs.forEach((freq, index) => {
           const osc = audioCtx.createOscillator();
@@ -584,7 +667,9 @@
       const eventDetail = document.getElementById('event-detail');
       const userMessage = document.getElementById('user-message');
 
-      // Asignar clase de tema a la escena y tarjeta para propagación de resplandor ambiental
+      // Reiniciar clase y forzar reflow CSS para re-activar animaciones de entrada en cada prueba
+      stage.className = '';
+      void stage.offsetWidth;
       stage.className = `active theme-${alert.theme}`;
       card.className = `alert-card theme-${alert.theme}`;
 
@@ -841,6 +926,13 @@
     // GENERADOR DE ALERTAS DE PRUEBA
     // -----------------------------------------------------------------------
     function triggerTestAlert(type) {
+      if (currentAlertTimeout) {
+        clearTimeout(currentAlertTimeout);
+        currentAlertTimeout = null;
+      }
+      isShowingAlert = false;
+      alertQueue.length = 0;
+
       const testNames = ['Jikokun', 'FoxMaster', 'CyberKick', 'NekoGamer', 'AstroWolf', 'Valkyrie'];
       const randomUser = testNames[Math.floor(Math.random() * testNames.length)];
 
