@@ -361,7 +361,49 @@
     .social-box.box-tiktok { border-color: rgba(0, 242, 254, 0.35); }
     .social-box.box-telegram { border-color: rgba(0, 136, 204, 0.35); }
     .social-box.box-youtube { border-color: rgba(255, 0, 0, 0.35); }
-    .social-box.box-twitch { border-color: rgba(145, 70, 255, 0.35); }
+    /* Estilos Premium para los Botones de Probar Audio */
+    .btn-test-audio {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+      color: #38bdf8;
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-family: 'Rajdhani', 'Nunito', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-test-audio:hover {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #ffffff;
+      border-color: #7dd3fc;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.5), 0 4px 12px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-test-audio:active {
+      transform: translateY(1px);
+    }
+
+    body.light-theme .btn-test-audio {
+      background: linear-gradient(135deg, #e0f2fe, #bae6fd) !important;
+      color: #0369a1 !important;
+      border-color: rgba(2, 132, 199, 0.4) !important;
+    }
+
+    body.light-theme .btn-test-audio:hover {
+      background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+      color: #ffffff !important;
+      border-color: #0284c7 !important;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.3) !important;
+    }
 
     /* ========================================================
        ADAPTACIÓN ARMÓNICA AL MODO CLARO (body.light-theme)
@@ -808,14 +850,21 @@
           <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true"></iframe>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
-            <label for="alert-port-input">🔌 Puerto Streamer.bot WebSocket:</label>
-            <input type="text" id="alert-port-input" class="input-field" value="4445" placeholder="Ej: 4445 o 8080" oninput="updateAlertsWidget()">
+            <label for="alert-port-input">🔌 Puerto WS:</label>
+            <input type="text" id="alert-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateAlertsWidget()">
           </div>
           <div class="form-group" style="margin-bottom: 0;">
-            <label for="alert-duration-input">⏱️ Duración de Alerta (seg):</label>
+            <label for="alert-duration-input">⏱️ Duración (s):</label>
             <input type="number" id="alert-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="alert-volume-input" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🔊 Volumen:</span>
+              <span id="alert-volume-val" style="font-weight: 800; color: #38bdf8;">85%</span>
+            </label>
+            <input type="range" id="alert-volume-input" class="input-field" min="0" max="100" value="85" oninput="document.getElementById('alert-volume-val').textContent = this.value + '%'; updateAlertsWidget();" style="height: 10px; padding: 0; cursor: pointer; accent-color: #0284c7;">
           </div>
         </div>
 
@@ -833,22 +882,19 @@
           </div>
         </div>
 
-        <!-- Personalización de Sonidos por Alerta (Soporte MyInstants, Subida a Google Drive y Enlaces Directos) -->
+        <!-- Personalización de Sonidos por Alerta (Soporte MyInstants y Enlaces Directos .mp3) -->
         <div class="alert-colors-container" style="margin-bottom: 14px; border-color: rgba(245, 158, 11, 0.35);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <label class="alert-colors-title" style="margin: 0; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
               🎵 Sonidos Personalizados por Alerta:
             </label>
             <span style="font-size: 0.72rem; color: #f59e0b; background: rgba(245, 158, 11, 0.15); padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800;">
-              Google Drive 📁 | MyInstants 🎵 | .mp3
+              MyInstants 🎵 & .mp3
             </span>
           </div>
 
-          <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 10px; line-height: 1.4; background: rgba(15, 23, 42, 0.75); padding: 8px 10px; border-radius: 8px; border-left: 3px solid #f59e0b;">
-            💡 <strong>3 Opciones para Cargar tus Audios:</strong><br>
-            1️⃣ <strong>📁 Subir MP3:</strong> Presiona "Subir" para guardar tu audio local directo en tu Google Drive.<br>
-            2️⃣ <strong>🎵 MyInstants:</strong> Pega cualquier enlace de MyInstants (ej: <code>https://www.myinstants.com/...</code>).<br>
-            3️⃣ <strong>🌐 Enlaces directos:</strong> Pega enlaces <code>.mp3 / .wav / Drive</code> externos.
+          <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 10px; line-height: 1.35; background: rgba(15, 23, 42, 0.75); padding: 7px 10px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+            💡 <strong>Tip MyInstants:</strong> ¡Copia y pega cualquier enlace de <strong style="color:#53fc18;">MyInstants</strong>! (Ej: <code>https://www.myinstants.com/es/instant/...</code>) o un enlace directo <code>.mp3 / .wav</code>.
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -856,9 +902,8 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label for="sound-follow" style="font-size: 0.8rem; font-weight: 700; color: #22c55e;">💚 Sonido para Follow:</label>
               <div style="display: flex; gap: 6px;">
-                <input type="text" id="sound-follow" class="input-field" value="" placeholder="Pega URL MyInstants, Drive o .mp3" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('sound-follow')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('sound-follow')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <input type="text" id="sound-follow" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Follow" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-follow')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
 
@@ -866,9 +911,8 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label for="sound-sub" style="font-size: 0.8rem; font-weight: 700; color: #a855f7;">⭐ Sonido para Sub / Resub:</label>
               <div style="display: flex; gap: 6px;">
-                <input type="text" id="sound-sub" class="input-field" value="" placeholder="Pega URL MyInstants, Drive o .mp3" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('sound-sub')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('sound-sub')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <input type="text" id="sound-sub" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-sub')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
 
@@ -876,9 +920,8 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label for="sound-gift" style="font-size: 0.8rem; font-weight: 700; color: #ec4899;">🎁 Sonido para Gift Sub:</label>
               <div style="display: flex; gap: 6px;">
-                <input type="text" id="sound-gift" class="input-field" value="" placeholder="Pega URL MyInstants, Drive o .mp3" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('sound-gift')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('sound-gift')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <input type="text" id="sound-gift" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Gift Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-gift')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
 
@@ -886,9 +929,8 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label for="sound-raid" style="font-size: 0.8rem; font-weight: 700; color: #f97316;">🚀 Sonido para Raid:</label>
               <div style="display: flex; gap: 6px;">
-                <input type="text" id="sound-raid" class="input-field" value="" placeholder="Pega URL MyInstants, Drive o .mp3" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('sound-raid')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('sound-raid')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <input type="text" id="sound-raid" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Raid" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-raid')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
 
@@ -896,9 +938,8 @@
             <div class="form-group" style="margin-bottom: 0;">
               <label for="sound-kicks" style="font-size: 0.8rem; font-weight: 700; color: #f59e0b;">💎 Sonido para Donación / Kicks:</label>
               <div style="display: flex; gap: 6px;">
-                <input type="text" id="sound-kicks" class="input-field" value="" placeholder="Pega URL MyInstants, Drive o .mp3" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('sound-kicks')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('sound-kicks')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <input type="text" id="sound-kicks" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Kicks" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-kicks')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
 
@@ -907,8 +948,7 @@
               <label for="alert-sound-input" style="font-size: 0.8rem; font-weight: 700; color: #94a3b8;">🌐 Sonido Global (Respaldo general si no se asigna uno específico):</label>
               <div style="display: flex; gap: 6px;">
                 <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://www.myinstants.com/es/instant/..." oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
-                <button type="button" class="test-btn" onclick="triggerAudioUpload('alert-sound-input')" title="Subir audio local a tu Google Drive" style="padding: 4px 8px; white-space: nowrap; background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; color: #60a5fa;">📁 Subir</button>
-                <button type="button" class="test-btn" onclick="testSoundDirect('alert-sound-input')" title="Probar este audio" style="padding: 4px 8px; white-space: nowrap;">🔊 Probar</button>
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('alert-sound-input')" title="Probar este audio">🔊 Probar</button>
               </div>
             </div>
           </div>
@@ -1156,17 +1196,12 @@
     }
 
     // -----------------------------------------------------------------------
-    // PARSER UNIVERSAL DE ENLACES DE AUDIO (Soporte MyInstants, Drive & Direct URLs)
+    // PARSER UNIVERSAL DE ENLACES DE AUDIO (Soporte MyInstants & Direct MP3)
     // -----------------------------------------------------------------------
     function parseAudioUrl(url) {
       if (!url || typeof url !== 'string') return '';
       let cleanUrl = url.trim();
       if (!cleanUrl) return '';
-
-      // Data URLs (Archivos locales procesados en base64) son válidos directamente
-      if (cleanUrl.startsWith('data:audio/')) {
-        return cleanUrl;
-      }
 
       // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
       if (cleanUrl.includes('myinstants.com')) {
@@ -1181,27 +1216,7 @@
         }
       }
 
-      // 2. Convertir enlaces de Google Drive a URL de reproducción directa CDN (lh3 stream)
-      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file') || cleanUrl.includes('googleusercontent.com')) {
-        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/i);
-        if (fileIdMatch && fileIdMatch[1]) {
-          return `https://lh3.googleusercontent.com/d/${fileIdMatch[1]}`;
-        }
-      }
-
       return cleanUrl;
-    }
-
-    function getGoogleDriveFallbackUrl(url) {
-      if (!url || typeof url !== 'string') return '';
-      let cleanUrl = url.trim();
-      if (cleanUrl.includes('drive.google.com') || cleanUrl.includes('google.com/file') || cleanUrl.includes('googleusercontent.com')) {
-        const fileIdMatch = cleanUrl.match(/\/file\/d\/([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/[?&]id=([a-zA-Z0-9_-]+)/i) || cleanUrl.match(/\/d\/([a-zA-Z0-9_-]+)/i);
-        if (fileIdMatch && fileIdMatch[1]) {
-          return `https://drive.google.com/uc?export=download&id=${fileIdMatch[1]}`;
-        }
-      }
-      return '';
     }
 
     function getMyInstantsFallbackUrl(url) {
@@ -1216,120 +1231,20 @@
       return '';
     }
 
-    // -----------------------------------------------------------------------
-    // SUBIDA AUTOMÁTICA DE AUDIOS A GOOGLE DRIVE VÍA GOOGLE APPS SCRIPT
-    // -----------------------------------------------------------------------
-    const GOOGLE_DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec";
-
-    function triggerAudioUpload(targetInputId) {
-      let fileInput = document.getElementById('drive-audio-file-picker');
-      if (!fileInput) {
-        fileInput = document.createElement('input');
-        fileInput.type = 'file';
-        fileInput.id = 'drive-audio-file-picker';
-        fileInput.accept = 'audio/*,.mp3,.wav,.ogg,.m4a';
-        fileInput.style.display = 'none';
-        document.body.appendChild(fileInput);
-      }
-
-      fileInput.onchange = async () => {
-        const file = fileInput.files[0];
-        if (!file) return;
-
-        if (file.size > 8 * 1024 * 1024) {
-          alert("⚠️ El archivo de audio es demasiado grande. Máximo 8 MB.");
-          fileInput.value = '';
-          return;
-        }
-
-        const targetInput = document.getElementById(targetInputId);
-        const toast = document.getElementById('toast-notify');
-
-        if (toast) {
-          toast.textContent = `⏳ Procesando audio "${file.name}"...`;
-          toast.classList.add('show');
-        }
-
-        const reader = new FileReader();
-        reader.onload = async () => {
-          try {
-            const dataUrl = reader.result;
-            
-            // Asignar inmediatamente la Data URL para reproducción instantánea 100% garantizada
-            if (targetInput) {
-              targetInput.value = dataUrl;
-              targetInput.dataset.dataUrl = dataUrl;
-              updateAlertsWidget();
-            }
-
-            if (toast) {
-              toast.textContent = `⏳ Guardando copia de respaldo en tu Google Drive...`;
-            }
-
-            const base64Data = dataUrl.split(',')[1];
-            const extension = file.name.split('.').pop() || 'mp3';
-
-            const postParams = new URLSearchParams();
-            postParams.append('base64', base64Data);
-            postParams.append('mimeType', file.type || 'audio/mpeg');
-            postParams.append('filename', `alert_sound_${Date.now()}.${extension}`);
-            postParams.append('userName', 'Streamer');
-            postParams.append('userEmail', 'audio_upload');
-
-            const response = await fetch(GOOGLE_DRIVE_UPLOAD_URL, {
-              method: 'POST',
-              body: postParams
-            });
-
-            const res = await response.json();
-            if (res && res.status === 'success' && res.fileUrl) {
-              const driveAudioUrl = parseAudioUrl(res.fileUrl);
-              // Actualizar con la URL limpia de Google Drive
-              if (targetInput) {
-                targetInput.value = driveAudioUrl;
-                targetInput.dataset.dataUrl = dataUrl;
-                updateAlertsWidget();
-              }
-
-              if (toast) {
-                toast.textContent = `✅ ¡Audio subido a Google Drive y asignado!`;
-                setTimeout(() => toast.classList.remove('show'), 3500);
-              }
-            } else {
-              if (toast) {
-                toast.textContent = `✅ Audio cargado y listo para reproducir.`;
-                setTimeout(() => toast.classList.remove('show'), 3500);
-              }
-            }
-          } catch (err) {
-            console.warn("Aviso subida Drive:", err);
-            if (toast) {
-              toast.textContent = `✅ Audio cargado para reproducción instantánea.`;
-              setTimeout(() => toast.classList.remove('show'), 3500);
-            }
-          } finally {
-            fileInput.value = '';
-          }
-        };
-        reader.readAsDataURL(file);
-      };
-
-      fileInput.click();
-    }
-
-    // Probar reproducción directa de un campo de sonido en la web
+    // Probar reproducción directa de un campo de sonido en la web con el volumen configurado
     function testSoundDirect(inputId) {
       const input = document.getElementById(inputId);
       if (!input) return;
       const rawUrl = input.value.trim();
-      const localDataUrl = input.dataset ? input.dataset.dataUrl : '';
-      const parsedUrl = parseAudioUrl(rawUrl) || localDataUrl;
+      const parsedUrl = parseAudioUrl(rawUrl);
 
       const toast = document.getElementById('toast-notify');
+      const volInput = document.getElementById('alert-volume-input');
+      const volumeVal = volInput ? (parseFloat(volInput.value) / 100) : 0.85;
 
       if (!parsedUrl) {
         if (toast) {
-          toast.textContent = "⚠️ Por favor, sube un audio o pega un enlace de MyInstants / .mp3 / Drive.";
+          toast.textContent = "⚠️ Por favor, pega un enlace de MyInstants o una URL de audio .mp3 primero.";
           toast.classList.add('show');
           setTimeout(() => toast.classList.remove('show'), 3500);
         }
@@ -1338,19 +1253,12 @@
 
       if (toast) {
         const isMyInstants = rawUrl.includes('myinstants');
-        const isDrive = rawUrl.includes('drive.google.com') || rawUrl.includes('googleusercontent.com');
-        const isData = rawUrl.startsWith('data:audio');
-        let soundType = 'Audio Directo';
-        if (isMyInstants) soundType = 'MyInstants 🎵';
-        if (isDrive) soundType = 'Google Drive 📁';
-        if (isData) soundType = 'Audio Local 📁';
-
-        toast.textContent = `🔊 Probando audio (${soundType})...`;
+        toast.textContent = `🔊 Probando audio (${isMyInstants ? 'MyInstants Convertido 🎵' : 'Audio Directo'})... Vol: ${Math.round(volumeVal * 100)}%`;
         toast.classList.add('show');
       }
 
       const audio = new Audio(parsedUrl);
-      audio.volume = 0.85;
+      audio.volume = volumeVal;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.then(() => {
@@ -1360,14 +1268,11 @@
             }
           }, 3000);
         }).catch(err => {
-          console.warn("[Audio Test Error Primary]:", err);
-          const driveFallback = getGoogleDriveFallbackUrl(rawUrl);
-          const instantsFallback = getMyInstantsFallbackUrl(rawUrl);
-          const secondaryUrl = driveFallback || instantsFallback || localDataUrl;
-
-          if (secondaryUrl && secondaryUrl !== parsedUrl) {
-            const audio2 = new Audio(secondaryUrl);
-            audio2.volume = 0.85;
+          console.warn("[Audio Test Primary Error]:", err);
+          const fallbackUrl = getMyInstantsFallbackUrl(rawUrl);
+          if (fallbackUrl && fallbackUrl !== parsedUrl) {
+            const audio2 = new Audio(fallbackUrl);
+            audio2.volume = volumeVal;
             audio2.play().then(() => {
               setTimeout(() => {
                 if (toast && toast.classList.contains('show') && !toast.textContent.includes('❌')) {
@@ -1376,13 +1281,13 @@
               }, 3000);
             }).catch(err2 => {
               if (toast) {
-                toast.textContent = `❌ No se pudo reproducir. Si es de Drive, verifica que el archivo tenga acceso público ("Cualquier persona con el enlace").`;
-                setTimeout(() => toast.classList.remove('show'), 5000);
+                toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+                setTimeout(() => toast.classList.remove('show'), 4000);
               }
             });
           } else if (toast) {
-            toast.textContent = `❌ No se pudo reproducir. Si es de Drive, verifica que el archivo tenga acceso público ("Cualquier persona con el enlace").`;
-            setTimeout(() => toast.classList.remove('show'), 5000);
+            toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+            setTimeout(() => toast.classList.remove('show'), 4000);
           }
         });
       }
@@ -1394,6 +1299,8 @@
       const port = portInput ? (portInput.value.trim() || '4445') : '4445';
       const durationSec = document.getElementById('alert-duration-input') ? document.getElementById('alert-duration-input').value : '6';
       const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
+      const volInput = document.getElementById('alert-volume-input');
+      const volVal = volInput ? volInput.value : '85';
       const isMuted = document.getElementById('alert-mute') ? document.getElementById('alert-mute').checked : false;
       const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
 
@@ -1412,10 +1319,11 @@
       const cRaid = document.getElementById('color-raid') ? document.getElementById('color-raid').value.replace('#', '') : 'ea580c';
       const cKicks = document.getElementById('color-kicks') ? document.getElementById('color-kicks').value.replace('#', '') : 'd97706';
 
-      // 1. URL limpia para OBS (Aplica la duración y configuraciones reales seleccionadas SIN loop continuo)
+      // 1. URL limpia para OBS (Aplica la duración, volumen y configuraciones reales seleccionadas SIN loop continuo)
       const obsParams = new URLSearchParams();
       if (port && port !== '4445') obsParams.set('port', port);
       if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
+      if (volVal !== '85') obsParams.set('vol', volVal);
       if (isMuted) obsParams.set('mute', 'true');
 
       if (soundGlobal) obsParams.set('sound', soundGlobal);
@@ -1450,6 +1358,9 @@
 
     function triggerAlertTest(alertType) {
       const isLoop = document.getElementById('alert-loop') ? document.getElementById('alert-loop').checked : true;
+      const volInput = document.getElementById('alert-volume-input');
+      const volVal = volInput ? parseInt(volInput.value, 10) : 85;
+
       const cFollow = document.getElementById('color-follow') ? document.getElementById('color-follow').value : '#16a34a';
       const cSub = document.getElementById('color-sub') ? document.getElementById('color-sub').value : '#9333ea';
       const cGift = document.getElementById('color-gift') ? document.getElementById('color-gift').value : '#db2777';
@@ -1469,6 +1380,7 @@
           type: 'TRIGGER_TEST_ALERT',
           alertType: alertType || 'follow',
           loop: isLoop,
+          volume: volVal,
           colors: {
             follow: cFollow,
             sub: cSub,

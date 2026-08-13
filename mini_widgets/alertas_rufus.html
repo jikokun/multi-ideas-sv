@@ -472,6 +472,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
     const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
+    let alertVolume = Math.max(0, Math.min(1, parseFloat(urlParams.get('vol') || urlParams.get('volume') || '85') / 100));
     const isMuted = urlParams.get('mute') === 'true';
     const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
     const testModeParam = urlParams.get('test');
@@ -551,6 +552,9 @@
             customSoundUrls[key] = parseAudioUrl(event.data.sounds[key]);
           }
         }
+        if (typeof event.data.volume === 'number') {
+          alertVolume = Math.max(0, Math.min(1, event.data.volume / 100));
+        }
         if (typeof event.data.loop === 'boolean') {
           isLoopMode = event.data.loop;
         }
@@ -580,7 +584,7 @@
       // Si hay una URL de sonido personalizada especificada para este tipo de alerta
       if (targetSoundUrl) {
         const audio = new Audio(targetSoundUrl);
-        audio.volume = 0.85;
+        audio.volume = alertVolume;
         const playPromise = audio.play();
         if (playPromise !== undefined) {
           playPromise.catch(e => {
@@ -589,7 +593,7 @@
             const fallbackUrl = getMyInstantsFallbackUrl(rawOriginal);
             if (fallbackUrl && fallbackUrl !== targetSoundUrl) {
               const audioFallback = new Audio(fallbackUrl);
-              audioFallback.volume = 0.85;
+              audioFallback.volume = alertVolume;
               audioFallback.play().catch(e2 => {
                 console.warn(`[Audio Rufus] Fallback secundario también falló (${fallbackUrl}):`, e2);
                 playFallbackChime(theme);
@@ -613,7 +617,7 @@
 
         const now = audioCtx.currentTime;
         const masterGain = audioCtx.createGain();
-        masterGain.gain.setValueAtTime(0.3, now);
+        masterGain.gain.setValueAtTime(0.3 * alertVolume, now);
         masterGain.gain.exponentialRampToValueAtTime(0.001, now + 1.2);
         masterGain.connect(audioCtx.destination);
 
