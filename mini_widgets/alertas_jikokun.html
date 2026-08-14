@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Jikokun Card Deck — Alertas de Kick & Streamer.bot</title>
+  
+  <!-- Tipografías Premium -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Rajdhani:wght@600;700;800&family=Inter:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --kick-green: #53fc18;
+      --kick-glow: rgba(83, 252, 24, 0.45);
+      --jikokun-cyan: #00f2fe;
+      --jikokun-purple: #9d4edd;
+      --jikokun-gold: #ffb703;
+      --jikokun-coral: #ff5e57;
+      
+      /* Variables dinámicas por carta activa */
+      --accent: var(--kick-green);
+      --glow: var(--kick-glow);
+      --accent-rgb: 83, 252, 24;
+      --card-bg: #12141a;
+      --card-border: rgba(255, 255, 255, 0.12);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: 'Rajdhani', 'Inter', system-ui, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* --------------------------------------------------
+       ESCENARIO PRINCIPAL Y BARAJA
+       -------------------------------------------------- */
+    #widget-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      perspective: 1200px;
+      padding: 20px;
+    }
+
+    /* Contenedor del mazo con control de estado (Oculto por defecto, Activo al recibir alerta) */
+    .deck-wrap {
+      position: relative;
+      width: 290px;
+      height: 400px;
+      transform-style: preserve-3d;
+      
+      /* Estado Oculto / Reposo por defecto: Completamente limpio y transparente */
+      opacity: 0;
+      transform: scale(0.4) translateY(60px) rotateX(15deg);
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    /* Estado Activo: Entrada Cinemática 3D con rebote suave */
+    .deck-wrap.active {
+      opacity: 1;
+      pointer-events: auto;
+      animation: deckEntrance 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes deckEntrance {
+      0% {
+        opacity: 0;
+        transform: scale(0.38) translateY(65px) rotateX(25deg) rotateY(-12deg);
+        filter: blur(8px) drop-shadow(0 0 0 transparent);
+      }
+      65% {
+        opacity: 1;
+        transform: scale(1.04) translateY(-8px) rotateX(-3deg) rotateY(3deg);
+        filter: blur(0) drop-shadow(0 0 25px var(--glow));
+      }
+      100% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotateX(0deg) rotateY(0deg);
+        filter: drop-shadow(0 0 10px var(--glow));
+      }
+    }
+
+    /* Estado de Salida: Desaparición Cinemática hacia el fondo */
+    .deck-wrap.exiting {
+      pointer-events: none;
+      animation: deckExit 0.52s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+
+    @keyframes deckExit {
+      0% {
+        opacity: 1;
+        transform: scale(1) translateY(0) rotateX(0deg) rotateZ(0deg);
+        filter: blur(0);
+      }
+      25% {
+        opacity: 0.95;
+        transform: scale(1.03) translateY(6px) rotateX(4deg);
+      }
+      100% {
+        opacity: 0;
+        transform: scale(0.45) translateY(-70px) rotateX(-25deg) rotateZ(6deg);
+        filter: blur(8px);
+      }
+    }
+
+    /* Modo vista previa en reposo si se activa en el configurador */
+    .deck-wrap.preview-idle {
+      opacity: 0.95;
+      transform: scale(0.95) translateY(0);
+      pointer-events: auto;
+      animation: deckFloat 5s ease-in-out infinite;
+    }
+
+    /* Sombra volumétrica inferior */
+    .deck-wrap::after {
+      content: '';
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: -28px;
+      height: 28px;
+      background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.65), transparent 75%);
+      filter: blur(8px);
+      z-index: -1;
+      transition: all 0.5s ease;
+    }
+
+    @keyframes deckFloat {
+      0%, 100% {
+        transform: translateY(0) rotateX(1.5deg);
+      }
+      50% {
+        transform: translateY(-8px) rotateX(0deg);
+      }
+    }
+
+    /* Auto-escalado responsive para que NUNCA se corte en ningún visor/iframe */
+    @media (max-height: 480px), (max-width: 420px) {
+      .deck-wrap {
+        width: 260px;
+        height: 350px;
+      }
+      .deck-wrap.active {
+        transform: scale(0.88) translateY(0);
+      }
+      .deck-wrap.preview-idle {
+        transform: scale(0.88) translateY(0);
+      }
+      .card {
+        padding: 18px !important;
+      }
+      .jikokun-emblem {
+        width: 125px !important;
+        height: 125px !important;
+        margin: 4px 0 !important;
+      }
+      .jikokun-logo-img {
+        width: 100px !important;
+        height: 100px !important;
+      }
+      .jikokun-body h2 {
+        font-size: 22px !important;
+      }
+      .alert-username {
+        font-size: 24px !important;
+      }
+    }
+
+    @media (max-height: 380px) {
+      .deck-wrap.active, .deck-wrap.preview-idle {
+        transform: scale(0.78) translateY(-5px);
+      }
+    }
+
+    /* --------------------------------------------------
+       ESTRUCTURA DE CADA TARJETA (CARD)
+       -------------------------------------------------- */
+    #deck {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      outline: none;
+    }
+
+    .card {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(145deg, #181b22, #0d0f14);
+      border-radius: 18px;
+      border: 1px solid var(--card-border);
+      padding: 22px;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+      transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.42, 1), box-shadow 0.4s, border-color 0.4s;
+      overflow: hidden;
+      will-change: transform, opacity;
+      transform-origin: center center;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(130% 60% at 85% -10%, var(--glow), transparent 65%);
+      opacity: 0.85;
+      transition: opacity 0.4s ease;
+    }
+
+    .card::after {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: linear-gradient(
+        45deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.05) 50%,
+        transparent 60%
+      );
+      transform: rotate(25deg);
+      pointer-events: none;
+    }
+
+    /* Brillo cibernético animado en cartas activas */
+    .card.pulse-glow {
+      animation: alertPulse 1.2s ease-in-out infinite alternate;
+    }
+
+    @keyframes alertPulse {
+      0% {
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 15px var(--glow);
+      }
+      100% {
+        box-shadow: 0 20px 45px rgba(0, 0, 0, 0.85), 0 0 35px var(--glow), 0 0 10px var(--accent);
+      }
+    }
+
+    /* --------------------------------------------------
+       CARTA MAESTRA 01: LOGO JIKOKUN (PORTADA)
+       -------------------------------------------------- */
+    .card-jikokun {
+      --accent: var(--jikokun-cyan);
+      --glow: rgba(0, 242, 254, 0.35);
+      border-color: rgba(0, 242, 254, 0.25);
+      text-align: center;
+      align-items: center;
+    }
+
+    .jikokun-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .jikokun-header .edition {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: var(--jikokun-cyan);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    .jikokun-header .live-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 800;
+      color: var(--kick-green);
+      background: rgba(83, 252, 24, 0.12);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      padding: 3px 8px;
+      border-radius: 99px;
+      letter-spacing: 0.05em;
+    }
+
+    .live-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--kick-green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--kick-green);
+      animation: liveBlink 1.4s ease-in-out infinite;
+    }
+
+    @keyframes liveBlink {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.75); }
+    }
+
+    /* Emblema Jikokun Central */
+    .jikokun-emblem {
+      position: relative;
+      width: 155px;
+      height: 155px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 4px 0 6px 0;
+    }
+
+    .emblem-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2px dashed rgba(0, 242, 254, 0.45);
+      animation: rotateRing 18s linear infinite;
+    }
+
+    .emblem-ring-outer {
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 1.5px solid rgba(157, 78, 221, 0.4);
+      animation: rotateRingRev 24s linear infinite;
+    }
+
+    @keyframes rotateRing {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    @keyframes rotateRingRev {
+      0% { transform: rotate(360deg); }
+      100% { transform: rotate(0deg); }
+    }
+
+    .jikokun-logo-img {
+      width: 125px;
+      height: 125px;
+      object-fit: contain;
+      border-radius: 50%;
+      filter: drop-shadow(0 0 18px rgba(0, 242, 254, 0.85));
+      z-index: 2;
+      transition: transform 0.3s ease;
+    }
+
+    .jikokun-body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .jikokun-body h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      background: linear-gradient(135deg, #ffffff 30%, #00f2fe 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+
+    .jikokun-body p {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #94a3b8;
+      letter-spacing: 0.05em;
+      line-height: 1.2;
+    }
+
+    .jikokun-footer {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 10px;
+    }
+
+    .card-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 9px;
+      border-radius: 99px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: rgba(255, 255, 255, 0.05);
+      color: #cbd5e1;
+      letter-spacing: 0.06em;
+    }
+
+    .kick-brand-mini {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 800;
+      color: var(--kick-green);
+      text-shadow: 0 0 10px var(--kick-glow);
+    }
+
+    /* --------------------------------------------------
+       CARTA DE ALERTA DINÁMICA (KICK EVENT CARD)
+       -------------------------------------------------- */
+    .card-alert {
+      text-align: center;
+      align-items: center;
+    }
+
+    .alert-header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .alert-type-badge {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10.5px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+      background: rgba(var(--accent-rgb), 0.15);
+      border: 1px solid rgba(var(--accent-rgb), 0.4);
+      padding: 4px 9px;
+      border-radius: 8px;
+      text-transform: uppercase;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .alert-body {
+      width: 100%;
+      margin: auto 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      gap: 7px;
+    }
+
+    .alert-icon-wrap {
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: rgba(var(--accent-rgb), 0.12);
+      border: 1px solid rgba(var(--accent-rgb), 0.35);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 25px;
+      box-shadow: 0 0 20px rgba(var(--accent-rgb), 0.3);
+      animation: bounceIco 2s infinite ease-in-out;
+      margin: 0 auto;
+    }
+
+    @keyframes bounceIco {
+      0%, 100% { transform: translateY(0) scale(1); }
+      50% { transform: translateY(-3px) scale(1.04); }
+    }
+
+    .alert-username {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1.1;
+      text-align: center;
+      word-break: break-word;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+    }
+
+    .alert-username span {
+      color: var(--accent);
+      text-shadow: 0 0 15px rgba(var(--accent-rgb), 0.7);
+    }
+
+    .alert-description {
+      font-family: 'Inter', sans-serif;
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #94a3b8;
+      line-height: 1.35;
+      text-align: center;
+      max-width: 92%;
+      margin: 0 auto;
+    }
+
+    .alert-highlight {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 5px 12px;
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+      text-align: center;
+    }
+
+    .alert-footer {
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 10px;
+    }
+
+    .alert-event-subtext {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #94a3b8;
+      letter-spacing: 0.04em;
+      text-align: center;
+      width: 100%;
+      word-break: break-word;
+    }
+
+    /* --------------------------------------------------
+       INDICADORES DE PUNTOS (DOTS)
+       -------------------------------------------------- */
+    .deck-indicators {
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .deck-indicators span {
+      width: 6px;
+      height: 6px;
+      border-radius: 99px;
+      background: #475569;
+      opacity: 0.6;
+      transition: all 0.4s cubic-bezier(0.34, 1.3, 0.42, 1);
+    }
+
+    .deck-indicators span.front {
+      width: 18px;
+      background: var(--accent);
+      opacity: 1;
+      box-shadow: 0 0 8px var(--glow);
+    }
+
+    /* --------------------------------------------------
+       PROBADOR DE EVENTOS TÁCTIL (TOUCH & CLICK TRIGGER)
+       -------------------------------------------------- */
+    #control-bar {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      background: rgba(10, 14, 22, 0.92);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(0, 242, 254, 0.35);
+      border-radius: 40px;
+      padding: 6px 14px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.2);
+      z-index: 9999;
+      opacity: 1;
+      max-width: 96vw;
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+      user-select: none;
+    }
+
+    #control-bar.minimized {
+      transform: translateX(-50%) translateY(calc(100% + 40px));
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .btn-test {
+      background: rgba(255, 255, 255, 0.07);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      color: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-test:hover, .btn-test:active {
+      background: rgba(255, 255, 255, 0.18);
+      transform: translateY(-2px);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-test.follow:hover, .btn-test.follow:active { color: #53fc18; border-color: #53fc18; box-shadow: 0 0 10px rgba(83,252,24,0.4); }
+    .btn-test.sub:hover, .btn-test.sub:active { color: #a855f7; border-color: #a855f7; box-shadow: 0 0 10px rgba(168,85,247,0.4); }
+    .btn-test.gift:hover, .btn-test.gift:active { color: #f59e0b; border-color: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.4); }
+    .btn-test.raid:hover, .btn-test.raid:active { color: #ff5722; border-color: #ff5722; box-shadow: 0 0 10px rgba(255,87,34,0.4); }
+    .btn-test.kicks:hover, .btn-test.kicks:active { color: #06b6d4; border-color: #06b6d4; box-shadow: 0 0 10px rgba(6,182,212,0.4); }
+    .btn-test.tip:hover, .btn-test.tip:active { color: #10b981; border-color: #10b981; box-shadow: 0 0 10px rgba(16,185,129,0.4); }
+
+    .ws-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+    }
+
+    .ws-status-light {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 5px #ef4444;
+      transition: all 0.3s ease;
+    }
+
+    .ws-status-light.connected {
+      background: #53fc18;
+      box-shadow: 0 0 7px #53fc18;
+    }
+
+    .btn-close-tester {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      color: #94a3b8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      cursor: pointer;
+      font-size: 11px;
+      margin-left: 2px;
+      transition: all 0.2s ease;
+    }
+    .btn-close-tester:hover {
+      background: rgba(239, 68, 68, 0.35);
+      border-color: #ef4444;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="widget-container">
+    <div class="deck-wrap" id="deck-wrap">
+      <div id="deck" tabindex="0" aria-label="Mazo de Alertas Jikokun">
+        
+        <!-- CARTA 01: LOGO JIKOKUN (PORTADA FRONTAL) -->
+        <article class="card card-jikokun" id="card-front-jikokun" data-type="jikokun" style="--accent: var(--jikokun-cyan); --glow: rgba(0,242,254,0.35);">
+          <div class="jikokun-header">
+            <span class="edition">EDICIÓN #01</span>
+            <span class="live-status"><span class="live-dot"></span> LIVE</span>
+          </div>
+
+          <div class="jikokun-emblem">
+            <div class="emblem-ring-outer"></div>
+            <div class="emblem-ring"></div>
+            <!-- Logotipo Oficial Jikokun -->
+            <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1784994271/logoestatico_my0ws0.webp" alt="Logo Jikokun" class="jikokun-logo-img">
+          </div>
+
+          <div class="jikokun-body">
+            <h2>JIKOKUN</h2>
+            <p>SISTEMA DE ALERTAS</p>
+          </div>
+
+          <div class="jikokun-footer" style="justify-content: flex-end;">
+            <div class="kick-brand-mini">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 2h6v6h4V2h6v8h-4v4h4v8h-6v-6h-4v6H3V2z"/></svg>
+              KICK.COM
+            </div>
+          </div>
+        </article>
+
+        <!-- CARTA 02: ALERTA DINÁMICA (SE PREPARA DETRÁS Y SE REVELA) -->
+        <article class="card card-alert" id="card-alert-event" data-type="alert" style="--accent: var(--kick-green); --glow: var(--kick-glow); --accent-rgb: 83, 252, 24;">
+          <div class="alert-header">
+            <span class="alert-type-badge" id="alert-badge">
+              <span id="alert-badge-icon">⭐</span>
+              <span id="alert-badge-text">NUEVO SEGUIDOR</span>
+            </span>
+            <div class="kick-brand-mini">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 2h6v6h4V2h6v8h-4v4h4v8h-6v-6h-4v6H3V2z"/></svg>
+              KICK
+            </div>
+          </div>
+
+          <div class="alert-body">
+            <div class="alert-icon-wrap" id="alert-main-icon">🎉</div>
+            <div class="alert-username" id="alert-username">Usuario <span>Kick</span></div>
+            <div class="alert-description" id="alert-description">¡Gracias por unirte al directo!</div>
+            <div class="alert-highlight" id="alert-highlight" style="display:none;">+1 Mes</div>
+          </div>
+
+          <div class="alert-footer">
+            <span class="alert-event-subtext" id="alert-extra-info">Kick Live Event</span>
+          </div>
+        </article>
+
+        <!-- CARTA 03: RESPALDO DE FONDO (DA PROFUNDIDAD AL MAZO) -->
+        <article class="card card-jikokun" id="card-back-support" data-type="support" style="--accent: #64748b; --glow: rgba(100,116,139,0.2);">
+          <div class="jikokun-header">
+            <span class="edition">DECK CARD #03</span>
+            <span class="card-badge">JIKOKUN</span>
+          </div>
+          <div style="text-align:center; opacity:0.3; font-size:36px; margin:auto 0;">🎴</div>
+          <div class="jikokun-footer" style="justify-content: flex-end;">
+            <div class="kick-brand-mini">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M3 2h6v6h4V2h6v8h-4v4h4v8h-6v-6h-4v6H3V2z"/></svg>
+              KICK.COM
+            </div>
+          </div>
+        </article>
+
+      </div>
+      <div class="deck-indicators" id="deck-indicators"></div>
+    </div>
+  </div>
+
+  <!-- PROBADOR DE ALERTAS INTEGRADO (SE ACTIVA AL TOCAR / HACER CLIC EN CUALQUIER PARTE DE LA PANTALLA) -->
+  <div id="control-bar" class="minimized">
+    <div class="ws-pill" id="ws-indicator" title="Estado de conexión Streamer.bot">
+      <span class="ws-status-light" id="ws-status-light"></span>
+      <span id="ws-status-text">WS 4445</span>
+    </div>
+    <button class="btn-test follow" onclick="triggerAlert('follow', { user: 'Carlos_Gamer', text: '¡Se acaba de unir como seguidor!' })">🟢 Follow</button>
+    <button class="btn-test sub" onclick="triggerAlert('sub', { user: 'Lorena_99', months: 3, text: '¡Se suscribió al canal!' })">🟣 Sub</button>
+    <button class="btn-test gift" onclick="triggerAlert('gift', { user: 'MasterKing', count: 5, text: '¡Regaló 5 suscripciones a la comunidad!' })">🎁 Gift</button>
+    <button class="btn-test raid" onclick="triggerAlert('raid', { user: 'StreamerPro', viewers: 42, text: '¡Llega con una raid!' })">🚀 Raid</button>
+    <button class="btn-test kicks" onclick="triggerAlert('kicks', { user: 'GamerElSalvador', amount: 500, text: '¡Envió 500 Kicks de apoyo!' })">💎 Kicks</button>
+    <button class="btn-test tip" onclick="triggerAlert('tip', { user: 'DonadorAnonimo', amount: '$10.00', message: '¡Gran stream, sigue así!', text: '¡Ha donado $10.00!' })">💵 Tip</button>
+    <button class="btn-close-tester" onclick="hideEventTester(event)" title="Cerrar probador">✕</button>
+  </div>
+
+<script>
+(function(){
+  // -----------------------------------------------------------------------
+  // 1. CONFIGURACIÓN DE PARÁMETROS URL Y AUDIO
+  // -----------------------------------------------------------------------
+  const urlParams = new URLSearchParams(window.location.search);
+  const customPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
+  const alertDuration = parseInt(urlParams.get('duration') || '6500', 10);
+  const isMuted = urlParams.get('mute') === 'true';
+  const isPreview = urlParams.get('preview') === 'true';
+
+  // -----------------------------------------------------------------------
+  // 2. SISTEMA DE AUDIO (Web Audio API & SFX Sintetizado de Calidad)
+  // -----------------------------------------------------------------------
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  let audioCtx = null;
+
+  function initAudio() {
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playAlertSound(type) {
+    if (isMuted) return;
+    try {
+      initAudio();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+      const masterGain = audioCtx.createGain();
+      masterGain.gain.setValueAtTime(0.18, now);
+      masterGain.connect(audioCtx.destination);
+
+      if (type === 'follow') {
+        playChimeNote(1046.50, now, 0.35, masterGain);
+        playChimeNote(1567.98, now + 0.12, 0.55, masterGain);
+      } else if (type === 'sub' || type === 'gift') {
+        playChimeNote(523.25, now, 0.3, masterGain);
+        playChimeNote(659.25, now + 0.08, 0.3, masterGain);
+        playChimeNote(783.99, now + 0.16, 0.35, masterGain);
+        playChimeNote(1046.50, now + 0.24, 0.65, masterGain);
+      } else if (type === 'raid') {
+        playChimeNote(440.00, now, 0.2, masterGain);
+        playChimeNote(554.37, now + 0.1, 0.2, masterGain);
+        playChimeNote(659.25, now + 0.2, 0.2, masterGain);
+        playChimeNote(880.00, now + 0.3, 0.6, masterGain);
+      } else {
+        playChimeNote(587.33, now, 0.25, masterGain);
+        playChimeNote(880.00, now + 0.1, 0.3, masterGain);
+        playChimeNote(1174.66, now + 0.2, 0.6, masterGain);
+      }
+    } catch (err) {
+      console.warn('[Audio] Error al sintetizar sonido:', err);
+    }
+  }
+
+  function playChimeNote(freq, startTime, duration, outputNode) {
+    const osc = audioCtx.createOscillator();
+    const noteGain = audioCtx.createGain();
+    
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, startTime);
+    
+    noteGain.gain.setValueAtTime(0, startTime);
+    noteGain.gain.linearRampToValueAtTime(1, startTime + 0.02);
+    noteGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+    
+    osc.connect(noteGain);
+    noteGain.connect(outputNode);
+    
+    osc.start(startTime);
+    osc.stop(startTime + duration);
+  }
+
+  // -----------------------------------------------------------------------
+  // 3. CONTROLADOR DE LA BARAJA (CARD DECK SLIDER ENGINE)
+  // -----------------------------------------------------------------------
+  const deckWrap = document.getElementById('deck-wrap');
+  const deck = document.getElementById('deck');
+  const indicatorsEl = document.getElementById('deck-indicators');
+  
+  const cardJikokun = document.getElementById('card-front-jikokun');
+  const cardAlert = document.getElementById('card-alert-event');
+  const cardSupport = document.getElementById('card-back-support');
+  const cards = [cardJikokun, cardAlert, cardSupport];
+  const N = cards.length;
+
+  let order = cards.slice(); // order[0] = carta frontal activa
+  let animating = false;
+  let alertTimer = null;
+
+  // Función matemática de disposición escalonada en abanico
+  const T = i => `translate3d(${i * -14}px, ${i * 6}px, 0) rotate(${i * -4}deg) scale(${1 - i * 0.025})`;
+
+  function layoutAll() {
+    order.forEach((c, i) => {
+      c.style.transform = T(i);
+      c.style.zIndex = String(N - i);
+    });
+  }
+
+  function renderIndicators() {
+    indicatorsEl.innerHTML = '';
+    order.forEach((c, i) => {
+      const s = document.createElement('span');
+      s.style.background = c.style.getPropertyValue('--accent') || '#475569';
+      if (i === 0) s.classList.add('front');
+      indicatorsEl.appendChild(s);
+    });
+  }
+
+  // Resetear el orden del mazo para que Jikokun quede al frente
+  function resetDeckToJikokunFront() {
+    order = [cardJikokun, cardAlert, cardSupport];
+    layoutAll();
+    renderIndicators();
+  }
+
+  // Ciclar carta con animación física Web Animations API
+  function cycleDeck(onFinished) {
+    if (animating) return;
+    animating = true;
+
+    const moved = order.shift();
+    order.push(moved);
+    const last = N - 1;
+
+    // Las otras cartas avanzan un puesto hacia adelante con rebote natural
+    order.forEach((c, i) => {
+      if (c === moved) return;
+      c.style.transform = T(i);
+      c.style.zIndex = String(N - i);
+    });
+    renderIndicators();
+
+    // Animación fluida de lanzamiento hacia la derecha y regreso por detrás
+    const anim = moved.animate([
+      { transform: T(0), zIndex: N + 2, offset: 0, easing: 'cubic-bezier(0.2, 0.7, 0.25, 1)' },
+      { transform: 'translate(76%, -15%) rotate(11deg)', zIndex: N + 2, offset: 0.42, easing: 'linear' },
+      { transform: 'translate(76%, -15%) rotate(11deg)', zIndex: 0, offset: 0.43, easing: 'cubic-bezier(0.5, 0.05, 0.3, 1)' },
+      { transform: T(last), zIndex: 0 }
+    ], { duration: 720 });
+
+    anim.onfinish = () => {
+      moved.style.transform = T(last);
+      moved.style.zIndex = '0';
+      animating = false;
+      if (typeof onFinished === 'function') onFinished();
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // 4. GESTOR DE EVENTOS Y REVELACIÓN DE ALERTAS (FLUJO COMPLETO)
+  // -----------------------------------------------------------------------
+  const alertQueue = [];
+  let isDisplayingAlert = false;
+
+  const alertBadge = document.getElementById('alert-badge');
+  const alertBadgeIcon = document.getElementById('alert-badge-icon');
+  const alertBadgeText = document.getElementById('alert-badge-text');
+  const alertMainIcon = document.getElementById('alert-main-icon');
+  const alertUsername = document.getElementById('alert-username');
+  const alertDescription = document.getElementById('alert-description');
+  const alertHighlight = document.getElementById('alert-highlight');
+  const alertExtraInfo = document.getElementById('alert-extra-info');
+
+  const THEMES = {
+    follow: {
+      color: '#53fc18',
+      glow: 'rgba(83, 252, 24, 0.45)',
+      rgb: '83, 252, 24',
+      badgeText: 'NUEVO SEGUIDOR',
+      badgeIcon: '🟢',
+      mainIcon: '⚡',
+      defaultDesc: '¡Bienvenido a la comunidad del canal!'
+    },
+    sub: {
+      color: '#a855f7',
+      glow: 'rgba(168, 85, 247, 0.45)',
+      rgb: '168, 85, 247',
+      badgeText: 'SUSCRIPCIÓN',
+      badgeIcon: '⭐',
+      mainIcon: '👑',
+      defaultDesc: '¡Gracias por apoyar el directo con tu Sub!'
+    },
+    gift: {
+      color: '#f59e0b',
+      glow: 'rgba(245, 158, 11, 0.45)',
+      rgb: '245, 158, 11',
+      badgeText: 'SUBS REGALADAS',
+      badgeIcon: '🎁',
+      mainIcon: '🎉',
+      defaultDesc: '¡Repartiendo suscripciones a la comunidad!'
+    },
+    raid: {
+      color: '#ff5722',
+      glow: 'rgba(255, 87, 34, 0.45)',
+      rgb: '255, 87, 34',
+      badgeText: 'HOST / RAID',
+      badgeIcon: '🚀',
+      mainIcon: '🔥',
+      defaultDesc: '¡Llega toda la tropa con una Raid!'
+    },
+    kicks: {
+      color: '#06b6d4',
+      glow: 'rgba(6, 182, 212, 0.45)',
+      rgb: '6, 182, 212',
+      badgeText: 'KICKS ENVIADOS',
+      badgeIcon: '💎',
+      mainIcon: '🪙',
+      defaultDesc: '¡Impulsando el canal con Kicks tokens!'
+    },
+    tip: {
+      color: '#10b981',
+      glow: 'rgba(16, 185, 129, 0.45)',
+      rgb: '16, 185, 129',
+      badgeText: 'DONACIÓN',
+      badgeIcon: '💵',
+      mainIcon: '💰',
+      defaultDesc: '¡Muchísimas gracias por tu donación!'
+    }
+  };
+
+  // Configura los datos en la tarjeta de alerta (mientras está detrás del mazo)
+  function populateAlertCard(type, data) {
+    const theme = THEMES[type] || THEMES.follow;
+    
+    // Aplicar estilos y variables CSS a la tarjeta
+    cardAlert.style.setProperty('--accent', theme.color);
+    cardAlert.style.setProperty('--glow', theme.glow);
+    cardAlert.style.setProperty('--accent-rgb', theme.rgb);
+    cardAlert.style.borderColor = `rgba(${theme.rgb}, 0.4)`;
+
+    // Insignias y textos
+    alertBadgeText.textContent = theme.badgeText;
+    alertBadgeIcon.textContent = theme.badgeIcon;
+    alertMainIcon.textContent = theme.mainIcon;
+    
+    const user = data.user || data.username || 'Espectador';
+    alertUsername.innerHTML = `${user} <span>Kick</span>`;
+    alertDescription.textContent = data.text || data.description || theme.defaultDesc;
+
+    // Highlight opcional (Meses, Cantidad de subs, Donación, etc.)
+    if (data.months) {
+      alertHighlight.style.display = 'inline-flex';
+      alertHighlight.textContent = `📅 ${data.months} ${data.months === 1 ? 'Mes' : 'Meses'} Suscrito`;
+    } else if (data.count) {
+      alertHighlight.style.display = 'inline-flex';
+      alertHighlight.textContent = `🎁 ${data.count} Subs Regaladas`;
+    } else if (data.viewers) {
+      alertHighlight.style.display = 'inline-flex';
+      alertHighlight.textContent = `👥 ${data.viewers} Espectadores`;
+    } else if (data.amount && type !== 'tip') {
+      alertHighlight.style.display = 'inline-flex';
+      alertHighlight.textContent = `💎 ${data.amount} Kicks`;
+    } else if (data.amount && type === 'tip') {
+      alertHighlight.style.display = 'inline-flex';
+      alertHighlight.textContent = `💰 Donación: ${data.amount}`;
+    } else {
+      alertHighlight.style.display = 'none';
+    }
+
+    if (data.message) {
+      alertExtraInfo.textContent = `"${data.message}"`;
+    } else {
+      alertExtraInfo.textContent = 'Kick Live Event';
+    }
+  }
+
+  // Disparar Alerta y ponerla en cola
+  window.triggerAlert = function(type, data = {}) {
+    alertQueue.push({ type, data });
+    processQueue();
+  };
+
+  function processQueue() {
+    if (isDisplayingAlert || alertQueue.length === 0) return;
+    isDisplayingAlert = true;
+
+    const nextAlert = alertQueue.shift();
+    
+    // 1. Inyectar datos en la carta de alerta (que está detrás)
+    populateAlertCard(nextAlert.type, nextAlert.data);
+
+    // 2. Asegurar que Jikokun esté al frente y la alerta en segundo puesto
+    resetDeckToJikokunFront();
+
+    // 3. PASO 1: Aparece la baraja en pantalla (Intro animada)
+    deckWrap.classList.remove('exiting', 'preview-idle');
+    deckWrap.classList.add('active');
+
+    // 4. Reproducir sonido de alerta
+    playAlertSound(nextAlert.type);
+
+    // 5. PASO 2: Dejar la baraja visible 1.8s y luego lanzar la carta de Jikokun hacia atrás revelando el evento
+    setTimeout(() => {
+      cycleDeck(() => {
+        cardAlert.classList.add('pulse-glow');
+        startAlertTimeout();
+      });
+    }, 1800);
+  }
+
+  function startAlertTimeout() {
+    clearTimeout(alertTimer);
+    alertTimer = setTimeout(() => {
+      cardAlert.classList.remove('pulse-glow');
+
+      // Si hay más alertas pendientes en la cola, procesar la siguiente directamente
+      if (alertQueue.length > 0) {
+        isDisplayingAlert = false;
+        processQueue();
+      } else {
+        // PASO 3: Desaparece la baraja de la pantalla (Outro animada)
+        deckWrap.classList.remove('active');
+        deckWrap.classList.add('exiting');
+
+        setTimeout(() => {
+          deckWrap.classList.remove('exiting');
+          resetDeckToJikokunFront();
+          isDisplayingAlert = false;
+
+          // Si es vista previa en el configurador web, mantenerla en reposo suave
+          if (isPreview) {
+            deckWrap.classList.add('preview-idle');
+          }
+        }, 500);
+      }
+    }, alertDuration);
+  }
+
+  // -----------------------------------------------------------------------
+  // CONTROL DEL PROBADOR DE EVENTOS AL TOCAR LA PANTALLA
+  // -----------------------------------------------------------------------
+  let hideTesterTimer = null;
+  const controlBar = document.getElementById('control-bar');
+
+  window.showEventTester = function() {
+    if (!controlBar) return;
+    initAudio();
+    controlBar.classList.remove('minimized');
+    clearTimeout(hideTesterTimer);
+    hideTesterTimer = setTimeout(() => {
+      controlBar.classList.add('minimized');
+    }, 6000);
+  };
+
+  window.hideEventTester = function(e) {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (controlBar) {
+      controlBar.classList.add('minimized');
+      clearTimeout(hideTesterTimer);
+    }
+  };
+
+  window.toggleControlBar = function() {
+    if (!controlBar) return;
+    if (controlBar.classList.contains('minimized')) {
+      window.showEventTester();
+    } else {
+      window.hideEventTester();
+    }
+  };
+
+  // Al tocar o hacer clic en cualquier parte de la pantalla se despliega el probador
+  document.addEventListener('pointerdown', e => {
+    initAudio();
+    if (!e.target.closest('#control-bar')) {
+      if (controlBar && controlBar.classList.contains('minimized')) {
+        window.showEventTester();
+      } else if (controlBar) {
+        window.hideEventTester();
+      }
+    } else {
+      // Si interactúa con los botones del probador, renovar el tiempo para que no se oculte
+      clearTimeout(hideTesterTimer);
+      hideTesterTimer = setTimeout(() => {
+        if (controlBar) controlBar.classList.add('minimized');
+      }, 6000);
+    }
+  });
+
+  // Atajo de teclado ('T' para alternar barra de test)
+  window.addEventListener('keydown', e => {
+    if (e.key === 't' || e.key === 'T') {
+      window.toggleControlBar();
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // 5. CONEXIÓN WEBSOCKET LOCAL CON STREAMER.BOT
+  // -----------------------------------------------------------------------
+  let streamerBotSocket = null;
+  const wsLight = document.getElementById('ws-status-light');
+  const wsText = document.getElementById('ws-status-text');
+
+  const portsToTry = [
+    `ws://127.0.0.1:${customPort}/`,
+    `ws://localhost:${customPort}/`,
+    `ws://127.0.0.1:4445/`,
+    `ws://localhost:4445/`,
+    `ws://127.0.0.1:8080/`,
+    `ws://localhost:8080/`
+  ];
+  let currentPortIndex = 0;
+
+  function connectStreamerBot() {
+    const url = portsToTry[currentPortIndex];
+    wsText.textContent = `WS (${url.split(':')[2].replace('/', '')})`;
+
+    try {
+      streamerBotSocket = new WebSocket(url);
+
+      streamerBotSocket.onopen = function() {
+        console.log(`[Jikokun Deck] 🟢 Conectado a Streamer.bot en ${url}`);
+        wsLight.classList.add('connected');
+        wsText.textContent = `🟢 WS ${url.split(':')[2].replace('/', '')}`;
+
+        // Suscribirse a eventos de Kick, Twitch y Donaciones
+        streamerBotSocket.send(JSON.stringify({
+          request: 'Subscribe',
+          id: 'jikokun-card-deck-overlay',
+          events: {
+            Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid', '*'],
+            Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer', '*'],
+            General: ['*'],
+            StreamerBot: ['Custom', '*']
+          }
+        }));
+      };
+
+      streamerBotSocket.onmessage = function(event) {
+        try {
+          const data = JSON.parse(event.data);
+          handleStreamerBotPacket(data);
+        } catch(err) {
+          console.warn('[Jikokun Deck] Error al parsear paquete:', err);
+        }
+      };
+
+      streamerBotSocket.onerror = function() {
+        wsLight.classList.remove('connected');
+      };
+
+      streamerBotSocket.onclose = function() {
+        wsLight.classList.remove('connected');
+        wsText.textContent = '🔴 Reconectando...';
+        currentPortIndex = (currentPortIndex + 1) % portsToTry.length;
+        setTimeout(connectStreamerBot, 2500);
+      };
+    } catch(err) {
+      setTimeout(connectStreamerBot, 3000);
+    }
+  }
+
+  // Parser robusto de eventos de Kick & Streamer.bot
+  function handleStreamerBotPacket(data) {
+    if (!data) return;
+    const eventInfo = data.event || {};
+    const payload = data.data || data;
+
+    let eventType = '';
+    if (typeof data.event === 'string') eventType = data.event;
+    else if (data.event && data.event.type) eventType = data.event.type;
+    else if (data.type) eventType = data.type;
+    else if (data.action && data.action.name) eventType = data.action.name;
+    eventType = (eventType || '').toString().toLowerCase();
+
+    // Extraer nombre de usuario
+    const username = payload.user || payload.follower || payload.subscriber || payload.sender || payload.recipient || payload.username || payload.name || 'Usuario';
+    const message = payload.message || payload.note || payload.comment || '';
+
+    // Detección por tipo de alerta
+    if (eventType.includes('follow')) {
+      triggerAlert('follow', { user: username, text: '¡Se acaba de unir como seguidor!' });
+    } else if (eventType.includes('subbomb') || eventType.includes('giftsub') || eventType.includes('gift')) {
+      const count = payload.gifts || payload.count || payload.sub_count || 5;
+      triggerAlert('gift', { user: username, count: count, text: `¡Regaló ${count} suscripciones a la comunidad!` });
+    } else if (eventType.includes('sub') || eventType.includes('subscription') || eventType.includes('resub')) {
+      const months = payload.months || payload.cumulative_months || payload.month || 1;
+      triggerAlert('sub', { user: username, months: months, text: `¡Se suscribió por ${months} ${months === 1 ? 'mes' : 'meses'}!` });
+    } else if (eventType.includes('raid') || eventType.includes('host')) {
+      const viewers = payload.viewers || payload.viewer_count || payload.count || 10;
+      triggerAlert('raid', { user: username, viewers: viewers, text: `¡Llega con una raid de ${viewers} personas!` });
+    } else if (eventType.includes('cheer') || eventType.includes('kick') || eventType.includes('token') || eventType.includes('bits')) {
+      const amount = payload.bits || payload.kicks || payload.amount || 100;
+      triggerAlert('kicks', { user: username, amount: amount, text: `¡Envió ${amount} Kicks de apoyo!` });
+    } else if (eventType.includes('tip') || eventType.includes('dono') || eventType.includes('donation')) {
+      const formattedAmount = payload.formatted_amount || (payload.amount ? `$${payload.amount}` : '$5.00');
+      triggerAlert('tip', { user: username, amount: formattedAmount, message: message, text: `¡Ha donado ${formattedAmount}!` });
+    }
+  }
+
+  let isIdleMode = urlParams.get('idle') === 'true';
+
+  // -----------------------------------------------------------------------
+  // 6. ESCUCHA DE MENSAJES POSTMESSAGE DESDE INDEX.HTML
+  // -----------------------------------------------------------------------
+  window.addEventListener('message', event => {
+    if (!event.data) return;
+
+    if (event.data.type === 'SET_IDLE_MODE') {
+      isIdleMode = !!event.data.idle;
+      if (isIdleMode && !isDisplayingAlert) {
+        deckWrap.classList.remove('exiting');
+        deckWrap.classList.add('preview-idle');
+      } else if (!isIdleMode && !isDisplayingAlert) {
+        deckWrap.classList.remove('preview-idle', 'active', 'exiting');
+      }
+      return;
+    }
+
+    if (event.data.type === 'TRIGGER_TEST_ALERT') {
+      const aType = event.data.alertType || 'follow';
+      if (event.data.colors && event.data.colors[aType]) {
+        THEMES[aType].color = event.data.colors[aType];
+      }
+      
+      const testData = { user: 'Gamer_Pro' };
+      if (aType === 'follow') {
+        testData.text = '¡Bienvenido a la comunidad del canal!';
+      } else if (aType === 'sub') {
+        testData.months = 3;
+        testData.text = '¡Gracias por apoyar el directo con tu Sub!';
+      } else if (aType === 'gift') {
+        testData.count = 5;
+        testData.text = '¡Repartiendo suscripciones a la comunidad!';
+      } else if (aType === 'raid') {
+        testData.viewers = 64;
+        testData.text = '¡Llega toda la tropa con una Raid!';
+      } else if (aType === 'kicks') {
+        testData.amount = 500;
+        testData.text = '¡Impulsando el canal con Kicks tokens!';
+      } else if (aType === 'tip') {
+        testData.amount = '$15.00';
+        testData.message = '¡Excelente directo!';
+        testData.text = '¡Muchísimas gracias por tu donación!';
+      }
+
+      triggerAlert(aType, testData);
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // 7. INICIALIZACIÓN
+  // -----------------------------------------------------------------------
+  layoutAll();
+  renderIndicators();
+  connectStreamerBot();
+
+  // Si está en modo reposo activo explícito, mostrarlo flotando
+  if (isIdleMode) {
+    deckWrap.classList.add('preview-idle');
+  }
+
+  // Parámetro de prueba directa ?test=follow
+  const testParam = urlParams.get('test');
+  if (testParam && THEMES[testParam]) {
+    setTimeout(() => triggerAlert(testParam), 600);
+  }
+})();
+</script>
+</body>
+</html>

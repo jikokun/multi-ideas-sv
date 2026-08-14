@@ -843,6 +843,7 @@
           <select id="alert-model-select" class="input-field" style="font-weight: 700; background: rgba(15, 23, 42, 0.9);" onchange="updateAlertsWidget()">
             <option value="alertas_rufus.html" selected>🦊 Alertas estilo Rufus5z</option>
             <option value="alertas_kiphu.html">⚡ Alertas estilo Kiphu</option>
+            <option value="alertas_jikokun.html">🎴 Baraja de Cartas estilo Jikokun</option>
           </select>
         </div>
 
@@ -996,6 +997,63 @@
 
         <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)" style="margin-top: 8px;">
           📋 Copiar Enlace de Alertas para OBS
+        </button>
+      </div>
+
+      <!-- Card 8: Widget Baraja de Alertas Kick (Jikokun Card Deck) -->
+      <div class="card" id="card-jikokun-deck" style="border-color: rgba(0, 242, 254, 0.45); background: rgba(3, 16, 26, 0.9);">
+        <h2 style="color: #00f2fe;">🎴 8. Widget Baraja de Alertas Kick (Jikokun Card Deck)</h2>
+
+        <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner" style="border-color: rgba(0, 242, 254, 0.35); background: rgba(0, 242, 254, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Simulador de Baraja 3D:</strong> La carta frontal de <strong>Jikokun</strong> vuela hacia atrás automáticamente al recibir eventos de <strong>Kick</strong> en Streamer.bot (Follows, Subs, Gifts, Raids, Kicks y Tips) revelando la alerta con animación fluida cinemática.
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 430px; background: radial-gradient(circle at center, #0a111a 0%, #03060a 100%);">
+          <iframe id="preview-jikokun" src="alertas_jikokun.html?preview=true&hidecontrols=true"></iframe>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="jikokun-port-input">🔌 Puerto WS Streamer.bot:</label>
+            <input type="text" id="jikokun-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateJikokunCardWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="jikokun-duration-input">⏱️ Duración de Alerta (s):</label>
+            <input type="number" id="jikokun-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateJikokunCardWidget()">
+          </div>
+        </div>
+
+        <!-- Botones de Prueba Directa para la Baraja Jikokun -->
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: #00f2fe; text-transform: uppercase; margin-bottom: 6px; display: block;">
+            🧪 Probar Cartas en la Vista Previa:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech btn-test-follow" onclick="triggerJikokunDeckTest('follow')">🟢 Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerJikokunDeckTest('sub')">🟣 Sub</button>
+            <button type="button" class="test-btn-tech btn-test-gift" onclick="triggerJikokunDeckTest('gift')">🎁 Gift</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerJikokunDeckTest('raid')">🚀 Raid</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerJikokunDeckTest('kicks')">💎 Kicks</button>
+            <button type="button" class="test-btn-tech" style="color: #10b981; border-color: rgba(16,185,129,0.4);" onclick="triggerJikokunDeckTest('tip')">💵 Tip</button>
+          </div>
+        </div>
+
+        <label class="checkbox-group" style="margin-bottom: 4px;">
+          <input type="checkbox" class="custom-checkbox" id="jikokun-preview-idle" onchange="updateJikokunCardWidget()">
+          <span>🔄 Mantener baraja visible en reposo en el mostrador</span>
+        </label>
+
+        <label class="checkbox-group" style="margin-bottom: 4px;">
+          <input type="checkbox" class="custom-checkbox" id="jikokun-mute" onchange="updateJikokunCardWidget()">
+          <span>🔇 Silenciar Efectos de Sonido Web Audio</span>
+        </label>
+
+        <button class="btn-copy" style="background: linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #9d4edd 100%); color: #02090f; margin-top: 6px;" onclick="copyWidgetUrl('url-jikokun', this)">
+          📋 Copiar Enlace Baraja Jikokun para OBS
         </button>
       </div>
 
@@ -1422,6 +1480,79 @@
       }
     }
 
+    // 8. Jikokun Card Deck Alerts Widget Update
+    function updateJikokunCardWidget() {
+      const portInput = document.getElementById('jikokun-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+      const durationSec = document.getElementById('jikokun-duration-input') ? document.getElementById('jikokun-duration-input').value : '6';
+      const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
+      const isMuted = document.getElementById('jikokun-mute') ? document.getElementById('jikokun-mute').checked : false;
+      const isIdlePreview = document.getElementById('jikokun-preview-idle') ? document.getElementById('jikokun-preview-idle').checked : false;
+
+      // 1. URL para OBS (limpia, transparente por defecto, sin controles)
+      const obsParams = new URLSearchParams();
+      if (port && port !== '4445') obsParams.set('port', port);
+      if (durationMs !== 6500) obsParams.set('duration', durationMs.toString());
+      if (isMuted) obsParams.set('mute', 'true');
+      obsParams.set('hidecontrols', 'true');
+
+      const obsPath = `alertas_jikokun.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
+      generatedUrls['url-jikokun'] = getAbsoluteUrl(obsPath);
+
+      // 2. URL para la Vista Previa Web en iframe
+      const previewParams = new URLSearchParams(obsParams);
+      if (isIdlePreview) {
+        previewParams.set('idle', 'true');
+      }
+      const previewPath = `alertas_jikokun.html?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-jikokun');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        } else if (previewIframe.contentWindow) {
+          previewIframe.contentWindow.postMessage({
+            type: 'SET_IDLE_MODE',
+            idle: isIdlePreview
+          }, '*');
+        }
+      }
+    }
+
+    function triggerJikokunDeckTest(alertType) {
+      const iframe = document.getElementById('preview-jikokun');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow'
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+
+        const names = {
+          follow: '🟢 Seguidor (Follow)',
+          sub: '🟣 Suscripción (Sub)',
+          gift: '🎁 Subs Regaladas (Gift Sub)',
+          raid: '🚀 Raid / Host',
+          kicks: '💎 Kicks Tokens',
+          tip: '💵 Donación / Tip'
+        };
+
+        toast.textContent = `🎴 Baraja Jikokun: Revelando Alerta de ${names[alertType] || alertType}`;
+        toast.classList.add('show');
+
+        if (window._jikokunToastTimeout) clearTimeout(window._jikokunToastTimeout);
+        window._jikokunToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    }
+
     // Copy URL function with Toast and Button Animation
     function copyWidgetUrl(urlKey, btn) {
       const urlText = generatedUrls[urlKey];
@@ -1456,6 +1587,7 @@
       updateDigitalWidget();
       updateChatWidget();
       updateAlertsWidget();
+      updateJikokunCardWidget();
     });
   </script>
 
