@@ -1226,20 +1226,20 @@
         wsLight.classList.add('connected');
         wsText.textContent = `🟢 WS ${url.split(':')[2].replace('/', '')}`;
 
-        // Suscribirse únicamente a eventos de alertas reales (evitando inundación de mensajes de chat y bots)
+        // Suscribirse a eventos de alertas (con soporte para Kicks regalados, Subs, Raids y Donaciones)
         streamerBotSocket.send(JSON.stringify({
           request: 'Subscribe',
           id: 'jikokun-card-deck-overlay',
           events: {
-            Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid'],
-            Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer'],
-            YouTube: ['Subscribe', 'SuperChat', 'SuperSticker', 'MembershipGift'],
+            Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid', 'Cheer', 'Kicks', 'RewardGift', 'GiftedKicks', 'Gift', 'Donation', 'Tip', '*'],
+            Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer', '*'],
+            YouTube: ['Subscribe', 'SuperChat', 'SuperSticker', 'MembershipGift', '*'],
             Donations: ['*'],
             Tip: ['*'],
             TipeeeStream: ['*'],
             Streamlabs: ['*'],
             Streamelements: ['*'],
-            StreamerBot: ['Custom']
+            StreamerBot: ['Custom', '*']
           }
         }));
       };
@@ -1341,8 +1341,38 @@
     console.log(`[Jikokun Deck] 🔔 Procesando evento verificado: '${eventType}' (${source}) - Usuario: '${username}'`);
 
     // 5. CLASIFICACIÓN DE EVENTOS REALES
-    // 🎁 A) REGALOS DE SUSCRIPCIONES (SubBomb / GiftSub)
-    if (eventType.includes('gift') || eventType.includes('bomb') || eventType.includes('membershipgift')) {
+    // 💎 A) KICKS REGALADOS / KICKS TOKENS / CHEER / BITS
+    // (Evaluar con prioridad si involucra Kicks, Tokens o Cheer)
+    if (
+      eventType.includes('kick') ||
+      eventType.includes('token') ||
+      eventType.includes('cheer') ||
+      eventType.includes('bits') ||
+      eventType.includes('rewardgift') ||
+      eventType.includes('giftedkick') ||
+      eventType.includes('kicks_gift') ||
+      payload.kicks !== undefined ||
+      payload.tokens !== undefined ||
+      payload.gifted_kicks !== undefined ||
+      payload.giftedKicks !== undefined
+    ) {
+      const amount = payload.kicks || payload.tokens || payload.amount || payload.gifted_kicks || payload.giftedKicks || payload.bits || payload.quantity || payload.count || 100;
+      triggerAlert('kicks', {
+        user: username,
+        amount: amount,
+        text: `¡Regaló ${amount} Kicks al canal!`,
+        source: source
+      });
+    }
+    // 🎁 B) REGALOS DE SUSCRIPCIONES (SubBomb / GiftSub / GiftSubscription)
+    else if (
+      eventType.includes('subbomb') ||
+      eventType.includes('giftsub') ||
+      eventType.includes('giftsubscription') ||
+      eventType.includes('membershipgift') ||
+      eventType.includes('gift') ||
+      eventType.includes('bomb')
+    ) {
       const count = payload.gifts || payload.totalGifts || payload.count || payload.sub_count || payload.giftCount || 1;
       const recipientName = extractCleanUsername(payload.recipient) || payload.recipient_name || payload.recipientUser || '';
       const textDesc = count > 1
@@ -1351,7 +1381,7 @@
 
       triggerAlert('gift', { user: username, count: count, text: textDesc, source: source });
     }
-    // ⭐ B) SUSCRIPCIÓN O RESUSCRIPCIÓN
+    // ⭐ C) SUSCRIPCIÓN O RESUSCRIPCIÓN
     else if (eventType.includes('sub') || eventType.includes('subscription') || (source.includes('youtube') && eventType.includes('membership'))) {
       const months = payload.months || payload.cumulative_months || payload.cumulativeMonths || payload.month || 1;
       const tier = payload.tier || payload.sub_tier || '1';
@@ -1361,11 +1391,11 @@
 
       triggerAlert('sub', { user: username, months: months, text: textDesc, source: source });
     }
-    // 🟢 C) NUEVO SEGUIDOR (Follow)
+    // 🟢 D) NUEVO SEGUIDOR (Follow)
     else if (eventType.includes('follow') || (source.includes('youtube') && eventType.includes('subscribe'))) {
       triggerAlert('follow', { user: username, text: '¡Se acaba de unir como nuevo seguidor!', source: source });
     }
-    // 🚀 D) RAID / HOST
+    // 🚀 E) RAID / HOST
     else if (eventType.includes('raid') || eventType.includes('host')) {
       const viewers = payload.viewers || payload.viewer_count || payload.viewerCount || payload.count || payload.number || 0;
       const textDesc = viewers > 0
@@ -1373,11 +1403,6 @@
         : '¡Nos acompaña con toda su comunidad!';
 
       triggerAlert('raid', { user: username, viewers: viewers, text: textDesc, source: source });
-    }
-    // 💎 E) KICKS TOKENS / BITS / CHEER
-    else if (eventType.includes('cheer') || eventType.includes('kick') || eventType.includes('token') || eventType.includes('bits')) {
-      const amount = payload.bits || payload.kicks || payload.amount || 100;
-      triggerAlert('kicks', { user: username, amount: amount, text: `¡Envió ${amount} Kicks de apoyo!`, source: source });
     }
     // 💵 F) DONACIÓN / TIPS / SUPERCHAT
     else if (eventType.includes('tip') || eventType.includes('dono') || eventType.includes('donation') || eventType.includes('super')) {
