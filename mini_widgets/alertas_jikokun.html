@@ -1009,8 +1009,26 @@
     }
   };
 
+  // Extractor robusto de nombre de usuario para evitar [object Object] y leer datos reales
+  function extractCleanUsername(val) {
+    if (!val) return '';
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (trimmed && trimmed !== '[object Object]' && trimmed !== 'undefined' && trimmed !== 'null') {
+        return trimmed;
+      }
+    }
+    if (typeof val === 'object') {
+      const cand = val.display_name || val.displayName || val.user_name || val.userName || val.username || val.user_login || val.userLogin || val.name || val.login;
+      if (cand && typeof cand === 'string' && cand.trim()) {
+        return cand.trim();
+      }
+    }
+    return '';
+  }
+
   // Configura los datos en la tarjeta de alerta (mientras está detrás del mazo)
-  function populateAlertCard(type, data) {
+  function populateAlertCard(type, data = {}) {
     const theme = THEMES[type] || THEMES.follow;
     
     // Aplicar estilos y variables CSS a la tarjeta
@@ -1024,8 +1042,12 @@
     alertBadgeIcon.textContent = theme.badgeIcon;
     alertMainIcon.textContent = theme.mainIcon;
     
-    const user = data.user || data.username || 'Espectador';
-    alertUsername.innerHTML = `${user} <span>Kick</span>`;
+    const rawUser = data.user || data.username || data.follower || data.subscriber || data.sender || data.name || 'Espectador';
+    const user = extractCleanUsername(rawUser) || 'Espectador';
+    const sourcePlatform = (data.platform || data.source || 'Kick').toString().toUpperCase();
+    const platformLabel = sourcePlatform.includes('TWITCH') ? 'Twitch' : sourcePlatform.includes('YOUTUBE') ? 'YouTube' : 'Kick';
+
+    alertUsername.innerHTML = `${user} <span>${platformLabel}</span>`;
     alertDescription.textContent = data.text || data.description || theme.defaultDesc;
 
     // Highlight opcional (Meses, Cantidad de subs, Donación, etc.)
@@ -1204,15 +1226,20 @@
         wsLight.classList.add('connected');
         wsText.textContent = `🟢 WS ${url.split(':')[2].replace('/', '')}`;
 
-        // Suscribirse a eventos de Kick, Twitch y Donaciones
+        // Suscribirse únicamente a eventos de alertas reales (evitando inundación de mensajes de chat y bots)
         streamerBotSocket.send(JSON.stringify({
           request: 'Subscribe',
           id: 'jikokun-card-deck-overlay',
           events: {
-            Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid', '*'],
-            Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer', '*'],
-            General: ['*'],
-            StreamerBot: ['Custom', '*']
+            Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid'],
+            Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer'],
+            YouTube: ['Subscribe', 'SuperChat', 'SuperSticker', 'MembershipGift'],
+            Donations: ['*'],
+            Tip: ['*'],
+            TipeeeStream: ['*'],
+            Streamlabs: ['*'],
+            Streamelements: ['*'],
+            StreamerBot: ['Custom']
           }
         }));
       };
@@ -1241,12 +1268,28 @@
     }
   }
 
-  // Parser robusto de eventos de Kick & Streamer.bot
+  // Lista de bots conocidos para ignorar mensajes automáticos o comandos
+  const IGNORED_BOT_USERS = [
+    'lobito_mensajero',
+    'streamerbot',
+    'botrix',
+    'nightbot',
+    'streamelements',
+    'kickbot',
+    'moobot',
+    'wizebot',
+    'soundalerts',
+    'kofi',
+    'streambot'
+  ];
+
+  // Parser robusto y seguro de eventos de Kick & Streamer.bot
   function handleStreamerBotPacket(data) {
     if (!data) return;
     const eventInfo = data.event || {};
     const payload = data.data || data;
 
+    // 1. Extraer nombre de tipo de evento
     let eventType = '';
     if (typeof data.event === 'string') eventType = data.event;
     else if (data.event && data.event.type) eventType = data.event.type;
@@ -1254,28 +1297,92 @@
     else if (data.action && data.action.name) eventType = data.action.name;
     eventType = (eventType || '').toString().toLowerCase();
 
-    // Extraer nombre de usuario
-    const username = payload.user || payload.follower || payload.subscriber || payload.sender || payload.recipient || payload.username || payload.name || 'Usuario';
-    const message = payload.message || payload.note || payload.comment || '';
+    const source = (eventInfo.source || data.source || payload.source || 'Kick').toString().toLowerCase();
 
-    // Detección por tipo de alerta
-    if (eventType.includes('follow')) {
-      triggerAlert('follow', { user: username, text: '¡Se acaba de unir como seguidor!' });
-    } else if (eventType.includes('subbomb') || eventType.includes('giftsub') || eventType.includes('gift')) {
-      const count = payload.gifts || payload.count || payload.sub_count || 5;
-      triggerAlert('gift', { user: username, count: count, text: `¡Regaló ${count} suscripciones a la comunidad!` });
-    } else if (eventType.includes('sub') || eventType.includes('subscription') || eventType.includes('resub')) {
-      const months = payload.months || payload.cumulative_months || payload.month || 1;
-      triggerAlert('sub', { user: username, months: months, text: `¡Se suscribió por ${months} ${months === 1 ? 'mes' : 'meses'}!` });
-    } else if (eventType.includes('raid') || eventType.includes('host')) {
-      const viewers = payload.viewers || payload.viewer_count || payload.count || 10;
-      triggerAlert('raid', { user: username, viewers: viewers, text: `¡Llega con una raid de ${viewers} personas!` });
-    } else if (eventType.includes('cheer') || eventType.includes('kick') || eventType.includes('token') || eventType.includes('bits')) {
+    // 🛑 2. FILTRAR Y DESCARTAR MENSAJES DE CHAT, SALUDOS O ACCIONES DE BIENVENIDA
+    if (
+      eventType.includes('chatmessage') ||
+      eventType.includes('message') ||
+      eventType.includes('firstword') ||
+      eventType.includes('usergreeting') ||
+      eventType.includes('whisper') ||
+      eventType.includes('bienvenida') ||
+      eventType.includes('saludo') ||
+      eventType.includes('command') ||
+      eventType.includes('highlight')
+    ) {
+      return;
+    }
+
+    // 3. Extraer nombre del usuario emisor limpiamente de cualquier estructura de Streamer.bot / Kick
+    let rawUserCandidate = payload.user
+      || payload.follower
+      || payload.subscriber
+      || payload.sender
+      || payload.recipient
+      || payload.user_name
+      || payload.userName
+      || payload.displayName
+      || payload.display_name
+      || payload.user_login
+      || payload.userLogin
+      || payload.username
+      || payload.name;
+
+    const username = extractCleanUsername(rawUserCandidate) || 'Usuario';
+    const message = payload.message || payload.note || payload.comment || payload.subMessage || '';
+
+    // 🛑 4. FILTRAR CUENTAS DE BOT (ej: Lobito_Mensajero)
+    if (IGNORED_BOT_USERS.includes(username.toLowerCase())) {
+      console.log(`[Jikokun Deck] 🛡️ Mensaje de bot ignorado: ${username}`);
+      return;
+    }
+
+    console.log(`[Jikokun Deck] 🔔 Procesando evento verificado: '${eventType}' (${source}) - Usuario: '${username}'`);
+
+    // 5. CLASIFICACIÓN DE EVENTOS REALES
+    // 🎁 A) REGALOS DE SUSCRIPCIONES (SubBomb / GiftSub)
+    if (eventType.includes('gift') || eventType.includes('bomb') || eventType.includes('membershipgift')) {
+      const count = payload.gifts || payload.totalGifts || payload.count || payload.sub_count || payload.giftCount || 1;
+      const recipientName = extractCleanUsername(payload.recipient) || payload.recipient_name || payload.recipientUser || '';
+      const textDesc = count > 1
+        ? `¡Regaló ${count} suscripciones a la comunidad!`
+        : `¡Le regaló una sub a ${recipientName || 'un espectador'}!`;
+
+      triggerAlert('gift', { user: username, count: count, text: textDesc, source: source });
+    }
+    // ⭐ B) SUSCRIPCIÓN O RESUSCRIPCIÓN
+    else if (eventType.includes('sub') || eventType.includes('subscription') || (source.includes('youtube') && eventType.includes('membership'))) {
+      const months = payload.months || payload.cumulative_months || payload.cumulativeMonths || payload.month || 1;
+      const tier = payload.tier || payload.sub_tier || '1';
+      const textDesc = months > 1
+        ? `¡Lleva ${months} meses apoyando el directo!`
+        : `¡Nuevo Suscriptor Nivel ${tier}!`;
+
+      triggerAlert('sub', { user: username, months: months, text: textDesc, source: source });
+    }
+    // 🟢 C) NUEVO SEGUIDOR (Follow)
+    else if (eventType.includes('follow') || (source.includes('youtube') && eventType.includes('subscribe'))) {
+      triggerAlert('follow', { user: username, text: '¡Se acaba de unir como nuevo seguidor!', source: source });
+    }
+    // 🚀 D) RAID / HOST
+    else if (eventType.includes('raid') || eventType.includes('host')) {
+      const viewers = payload.viewers || payload.viewer_count || payload.viewerCount || payload.count || payload.number || 0;
+      const textDesc = viewers > 0
+        ? `¡Llega con una raid de ${viewers} personas!`
+        : '¡Nos acompaña con toda su comunidad!';
+
+      triggerAlert('raid', { user: username, viewers: viewers, text: textDesc, source: source });
+    }
+    // 💎 E) KICKS TOKENS / BITS / CHEER
+    else if (eventType.includes('cheer') || eventType.includes('kick') || eventType.includes('token') || eventType.includes('bits')) {
       const amount = payload.bits || payload.kicks || payload.amount || 100;
-      triggerAlert('kicks', { user: username, amount: amount, text: `¡Envió ${amount} Kicks de apoyo!` });
-    } else if (eventType.includes('tip') || eventType.includes('dono') || eventType.includes('donation')) {
-      const formattedAmount = payload.formatted_amount || (payload.amount ? `$${payload.amount}` : '$5.00');
-      triggerAlert('tip', { user: username, amount: formattedAmount, message: message, text: `¡Ha donado ${formattedAmount}!` });
+      triggerAlert('kicks', { user: username, amount: amount, text: `¡Envió ${amount} Kicks de apoyo!`, source: source });
+    }
+    // 💵 F) DONACIÓN / TIPS / SUPERCHAT
+    else if (eventType.includes('tip') || eventType.includes('dono') || eventType.includes('donation') || eventType.includes('super')) {
+      const formattedAmount = payload.formatted_amount || payload.formattedAmount || (payload.amount ? `$${payload.amount}` : '$5.00');
+      triggerAlert('tip', { user: username, amount: formattedAmount, message: message, text: `¡Ha donado ${formattedAmount}!`, source: source });
     }
   }
 
