@@ -269,6 +269,12 @@ Siempre que se registre o actualice un **nuevo cliente** (indistintamente si es 
    - **Extracto**: Descripción breve y concisa.
    - **Enlaces de Acción**: Botones directos a WhatsApp, Ubicación y/o Sitio Web.
 
+### 7.3 Comportamiento Funcional Exclusivo del Mostrador de Novedades:
+1. **Fotografía / Logotipo No Expandible**:
+   - En los carruseles de Novedades y Recién Llegados (`.slider-card-img`), las fotos **no abren el visor de imagen ampliada (Lightbox)** (`pointer-events: none; cursor: default;`), ya que su función es meramente ser la portada visual de novedad.
+2. **Clic en el Nombre / Título (`h3`) para Navegar al Negocio**:
+   - Al hacer clic o tap sobre el título del negocio en el carrusel de novedades, el sistema realiza un scroll suave automático hacia la ficha correspondiente en el catálogo, aplica la animación de destello/highlight y despliega su ficha completa (o redirige a la categoría correspondiente si se pulsa desde la pantalla inicial).
+
 
 
 

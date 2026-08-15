@@ -720,13 +720,26 @@ const styles = `
         color: #4a5568 !important;
     }
 
-    /* Puntero e interacción en Fotos / Logos para Ampliación */
-    .producto-img img, .slider-card-img img, .producto-foto {
+    /* Puntero e interacción en Fotos / Logos para Ampliación en el catálogo */
+    .producto-img img, .producto-foto {
         cursor: pointer !important;
         transition: transform 0.25s ease, opacity 0.25s ease !important;
     }
-    .producto-img:hover img, .slider-card-img:hover img {
+    .producto-img:hover img {
         transform: scale(1.03);
+    }
+    /* En el mostrador de Novedades / Recién Llegados la foto NO es expandible */
+    .slider-card-img img, .slider-card-img {
+        cursor: default !important;
+        pointer-events: none !important;
+    }
+    /* El nombre en novedades es interactivo y lleva al negocio */
+    .slider-card-content h3, .slider-card h3 {
+        cursor: pointer !important;
+        transition: color 0.2s ease, text-shadow 0.2s ease !important;
+    }
+    .slider-card-content h3:hover, .slider-card h3:hover {
+        color: var(--ss-orange, #f39c12) !important;
     }
 
     /* Modal de Visualización de Imagen Ampliada (Lightbox) */
@@ -2454,6 +2467,64 @@ function initCardExpandModal() {
         // Abrir el perfil flotante / Ficha Ampliada al tocar la imagen, el título, la descripción o la tarjeta
         openCardExpandModal(card, modal);
     });
+
+    // Delegación de clic en el TÍTULO / NOMBRE de las tarjetas de novedades (Recién Llegados / Novedades)
+    document.addEventListener("click", (e) => {
+        const sliderTitle = e.target.closest(".slider-card-content h3, .slider-card h3");
+        if (!sliderTitle) return;
+
+        if (e.target.closest(".share-card-btn")) return;
+
+        const sliderCard = sliderTitle.closest(".slider-card");
+        if (!sliderCard) return;
+
+        const widget = sliderCard.querySelector(".sensun-rating-widget");
+        const titleText = sliderTitle.textContent.replace("✓", "").trim();
+        const bizId = sliderCard.id || sliderCard.dataset.businessId || (widget ? widget.dataset.businessId : "") || titleText;
+
+        // Buscar la tarjeta real en el catálogo de la página
+        let targetCard = null;
+        if (bizId) {
+            const cleanSlug = bizId.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            targetCard = document.getElementById(bizId) || document.getElementById(cleanSlug);
+            if (!targetCard) {
+                targetCard = document.querySelector(`[data-business-id="${bizId}"], [data-business-id="${cleanSlug}"]`);
+            }
+        }
+        if (!targetCard && titleText) {
+            const cleanTitle = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            const allCards = document.querySelectorAll("#negocios-container .producto-card, .productos-grid .producto-card, .negocio-card");
+            for (const c of allCards) {
+                if (c.closest(".novedades-slider, .slider-wrapper, .novedades-section")) continue;
+                const h3 = c.querySelector("h3");
+                const tSlug = h3 ? h3.textContent.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : "";
+                if (tSlug === cleanTitle || (c.id && c.id.toLowerCase() === cleanTitle)) {
+                    targetCard = c;
+                    break;
+                }
+            }
+        }
+
+        if (targetCard) {
+            e.preventDefault();
+            e.stopPropagation();
+            targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+            targetCard.classList.add("card-anchor-highlight");
+            setTimeout(() => targetCard.classList.remove("card-anchor-highlight"), 3500);
+
+            if (modal && typeof openCardExpandModal === "function") {
+                setTimeout(() => openCardExpandModal(targetCard, modal), 350);
+            }
+        } else {
+            // Si la tarjeta está en otra página (ej. estamos en sensunshop.html), redirigir a la categoría
+            const cleanSlug = (bizId || titleText).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            const isLocalBiz = cleanSlug.startsWith("neg") || cleanSlug.includes("arphoto") || cleanSlug.includes("terrazas") || cleanSlug.includes("gloria") || cleanSlug.includes("taco") || cleanSlug.includes("bicicleta") || cleanSlug.includes("patrick");
+            const basePath = window.location.pathname.includes("/sensunshop/") ? "" : "sensunshop/";
+            if (isLocalBiz) {
+                window.location.href = `${basePath}negocioslocales.html?biz=${cleanSlug}#${cleanSlug}`;
+            }
+        }
+    });
 }
 
 // Inyección y Lógica para Botones de Compartir (Anclas de Objetos)
@@ -2767,7 +2838,12 @@ function initImageLightboxModal() {
         const isInteractive = e.target.closest("button, a, .favorite-toggle-btn, .btn-favorite, .share-card-btn, .card-car-btn, .card-car-dots, .card-dot, .btn-negocio");
         if (isInteractive) return;
 
-        const img = e.target.closest(".producto-img img, .slider-card-img img, .producto-foto");
+        // Excluir cualquier imagen dentro de la sección o mostrador de novedades / recién llegados
+        if (e.target.closest(".novedades-section, .novedades-slider, .slider-wrapper, .slider-card, .slider-card-img")) {
+            return;
+        }
+
+        const img = e.target.closest(".producto-img img, .producto-foto");
         if (!img) return;
 
         const inExpandModal = e.target.closest("#card-expand-modal");
