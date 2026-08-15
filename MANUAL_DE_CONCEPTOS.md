@@ -243,6 +243,33 @@ Permitir que los usuarios aprecien en alta resolución las fotografías de porta
   - Haciendo clic en cualquier parte del fondo traslúcido.
   - Presionando la tecla `Escape`.
 
+---
+
+## 🆕 7. Regla Obligatoria de Registro: Lista de Recién Agregados / Llegados (Top 5 Novedades)
+
+### 7.1 Definición y Alcance
+Siempre que se registre o actualice un **nuevo cliente** (indistintamente si es *Negocio Local*, *Emprendedor*, *Servicio Profesional* u *Oficio*), es **estrictamente obligatorio** incorporarlo tanto a la sección global de novedades como a la sección de recién llegados de su categoría específica:
+
+1. **Pantalla Inicial Global (`sensunshop.html`)**:
+   - Muestra los **últimos 5 clientes recién agregados a nivel global** de todas las categorías combinadas.
+2. **Pantallas de Categorías Específicas (`negocioslocales.html`, `emprendedores.html`, `oficios.html`, `profesionales.html`)**:
+   - Muestra los **últimos 5 clientes recién llegados pertenecientes exclusivamente a esa categoría**.
+
+### 7.2 Reglas Operativas:
+1. **Límite Fijo de 5 Clientes**:
+   - Cada carrusel de recién agregados/llegados mantiene siempre visibles **exactamente los últimos 5 negocios o clientes**.
+2. **Orden Cronológico Inverso (FIFO / Rotación Dinámica)**:
+   - El cliente más reciente entra siempre en la **Posición #1 (primer slide/tarjeta)**.
+   - Los elementos anteriores se desplazan sucesivamente (#1 pasa a #2, etc.).
+   - Al incorporar el 6to elemento, el negocio más antiguo (#5) rota y sale del carrusel para conservar el tope de 5.
+3. **Estructura Visual de la Tarjeta de Novedad (`.slider-card`)**:
+   - **Imagen**: Foto o logotipo oficial optimizado en Cloudinary (`.slider-card-img`).
+   - **Badge de Categoría**: Insignia temática destacando su especialidad (ej. `FOTOGRAFÍA & ESTUDIO`, `RESTAURANTE & EVENTOS`, `PUPUSERÍA & COMEDOR`).
+   - **Título**: Nombre comercial en tipografía `<h3>`.
+   - **Extracto**: Descripción breve y concisa.
+   - **Enlaces de Acción**: Botones directos a WhatsApp, Ubicación y/o Sitio Web.
+
+
 
 
 
