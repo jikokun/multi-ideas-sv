@@ -41,8 +41,7 @@ Todas las fichas deben mantener la misma estructura HTML/CSS responsiva, garanti
 #### Componentes Desglosados:
 
 1. **Adaptabilidad Responsiva (Web y Móvil)**:
-   - Layout fluido basado en rejilla flexible (`grid-template-columns: repeat(auto-fill, minmax(280px, 1fr))`).
-   - Se reajusta de forma orgánica en dispositivos móviles, tabletas y computadoras.
+   - Layout fluido con un **máximo estricto de 3 columnas en versión escritorio** (`grid-template-columns: repeat(3, minmax(0, 1fr))`), 2 en tabletas (`repeat(2, 1fr)`) y 1 en móviles (`1fr`) para garantizar que las tarjetas mantengan siempre su amplitud, legibilidad y nunca se compriman.
 
 2. **Imagen / Portada Rotativa (Soporte Multi-Imagen hasta 4 fotos)**:
    - **Origen**: Enlaces Web brindados en el documento de almacenamiento de datos de cada categoría (Cloudinary / CDN oficial).

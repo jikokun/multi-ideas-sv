@@ -528,11 +528,19 @@ const styles = `
     }
     .productos-grid, .negocios-grid, .catalogo-grid {
         display: grid !important;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)) !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        max-width: 1200px !important;
         gap: 24px !important;
         align-items: stretch !important;
+        margin: 0 auto !important;
     }
-    @media (max-width: 600px) {
+    @media (max-width: 1024px) {
+        .productos-grid, .negocios-grid, .catalogo-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 20px !important;
+        }
+    }
+    @media (max-width: 650px) {
         .productos-grid, .negocios-grid, .catalogo-grid {
             grid-template-columns: 1fr !important;
             gap: 16px !important;
@@ -718,6 +726,33 @@ const styles = `
     }
     body.light-theme .card-expand-modal-card p {
         color: #4a5568 !important;
+    }
+
+    @media (max-width: 600px) {
+        .card-expand-modal-overlay {
+            padding: 12px !important;
+        }
+        .card-expand-modal-card {
+            padding: 16px !important;
+            border-radius: 16px !important;
+            max-height: 92vh !important;
+            -webkit-overflow-scrolling: touch !important;
+        }
+        .card-expand-close-btn {
+            top: 10px !important;
+            left: 10px !important;
+            width: 32px !important;
+            height: 32px !important;
+            font-size: 1.2rem !important;
+        }
+        .card-expand-modal-card h3 {
+            font-size: 1.22rem !important;
+            margin-top: 8px !important;
+        }
+        .card-expand-modal-card p {
+            font-size: 0.88rem !important;
+            line-height: 1.5 !important;
+        }
     }
 
     /* Puntero e interacción en Fotos / Logos para Ampliación en el catálogo */
@@ -2486,9 +2521,9 @@ function initCardExpandModal() {
         let targetCard = null;
         if (bizId) {
             const cleanSlug = bizId.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-            targetCard = document.getElementById(bizId) || document.getElementById(cleanSlug);
-            if (!targetCard) {
-                targetCard = document.querySelector(`[data-business-id="${bizId}"], [data-business-id="${cleanSlug}"]`);
+            const foundEl = document.getElementById(bizId) || document.getElementById(cleanSlug) || document.querySelector(`[data-business-id="${bizId}"], [data-business-id="${cleanSlug}"]`);
+            if (foundEl) {
+                targetCard = foundEl.closest("#negocios-container .producto-card, .productos-grid .producto-card, .negocio-card") || foundEl;
             }
         }
         if (!targetCard && titleText) {
@@ -2497,7 +2532,7 @@ function initCardExpandModal() {
             for (const c of allCards) {
                 if (c.closest(".novedades-slider, .slider-wrapper, .novedades-section")) continue;
                 const h3 = c.querySelector("h3");
-                const tSlug = h3 ? h3.textContent.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : "";
+                const tSlug = h3 ? h3.textContent.replace("✓", "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : "";
                 if (tSlug === cleanTitle || (c.id && c.id.toLowerCase() === cleanTitle)) {
                     targetCard = c;
                     break;
@@ -2508,13 +2543,25 @@ function initCardExpandModal() {
         if (targetCard) {
             e.preventDefault();
             e.stopPropagation();
-            targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
-            targetCard.classList.add("card-anchor-highlight");
-            setTimeout(() => targetCard.classList.remove("card-anchor-highlight"), 3500);
 
-            if (modal && typeof openCardExpandModal === "function") {
-                setTimeout(() => openCardExpandModal(targetCard, modal), 350);
+            // Si la tarjeta está oculta por un filtro activo, restablecer a 'Todos'
+            if (targetCard.classList.contains("hidden-filter") || targetCard.style.display === "none") {
+                const allFilterBtn = document.querySelector('.filter-btn[data-filter="all"], #category-filter-container .filter-btn[data-filter="all"]');
+                if (allFilterBtn) {
+                    allFilterBtn.click();
+                }
             }
+
+            const modalEl = modal || document.getElementById("card-expand-modal");
+            setTimeout(() => {
+                targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
+                targetCard.classList.add("card-anchor-highlight");
+                setTimeout(() => targetCard.classList.remove("card-anchor-highlight"), 3500);
+
+                if (modalEl && typeof openCardExpandModal === "function") {
+                    openCardExpandModal(targetCard, modalEl);
+                }
+            }, 100);
         } else {
             // Si la tarjeta está en otra página (ej. estamos en sensunshop.html), redirigir a la categoría
             const cleanSlug = (bizId || titleText).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
