@@ -977,27 +977,56 @@ function initSensunSearch(isSensunshop, depth) {
         "profesionales.html"
     ];
 
-    // Cargar y parsear las páginas en paralelo
+    // Cargar negocios priorizando Firebase RTDB en tiempo real
     async function loadBusinesses() {
-        if (businessesData) return businessesData;
+        if (businessesData && businessesData.length > 0) return businessesData;
+
+        let prefix = "";
+        if (depth === 2) {
+            prefix = "../";
+        } else if (depth === 1) {
+            prefix = "./";
+        } else {
+            prefix = "sensunshop/";
+        }
+
+        // 1. Intentar cargar desde Firebase RTDB si la función global está disponible
+        if (typeof window.getSensunBusinesses === "function") {
+            try {
+                const rtdbList = await window.getSensunBusinesses();
+                if (rtdbList && rtdbList.length > 0) {
+                    businessesData = rtdbList.map(item => {
+                        let pageName = "negocioslocales.html";
+                        if (item.type === "emprendedores") pageName = "emprendedores.html";
+                        else if (item.type === "profesionales") pageName = "profesionales.html";
+                        else if (item.type === "oficios") pageName = "oficios.html";
+
+                        return {
+                            id: item.id,
+                            title: item.title,
+                            description: item.description || "",
+                            tags: Array.isArray(item.tags) ? item.tags : [],
+                            category: item.category || "comercio",
+                            imgSrc: item.imgSrc || "",
+                            redirectPath: prefix + pageName
+                        };
+                    });
+                    return businessesData;
+                }
+            } catch (fbErr) {
+                console.warn("Buscador: usando respaldo de indexación DOM.", fbErr);
+            }
+        }
+
+        // 2. Respaldo secundario mediante indexación de páginas HTML
         try {
             const results = await Promise.all(targetPages.map(async (pageName) => {
-                let fetchPath = "";
-                let redirectPath = "";
-                if (depth === 2) {
-                    fetchPath = "../" + pageName;
-                    redirectPath = "../" + pageName;
-                } else if (depth === 1) {
-                    fetchPath = pageName;
-                    redirectPath = pageName;
-                } else {
-                    fetchPath = "sensunshop/" + pageName;
-                    redirectPath = "sensunshop/" + pageName;
-                }
+                const fetchPath = prefix + pageName;
+                const redirectPath = prefix + pageName;
 
                 try {
                     const response = await fetch(fetchPath);
-                    if (!response.ok) return []; // Si falla alguna página temporalmente o no existe, continuamos con las demás
+                    if (!response.ok) return [];
                     const html = await response.text();
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, "text/html");
@@ -1023,7 +1052,6 @@ function initSensunSearch(isSensunshop, depth) {
                 }
             }));
             
-            // Unificar todos los arreglos
             businessesData = results.flat();
             return businessesData;
         } catch (error) {

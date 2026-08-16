@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sembrador Seguro de Negocios en Firebase | Sensun Shop</title>
+    <style>
+        body {
+            background-color: #0b0f19;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .card {
+            background: #121827;
+            border: 1px solid rgba(243, 156, 18, 0.3);
+            border-radius: 16px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        h1 {
+            color: #f39c12;
+            font-size: 1.6rem;
+            margin-top: 0;
+        }
+        p {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .btn-seed {
+            background: linear-gradient(135deg, #f39c12, #d35400);
+            color: #ffffff;
+            border: none;
+            border-radius: 10px;
+            padding: 14px 28px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 20px;
+            box-shadow: 0 4px 15px rgba(243, 156, 18, 0.4);
+        }
+        .btn-seed:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.6);
+        }
+        .status-box {
+            margin-top: 25px;
+            padding: 15px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 0.88rem;
+            text-align: left;
+            max-height: 200px;
+            overflow-y: auto;
+            color: #cbd5e1;
+            display: none;
+        }
+        .success-badge {
+            color: #22c55e;
+            font-weight: bold;
+        }
+        .info-badge {
+            color: #38bdf8;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h1>🌱 Sincronizador Seguro a Firebase</h1>
+        <p>Esta herramienta sube el catálogo de los <strong>11 negocios</strong> a la ruta <code>sensunshop/businesses</code> usando <code>update()</code>.</p>
+        <p style="color: #22c55e; font-weight: 600;">🔒 No borra comentarios, ni calificaciones, ni usuarios existentes.</p>
+
+        <button class="btn-seed" id="btn-seed-action">Subir Catálogo a Firebase Ahora</button>
+
+        <div class="status-box" id="status-box"></div>
+    </div>
+
+    <script type="module">
+        import { rtdb } from "../firebase-config.js";
+        import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        const btn = document.getElementById("btn-seed-action");
+        const statusBox = document.getElementById("status-box");
+
+        function log(msg) {
+            statusBox.style.display = "block";
+            statusBox.innerHTML += `<div>${msg}</div>`;
+            statusBox.scrollTop = statusBox.scrollHeight;
+        }
+
+        btn.addEventListener("click", async () => {
+            btn.disabled = true;
+            btn.style.opacity = "0.5";
+            log("⏳ Leyendo archivo de datos...");
+
+            try {
+                const res = await fetch("../businesses_only.json");
+                if (!res.ok) throw new Error("No se pudo cargar el archivo businesses_only.json");
+                const businessesData = await res.json();
+
+                const total = Object.keys(businessesData).length;
+                log(`📦 Encontrados <span class="info-badge">${total} negocios</span> listos.`);
+
+                log("🚀 Actualizando en Firebase RTDB bajo 'sensunshop/businesses'...");
+                const businessesRef = ref(rtdb, "sensunshop/businesses");
+
+                await update(businessesRef, businessesData);
+
+                log(`<span class="success-badge">✅ ¡Éxito total! Catálogo de ${total} negocios subido sin tocar usuarios, comentarios ni votos.</span>`);
+                btn.textContent = "✅ Catálogo Sincronizado";
+            } catch (err) {
+                log(`❌ Error: ${err.message}`);
+                btn.disabled = false;
+                btn.style.opacity = "1";
+            }
+        });
+    </script>
+</body>
+</html>

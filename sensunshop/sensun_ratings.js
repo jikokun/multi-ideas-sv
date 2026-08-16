@@ -1767,99 +1767,117 @@ window.openAuthModal = openAuthModal;
 window.closeAuthModal = closeAuthModal;
 
 // ==========================================================================
+// ==========================================================================
 // NUEVO SISTEMA DE FAVORITOS EN VENTANA EMERGENTE (POPUP DESDE EL PERFIL)
 // ==========================================================================
 let cachedParsedBusinesses = null;
+let businessesRtdbListener = null;
 
+// Sincronización en tiempo real con el nodo sensunshop/businesses de Firebase RTDB
 async function getBusinessesList() {
-    if (cachedParsedBusinesses) return cachedParsedBusinesses;
-
-    const pathname = window.location.pathname.toLowerCase();
-    let prefix = 'sensunshop/';
-    let isRoot = true;
-
-    if (pathname.includes("/sensunshop/negocioslocales/") || pathname.includes("/sensunshop/profesionales/")) {
-        prefix = '../';
-        isRoot = false;
-    } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
-        prefix = './';
-        isRoot = false;
+    if (cachedParsedBusinesses && cachedParsedBusinesses.length > 0) {
+        return cachedParsedBusinesses;
     }
-
-    const targets = [
-        prefix + 'negocioslocales.html',
-        prefix + 'emprendedores.html'
-    ];
 
     try {
-        const fetchPromises = targets.map(async (url) => {
-            try {
-                const res = await fetch(url);
-                if (!res.ok) return '';
-                return await res.text();
-            } catch (e) {
-                console.error(`Error al cargar ${url}:`, e);
-                return '';
-            }
-        });
+        const businessesRef = ref(rtdb, "sensunshop/businesses");
+        
+        // Configurar listener continuo en segundo plano si no está activo
+        if (!businessesRtdbListener) {
+            businessesRtdbListener = onValue(businessesRef, (snapshot) => {
+                const data = snapshot.val() || {};
+                const list = Object.keys(data).map(key => {
+                    const item = data[key];
+                    return {
+                        id: item.id || key,
+                        title: item.title || "Negocio",
+                        imgSrc: item.imgSrc || "",
+                        whatsapp: item.whatsapp || "",
+                        whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
+                        locationUrl: item.locationUrl || "",
+                        websiteUrl: item.websiteUrl || "",
+                        category: item.category || "",
+                        badge: item.badge || "",
+                        tags: item.tags || [],
+                        description: item.description || "",
+                        isActive: item.isActive !== false
+                    };
+                }).filter(b => b.isActive);
 
-        const htmls = await Promise.all(fetchPromises);
-        const parser = new DOMParser();
-        let allCards = [];
-
-        // Si hay tarjetas en el DOM actual, agregarlas primero
-        const currentDOMCards = document.querySelectorAll('#negocios-container .negocio-card');
-        if (currentDOMCards.length > 0) {
-            allCards.push(...parseCards(currentDOMCards, false));
+                if (list.length > 0) {
+                    cachedParsedBusinesses = list;
+                    window.sensunBusinessesCache = list;
+                    // Si el modal de favoritos está visible, refrescar
+                    if (window.userFavorites && typeof window.renderFavoritesView === 'function') {
+                        window.renderFavoritesView(window.userFavorites);
+                    }
+                }
+            });
         }
 
-        htmls.forEach(html => {
-            if (!html) return;
-            const doc = parser.parseFromString(html, 'text/html');
-            const docCards = doc.querySelectorAll('#negocios-container .negocio-card');
-            allCards.push(...parseCards(docCards, isRoot));
-        });
+        // Obtener snapshot inicial
+        const snapshot = await get(businessesRef);
+        const data = snapshot.val();
 
-        // Eliminar duplicados por ID
-        const uniqueBusinesses = [];
-        const seenIds = new Set();
-        allCards.forEach(b => {
-            if (!seenIds.has(b.id)) {
-                seenIds.add(b.id);
-                uniqueBusinesses.push(b);
-            }
-        });
+        if (data && Object.keys(data).length > 0) {
+            const list = Object.keys(data).map(key => {
+                const item = data[key];
+                return {
+                    id: item.id || key,
+                    title: item.title || "Negocio",
+                    imgSrc: item.imgSrc || "",
+                    whatsapp: item.whatsapp || "",
+                    whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
+                    locationUrl: item.locationUrl || "",
+                    websiteUrl: item.websiteUrl || "",
+                    category: item.category || "",
+                    badge: item.badge || "",
+                    tags: item.tags || [],
+                    description: item.description || "",
+                    isActive: item.isActive !== false
+                };
+            }).filter(b => b.isActive);
 
-        cachedParsedBusinesses = uniqueBusinesses;
-        return cachedParsedBusinesses;
-    } catch (error) {
-        console.error("Error al cargar negocios para favoritos:", error);
-        return [];
+            cachedParsedBusinesses = list;
+            window.sensunBusinessesCache = list;
+            return cachedParsedBusinesses;
+        }
+    } catch (firebaseErr) {
+        console.warn("Aviso: No se pudo conectar a sensunshop/businesses en Firebase RTDB, usando respaldo DOM:", firebaseErr);
     }
+
+    // Respaldo secundario local: Leer tarjetas del DOM actual
+    const currentDOMCards = document.querySelectorAll('#negocios-container .negocio-card');
+    if (currentDOMCards.length > 0) {
+        cachedParsedBusinesses = parseCards(currentDOMCards, false);
+        return cachedParsedBusinesses;
+    }
+
+    return [];
 }
 
 function parseCards(cards, isRoot) {
     return Array.from(cards)
         .filter(card => !card.classList.contains('disponible'))
         .map(card => {
-            const imgEl = card.querySelector('.producto-img img');
+            const imgEl = card.querySelector('.producto-img img, .slider-card-img img');
             const ratingWidget = card.querySelector('.sensun-rating-widget');
             const businessId = ratingWidget ? ratingWidget.dataset.businessId : card.id.toLowerCase();
-            
-            let linksHtml = card.querySelector('.negocio-links').innerHTML;
-            if (isRoot) {
-                linksHtml = linksHtml.replace(/href="negocioslocales\//g, 'href="sensunshop/negocioslocales/');
-                linksHtml = linksHtml.replace(/href="\.\.\//g, 'href="');
-            }
+            const wspBtn = card.querySelector('.btn-wsp');
+            const locBtn = card.querySelector('.btn-loc');
             
             return {
                 id: businessId,
-                title: card.querySelector('h3').textContent.trim(),
+                title: card.querySelector('h3') ? card.querySelector('h3').textContent.trim() : '',
                 imgSrc: imgEl ? imgEl.getAttribute('src') : '',
-                linksHtml: linksHtml
+                whatsapp: wspBtn ? (wspBtn.getAttribute('href') || '') : '',
+                locationUrl: locBtn ? (locBtn.getAttribute('href') || '') : ''
             };
         });
 }
+
+// Exponer helper global de negocios
+window.getSensunBusinesses = getBusinessesList;
 
 // Renderizar favoritos en tiras verticales
 window.renderFavoritesView = function(favs) {
@@ -1891,15 +1909,20 @@ window.renderFavoritesView = function(favs) {
 
         let html = '';
         favBusinesses.forEach(b => {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = b.linksHtml;
-            const wspBtn = tempDiv.querySelector('.btn-wsp');
-            const locBtn = tempDiv.querySelector('.btn-loc');
+            let wspHref = '#';
+            if (b.whatsapp) {
+                if (b.whatsapp.startsWith('http')) {
+                    wspHref = b.whatsapp;
+                } else {
+                    const cleanPhone = b.whatsapp.replace(/\D/g, '');
+                    const msg = encodeURIComponent(b.whatsappMsg || `Hola ${b.title}, vengo desde Sensun Shop`);
+                    wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
+                }
+            }
 
-            const wspHref = wspBtn ? wspBtn.getAttribute('href') : '#';
-            const locHref = locBtn ? locBtn.getAttribute('href') : '#';
+            const locHref = b.locationUrl || '#';
             
-            let imgSrc = b.imgSrc;
+            let imgSrc = b.imgSrc || '';
             if (imgSrc && !imgSrc.startsWith('http') && !imgSrc.startsWith('../') && window.location.pathname.includes('/sensunshop/')) {
                 imgSrc = '../' + imgSrc;
             }
@@ -1913,12 +1936,12 @@ window.renderFavoritesView = function(favs) {
                     <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left;">
                         <h4 style="font-size: 0.95rem; font-weight: 600; color: #fff; margin: 0 0 6px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 90%;">${b.title}</h4>
                         <div style="display: flex; gap: 8px;">
-                            ${wspBtn ? `
+                            ${b.whatsapp ? `
                                 <a href="${wspHref}" class="btn-compact-action wsp" target="_blank" rel="noopener noreferrer" style="width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #25d366; color: #fff;" title="WhatsApp">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/></svg>
                                 </a>
                             ` : ''}
-                            ${locBtn ? `
+                            ${b.locationUrl ? `
                                 <a href="${locHref}" class="btn-compact-action loc" target="_blank" rel="noopener noreferrer" style="width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; background: #ea4335; color: #fff;" title="Ubicación">
                                     <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
                                 </a>
