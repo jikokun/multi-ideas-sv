@@ -314,6 +314,73 @@
                 <strong>⚠️ Nota de Origen Seguro:</strong> Para que el inicio de sesión de Google funcione, <strong>no abras este archivo directamente haciendo doble clic (protocolo file://)</strong>. Firebase Auth requiere un servidor local seguro (ej. <code>http://localhost:5500</code> con Live Server de VS Code o subiendo tu proyecto a un hosting).
             </div>
         </div>
+
+        <!-- Tarjeta de Gestión Exclusiva: Baraja de Alertas Jikokun -->
+        <div class="test-card" style="margin-top: 30px; border-color: rgba(0, 242, 254, 0.35); background: rgba(3, 16, 26, 0.95);">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35);">
+                    EXCLUSIVO JIKOKUN STREAMER
+                </span>
+                <span style="font-size: 0.8rem; color: #a0aec0; font-weight: 600;">OBS Live Overlay</span>
+            </div>
+            
+            <h2 style="margin: 12px 0 6px 0; font-size: 1.6rem; color: #00f2fe;">🎴 Baraja de Alertas Kick 3D (Jikokun Deck)</h2>
+            <p style="color: #cbd5e1; font-size: 0.95rem; margin-bottom: 16px;">
+                Panel de control y generador de URL exclusivo para tu overlay personalizado de OBS. La carta frontal vuela hacia atrás en 3D cinemático al recibir eventos de Streamer.bot (Follows, Subs, Gifts, Raids, Kicks y Tips).
+            </p>
+
+            <div style="background: rgba(0, 242, 254, 0.08); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-size: 0.9rem; color: #7dd3fc; display: flex; gap: 10px; align-items: center;">
+                <span style="font-size: 1.3rem;">💡</span>
+                <span>Requiere <strong>Streamer.bot</strong> activo en tu PC con WebSocket en el puerto <strong>4445</strong> (o personalizado).</span>
+            </div>
+
+            <!-- Iframe de Vista Previa -->
+            <div style="border-radius: 12px; overflow: hidden; height: 430px; border: 1px solid rgba(0, 242, 254, 0.25); background: radial-gradient(circle at center, #0a111a 0%, #03060a 100%); margin-bottom: 16px;">
+                <iframe id="preview-jikokun-test" src="mini_widgets/alertas_jikokun.html?preview=true&hidecontrols=true" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+
+            <!-- Controles de Configuración -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                <div>
+                    <label for="jikokun-port" style="display: block; font-size: 0.85rem; font-weight: 700; color: #00f2fe; margin-bottom: 6px;">🔌 Puerto WS Streamer.bot:</label>
+                    <input type="text" id="jikokun-port" value="4445" class="gate-input" style="padding: 10px 14px; font-size: 1rem; letter-spacing: normal; text-align: left;" oninput="updateJikokunPrivateWidget()">
+                </div>
+                <div>
+                    <label for="jikokun-duration" style="display: block; font-size: 0.85rem; font-weight: 700; color: #00f2fe; margin-bottom: 6px;">⏱️ Duración de Alerta (s):</label>
+                    <input type="number" id="jikokun-duration" value="6" min="2" max="30" class="gate-input" style="padding: 10px 14px; font-size: 1rem; letter-spacing: normal; text-align: left;" oninput="updateJikokunPrivateWidget()">
+                </div>
+            </div>
+
+            <!-- Botones de Prueba -->
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #00f2fe; margin-bottom: 8px;">🧪 Probar Cartas en la Vista Previa:</label>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(95px, 1fr)); gap: 8px;">
+                    <button type="button" class="test-btn" style="border-color: #53fc18; color: #53fc18;" onclick="triggerJikokunPrivateTest('follow')">🟢 Follow</button>
+                    <button type="button" class="test-btn" style="border-color: #9d4edd; color: #c084fc;" onclick="triggerJikokunPrivateTest('sub')">🟣 Sub</button>
+                    <button type="button" class="test-btn" style="border-color: #f59e0b; color: #fbbf24;" onclick="triggerJikokunPrivateTest('gift')">🎁 Gift</button>
+                    <button type="button" class="test-btn" style="border-color: #ef4444; color: #f87171;" onclick="triggerJikokunPrivateTest('raid')">🚀 Raid</button>
+                    <button type="button" class="test-btn" style="border-color: #06b6d4; color: #22d3ee;" onclick="triggerJikokunPrivateTest('kicks')">💎 Kicks</button>
+                    <button type="button" class="test-btn" style="border-color: #10b981; color: #34d399;" onclick="triggerJikokunPrivateTest('tip')">💵 Tip</button>
+                </div>
+            </div>
+
+            <!-- Opciones Extra -->
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; cursor: pointer; color: #e2e8f0;">
+                    <input type="checkbox" id="jikokun-idle" style="accent-color: #00f2fe; width: 18px; height: 18px; cursor: pointer;" onchange="updateJikokunPrivateWidget()">
+                    <span>🔄 Mantener baraja visible en reposo en el mostrador</span>
+                </label>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 0.9rem; cursor: pointer; color: #e2e8f0;">
+                    <input type="checkbox" id="jikokun-mute" style="accent-color: #00f2fe; width: 18px; height: 18px; cursor: pointer;" onchange="updateJikokunPrivateWidget()">
+                    <span>🔇 Silenciar Efectos de Sonido Web Audio</span>
+                </label>
+            </div>
+
+            <!-- Copiar Enlace OBS -->
+            <button id="btn-copy-jikokun" class="test-btn" style="width: 100%; padding: 14px; font-size: 1rem; font-weight: 700; background: linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #9d4edd 100%); color: #02090f; border: none; border-radius: 10px; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);" onclick="copyJikokunObsUrl(this)">
+                📋 Copiar Enlace Baraja Jikokun para OBS
+            </button>
+        </div>
     </section>
 
     <footer>
@@ -542,8 +609,82 @@
             });
         }
 
+        // =======================================================================
+        // GESTIÓN EXCLUSIVA: BARAJA DE ALERTAS JIKOKUN 3D
+        // =======================================================================
+        function updateJikokunPrivateWidget() {
+            const portInput = document.getElementById('jikokun-port');
+            const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+            const durationSec = document.getElementById('jikokun-duration') ? parseFloat(document.getElementById('jikokun-duration').value) : 6;
+            const durationMs = Math.round((durationSec || 6) * 1000);
+            const isMuted = document.getElementById('jikokun-mute') ? document.getElementById('jikokun-mute').checked : false;
+            const isIdle = document.getElementById('jikokun-idle') ? document.getElementById('jikokun-idle').checked : false;
+
+            const obsParams = new URLSearchParams();
+            if (port && port !== '4445') obsParams.set('port', port);
+            if (durationMs !== 6500) obsParams.set('duration', durationMs.toString());
+            if (isMuted) obsParams.set('mute', 'true');
+            obsParams.set('hidecontrols', 'true');
+
+            // Construir URL completa para OBS
+            let baseUrl = window.location.href.split('?')[0].split('#')[0];
+            const lastSlash = baseUrl.lastIndexOf('/');
+            const dirUrl = lastSlash !== -1 ? baseUrl.substring(0, lastSlash + 1) : '';
+            const obsUrl = `${dirUrl}mini_widgets/alertas_jikokun.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
+            window.currentJikokunObsUrl = obsUrl;
+
+            // Actualizar vista previa en iframe
+            const previewParams = new URLSearchParams(obsParams);
+            if (isIdle) previewParams.set('idle', 'true');
+            previewParams.set('preview', 'true');
+
+            const previewIframe = document.getElementById('preview-jikokun-test');
+            if (previewIframe) {
+                const previewPath = `mini_widgets/alertas_jikokun.html?${previewParams.toString()}`;
+                if (previewIframe.dataset.lastSrc !== previewPath) {
+                    previewIframe.dataset.lastSrc = previewPath;
+                    previewIframe.src = previewPath;
+                } else if (previewIframe.contentWindow) {
+                    previewIframe.contentWindow.postMessage({
+                        type: 'SET_IDLE_MODE',
+                        idle: isIdle
+                    }, '*');
+                }
+            }
+        }
+
+        window.triggerJikokunPrivateTest = function(alertType) {
+            const iframe = document.getElementById('preview-jikokun-test');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'TRIGGER_TEST_ALERT',
+                    alertType: alertType || 'follow'
+                }, '*');
+                log(`[Jikokun Deck] Alerta de prueba enviada: ${alertType.toUpperCase()}`, "info");
+            }
+        };
+
+        window.copyJikokunObsUrl = function(btn) {
+            if (!window.currentJikokunObsUrl) updateJikokunPrivateWidget();
+            navigator.clipboard.writeText(window.currentJikokunObsUrl).then(() => {
+                const origText = btn.textContent;
+                btn.textContent = '✅ ¡Enlace Copiado para OBS!';
+                btn.style.background = 'linear-gradient(135deg, #53fc18 0%, #00adb5 100%)';
+                log(`[Jikokun Deck] URL de OBS copiada al portapapeles: ${window.currentJikokunObsUrl}`, "success");
+                setTimeout(() => {
+                    btn.textContent = origText;
+                    btn.style.background = 'linear-gradient(135deg, #00f2fe 0%, #4facfe 50%, #9d4edd 100%)';
+                }, 2500);
+            }).catch(err => {
+                log(`Error al copiar enlace: ${err.message}`, "error");
+            });
+        };
+
+        window.updateJikokunPrivateWidget = updateJikokunPrivateWidget;
+
         // Ejecutar verificación inmediata al cargar
         checkAccess();
+        updateJikokunPrivateWidget();
     </script>
 </body>
 </html>

@@ -1585,6 +1585,27 @@
       if (testParam && THEMES[testParam]) {
         setTimeout(() => triggerAlert(testParam), 600);
       }
+
+      // Modo demostración automática en bucle (?loop=true o ?demo=true)
+      const isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('demo') === 'true' || urlParams.get('autoplay') === 'true';
+      if (isLoopMode) {
+        const demoQueue = [
+          { type: 'follow', data: { user: 'AstroWolf', text: '¡Se acaba de unir como nuevo seguidor!' } },
+          { type: 'sub', data: { user: 'CyberGamer_99', months: 3, text: '¡Se suscribió al canal!' } },
+          { type: 'gift', data: { user: 'NekoQueen', count: 5, text: '¡Regaló 5 suscripciones a la comunidad!' } },
+          { type: 'raid', data: { user: 'ViperStream', viewers: 64, text: '¡Llega con una raid de 64 viewers!' } },
+          { type: 'kicks', data: { user: 'PixelKnight', amount: 500, text: '¡Envió 500 Kicks de apoyo!' } },
+          { type: 'tip', data: { user: 'DonadorTop', amount: '$15.00', message: '¡Gran directo, sigue así!', text: '¡Ha donado $15.00!' } }
+        ];
+        let demoIdx = 0;
+        function runNextDemo() {
+          const item = demoQueue[demoIdx % demoQueue.length];
+          demoIdx++;
+          triggerAlert(item.type, item.data);
+          setTimeout(runNextDemo, alertDuration + 2800);
+        }
+        setTimeout(runNextDemo, 1000);
+      }
     })();
   </script>
 </body>
