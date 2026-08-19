@@ -2187,10 +2187,27 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
         const isSensunshop = window.location.pathname.toLowerCase().includes('sensunshop');
         const parentDiv = favoritesBtn.parentElement;
         if (parentDiv) {
-            parentDiv.style.display = isSensunshop ? 'flex' : 'none';
+            favoritesBtn.style.display = isSensunshop ? 'inline-block' : 'none';
         } else {
             favoritesBtn.style.display = isSensunshop ? 'block' : 'none';
         }
+    }
+
+    // Botón directo a Mis Widgets OBS
+    const myWidgetsBtn = profileModal.querySelector('#profile-my-widgets-btn');
+    if (myWidgetsBtn) {
+        myWidgetsBtn.addEventListener('click', () => {
+            profileModal.classList.remove('active');
+            window.updateBodyScroll();
+            const path = window.location.pathname.toLowerCase();
+            if (path.includes('/mini_widgets/')) {
+                window.location.href = 'mis_widgets.html';
+            } else if (path.includes('/sensunshop/') || path.includes('/laboratorio/')) {
+                window.location.href = '../mini_widgets/mis_widgets.html';
+            } else {
+                window.location.href = 'mini_widgets/mis_widgets.html';
+            }
+        });
     }
 
     let selectedAvatar = '';
