@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mis Widgets OBS & Favoritos | Multi Ideas Sv</title>
+  <title>Mis Widgets OBS &amp; Favoritos | Multi Ideas Sv</title>
   
   <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
   
@@ -18,8 +18,15 @@
       (function() {
           const savedTheme = localStorage.getItem('theme');
           if (savedTheme === 'light') {
-              document.querySelector('link[href*="../estilos.css"]').href = '../estilo_claro_multi.css?v=3';
-              document.body?.classList.add('light-theme');
+              const link = document.querySelector('link[href*="../estilos.css"]');
+              if (link) link.href = '../estilo_claro_multi.css?v=3';
+              if (document.body) {
+                  document.body.classList.add('light-theme');
+              } else {
+                  document.addEventListener('DOMContentLoaded', () => {
+                      document.body?.classList.add('light-theme');
+                  });
+              }
           }
       })();
   </script>
@@ -72,8 +79,8 @@
       padding: 28px 35px;
       margin-bottom: 30px;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 245, 212, 0.1);
-      backdrop-filter: blur(15px);
       -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -133,6 +140,7 @@
     .hero-titles h1 span.gradient-text {
       background: linear-gradient(135deg, #00f5d4 0%, #00b4d8 100%);
       -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: transparent;
     }
 
@@ -240,8 +248,8 @@
       display: flex;
       flex-direction: column;
       box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
       transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
       position: relative;
     }
@@ -501,6 +509,7 @@
     body.light-theme .hero-titles h1 span.gradient-text {
       background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
       -webkit-background-clip: text !important;
+      background-clip: text !important;
       -webkit-text-fill-color: transparent !important;
     }
 
@@ -731,7 +740,7 @@
           if (conf.bgcolor && conf.bgcolor !== '#121214') params.set('bgcolor', conf.bgcolor);
           if (conf.bordercolor && conf.bordercolor !== '#53fc18') params.set('bordercolor', conf.bordercolor);
           if (conf.autoaccent === false) params.set('autoaccent', 'false');
-          if (conf.fade && parseInt(conf.fade) > 0) params.set('fade', conf.fade);
+          if (conf.fade && parseInt(conf.fade, 10) > 0) params.set('fade', conf.fade);
           if (conf.ignored) params.set('ignored', conf.ignored);
           if (conf.nobg) params.set('nobg', 'true');
           if (conf.theme_light) params.set('theme', 'light');
@@ -745,7 +754,7 @@
           const tags = [];
           tags.push({ label: 'Canal', value: `@${conf.channel || 'jikokun'}` });
           if (conf.bordercolor) tags.push({ label: 'Acento', color: conf.bordercolor });
-          if (conf.fade && parseInt(conf.fade) > 0) tags.push({ label: 'Desvanecer', value: `${conf.fade}s` });
+          if (conf.fade && parseInt(conf.fade, 10) > 0) tags.push({ label: 'Desvanecer', value: `${conf.fade}s` });
           if (conf.nobg) tags.push({ label: 'Modo', value: 'Transparente' });
           return tags;
         }
@@ -1037,6 +1046,7 @@
 
     window.toggleFavoriteDirect = async function(widgetId, btn) {
       if (!currentUser) return;
+      if (btn) btn.disabled = true;
       const isFav = false; // Quitar de favoritos en esta vista
       if (!userWidgetsConfig[widgetId]) userWidgetsConfig[widgetId] = {};
       userWidgetsConfig[widgetId].is_favorite = isFav;
@@ -1051,6 +1061,7 @@
         renderFavoritesOnlyGrid();
       } catch (err) {
         console.error("Error al actualizar favorito:", err);
+        if (btn) btn.disabled = false;
       }
     };
 
