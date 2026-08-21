@@ -10,6 +10,7 @@ Tanto la plataforma Web como la App Android utilizan el mismo proyecto en la con
 
 - **Proyecto Firebase**: `sensunshopweb`
 - **ID de Proyecto**: `sensunshopweb`
+- **URL de Base de Datos**: `https://sensunshopweb-default-rtdb.firebaseio.com`
 - **Storage Bucket**: `sensunshopweb.firebasestorage.app`
 - **Auth Domain**: `sensunshopweb.firebaseapp.com`
 - **Base de Datos**: Firebase Realtime Database (RTDB)
@@ -39,9 +40,27 @@ root/
 │   │       ├── whatsappMsg: String  (Mensaje predeterminado de saludo)
 │   │       ├── locationUrl: String  (Enlace de Google Maps)
 │   │       ├── websiteUrl: String   (Enlace web opcional o vacío)
+│   │       ├── hasOffer: Boolean    (true / false)
+│   │       ├── offerMsg: String     (ej: "2x1 en tacos todos los martes")
 │   │       ├── accentColor: String  (ej: "#e74c3c", "#f39c12", "#00adb5")
 │   │       ├── tags: List<String>   (Lista de etiquetas para búsqueda y filtro)
 │   │       └── isActive: Boolean    (true/false)
+│   │
+│   ├── news/                        <-- Noticias, promociones y boletines
+│   │   └── <newsId>/
+│   │       ├── id: String
+│   │       ├── title: String
+│   │       ├── description: String
+│   │       ├── imgSrc: String
+│   │       ├── badge: String        (ej: "PROMO", "EVENTO", "NUEVO INGRESO")
+│   │       ├── whatsapp: String
+│   │       ├── locationUrl: String
+│   │       ├── link: String
+│   │       ├── hasOffer: Boolean
+│   │       ├── offerMsg: String
+│   │       ├── date: String
+│   │       ├── timestamp: Long
+│   │       └── isActive: Boolean
 │   │
 │   └── ratings/                     <-- Votos globales de cada negocio
 │       └── <businessId>/
@@ -95,13 +114,36 @@ data class Business(
     val whatsappMsg: String = "",
     val locationUrl: String = "",
     val websiteUrl: String = "",
+    val hasOffer: Boolean = false,
+    val offerMsg: String = "",
     val accentColor: String = "#f39c12",
     val tags: List<String> = emptyList(),
     val isActive: Boolean = true
 )
 
 /**
- * 2. Modelo de Comentario Comunitario
+ * 2. Modelo de Noticia / Boletín / Promoción
+ */
+@IgnoreExtraProperties
+data class NewsItem(
+    val id: String = "",
+    val title: String = "",
+    val description: String = "",
+    val imgSrc: String = "",
+    val badge: String = "NOVEDAD",
+    val whatsapp: String = "",
+    val whatsappMsg: String = "",
+    val locationUrl: String = "",
+    val link: String = "",
+    val hasOffer: Boolean = false,
+    val offerMsg: String = "",
+    val date: String = "",
+    val timestamp: Long = 0L,
+    val isActive: Boolean = true
+)
+
+/**
+ * 3. Modelo de Comentario Comunitario
  */
 @IgnoreExtraProperties
 data class BusinessComment(
@@ -113,7 +155,7 @@ data class BusinessComment(
 )
 
 /**
- * 3. Modelo de Calificación registrada por usuario
+ * 4. Modelo de Calificación registrada por usuario
  */
 @IgnoreExtraProperties
 data class UserRatingHistory(
@@ -122,7 +164,7 @@ data class UserRatingHistory(
 )
 
 /**
- * 4. Resumen calculado de Calificaciones para la UI
+ * 5. Resumen calculado de Calificaciones para la UI
  */
 data class RatingSummary(
     val average: Float = 0f,
@@ -143,6 +185,7 @@ package com.sensunshop.repository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import com.sensunshop.models.Business
+import com.sensunshop.models.NewsItem
 import com.sensunshop.models.BusinessComment
 import com.sensunshop.models.RatingSummary
 import com.sensunshop.models.UserRatingHistory
@@ -173,6 +216,33 @@ class SensunShopRepository {
                         list.add(business)
                     }
                 }
+                trySend(list)
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                close(error.toException())
+            }
+        }
+        ref.addValueEventListener(listener)
+        awaitClose { ref.removeEventListener(listener) }
+    }
+
+    // =========================================================================
+    // 2. NOTICIAS Y BOLETINES (Tiempo Real con Flow)
+    // =========================================================================
+    fun getNewsFlow(): Flow<List<NewsItem>> = callbackFlow {
+        val ref = db.child("sensunshop/news")
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val list = mutableListOf<NewsItem>()
+                for (child in snapshot.children) {
+                    val news = child.getValue(NewsItem::class.java)
+                    if (news != null && news.isActive) {
+                        news.id = child.key ?: ""
+                        list.add(news)
+                    }
+                }
+                list.sortByDescending { it.timestamp }
                 trySend(list)
             }
 

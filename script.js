@@ -1098,6 +1098,12 @@ function initSensunSearch(isSensunshop, depth) {
         }
     });
 
+    // Invalidar caché cuando se actualizan los negocios en tiempo real desde Firebase RTDB
+    document.addEventListener("sensun-businesses-updated", () => {
+        businessesData = null;
+    });
+
+
     // Soporte gestos swipe para móvil (deslizar a la derecha)
     if (typeof enableSwipeToClose === "function") {
         enableSwipeToClose(overlay, closeModal);

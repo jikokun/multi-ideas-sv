@@ -25,6 +25,7 @@ import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-
 const firebaseConfig = {
     apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
     authDomain: "sensunshopweb.firebaseapp.com",
+    databaseURL: "https://sensunshopweb-default-rtdb.firebaseio.com",
     projectId: "sensunshopweb",
     storageBucket: "sensunshopweb.firebasestorage.app",
     messagingSenderId: "618261314687",
