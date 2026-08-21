@@ -1645,9 +1645,23 @@ function createAuthModal() {
                     <span>o</span>
                     <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-left: .8em;"></span>
                 </div>
-                <button type="button" id="rating-google-login-btn" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; gap: 10px; border-color: rgba(255, 255, 255, 0.1);">
-                    <svg viewBox="0 0 24 24" width="18" height="18" style="fill: currentColor;"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.727 5.727 0 0 1 8.24 12.8a5.727 5.727 0 0 1 5.751-5.714c1.554 0 2.966.574 4.053 1.516l3.18-3.18C19.294 3.525 16.74 2.286 13.99 2.286 8.167 2.286 3.42 7.034 3.42 12.86c0 5.823 4.747 10.57 10.57 10.57 6.077 0 10.1-4.27 10.1-10.286 0-.693-.06-1.356-.174-1.858H12.24Z"/></svg>
-                    <span>Iniciar con Google</span>
+                <button type="button" id="rating-google-login-btn" class="auth-google-btn">
+                    <span class="g-ring"></span>
+                    <i class="g-confetti" style="--gc:#4285F4; --gx:-60px; --gy:-40px; --gd:0s;"></i>
+                    <i class="g-confetti" style="--gc:#EA4335; --gx:60px; --gy:-45px; --gd:0.04s;"></i>
+                    <i class="g-confetti" style="--gc:#FBBC05; --gx:-70px; --gy:20px; --gd:0.08s;"></i>
+                    <i class="g-confetti" style="--gc:#34A853; --gx:65px; --gy:25px; --gd:0.12s;"></i>
+                    <svg class="google-g-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span class="google-spinner"></span>
+                    <span class="google-check">
+                        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <span class="google-btn-text">Iniciar con Google</span>
                 </button>
                 <p style="font-size: 0.85rem; color: #718096; text-align: center; margin-top: 10px;">
                     ¿No tienes cuenta? <a href="#" id="rating-go-register" style="color: #f39c12; text-decoration: underline;">Regístrate aquí</a>
@@ -1676,9 +1690,23 @@ function createAuthModal() {
                     <span>o</span>
                     <span style="flex: 1; border-bottom: 1px solid rgba(255,255,255,0.08); margin-left: .8em;"></span>
                 </div>
-                <button type="button" id="rating-google-register-btn" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; color: #fff; padding: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; gap: 10px; border-color: rgba(255, 255, 255, 0.1);">
-                    <svg viewBox="0 0 24 24" width="18" height="18" style="fill: currentColor;"><path d="M12.24 10.285V14.4h6.887c-.648 2.41-2.519 4.114-5.136 4.114A5.727 5.727 0 0 1 8.24 12.8a5.727 5.727 0 0 1 5.751-5.714c1.554 0 2.966.574 4.053 1.516l3.18-3.18C19.294 3.525 16.74 2.286 13.99 2.286 8.167 2.286 3.42 7.034 3.42 12.86c0 5.823 4.747 10.57 10.57 10.57 6.077 0 10.1-4.27 10.1-10.286 0-.693-.06-1.356-.174-1.858H12.24Z"/></svg>
-                    <span>Registrarse con Google</span>
+                <button type="button" id="rating-google-register-btn" class="auth-google-btn">
+                    <span class="g-ring"></span>
+                    <i class="g-confetti" style="--gc:#4285F4; --gx:-60px; --gy:-40px; --gd:0s;"></i>
+                    <i class="g-confetti" style="--gc:#EA4335; --gx:60px; --gy:-45px; --gd:0.04s;"></i>
+                    <i class="g-confetti" style="--gc:#FBBC05; --gx:-70px; --gy:20px; --gd:0.08s;"></i>
+                    <i class="g-confetti" style="--gc:#34A853; --gx:65px; --gy:25px; --gd:0.12s;"></i>
+                    <svg class="google-g-icon" viewBox="0 0 24 24" width="20" height="20">
+                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span class="google-spinner"></span>
+                    <span class="google-check">
+                        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </span>
+                    <span class="google-btn-text">Registrarse con Google</span>
                 </button>
                 <p style="font-size: 0.85rem; color: #718096; text-align: center; margin-top: 10px;">
                     ¿Ya tienes una cuenta? <a href="#" id="rating-go-login" style="color: #f39c12; text-decoration: underline;">Inicia sesión</a>
@@ -1708,7 +1736,17 @@ function createAuthModal() {
         loginForm.style.display = 'flex';
     });
 
-    const handleGoogleAuth = async (isLogin) => {
+    const handleGoogleAuth = async (isLogin, targetBtn) => {
+        const btn = targetBtn || (isLogin ? googleLoginBtn : googleRegisterBtn);
+        const textSpan = btn ? btn.querySelector('.google-btn-text') : null;
+        const originalText = textSpan ? textSpan.textContent : '';
+
+        if (btn) {
+            btn.classList.remove('is-error', 'is-success');
+            btn.classList.add('is-loading');
+            if (textSpan) textSpan.textContent = 'Conectando con Google…';
+        }
+
         const provider = new GoogleAuthProvider();
         const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
@@ -1718,6 +1756,11 @@ function createAuthModal() {
                 await signInWithRedirect(auth, provider);
             } catch (error) {
                 console.error("Error en redirect de Google (ratings):", error);
+                if (btn) {
+                    btn.classList.remove('is-loading');
+                    btn.classList.add('is-error');
+                    if (textSpan) textSpan.textContent = originalText;
+                }
                 alert("No se pudo iniciar la redirección de Google.");
             }
         } else {
@@ -1730,18 +1773,45 @@ function createAuthModal() {
                         const user = result.user;
                         await user.delete();
                         await signOut(auth);
+                        if (btn) {
+                            btn.classList.remove('is-loading');
+                            btn.classList.add('is-error');
+                            if (textSpan) textSpan.textContent = originalText;
+                        }
                         alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
                         // Cambiar a registro
                         loginForm.style.display = 'none';
                         registerForm.style.display = 'flex';
                     } else {
+                        // Éxito
+                        if (btn) {
+                            btn.classList.remove('is-loading');
+                            btn.classList.add('is-success');
+                            if (textSpan) textSpan.textContent = '¡Sesión iniciada! 🎉';
+                        }
+                        await new Promise(r => setTimeout(r, 850));
                         closeAuthModal();
                     }
                 } else {
+                    // Registro Éxito
+                    if (btn) {
+                        btn.classList.remove('is-loading');
+                        btn.classList.add('is-success');
+                        if (textSpan) textSpan.textContent = '¡Registrado con éxito! 🎉';
+                    }
+                    await new Promise(r => setTimeout(r, 850));
                     closeAuthModal();
                 }
             } catch (error) {
                 console.error("Error en autenticación Google:", error);
+                if (btn) {
+                    btn.classList.remove('is-loading');
+                    btn.classList.add('is-error');
+                    setTimeout(() => {
+                        btn.classList.remove('is-error');
+                        if (textSpan) textSpan.textContent = originalText;
+                    }, 1400);
+                }
                 if (error.code !== 'auth/popup-closed-by-user') {
                     alert("Error al conectar con Google: " + translateAuthError(error.code));
                 }
@@ -3386,6 +3456,54 @@ function openImageLightbox(src, alt, lightbox) {
 
 window.initImageLightboxModal = initImageLightboxModal;
 
+// Efecto de despegue de avioncito para botones de WhatsApp
+function initWhatsAppPlaneEffect() {
+    document.addEventListener("click", function(e) {
+        const btn = e.target.closest("a.btn-wsp, .btn-negocio.btn-wsp, .js-wsp-plane");
+        if (!btn) return;
+
+        const href = btn.getAttribute("href");
+        if (!href || href === "#" || href.startsWith("javascript:")) return;
+
+        if (btn.classList.contains("is-flying")) {
+            e.preventDefault();
+            return;
+        }
+
+        e.preventDefault();
+        btn.classList.add("is-flying");
+
+        // Inyectar el SVG del avioncito si no existe
+        let planeSvg = btn.querySelector(".wsp-plane-anim");
+        if (!planeSvg) {
+            planeSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+            planeSvg.setAttribute("class", "wsp-plane-anim");
+            planeSvg.setAttribute("viewBox", "0 0 24 24");
+            planeSvg.innerHTML = '<path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/>';
+            btn.appendChild(planeSvg);
+        }
+
+        // Guardar texto para efecto visual
+        const textNode = Array.from(btn.childNodes).find(n => n.nodeType === Node.TEXT_NODE && n.textContent.trim().length > 0);
+        const originalText = textNode ? textNode.textContent : null;
+        if (textNode) {
+            textNode.textContent = " ¡Volando…!";
+        }
+
+        setTimeout(() => {
+            window.open(href, "_blank", "noopener,noreferrer");
+            setTimeout(() => {
+                btn.classList.remove("is-flying");
+                if (textNode && originalText !== null) {
+                    textNode.textContent = originalText;
+                }
+            }, 1000);
+        }, 450);
+    }, false);
+}
+
+window.initWhatsAppPlaneEffect = initWhatsAppPlaneEffect;
+
 // Ejecutar inyección y sincronización en tiempo real cuando el DOM esté listo
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
@@ -3397,6 +3515,7 @@ if (document.readyState === "loading") {
         initCardExpandModal();
         initImageLightboxModal();
         handleDirectBusinessAnchor();
+        initWhatsAppPlaneEffect();
     });
 } else {
     setupBusinessesRealtimeSync();
@@ -3407,6 +3526,7 @@ if (document.readyState === "loading") {
     initCardExpandModal();
     initImageLightboxModal();
     handleDirectBusinessAnchor();
+    initWhatsAppPlaneEffect();
 }
 
 

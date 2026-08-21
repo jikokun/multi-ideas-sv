@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prueba de Botón Google con Micro-animación de Éxito 🎉</title>
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-500.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-800.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/css/jetbrains-mono@latest/index.css" rel="stylesheet">
+<style>
+  :root {
+    --g-blue: #4285F4;
+    --g-red: #EA4335;
+    --g-yellow: #FBBC05;
+    --g-green: #34A853;
+    --spring: cubic-bezier(.34, 1.56, .64, 1);
+    --soft: cubic-bezier(.22, 1, .36, 1);
+    --n400: #fb923c;
+    --n600: #ea580c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 20%, #1e293b, #0f172a 80%);
+    color: #f8fafc;
+    min-height: 100vh;
+    padding: 30px 16px 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .container {
+    max-width: 480px;
+    width: 100%;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #4285F4, #34A853, #FBBC05, #EA4335);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 6px;
+  }
+  header p {
+    color: #94a3b8;
+    font-size: 13px;
+  }
+
+  /* Tarjeta de Modal de Autenticación Exacta */
+  .auth-modal-card-demo {
+    background: #ffffff;
+    color: #1e1b4b;
+    border-radius: 28px;
+    padding: 32px 28px;
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .auth-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+  }
+
+  .auth-tabs {
+    display: flex;
+    border-bottom: 2px solid #f1f5f9;
+    margin-bottom: 24px;
+  }
+  .auth-tab-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    padding: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+  }
+  .auth-tab-btn.active {
+    color: #ea580c;
+  }
+  .auth-tab-btn.active::after {
+    content: "";
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #ea580c, #fb923c);
+    border-radius: 3px;
+  }
+
+  .auth-title {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1e1b4b;
+    margin-bottom: 4px;
+  }
+  .auth-subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 20px;
+  }
+
+  .auth-input-group {
+    margin-bottom: 16px;
+    text-align: left;
+  }
+  .auth-input-group label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: #475569;
+    margin-bottom: 6px;
+  }
+  .auth-input-group input {
+    width: 100%;
+    padding: 13px 16px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    font-size: 14px;
+    background: #f8fafc;
+    color: #1e293b;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .auth-input-group input:focus {
+    border-color: #ea580c;
+  }
+
+  .auth-submit-btn {
+    width: 100%;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #fb923c, #ea580c);
+    color: #fff;
+    font-weight: 800;
+    font-size: 15px;
+    padding: 14px;
+    cursor: pointer;
+    box-shadow: 0 8px 20px rgba(234, 88, 12, 0.35);
+    margin-top: 4px;
+    margin-bottom: 18px;
+  }
+
+  .auth-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .auth-divider::before, .auth-divider::after {
+    content: "";
+    flex: 1;
+    border-bottom: 1px solid #e2e8f0;
+  }
+  .auth-divider span {
+    padding: 0 10px;
+  }
+
+  /* ========================================================
+     NUEVO BOTÓN DE GOOGLE CON MICRO-ANIMACIONES DE ÉXITO
+     ======================================================== */
+  .auth-google-btn-animated {
+    position: relative;
+    width: 100%;
+    height: 52px;
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 14px;
+    color: #1e1b4b;
+    font-size: 14.5px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+    transition: transform .35s var(--spring), border-color .25s, box-shadow .25s, background-color .25s;
+    overflow: visible;
+  }
+
+  .auth-google-btn-animated:hover {
+    border-color: #cbd5e1;
+    box-shadow: 0 8px 20px rgba(66, 133, 244, 0.15);
+    transform: translateY(-2px);
+  }
+
+  .auth-google-btn-animated:active {
+    transform: scale(0.97);
+  }
+
+  /* Icono G Oficial */
+  .google-g-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    transition: transform .4s var(--spring), opacity .25s;
+  }
+
+  /* Spinner Multicolor Google */
+  .google-spinner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: var(--g-blue);
+    border-right-color: var(--g-red);
+    border-bottom-color: var(--g-yellow);
+    border-left-color: var(--g-green);
+    animation: gSpin 0.85s linear infinite;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity .25s, transform .3s var(--spring);
+    pointer-events: none;
+  }
+  @keyframes gSpin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Checkmark de Éxito */
+  .google-check {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #34A853, #16a34a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity .25s, transform .45s var(--spring);
+    box-shadow: 0 4px 14px rgba(52, 168, 83, 0.5);
+    pointer-events: none;
+  }
+  .google-check svg {
+    width: 14px;
+    height: 14px;
+    stroke: #fff;
+    stroke-width: 3.2;
+    fill: none;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset .4s ease 0.15s;
+  }
+
+  /* Texto */
+  .google-btn-text {
+    position: relative;
+    transition: opacity .2s, transform .3s;
+  }
+
+  /* Confetis de Google */
+  .g-confetti {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--gc);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Anillo Expansivo de Celebración */
+  .g-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 18px;
+    border: 3px solid #34A853;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ===== ESTADO: CARGANDO / CONECTANDO ===== */
+  .auth-google-btn-animated.is-loading {
+    border-color: var(--g-blue);
+    background: #f8faff;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(66, 133, 244, 0.25);
+  }
+  .auth-google-btn-animated.is-loading .google-g-icon {
+    opacity: 0;
+    transform: scale(0);
+  }
+  .auth-google-btn-animated.is-loading .google-spinner {
+    opacity: 1;
+    transform: scale(1);
+    left: 20px;
+  }
+  .auth-google-btn-animated.is-loading .google-btn-text {
+    transform: translateX(10px);
+  }
+
+  /* ===== ESTADO: ÉXITO / ACCESO CORRECTO ===== */
+  .auth-google-btn-animated.is-success {
+    border-color: #34A853;
+    background: #f0fdf4;
+    color: #166534;
+    box-shadow: 0 8px 24px rgba(52, 168, 83, 0.35);
+    animation: gSuccessPulse 0.5s var(--spring);
+  }
+  @keyframes gSuccessPulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.94); }
+    70% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+  }
+
+  .auth-google-btn-animated.is-success .google-g-icon {
+    opacity: 0;
+    transform: scale(0);
+  }
+  .auth-google-btn-animated.is-success .google-spinner {
+    opacity: 0;
+    transform: scale(0);
+  }
+  .auth-google-btn-animated.is-success .google-check {
+    opacity: 1;
+    transform: scale(1);
+    left: 20px;
+  }
+  .auth-google-btn-animated.is-success .google-check svg {
+    stroke-dashoffset: 0;
+  }
+  .auth-google-btn-animated.is-success .google-btn-text {
+    transform: translateX(10px);
+    font-weight: 800;
+  }
+
+  /* Disparo de Confetis */
+  .auth-google-btn-animated.is-success .g-confetti {
+    animation: gConfFall 0.7s cubic-bezier(.2, .7, .4, 1) var(--gd, 0s) forwards;
+  }
+  @keyframes gConfFall {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--gx)), calc(-50% + var(--gy))) scale(0.3) rotate(220deg); }
+  }
+
+  .auth-google-btn-animated.is-success .g-ring {
+    animation: gRingExpand 0.6s ease-out forwards;
+  }
+  @keyframes gRingExpand {
+    0% { opacity: 0.9; transform: scale(0.8); }
+    100% { opacity: 0; transform: scale(1.35); }
+  }
+
+  /* ===== ESTADO: ERROR / SHAKE ===== */
+  .auth-google-btn-animated.is-error {
+    animation: gShake 0.45s ease;
+    border-color: #ef4444;
+    background: #fef2f2;
+    color: #991b1b;
+  }
+  @keyframes gShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
+  }
+
+  /* Botones de Control del Simulador */
+  .simulator-controls {
+    margin-top: 24px;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid #334155;
+    border-radius: 18px;
+    padding: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .sim-btn {
+    border: none;
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    color: #fff;
+    transition: transform 0.2s;
+  }
+  .sim-btn:active { transform: scale(0.95); }
+  .sim-success { background: #34A853; }
+  .sim-error { background: #EA4335; }
+  .sim-reset { background: #64748b; }
+
+  .toast-demo {
+    margin-top: 16px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    padding: 12px 18px;
+    border-radius: 12px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: #38bdf8;
+    text-align: center;
+    min-height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>Efecto Éxito para Botón Google 🔐</h1>
+    <p>Prueba la animación al iniciar sesión con Google con feedback de éxito.</p>
+  </header>
+
+  <!-- Modal Fiel al Diseño -->
+  <div class="auth-modal-card-demo">
+    <button class="auth-close-btn">&times;</button>
+    
+    <div class="auth-tabs">
+      <button class="auth-tab-btn active" id="demoTabLogin">Iniciar Sesión</button>
+      <button class="auth-tab-btn" id="demoTabRegister">Registrarse</button>
+    </div>
+
+    <h3 class="auth-title" id="demoTitle">Ingresa a tu cuenta</h3>
+    <p class="auth-subtitle" id="demoSub">Accede a todas las funciones de Multi Ideas Sv</p>
+
+    <div class="auth-input-group">
+      <label>Correo Electrónico</label>
+      <input type="email" placeholder="correo@ejemplo.com" value="usuario@ejemplo.com" readonly>
+    </div>
+
+    <div class="auth-input-group">
+      <label>Contraseña</label>
+      <input type="password" value="12345678" readonly>
+    </div>
+
+    <button class="auth-submit-btn">Ingresar</button>
+
+    <div class="auth-divider">
+      <span>o</span>
+    </div>
+
+    <!-- BOTÓN DE GOOGLE ANIMADO -->
+    <button type="button" class="auth-google-btn-animated" id="googleBtnInteractive">
+      <!-- Anillo Expansivo -->
+      <span class="g-ring"></span>
+
+      <!-- Confetis de colores de Google -->
+      <i class="g-confetti" style="--gc:#4285F4; --gx:-60px; --gy:-40px; --gd:0s;"></i>
+      <i class="g-confetti" style="--gc:#EA4335; --gx:60px; --gy:-45px; --gd:0.04s;"></i>
+      <i class="g-confetti" style="--gc:#FBBC05; --gx:-70px; --gy:20px; --gd:0.08s;"></i>
+      <i class="g-confetti" style="--gc:#34A853; --gx:65px; --gy:25px; --gd:0.12s;"></i>
+      <i class="g-confetti" style="--gc:#4285F4; --gx:10px; --gy:-60px; --gd:0.06s;"></i>
+      <i class="g-confetti" style="--gc:#34A853; --gx:-15px; --gy:55px; --gd:0.1s;"></i>
+
+      <!-- Icono Oficial Multicolor -->
+      <svg class="google-g-icon" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+      </svg>
+
+      <!-- Spinner -->
+      <span class="google-spinner"></span>
+
+      <!-- Visto Bueno -->
+      <span class="google-check">
+        <svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+
+      <!-- Texto del Botón -->
+      <span class="google-btn-text" id="gBtnText">Iniciar con Google</span>
+    </button>
+  </div>
+
+  <!-- Controles del Simulador -->
+  <div class="simulator-controls">
+    <button class="sim-btn sim-success" id="btnSimSuccess">▶ Probar Login Exitoso</button>
+    <button class="sim-btn sim-error" id="btnSimError">✕ Probar Error / Cancelado</button>
+    <button class="sim-btn sim-reset" id="btnSimReset">↺ Reiniciar Botón</button>
+  </div>
+
+  <div class="toast-demo" id="statusToast">
+    Toca "Iniciar con Google" para ver la animación completa en acción.
+  </div>
+
+</div>
+
+<script>
+  const gBtn = document.getElementById('googleBtnInteractive');
+  const gText = document.getElementById('gBtnText');
+  const statusToast = document.getElementById('statusToast');
+  let animating = false;
+
+  function updateStatus(msg, isSuccess = true) {
+    statusToast.textContent = msg;
+    statusToast.style.color = isSuccess ? '#4ade80' : '#f87171';
+  }
+
+  function resetGoogleBtn() {
+    gBtn.className = 'auth-google-btn-animated';
+    gText.textContent = 'Iniciar con Google';
+    animating = false;
+    updateStatus('Botón restablecido a estado inicial.');
+  }
+
+  function executeGoogleSuccess() {
+    if (animating) return;
+    animating = true;
+
+    // 1. Estado Cargando
+    gBtn.className = 'auth-google-btn-animated is-loading';
+    gText.textContent = 'Conectando con Google…';
+    updateStatus('⏳ Autenticando con cuenta de Google...');
+
+    // 2. Éxito tras 1.2 segundos
+    setTimeout(() => {
+      gBtn.className = 'auth-google-btn-animated is-success';
+      gText.textContent = '¡Sesión iniciada con éxito!';
+      updateStatus('🎉 ¡Acceso concedido! Bienvenido/a a Multi Ideas Sv.');
+
+      // 3. Simular cierre de modal y bienvenida
+      setTimeout(() => {
+        updateStatus('✨ Modal cerrado. Usuario sincronizado.');
+        setTimeout(resetGoogleBtn, 1500);
+      }, 1400);
+    }, 1200);
+  }
+
+  function executeGoogleError() {
+    if (animating) return;
+    animating = true;
+
+    gBtn.className = 'auth-google-btn-animated is-loading';
+    gText.textContent = 'Conectando con Google…';
+    updateStatus('⏳ Conectando con Google...');
+
+    setTimeout(() => {
+      gBtn.className = 'auth-google-btn-animated is-error';
+      gText.textContent = 'Acceso cancelado';
+      updateStatus('⚠️ La autenticación fue cancelada o falló.', false);
+
+      setTimeout(resetGoogleBtn, 1600);
+    }, 1000);
+  }
+
+  gBtn.addEventListener('click', executeGoogleSuccess);
+  document.getElementById('btnSimSuccess').addEventListener('click', executeGoogleSuccess);
+  document.getElementById('btnSimError').addEventListener('click', executeGoogleError);
+  document.getElementById('btnSimReset').addEventListener('click', resetGoogleBtn);
+
+  // Tabs
+  const tabL = document.getElementById('demoTabLogin');
+  const tabR = document.getElementById('demoTabRegister');
+  tabL.addEventListener('click', () => {
+    tabL.classList.add('active'); tabR.classList.remove('active');
+    document.getElementById('demoTitle').textContent = 'Ingresa a tu cuenta';
+    gText.textContent = 'Iniciar con Google';
+  });
+  tabR.addEventListener('click', () => {
+    tabR.classList.add('active'); tabL.classList.remove('active');
+    document.getElementById('demoTitle').textContent = 'Crea tu cuenta';
+    gText.textContent = 'Registrarse con Google';
+  });
+</script>
+</body>
+</html>

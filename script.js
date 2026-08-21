@@ -140,6 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 6. Verificar si hay un negocio para resaltar desde la URL
     checkHighlightHash();
+
+    // 7. Inicializar buscador inline de Sensun Shop si está presente en el DOM
+    initSensunInlineHeroSearch();
 });
 
 // Helper global para evitar fugas de scroll al abrir overlays
@@ -219,6 +222,9 @@ function cargarMenuGlobal() {
 
                  // Inicializar buscador si estamos en sector sensunshop
                 initSensunSearch(isSensunshop, depth);
+                if (isSensunshop) {
+                    initSensunInlineHeroSearch(depth);
+                }
 
                 // Inicializar interruptor de tema claro/oscuro
                 initThemeToggle();
@@ -1194,6 +1200,278 @@ function initSensunSearch(isSensunshop, depth) {
     });
 }
 
+// ==========================================================================
+// BUSCADOR HERO INTEGRADO EN SENSUN SHOP
+// ==========================================================================
+function initSensunInlineHeroSearch(depth = 0) {
+    const heroInput = document.getElementById("sensun-hero-search-input");
+    if (!heroInput) return;
+
+    const card = heroInput.closest(".sensun-search-card");
+    const clearBtn = document.getElementById("sensun-search-clear-btn");
+    const actionBtn = document.getElementById("sensun-search-action-btn");
+    const resultsPanel = document.getElementById("sensun-inline-results");
+    const resultsList = document.getElementById("sensun-results-list");
+    const resultsCount = document.getElementById("sensun-results-count");
+    const closeResultsBtn = document.getElementById("sensun-close-inline-results");
+    const quickTags = document.querySelectorAll(".quick-tag-pill");
+
+    let businessesData = null;
+    let debounceTimer = null;
+
+    const targetPages = [
+        "negocioslocales.html",
+        "emprendedores.html",
+        "oficios.html",
+        "profesionales.html"
+    ];
+
+    let prefix = (depth === 2) ? "../" : (depth === 1) ? "./" : "sensunshop/";
+
+    // 1. Cargar datos de negocios
+    async function loadData() {
+        if (businessesData && businessesData.length > 0) return businessesData;
+        if (card) card.classList.add("is-searching");
+
+        if (typeof window.getSensunBusinesses === "function") {
+            try {
+                const rtdbList = await window.getSensunBusinesses();
+                if (rtdbList && rtdbList.length > 0) {
+                    businessesData = rtdbList.map(item => {
+                        let pageName = "negocioslocales.html";
+                        if (item.type === "emprendedores") pageName = "emprendedores.html";
+                        else if (item.type === "profesionales") pageName = "profesionales.html";
+                        else if (item.type === "oficios") pageName = "oficios.html";
+
+                        return {
+                            id: item.id,
+                            title: item.title,
+                            description: item.description || "",
+                            tags: Array.isArray(item.tags) ? item.tags : [],
+                            category: item.category || "comercio",
+                            imgSrc: item.imgSrc || "",
+                            redirectPath: prefix + pageName
+                        };
+                    });
+                    if (card) card.classList.remove("is-searching");
+                    return businessesData;
+                }
+            } catch (err) {
+                console.warn("Buscador inline: usando respaldo DOM.", err);
+            }
+        }
+
+        try {
+            const results = await Promise.all(targetPages.map(async (pageName) => {
+                const fetchPath = prefix + pageName;
+                const redirectPath = prefix + pageName;
+                try {
+                    const response = await fetch(fetchPath);
+                    if (!response.ok) return [];
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, "text/html");
+                    const cards = doc.querySelectorAll(".negocio-card");
+                    
+                    return Array.from(cards)
+                        .filter(c => !c.classList.contains("disponible"))
+                        .map(c => {
+                            const title = c.querySelector("h3") ? c.querySelector("h3").textContent.trim() : "";
+                            const description = c.querySelector("p") ? c.querySelector("p").textContent.trim() : "";
+                            const tags = Array.from(c.querySelectorAll(".negocio-tags .tag, .producto-info .tag")).map(t => t.textContent.trim());
+                            const category = c.getAttribute("data-category") || "";
+                            const id = c.id || "";
+                            const imgEl = c.querySelector(".producto-img img, .slider-card-img img");
+                            const imgSrc = imgEl ? imgEl.getAttribute("src") : "";
+                            return { id, title, description, tags, category, imgSrc, redirectPath };
+                        });
+                } catch (e) {
+                    return [];
+                }
+            }));
+            businessesData = results.flat();
+        } catch (e) {
+            console.error("Error al cargar negocios inline:", e);
+            businessesData = [];
+        } finally {
+            if (card) card.classList.remove("is-searching");
+        }
+        return businessesData;
+    }
+
+    const cleanString = (str) => {
+        return (str || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    };
+
+    // 2. Ejecutar búsqueda
+    async function performSearch(queryText) {
+        const query = cleanString(queryText);
+        if (!query) {
+            if (resultsPanel) resultsPanel.style.display = "none";
+            if (card) card.classList.remove("has-text");
+            return;
+        }
+
+        if (card) card.classList.add("has-text");
+        if (resultsPanel) resultsPanel.style.display = "block";
+        if (resultsList) resultsList.innerHTML = '<div class="dynamic-status-message">Buscando negocios en Sensuntepeque...</div>';
+
+        const data = await loadData();
+        if (!data || data.length === 0) {
+            if (resultsList) resultsList.innerHTML = '<div class="dynamic-status-message">No se pudo cargar el catálogo.</div>';
+            return;
+        }
+
+        const filtered = data.filter(item => {
+            const title = cleanString(item.title);
+            const desc = cleanString(item.description);
+            const cat = cleanString(item.category);
+            const tags = item.tags.map(t => cleanString(t));
+            return title.includes(query) || desc.includes(query) || cat.includes(query) || tags.some(t => t.includes(query));
+        });
+
+        if (resultsCount) {
+            resultsCount.textContent = filtered.length === 1 ? '1 resultado encontrado' : `${filtered.length} resultados encontrados`;
+        }
+
+        if (filtered.length === 0) {
+            if (resultsList) {
+                resultsList.innerHTML = `
+                    <div class="dynamic-status-message">
+                        No se encontraron negocios para "<strong>${queryText}</strong>".
+                    </div>
+                `;
+            }
+            return;
+        }
+
+        let html = "";
+        filtered.forEach(item => {
+            let itemImg = item.imgSrc;
+            if (itemImg && !itemImg.startsWith("http") && !itemImg.startsWith("/")) {
+                let cleanImgPath = itemImg.replace(/^(\.\.\/)+/, '').replace(/^(sensunshop\/)+/, '');
+                itemImg = cleanImgPath;
+            }
+
+            const itemLink = `${item.redirectPath}#${item.id}`;
+            const badgeClass = item.category;
+
+            html += `
+                <a href="${itemLink}" class="search-result-item" data-id="${item.id}" data-href="${itemLink}">
+                    ${itemImg ? `<img src="${itemImg}" alt="${item.title}" class="search-result-img" loading="lazy">` : ""}
+                    <div class="search-result-info">
+                        <div class="search-result-title">${item.title}</div>
+                        <div class="search-result-desc">${item.description}</div>
+                        <div class="search-result-meta">
+                            <span class="search-result-badge ${badgeClass}">${item.category}</span>
+                            ${item.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join("")}
+                        </div>
+                    </div>
+                </a>
+            `;
+        });
+
+        if (resultsList) {
+            resultsList.innerHTML = html;
+
+            // Click listener
+            resultsList.querySelectorAll(".search-result-item").forEach(el => {
+                el.addEventListener("click", (e) => {
+                    if (resultsPanel) resultsPanel.style.display = "none";
+                });
+            });
+        }
+    }
+
+    // 3. Listeners del Input
+    heroInput.addEventListener("input", () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+            performSearch(heroInput.value);
+        }, 180);
+    });
+
+    heroInput.addEventListener("focus", () => {
+        if (heroInput.value.trim().length > 0) {
+            performSearch(heroInput.value);
+        }
+    });
+
+    // 4. Botón Limpiar
+    if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+            heroInput.value = "";
+            if (card) card.classList.remove("has-text");
+            if (resultsPanel) resultsPanel.style.display = "none";
+            heroInput.focus();
+        });
+    }
+
+    // 5. Botón Buscar
+    if (actionBtn) {
+        actionBtn.addEventListener("click", () => {
+            performSearch(heroInput.value);
+        });
+    }
+
+    // 6. Cerrar resultados
+    if (closeResultsBtn) {
+        closeResultsBtn.addEventListener("click", () => {
+            if (resultsPanel) resultsPanel.style.display = "none";
+        });
+    }
+
+    // 7. Click fuera para cerrar panel
+    document.addEventListener("click", (e) => {
+        if (resultsPanel && resultsPanel.style.display !== "none") {
+            if (!heroInput.contains(e.target) && !resultsPanel.contains(e.target) && (!actionBtn || !actionBtn.contains(e.target))) {
+                resultsPanel.style.display = "none";
+            }
+        }
+    });
+
+    // 8. Chips Rápidos
+    quickTags.forEach(pill => {
+        pill.addEventListener("click", (e) => {
+            e.preventDefault();
+            const tagVal = pill.getAttribute("data-query");
+            if (tagVal) {
+                heroInput.value = tagVal;
+                heroInput.focus();
+                performSearch(tagVal);
+            }
+        });
+    });
+
+    // 9. Atajo de teclado '/'
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "/" && document.activeElement !== heroInput && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+            e.preventDefault();
+            heroInput.focus();
+            heroInput.select();
+        } else if (e.key === "Escape" && resultsPanel && resultsPanel.style.display !== "none") {
+            resultsPanel.style.display = "none";
+        }
+    });
+
+    // 10. Placeholder Dinámico Animado
+    const placeholders = [
+        "Buscar 'pupusas', 'comida típica'...",
+        "Buscar 'cafeterías', 'postres'...",
+        "Buscar 'clínicas', 'odontología'...",
+        "Buscar 'artesanías', 'regalos'...",
+        "Buscar 'fotografía', 'diseño'...",
+        "Buscar 'reparaciones', 'servicios'..."
+    ];
+    let pIndex = 0;
+    setInterval(() => {
+        if (document.activeElement !== heroInput && heroInput.value.length === 0) {
+            pIndex = (pIndex + 1) % placeholders.length;
+            heroInput.setAttribute("placeholder", placeholders[pIndex]);
+        }
+    }, 3800);
+}
+
 // Resaltar y desplazar hacia la tarjeta correspondiente
 function highlightBusinessCard(id) {
     const targetEl = document.getElementById(id);
@@ -1617,7 +1895,7 @@ function connectFirebaseToAuth(authUI, fb) {
         });
     }
 
-    // Google Sign-In con control de registro
+    // Google Sign-In con control de registro y animación de éxito
     if (googleBtn) {
         googleBtn.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -1627,6 +1905,11 @@ function connectFirebaseToAuth(authUI, fb) {
             }
             if (submitBtn) submitBtn.disabled = true;
             if (googleBtn) googleBtn.disabled = true;
+
+            // 1. Activar estado de Carga en el Botón de Google
+            googleBtn.classList.remove('is-error', 'is-success');
+            googleBtn.classList.add('is-loading');
+            if (googleText) googleText.textContent = 'Conectando con Google…';
 
             const provider = new GoogleAuthProvider();
             const currentMode = getCurrentMode();
@@ -1641,6 +1924,9 @@ function connectFirebaseToAuth(authUI, fb) {
                 } catch (error) {
                     console.error("Error de redirección con Google:", error);
                     showNotification('Error con Google', 'No se pudo iniciar la redirección.', 'error');
+                    googleBtn.classList.remove('is-loading');
+                    googleBtn.classList.add('is-error');
+                    if (googleText) googleText.textContent = currentMode === 'login' ? 'Iniciar con Google' : 'Registrarse con Google';
                     if (submitBtn) submitBtn.disabled = false;
                     if (googleBtn) googleBtn.disabled = false;
                 }
@@ -1656,6 +1942,10 @@ function connectFirebaseToAuth(authUI, fb) {
                             await user.delete(); 
                             await signOut(auth);
 
+                            googleBtn.classList.remove('is-loading');
+                            googleBtn.classList.add('is-error');
+                            if (googleText) googleText.textContent = 'Iniciar con Google';
+
                             const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
                             if (errorMsg) {
                                 errorMsg.textContent = msg;
@@ -1666,13 +1956,37 @@ function connectFirebaseToAuth(authUI, fb) {
                                 switchMode('register');
                             }
                         } else {
+                            // 2. Activar Estado de Éxito Visual con Confeti y Checkmark
+                            googleBtn.classList.remove('is-loading');
+                            googleBtn.classList.add('is-success');
+                            if (googleText) googleText.textContent = '¡Sesión iniciada con éxito! 🎉';
+                            
+                            // Micro-pausa agradable para ver la celebración
+                            await new Promise(r => setTimeout(r, 850));
+                            
                             showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
                             closeModal();
+                            
+                            setTimeout(() => {
+                                googleBtn.classList.remove('is-success');
+                                if (googleText) googleText.textContent = 'Iniciar con Google';
+                            }, 500);
                         }
                     } else {
-                        // Modo Registro
+                        // Modo Registro Exitoso
+                        googleBtn.classList.remove('is-loading');
+                        googleBtn.classList.add('is-success');
+                        if (googleText) googleText.textContent = '¡Cuenta registrada con éxito! 🎉';
+                        
+                        await new Promise(r => setTimeout(r, 850));
+
                         showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
                         closeModal();
+
+                        setTimeout(() => {
+                            googleBtn.classList.remove('is-success');
+                            if (googleText) googleText.textContent = 'Registrarse con Google';
+                        }, 500);
                     }
                 } catch (error) {
                     console.error("Error de autenticación con Google:", error);
@@ -1681,11 +1995,17 @@ function connectFirebaseToAuth(authUI, fb) {
                         friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
                     }
                     if (errorMsg) {
-                        friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
                         errorMsg.textContent = friendlyMsg;
                         errorMsg.style.display = 'block';
                     }
                     showNotification('Error con Google', friendlyMsg, 'error');
+                    
+                    googleBtn.classList.remove('is-loading');
+                    googleBtn.classList.add('is-error');
+                    setTimeout(() => {
+                        googleBtn.classList.remove('is-error');
+                        if (googleText) googleText.textContent = currentMode === 'login' ? 'Iniciar con Google' : 'Registrarse con Google';
+                    }, 1500);
                 } finally {
                     if (submitBtn) submitBtn.disabled = false;
                     if (googleBtn) googleBtn.disabled = false;

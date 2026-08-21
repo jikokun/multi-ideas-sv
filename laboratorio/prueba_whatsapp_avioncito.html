@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prueba de Botones WhatsApp con Efecto Avioncito ✈️</title>
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-500.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-800.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/css/jetbrains-mono@latest/index.css" rel="stylesheet">
+<style>
+  :root {
+    --wsp-green: #25D366;
+    --wsp-dark: #128C7E;
+    --wsp-teal: #075E54;
+    --wsp-light: #dcf8c6;
+    --bg-dark: #0f172a;
+    --card-bg: #1e293b;
+    --border-color: #334155;
+    --text-light: #f8fafc;
+    --text-muted: #94a3b8;
+    --spring: cubic-bezier(.34, 1.56, .64, 1);
+    --soft: cubic-bezier(.22, 1, .36, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 20%, #1e293b, #0f172a 80%);
+    color: var(--text-light);
+    min-height: 100vh;
+    padding: 30px 16px 80px;
+  }
+
+  .container {
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  header h1 {
+    font-size: 28px;
+    font-weight: 800;
+    background: linear-gradient(135deg, #4ade80, #25D366, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  header p {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 22px;
+    margin-bottom: 36px;
+  }
+
+  .demo-card {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(12px);
+    border-radius: 24px;
+    padding: 24px;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.3);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .demo-card h3 {
+    font-size: 16px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: #e2e8f0;
+  }
+  .demo-card p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 22px;
+    line-height: 1.5;
+  }
+  .card-stage {
+    width: 100%;
+    min-height: 110px;
+    background: rgba(15, 23, 42, 0.6);
+    border-radius: 16px;
+    border: 1px dashed #334155;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    position: relative;
+  }
+
+  /* ========================================================
+     ESTILO 1: BOTÓN DE TARJETA DE NEGOCIO (SENSUN SHOP STYLE)
+     ======================================================== */
+  .btn-wsp-fly {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    background: rgba(37, 211, 102, 0.1);
+    border: 1.5px solid rgba(37, 211, 102, 0.4);
+    color: #25D366;
+    box-shadow: 0 4px 12px rgba(37, 211, 102, 0.15);
+    transition: transform .3s var(--spring), background .25s, border-color .25s, box-shadow .25s;
+    overflow: visible;
+  }
+  .btn-wsp-fly:hover {
+    background: rgba(37, 211, 102, 0.2);
+    border-color: #25D366;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(37, 211, 102, 0.35);
+  }
+  .btn-wsp-fly:active {
+    transform: scale(0.95);
+  }
+
+  /* Iconos */
+  .btn-wsp-fly .ico-wsp {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+    transition: transform .4s var(--spring), opacity .25s;
+  }
+  .btn-wsp-fly .ico-plane {
+    position: absolute;
+    left: 18px;
+    width: 18px;
+    height: 18px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transform: scale(0) rotate(-20deg);
+    pointer-events: none;
+  }
+
+  /* Estela y humo */
+  .btn-wsp-fly .plane-trail {
+    position: absolute;
+    left: 20px;
+    top: 50%;
+    width: 2px;
+    height: 2px;
+    border-radius: 50%;
+    background: rgba(37, 211, 102, 0.8);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Animación de Despegue del Avión */
+  .btn-wsp-fly.is-flying {
+    border-color: #25D366;
+    background: rgba(37, 211, 102, 0.25);
+    box-shadow: 0 0 25px rgba(37, 211, 102, 0.5);
+  }
+  .btn-wsp-fly.is-flying .ico-wsp {
+    opacity: 0;
+    transform: scale(0) rotate(-45deg);
+  }
+  .btn-wsp-fly.is-flying .ico-plane {
+    animation: flyPlane 0.65s var(--spring) forwards;
+  }
+  @keyframes flyPlane {
+    0% {
+      opacity: 1;
+      transform: scale(0.8) translate(0, 0) rotate(0deg);
+    }
+    30% {
+      opacity: 1;
+      transform: scale(1.3) translate(6px, -4px) rotate(15deg);
+    }
+    100% {
+      opacity: 0;
+      transform: scale(0.4) translate(70px, -60px) rotate(45deg);
+    }
+  }
+
+  /* Texto reactivo */
+  .btn-wsp-fly .btn-text {
+    transition: opacity .2s, transform .3s;
+  }
+  .btn-wsp-fly.is-flying .btn-text {
+    opacity: 0.8;
+  }
+
+
+  /* ========================================================
+     ESTILO 2: BOTÓN PÍLDORA CON ESTELA DE PARTÍCULAS
+     ======================================================== */
+  .btn-wsp-pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    height: 52px;
+    padding: 0 28px;
+    border-radius: 999px;
+    border: none;
+    font-size: 15px;
+    font-weight: 800;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    box-shadow: 0 10px 24px -6px rgba(37, 211, 102, 0.55),
+                inset 0 2px 0 rgba(255, 255, 255, 0.35);
+    transition: transform .35s var(--spring), box-shadow .25s;
+    overflow: visible;
+    text-decoration: none;
+  }
+  .btn-wsp-pill:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 16px 32px -8px rgba(37, 211, 102, 0.7),
+                inset 0 2px 0 rgba(255, 255, 255, 0.45);
+  }
+  .btn-wsp-pill:active { transform: scale(0.96); }
+
+  .btn-wsp-pill .pill-plane {
+    width: 20px;
+    height: 20px;
+    stroke: #fff;
+    fill: none;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: transform .4s var(--spring);
+  }
+  .btn-wsp-pill:hover .pill-plane {
+    transform: translate(3px, -3px) rotate(12deg);
+  }
+
+  /* Animación al hacer clic */
+  .btn-wsp-pill.is-sending .pill-plane {
+    animation: planeLaunch 0.7s var(--spring) forwards;
+  }
+  @keyframes planeLaunch {
+    0% { transform: scale(1) translate(0, 0) rotate(0deg); opacity: 1; }
+    25% { transform: scale(1.4) translate(-4px, 4px) rotate(-15deg); opacity: 1; }
+    60% { transform: scale(1.2) translate(40px, -35px) rotate(25deg); opacity: 0.9; }
+    100% { transform: scale(0.2) translate(100px, -80px) rotate(45deg); opacity: 0; }
+  }
+
+  /* Chispas de despegue */
+  .btn-wsp-pill .spark {
+    position: absolute;
+    left: 36px;
+    top: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    opacity: 0;
+    pointer-events: none;
+  }
+  .btn-wsp-pill.is-sending .spark {
+    animation: sparkFly 0.5s ease-out var(--sd, 0s) forwards;
+  }
+  @keyframes sparkFly {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.2); }
+  }
+
+  .btn-wsp-pill .pill-text {
+    transition: opacity .2s, transform .25s;
+  }
+  .btn-wsp-pill.is-sent .pill-text {
+    animation: textPop 0.3s var(--spring);
+  }
+  @keyframes textPop {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+
+  /* ========================================================
+     ESTILO 3: BOTÓN FLOTANTE FAB CON PULSO Y AVIONCITO
+     ======================================================== */
+  .fab-wsp-plane {
+    position: relative;
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(135deg, #25D366, #128C7E);
+    box-shadow: 0 12px 28px rgba(37, 211, 102, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    transition: transform .35s var(--spring), box-shadow .3s;
+    text-decoration: none;
+  }
+  .fab-wsp-plane:hover {
+    transform: scale(1.1) rotate(5deg);
+    box-shadow: 0 18px 36px rgba(37, 211, 102, 0.7);
+  }
+  .fab-wsp-plane:active { transform: scale(0.92); }
+
+  /* Pulso de radar continuo */
+  .fab-wsp-plane::before {
+    content: "";
+    position: absolute;
+    inset: -6px;
+    border-radius: 50%;
+    border: 2px solid rgba(37, 211, 102, 0.6);
+    animation: radarPulse 2s infinite ease-out;
+  }
+  @keyframes radarPulse {
+    0% { transform: scale(0.9); opacity: 0.9; }
+    100% { transform: scale(1.4); opacity: 0; }
+  }
+
+  .fab-wsp-plane svg {
+    width: 28px;
+    height: 28px;
+    fill: #fff;
+    transition: transform .4s var(--spring), opacity .25s;
+  }
+  .fab-wsp-plane .fab-plane-svg {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    stroke: #fff;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    opacity: 0;
+    transform: scale(0);
+  }
+
+  .fab-wsp-plane.is-flying svg.fab-main-svg {
+    opacity: 0;
+    transform: scale(0);
+  }
+  .fab-wsp-plane.is-flying .fab-plane-svg {
+    animation: fabPlaneFly 0.7s var(--spring) forwards;
+  }
+  @keyframes fabPlaneFly {
+    0% { opacity: 1; transform: scale(0.6) translate(0, 0) rotate(0deg); }
+    30% { opacity: 1; transform: scale(1.4) translate(4px, -4px) rotate(15deg); }
+    100% { opacity: 0; transform: scale(0.2) translate(60px, -60px) rotate(45deg); }
+  }
+
+  /* Mini mensaje tooltip */
+  .log-console {
+    background: #0f172a;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 16px 20px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: #38bdf8;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .log-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #25D366;
+    box-shadow: 0 0 10px #25D366;
+    flex-shrink: 0;
+  }
+
+  /* Sección de Código */
+  .code-box {
+    background: #0f172a;
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: 20px;
+    margin-top: 30px;
+    text-align: left;
+  }
+  .code-box h4 {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  pre {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: #94a3b8;
+    overflow-x: auto;
+    background: #090d16;
+    padding: 14px;
+    border-radius: 10px;
+    border: 1px solid #1e293b;
+    line-height: 1.5;
+  }
+  pre b { color: #38bdf8; }
+  pre em { color: #4ade80; font-style: normal; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <h1>Efecto Avioncito de Envío para WhatsApp ✈️</h1>
+    <p>Haz clic en cualquiera de los botones para ver la animación de despegue y redirección</p>
+  </header>
+
+  <div class="grid">
+
+    <!-- 1. BOTÓN DE NEGOCIOS (SENSUN SHOP STYLE) -->
+    <div class="demo-card">
+      <h3>1. Estilo Tarjeta de Negocio</h3>
+      <p>Diseño compacto con borde sutil. Al tocarlo, el icono de WhatsApp se transforma en un avión de papel que sale disparado en diagonal.</p>
+      
+      <div class="card-stage">
+        <a href="https://api.whatsapp.com/send?phone=50372300795&text=Hola%20vengo%20desde%20Sensun%20Shop" 
+           class="btn-wsp-fly js-wsp-plane" 
+           target="_blank" 
+           rel="noopener noreferrer"
+           data-title="A&R Photo Studio">
+          
+          <!-- Icono WhatsApp Normal -->
+          <svg class="ico-wsp" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/>
+          </svg>
+
+          <!-- Icono Avioncito que vuela -->
+          <svg class="ico-plane" viewBox="0 0 24 24">
+            <path d="M22 2L11 13"/>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+          </svg>
+
+          <span class="btn-text">WhatsApp</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- 2. BOTÓN PÍLDORA 3D CON PARTÍCULAS -->
+    <div class="demo-card">
+      <h3>2. Píldora 3D con Partículas</h3>
+      <p>Botón prominente de contacto con gradiente esmeralda, chispas de propulsión y despegue enérgico.</p>
+      
+      <div class="card-stage">
+        <button class="btn-wsp-pill js-wsp-pill" 
+                data-href="https://api.whatsapp.com/send?phone=50379232323&text=Hola%20Las%20Terrazas,%20vengo%20desde%20Sensun%20Shop"
+                data-title="Las Terrazas">
+          <svg class="pill-plane" viewBox="0 0 24 24">
+            <path d="M22 2L11 13"/>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+          </svg>
+          <span class="pill-text">Enviar WhatsApp</span>
+
+          <!-- Chispas de propulsión -->
+          <i class="spark" style="--dx:-18px; --dy:-14px; --sd:0s"></i>
+          <i class="spark" style="--dx:-22px; --dy:8px; --sd:0.04s"></i>
+          <i class="spark" style="--dx:-10px; --dy:18px; --sd:0.08s"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. BOTÓN FLOTANTE CIRCULAR (FAB) -->
+    <div class="demo-card">
+      <h3>3. Botón Flotante (FAB)</h3>
+      <p>Ideal para el botón fijo en la esquina de la pantalla. Pulso de radar constante que dispara el avión al presionarlo.</p>
+      
+      <div class="card-stage">
+        <button class="fab-wsp-plane js-wsp-fab" 
+                data-href="https://api.whatsapp.com/send?phone=50374922653&text=Hola%20Comedor%20Gloria,%20vengo%20desde%20Sensun%20Shop"
+                data-title="Comedor Gloria">
+          <svg class="fab-main-svg" viewBox="0 0 24 24">
+            <path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/>
+          </svg>
+          <svg class="fab-plane-svg" viewBox="0 0 24 24">
+            <path d="M22 2L11 13"/>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CONSOLA DE EVENTOS EN VIVO -->
+  <div class="log-console">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="log-dot"></span>
+      <span id="logText">Listo. Haz clic en cualquier botón de WhatsApp para probar el despegue.</span>
+    </div>
+    <small style="color:#64748b;">delay: 450ms</small>
+  </div>
+
+  <!-- GUÍA DE CÓDIGO RÁPIDO -->
+  <div class="code-box">
+    <h4>📋 Cómo aplicarlo en tus botones de Sensun Shop (`.btn-wsp`)</h4>
+    <pre>
+<em>/* 1. Modificación en tu función JS que maneja el clic */</em>
+document.querySelectorAll('<b>.btn-wsp</b>').forEach(btn => {
+  btn.addEventListener('click', function(e) {
+    e.preventDefault();
+    const targetUrl = this.getAttribute('href');
+    
+    <b>this.classList.add('is-flying');</b>
+    const textEl = this.querySelector('.btn-text') || this;
+    const originalText = textEl.textContent;
+    textEl.textContent = '¡Enviando…!';
+    
+    setTimeout(() => {
+      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      setTimeout(() => {
+        <b>this.classList.remove('is-flying');</b>
+        textEl.textContent = originalText;
+      }, 1000);
+    }, <b>450</b>); <em>// 450ms de vuelo antes de abrir WhatsApp</em>
+  });
+});
+    </pre>
+  </div>
+
+</div>
+
+<script>
+  const logEl = document.getElementById('logText');
+
+  function updateLog(msg) {
+    logEl.textContent = msg;
+    logEl.style.color = '#4ade80';
+    setTimeout(() => logEl.style.color = '#38bdf8', 1200);
+  }
+
+  /* 1. Manejador para Estilo Tarjeta */
+  document.querySelectorAll('.js-wsp-plane').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (this.classList.contains('is-flying')) return;
+
+      const url = this.getAttribute('href');
+      const title = this.dataset.title || 'Negocio';
+      const textSpan = this.querySelector('.btn-text');
+      const originalText = textSpan.textContent;
+
+      this.classList.add('is-flying');
+      textSpan.textContent = '¡Volando…!';
+      updateLog(`🚀 Despegando mensaje para ${title}...`);
+
+      setTimeout(() => {
+        updateLog(`✅ Chat abierto con ${title}`);
+        window.open(url, '_blank', 'noopener,noreferrer');
+        
+        setTimeout(() => {
+          this.classList.remove('is-flying');
+          textSpan.textContent = originalText;
+        }, 1200);
+      }, 450);
+    });
+  });
+
+  /* 2. Manejador para Estilo Píldora */
+  document.querySelectorAll('.js-wsp-pill').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (this.classList.contains('is-sending')) return;
+
+      const url = this.dataset.href;
+      const title = this.dataset.title || 'Negocio';
+      const textSpan = this.querySelector('.pill-text');
+      const originalText = textSpan.textContent;
+
+      this.classList.add('is-sending');
+      textSpan.textContent = '¡Conectando…!';
+      updateLog(`✈️ Propulsión activada para ${title}...`);
+
+      setTimeout(() => {
+        this.classList.add('is-sent');
+        textSpan.textContent = '¡Listo!';
+        updateLog(`✅ Redirigiendo a WhatsApp de ${title}`);
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        setTimeout(() => {
+          this.classList.remove('is-sending', 'is-sent');
+          textSpan.textContent = originalText;
+        }, 1500);
+      }, 500);
+    });
+  });
+
+  /* 3. Manejador para Estilo FAB */
+  document.querySelectorAll('.js-wsp-fab').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (this.classList.contains('is-flying')) return;
+
+      const url = this.dataset.href;
+      const title = this.dataset.title || 'Soporte';
+
+      this.classList.add('is-flying');
+      updateLog(`🚀 Disparo de FAB a WhatsApp de ${title}...`);
+
+      setTimeout(() => {
+        updateLog(`✅ Abriendo chat flotante con ${title}`);
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        setTimeout(() => {
+          this.classList.remove('is-flying');
+        }, 1200);
+      }, 450);
+    });
+  });
+</script>
+</body>
+</html>

@@ -1246,16 +1246,64 @@ footer p {
 }
 
 .btn-negocio.btn-wsp {
+    position: relative;
     background: rgba(37, 211, 102, 0.05);
     border: 1px solid rgba(37, 211, 102, 0.25);
     color: #25D366;
     box-shadow: 0 2px 8px rgba(37, 211, 102, 0.05);
+    overflow: visible;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.25s, border-color 0.25s, box-shadow 0.25s;
 }
 .btn-negocio.btn-wsp:hover {
     background: rgba(37, 211, 102, 0.15);
     border-color: #25D366;
     box-shadow: 0 0 15px rgba(37, 211, 102, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
+}
+.btn-negocio.btn-wsp:active {
+    transform: scale(0.94);
+}
+
+/* Efecto de Avión de Envío Despegando */
+.btn-negocio.btn-wsp.is-flying {
+    background: rgba(37, 211, 102, 0.25) !important;
+    border-color: #25D366 !important;
+    box-shadow: 0 0 22px rgba(37, 211, 102, 0.65) !important;
+    transform: scale(0.96);
+    pointer-events: none;
+}
+.btn-negocio.btn-wsp .wsp-plane-anim {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    margin-top: -8px;
+    width: 16px;
+    height: 16px;
+    stroke: #25D366;
+    fill: none;
+    stroke-width: 2.3;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 10;
+}
+.btn-negocio.btn-wsp.is-flying .wsp-plane-anim {
+    animation: wspPlaneFly 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes wspPlaneFly {
+    0% {
+        opacity: 1;
+        transform: scale(0.7) translate(0, 0) rotate(0deg);
+    }
+    35% {
+        opacity: 1;
+        transform: scale(1.35) translate(8px, -6px) rotate(15deg);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.3) translate(65px, -55px) rotate(45deg);
+    }
 }
 
 .btn-negocio.btn-loc {
@@ -3351,29 +3399,205 @@ body.light-theme .theme-toggle-btn .moon-icon {
 }
 
 .auth-google-btn {
+    position: relative;
     width: 100%;
+    height: 48px;
     background-color: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
     color: var(--text-white);
-    padding: 12px;
+    padding: 10px 16px;
     font-size: 0.95rem;
-    font-weight: 600;
+    font-weight: 700;
     cursor: pointer;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background-color 0.25s, border-color 0.25s, transform 0.2s;
+    gap: 10px;
+    transition: background-color 0.25s, border-color 0.25s, transform 0.3s cubic-bezier(.34, 1.56, .64, 1), box-shadow 0.25s;
+    overflow: visible;
 }
 
 .auth-google-btn:hover {
-    background-color: rgba(255, 255, 255, 0.06);
-    border-color: var(--cyan);
+    background-color: rgba(255, 255, 255, 0.08);
+    border-color: rgba(66, 133, 244, 0.6);
+    box-shadow: 0 4px 18px rgba(66, 133, 244, 0.25);
     transform: translateY(-2px);
 }
 
 .auth-google-btn:active {
-    transform: translateY(0);
+    transform: scale(0.97);
+}
+
+/* Icono G Oficial */
+.auth-google-btn .google-g-icon {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    transition: transform .4s cubic-bezier(.34, 1.56, .64, 1), opacity .25s;
+}
+
+/* Spinner Multicolor Google */
+.auth-google-btn .google-spinner {
+    position: absolute;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #4285F4;
+    border-right-color: #EA4335;
+    border-bottom-color: #FBBC05;
+    border-left-color: #34A853;
+    animation: gBtnSpin 0.85s linear infinite;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity .25s, transform .3s cubic-bezier(.34, 1.56, .64, 1);
+    pointer-events: none;
+}
+@keyframes gBtnSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Checkmark de Éxito */
+.auth-google-btn .google-check {
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #34A853, #16a34a);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity .25s, transform .45s cubic-bezier(.34, 1.56, .64, 1);
+    box-shadow: 0 4px 14px rgba(52, 168, 83, 0.5);
+    pointer-events: none;
+}
+.auth-google-btn .google-check svg {
+    width: 14px;
+    height: 14px;
+    stroke: #fff;
+    stroke-width: 3.2;
+    fill: none;
+    stroke-dasharray: 20;
+    stroke-dashoffset: 20;
+    transition: stroke-dashoffset .4s ease 0.15s;
+}
+
+.auth-google-btn .google-btn-text {
+    position: relative;
+    transition: opacity .2s, transform .3s;
+}
+
+/* Confetis de Google */
+.auth-google-btn .g-confetti {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 7px;
+    height: 7px;
+    border-radius: 2px;
+    background: var(--gc);
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Anillo Expansivo de Celebración */
+.auth-google-btn .g-ring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 16px;
+    border: 3px solid #34A853;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ===== ESTADO: CARGANDO / CONECTANDO ===== */
+.auth-google-btn.is-loading {
+    border-color: #4285F4 !important;
+    background: rgba(66, 133, 244, 0.1) !important;
+    pointer-events: none;
+    box-shadow: 0 0 20px rgba(66, 133, 244, 0.3) !important;
+}
+.auth-google-btn.is-loading .google-g-icon {
+    opacity: 0;
+    transform: scale(0);
+}
+.auth-google-btn.is-loading .google-spinner {
+    opacity: 1;
+    transform: scale(1);
+    left: 18px;
+}
+.auth-google-btn.is-loading .google-btn-text {
+    transform: translateX(10px);
+}
+
+/* ===== ESTADO: ÉXITO / ACCESO CORRECTO ===== */
+.auth-google-btn.is-success {
+    border-color: #34A853 !important;
+    background: rgba(52, 168, 83, 0.15) !important;
+    color: #4ade80 !important;
+    box-shadow: 0 8px 24px rgba(52, 168, 83, 0.4) !important;
+    animation: gSuccessPulse 0.5s cubic-bezier(.34, 1.56, .64, 1);
+    pointer-events: none;
+}
+@keyframes gSuccessPulse {
+    0% { transform: scale(1); }
+    40% { transform: scale(0.94); }
+    70% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.auth-google-btn.is-success .google-g-icon,
+.auth-google-btn.is-success .google-spinner {
+    opacity: 0;
+    transform: scale(0);
+}
+.auth-google-btn.is-success .google-check {
+    opacity: 1;
+    transform: scale(1);
+    left: 18px;
+}
+.auth-google-btn.is-success .google-check svg {
+    stroke-dashoffset: 0;
+}
+.auth-google-btn.is-success .google-btn-text {
+    transform: translateX(10px);
+    font-weight: 800;
+}
+
+/* Disparo de Confetis */
+.auth-google-btn.is-success .g-confetti {
+    animation: gConfFall 0.7s cubic-bezier(.2, .7, .4, 1) var(--gd, 0s) forwards;
+}
+@keyframes gConfFall {
+    0% { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0deg); }
+    100% { opacity: 0; transform: translate(calc(-50% + var(--gx)), calc(-50% + var(--gy))) scale(0.3) rotate(220deg); }
+}
+
+.auth-google-btn.is-success .g-ring {
+    animation: gRingExpand 0.6s ease-out forwards;
+}
+@keyframes gRingExpand {
+    0% { opacity: 0.9; transform: scale(0.8); }
+    100% { opacity: 0; transform: scale(1.35); }
+}
+
+/* ===== ESTADO: ERROR / SHAKE ===== */
+.auth-google-btn.is-error {
+    animation: gShake 0.45s ease;
+    border-color: #ef4444 !important;
+    background: rgba(239, 68, 68, 0.1) !important;
+    color: #f87171 !important;
+}
+@keyframes gShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-5px); }
+    80% { transform: translateX(5px); }
 }
 
 /* Elementos de Sesión en el Header */
@@ -3745,4 +3969,460 @@ body.no-scroll {
 .negocio-offer-banner .offer-text {
     flex: 1;
     color: #ffd166;
+}
+
+/* ========================================================
+   SECCIÓN DE BÚSQUEDA INTEGRADA EN SENSUN SHOP
+   ======================================================== */
+.sensun-hero-search-section {
+    position: relative;
+    padding: 0 5% 30px 5%;
+    margin-top: -24px;
+    z-index: 25;
+}
+
+.sensun-search-container {
+    max-width: 820px;
+    margin: 0 auto;
+    position: relative;
+}
+
+.sensun-search-card {
+    position: relative;
+    background: rgba(14, 18, 26, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1.5px solid rgba(232, 98, 26, 0.28);
+    border-radius: 20px;
+    padding: 14px 18px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 30px rgba(232, 98, 26, 0.08);
+    transition: transform 0.35s cubic-bezier(.34, 1.56, .64, 1), border-color 0.3s, box-shadow 0.3s;
+    overflow: hidden;
+}
+
+.sensun-search-card:focus-within {
+    border-color: var(--ss-orange, #e8621a);
+    box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(232, 98, 26, 0.25);
+    transform: translateY(-2px);
+}
+
+/* Aura Resplandeciente */
+.search-aura-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at 50% 0%, rgba(232, 98, 26, 0.12), transparent 70%);
+    pointer-events: none;
+    opacity: 0.8;
+}
+
+.search-input-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 2;
+}
+
+.search-icon-box {
+    position: relative;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ss-orange, #e8621a);
+    flex-shrink: 0;
+    transition: transform 0.35s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.sensun-search-card:focus-within .search-icon-box {
+    transform: scale(1.1) rotate(6deg);
+}
+
+.search-ico-svg {
+    width: 22px;
+    height: 22px;
+    transition: opacity 0.2s, transform 0.3s;
+}
+
+.search-spinner-inline {
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    border: 2px solid transparent;
+    border-top-color: var(--ss-orange, #e8621a);
+    border-right-color: #8e44ad;
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.2s, transform 0.3s cubic-bezier(.34, 1.56, .64, 1);
+    animation: inlineSpin 0.75s linear infinite;
+}
+
+@keyframes inlineSpin {
+    to { transform: rotate(360deg); }
+}
+
+.sensun-search-card.is-searching .search-ico-svg {
+    opacity: 0;
+    transform: scale(0);
+}
+.sensun-search-card.is-searching .search-spinner-inline {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.sensun-hero-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-family: inherit;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 6px 0;
+}
+
+.sensun-hero-search-input::placeholder {
+    color: rgba(255, 255, 255, 0.45);
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.search-kbd-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-gray, #94a3b8);
+    font-family: monospace;
+    user-select: none;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.sensun-search-card.has-text .search-kbd-badge {
+    display: none;
+}
+
+.search-clear-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.25s cubic-bezier(.34, 1.56, .64, 1), background 0.2s;
+}
+.sensun-search-card.has-text .search-clear-btn {
+    display: flex;
+    animation: popInSearch 0.25s cubic-bezier(.34, 1.56, .64, 1);
+}
+.search-clear-btn:hover {
+    background: rgba(232, 98, 26, 0.8);
+    transform: scale(1.15) rotate(90deg);
+}
+
+@keyframes popInSearch {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.search-action-btn {
+    background: linear-gradient(135deg, var(--ss-orange, #e8621a), #ff7e33);
+    border: none;
+    border-radius: 12px;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.9rem;
+    padding: 9px 20px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(232, 98, 26, 0.35);
+    transition: transform 0.3s cubic-bezier(.34, 1.56, .64, 1), box-shadow 0.25s, filter 0.25s;
+    flex-shrink: 0;
+}
+
+.search-action-btn:hover {
+    transform: translateY(-2px) scale(1.03);
+    box-shadow: 0 8px 22px rgba(232, 98, 26, 0.5);
+    filter: brightness(1.08);
+}
+.search-action-btn:active {
+    transform: scale(0.96);
+}
+
+/* Chips / Sugerencias */
+.search-quick-tags {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 7px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    position: relative;
+    z-index: 2;
+}
+
+.quick-tag-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-gray, #94a3b8);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 4px;
+}
+
+.quick-tag-pill {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 20px;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 4px 11px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(.34, 1.56, .64, 1);
+    white-space: nowrap;
+}
+
+.quick-tag-pill:hover {
+    background: rgba(232, 98, 26, 0.16);
+    border-color: rgba(232, 98, 26, 0.5);
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(232, 98, 26, 0.2);
+}
+.quick-tag-pill:active {
+    transform: scale(0.94);
+}
+
+/* Panel Flotante de Resultados en Tiempo Real */
+.sensun-inline-results-panel {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    background: rgba(14, 18, 26, 0.96);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1.5px solid rgba(232, 98, 26, 0.35);
+    border-radius: 20px;
+    padding: 14px;
+    box-shadow: 0 25px 65px rgba(0, 0, 0, 0.7), 0 0 35px rgba(232, 98, 26, 0.15);
+    z-index: 100;
+    max-height: 440px;
+    overflow-y: auto;
+    animation: searchPanelSlide 0.3s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+@keyframes searchPanelSlide {
+    0% { opacity: 0; transform: translateY(-10px) scale(0.98); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.search-results-header-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px 10px 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-gray, #94a3b8);
+    letter-spacing: 0.5px;
+}
+
+.close-inline-results-btn {
+    background: none;
+    border: none;
+    color: var(--text-gray, #94a3b8);
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s, transform 0.2s;
+}
+.close-inline-results-btn:hover {
+    color: var(--ss-orange, #e8621a);
+    transform: scale(1.2);
+}
+
+.sensun-results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* Items individuales dentro del panel de resultados */
+.sensun-results-list .search-result-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-left: 3px solid transparent;
+    border-radius: 14px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    text-decoration: none;
+    color: #ffffff;
+    transition: all 0.25s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+.sensun-results-list .search-result-item:hover,
+.sensun-results-list .search-result-item.is-selected {
+    background: rgba(232, 98, 26, 0.1);
+    border-color: rgba(232, 98, 26, 0.3);
+    border-left-color: var(--ss-orange, #e8621a);
+    transform: translateX(4px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.sensun-results-list .search-result-img {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+    object-fit: cover;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    flex-shrink: 0;
+}
+
+.sensun-results-list .search-result-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.sensun-results-list .search-result-title {
+    font-size: 0.96rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sensun-results-list .search-result-desc {
+    font-size: 0.8rem;
+    color: var(--text-gray, #94a3b8);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+
+.sensun-results-list .search-result-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.sensun-results-list .search-result-badge {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: rgba(232, 98, 26, 0.15);
+    color: var(--ss-orange, #e8621a);
+    border: 1px solid rgba(232, 98, 26, 0.3);
+}
+
+.sensun-results-list .tag {
+    font-size: 0.68rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+}
+
+@media (max-width: 768px) {
+    .sensun-hero-search-section {
+        padding: 0 16px 25px 16px;
+        margin-top: -18px;
+    }
+    
+    .sensun-search-card {
+        padding: 12px 14px;
+        border-radius: 18px;
+    }
+
+    .sensun-hero-search-input {
+        font-size: 16px !important; /* Evita zoom automático en iOS Safari al tocar el input */
+    }
+
+    .search-kbd-badge {
+        display: none; /* No necesario en móviles con teclado táctil */
+    }
+
+    /* Carrusel táctil horizontal para los chips en móvil */
+    .search-quick-tags {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        padding-bottom: 2px;
+        gap: 6px;
+    }
+    .search-quick-tags::-webkit-scrollbar {
+        display: none;
+    }
+
+    .quick-tag-label {
+        display: none;
+    }
+
+    .quick-tag-pill {
+        flex-shrink: 0;
+        font-size: 0.76rem;
+        padding: 5px 12px;
+    }
+
+    .search-action-btn {
+        padding: 8px 14px;
+        font-size: 0.84rem;
+        border-radius: 10px;
+    }
+
+    .sensun-inline-results-panel {
+        max-height: 60vh;
+        border-radius: 16px;
+        padding: 10px;
+    }
+
+    .sensun-results-list .search-result-item {
+        padding: 8px 10px;
+        gap: 10px;
+    }
+
+    .sensun-results-list .search-result-img {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+    }
+
+    .sensun-results-list .search-result-title {
+        font-size: 0.9rem;
+    }
+
+    .sensun-results-list .search-result-desc {
+        font-size: 0.76rem;
+    }
 }
