@@ -19,6 +19,7 @@ Este documento reúne las especificaciones técnicas, estilos CSS, marcado HTML,
    - [14. Diálogo de Carga a Éxito con Checkmark SVG Animado](#14-diálogo-de-carga-a-éxito-ld-card)
    - [15. Menú Flotante Radial (FAB Abanico Desplegable)](#15-menú-flotante-radial-fab-wrap)
    - [16. Carrusel Inferior de Bienvenida (Onboarding Stepper)](#16-carrusel-inferior-de-bienvenida-stp-sheet)
+   - [17. Campana FAB Notificadora con Popup y Animación de Encogimiento](#17-campana-fab-notificadora-con-popup-y-animación-de-encogimiento-sensun-bell-fab)
 4. [Guía de Integración y Buenas Prácticas](#-guía-de-integración-y-buenas-prácticas)
 
 ---
@@ -1291,6 +1292,93 @@ document.getElementById('stpNext').addEventListener('click', () => {
     setStep(currentStep + 1);
   }
 });
+```
+
+---
+
+### 17. Campana FAB Notificadora con Popup y Animación de Encogimiento (`.sensun-bell-fab`)
+> **Uso recomendado**: Mostrar boletines oficiales, ofertas destacadas y anuncios importantes al entrar al sitio, y al cerrarlos encogerlos con física elástica hacia un botón flotante de campana para que el usuario pueda volver a consultarlos en cualquier momento mediante un Drawer / Hub interactivo.
+
+#### 🧱 HTML
+```html
+<!-- Botón Flotante de Campana (FAB) -->
+<button id="sensunBellFab" class="sensun-bell-fab has-unread" aria-label="Ver Boletines y Ofertas">
+  <div class="sensun-bell-icon-wrap">
+    <svg viewBox="0 0 24 24">
+      <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+    </svg>
+    <span class="sensun-bell-badge" id="sensunBellBadge">3</span>
+  </div>
+</button>
+
+<!-- Popup Emergente de Entrada -->
+<div class="sensun-popup-backdrop" id="sensunPopupBackdrop">
+  <div class="sensun-popup-modal" id="sensunPopupModal">
+    <button type="button" class="sensun-popup-close-btn" id="sensunPopupCloseBtn">✕</button>
+    <div class="sensun-popup-img-container">
+      <img id="sensunPopupImg" src="imagenes/logos/icono-sensun-shop.webp" alt="Boletín">
+    </div>
+    <div class="sensun-popup-body">
+      <div class="sensun-popup-header-row">
+        <span class="sensun-popup-badge" id="sensunPopupBadge">BOLETÍN</span>
+        <span class="sensun-popup-date">Sensun Shop</span>
+      </div>
+      <h2 class="sensun-popup-title" id="sensunPopupTitle">Título de la Publicación</h2>
+      <div class="sensun-popup-offer-banner" id="sensunPopupOfferBanner">
+        <span>🏷️</span>
+        <span id="sensunPopupOfferText">¡20% de descuento en tu primera compra!</span>
+      </div>
+      <p class="sensun-popup-desc" id="sensunPopupDesc">Descripción detallada del anuncio o boletín...</p>
+      <div class="sensun-popup-actions">
+        <a href="#" class="sensun-popup-btn-wsp" id="sensunPopupBtnWsp">📲 Contactar por WhatsApp</a>
+        <a href="#" class="sensun-popup-btn-loc" id="sensunPopupBtnLoc">📍 Ubicación</a>
+      </div>
+      <div class="sensun-popup-minimize-hint">
+        <span>🔔 Al cerrar, se guardará en la campana para cuando quieras volver a verlo.</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Drawer / Hub de la Campana -->
+<div class="sensun-bell-hub-drawer" id="sensunBellHub">
+  <div class="sensun-hub-header">
+    <div class="sensun-hub-title"><span>🔔</span><span>Boletines & Ofertas Activas</span></div>
+    <button type="button" class="sensun-hub-close" id="sensunHubCloseBtn">✕</button>
+  </div>
+  <div class="sensun-hub-list" id="sensunHubList"></div>
+</div>
+```
+
+#### 🎨 CSS
+```css
+/* Campana Flotante */
+.sensun-bell-fab {
+  position: fixed; bottom: 26px; right: 26px; width: 58px; height: 58px; border-radius: 50%;
+  background: linear-gradient(135deg, #1e2433 0%, #0d1017 100%);
+  border: 2px solid rgba(232, 98, 26, 0.5);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), 0 0 20px rgba(232, 98, 26, 0.35);
+  display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 9980;
+  transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.sensun-bell-fab.has-unread svg {
+  animation: bellShakeRing 4s infinite ease-in-out; transform-origin: top center;
+}
+.sensun-bell-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 22px; height: 22px; border-radius: 11px;
+  background: linear-gradient(135deg, #ef4444, #dc2626); border: 2px solid #0d1017; color: #fff;
+  font-size: 0.72rem; font-weight: 800; display: flex; align-items: center; justify-content: center;
+  animation: badgePulse 2s infinite alternate;
+}
+
+/* Efecto de Encogimiento hacia la Campana */
+.sensun-popup-modal.shrinking-to-bell {
+  transform: scale(0.08) translate(380px, 450px) !important;
+  opacity: 0 !important;
+  border-radius: 50% !important;
+  transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, border-radius 0.45s ease !important;
+  pointer-events: none;
+}
 ```
 
 ---

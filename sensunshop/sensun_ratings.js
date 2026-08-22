@@ -2241,7 +2241,6 @@ function setupBusinessesRealtimeSync() {
 // Cache global de fuentes de datos Firebase
 let cachedBulletinsList = [];
 let cachedOffersList = [];
-let autoOffersRotatorIntervals = {};
 let autoNovedadesSliderInterval = null;
 
 // Mapa de Colores para las 4 Categorías Normalizadas de Publicaciones
@@ -2385,10 +2384,12 @@ function setupNewsSync() {
     }
 }
 
-// Reconstruir carrusel de novedades y ventanas rotativas de ofertas
+// Reconstruir carrusel de novedades y actualizar campana flotante
 function rebuildUnifiedFeeds() {
     renderUnifiedNovedadesSlider();
-    renderAllCategoryOffersShowcases();
+    if (typeof updateBellAndPopupFeed === "function") {
+        updateBellAndPopupFeed();
+    }
 }
 
 // Renderizar carrusel unificado de Novedades (3 negocios recientes + boletines + ofertas principales)
@@ -2626,219 +2627,6 @@ function initNovedadesAutoRotation() {
     window.addEventListener("resize", () => {
         showSlide(currentIndex);
     });
-}
-
-// ========================================================
-// VENTANAS ROTATIVAS DE OFERTAS Y DESCUENTOS POR SECCIÓN
-// ========================================================
-function renderAllCategoryOffersShowcases() {
-    const showcaseSections = document.querySelectorAll(".sensun-category-offers-section");
-    if (!showcaseSections || showcaseSections.length === 0) {
-        // Si no está el contenedor en el HTML, buscar si estamos en una página de categoría
-        const path = window.location.pathname.toLowerCase();
-        let targetType = null;
-        if (path.includes("negocioslocales")) targetType = "negocioslocales";
-        else if (path.includes("emprendedores")) targetType = "emprendedores";
-        else if (path.includes("profesionales")) targetType = "profesionales";
-        else if (path.includes("oficios")) targetType = "oficios";
-
-        if (targetType) {
-            injectCategoryOffersShowcase(targetType);
-        }
-        return;
-    }
-
-    showcaseSections.forEach(section => {
-        const type = section.dataset.sectionType || "all";
-        renderCategoryOffersInContainer(section, type);
-    });
-}
-
-function injectCategoryOffersShowcase(categoryType) {
-    const catalogHeader = document.querySelector("#catalogo, .catalogo-section, .filter-section");
-    if (!catalogHeader) return;
-
-    let existing = document.getElementById(`offers-showcase-${categoryType}`);
-    if (!existing) {
-        existing = document.createElement("section");
-        existing.id = `offers-showcase-${categoryType}`;
-        existing.className = "sensun-category-offers-section";
-        existing.dataset.sectionType = categoryType;
-        catalogHeader.parentNode.insertBefore(existing, catalogHeader);
-    }
-
-    renderCategoryOffersInContainer(existing, categoryType);
-}
-
-function renderCategoryOffersInContainer(container, categoryType) {
-    const businesses = cachedParsedBusinesses || [];
-    
-    // Filtrar ofertas de negocios que pertenezcan a esta sección o tengan ofertas
-    let offers = businesses.filter(b => b.hasOffer && (categoryType === "all" || b.type === categoryType));
-
-    // Si no hay ofertas marcadas con hasOffer, usar los 3 comercios principales con promociones de bienvenida
-    if (offers.length === 0) {
-        const fallbackBiz = businesses.filter(b => categoryType === "all" || b.type === categoryType).slice(0, 3);
-        offers = fallbackBiz.map(b => ({
-            ...b,
-            hasOffer: true,
-            offerMsg: b.offerMsg || `¡Pregunta por promociones exclusivas en ${b.title} desde Sensun Shop!`
-        }));
-    }
-
-    if (offers.length === 0) {
-        container.style.display = "none";
-        return;
-    }
-
-    container.style.display = "block";
-
-    let categoryTitle = "Negocios Locales";
-    if (categoryType === "emprendedores") categoryTitle = "Emprendedores";
-    else if (categoryType === "profesionales") categoryTitle = "Profesionales";
-    else if (categoryType === "oficios") categoryTitle = "Oficios y Servicios";
-
-    const rotatorId = `offers-rotator-${categoryType}`;
-
-    container.innerHTML = `
-        <div class="offers-showcase-container">
-            <div class="offers-showcase-header">
-                <div class="offers-header-left">
-                    <div class="offers-header-badge">🔥 VENTANA DE OFERTAS & DESCUENTOS</div>
-                    <h3>Promociones Activas en <span class="gradient-text">${categoryTitle}</span></h3>
-                </div>
-                <div class="offers-counter-pill">
-                    <span class="live-dot"></span>
-                    <span>${offers.length} Oferta${offers.length > 1 ? 's' : ''} Disponible${offers.length > 1 ? 's' : ''}</span>
-                </div>
-            </div>
-            <div class="offers-rotator-wrapper" id="${rotatorId}">
-                <!-- Slides dinámicos -->
-            </div>
-            <div class="offers-rotator-controls">
-                <div class="offers-dots-list" id="${rotatorId}-dots"></div>
-                <div class="offers-nav-buttons">
-                    <button type="button" class="offers-nav-btn" id="${rotatorId}-prev" aria-label="Oferta anterior">&#10094;</button>
-                    <button type="button" class="offers-nav-btn" id="${rotatorId}-next" aria-label="Siguiente oferta">&#10095;</button>
-                </div>
-            </div>
-        </div>
-    `;
-
-    const rotatorWrapper = document.getElementById(rotatorId);
-    const dotsContainer = document.getElementById(`${rotatorId}-dots`);
-
-    let slidesHtml = "";
-    let dotsHtml = "";
-
-    offers.forEach((offer, idx) => {
-        let wspHref = "#";
-        if (offer.whatsapp) {
-            const cleanPhone = offer.whatsapp.replace(/\D/g, "");
-            const msg = encodeURIComponent(`Hola ${offer.title}, vi su oferta "${offer.offerMsg || ''}" en Sensun Shop y me gustaría aprovecharla.`);
-            wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
-        }
-
-        slidesHtml += `
-            <div class="offers-rotator-slide" data-slide-index="${idx}" style="display: ${idx === 0 ? 'grid' : 'none'};">
-                <div class="offer-slide-logo">
-                    <span class="offer-floating-tag">OFERTA</span>
-                    <img src="${offer.imgSrc || '../imagenes/logos/icono-sensun-shop.webp'}" alt="${offer.title}" onerror="this.src='../imagenes/logos/icono-sensun-shop.webp'">
-                </div>
-                <div class="offer-slide-info">
-                    <span class="offer-biz-badge">${offer.category || offer.badge || 'COMERCIO'}</span>
-                    <div class="offer-biz-title">${offer.title}</div>
-                    <div class="offer-highlight-banner">
-                        <span>🏷️</span>
-                        <span>${offer.offerMsg || '¡Descuento especial mencionando Sensun Shop!'}</span>
-                    </div>
-                    <p class="offer-slide-desc">${offer.description || ''}</p>
-                </div>
-                <div class="offer-slide-actions">
-                    ${offer.whatsapp ? `
-                        <a href="${wspHref}" class="btn-offer-cta" target="_blank" rel="noopener noreferrer">
-                            <span>📲 Canjear por WhatsApp</span>
-                        </a>
-                    ` : ''}
-                    ${offer.locationUrl ? `
-                        <a href="${offer.locationUrl}" class="btn-offer-secondary" target="_blank" rel="noopener noreferrer">
-                            <span>📍 Ver Ubicación</span>
-                        </a>
-                    ` : ''}
-                </div>
-            </div>
-        `;
-
-        dotsHtml += `<span class="offers-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></span>`;
-    });
-
-    rotatorWrapper.innerHTML = slidesHtml;
-    dotsContainer.innerHTML = dotsHtml;
-
-    // Control de auto-rotación para este showcase
-    initCategoryOffersShowcaseRotation(categoryType, offers.length);
-}
-
-function initCategoryOffersShowcaseRotation(categoryType, totalSlides) {
-    if (totalSlides <= 1) return;
-
-    const rotatorId = `offers-rotator-${categoryType}`;
-    const wrapper = document.getElementById(rotatorId);
-    const prevBtn = document.getElementById(`${rotatorId}-prev`);
-    const nextBtn = document.getElementById(`${rotatorId}-next`);
-    const dots = document.querySelectorAll(`#${rotatorId}-dots .offers-dot`);
-    const slides = document.querySelectorAll(`#${rotatorId} .offers-rotator-slide`);
-
-    let currentIdx = 0;
-
-    function goToSlide(idx) {
-        currentIdx = idx;
-        slides.forEach((s, i) => {
-            s.style.display = i === idx ? "grid" : "none";
-        });
-        dots.forEach((d, i) => {
-            d.classList.toggle("active", i === idx);
-        });
-    }
-
-    if (autoOffersRotatorIntervals[categoryType]) {
-        clearInterval(autoOffersRotatorIntervals[categoryType]);
-    }
-
-    autoOffersRotatorIntervals[categoryType] = setInterval(() => {
-        goToSlide((currentIdx + 1) % totalSlides);
-    }, 4500);
-
-    if (prevBtn) {
-        prevBtn.onclick = () => {
-            clearInterval(autoOffersRotatorIntervals[categoryType]);
-            goToSlide((currentIdx - 1 + totalSlides) % totalSlides);
-        };
-    }
-
-    if (nextBtn) {
-        nextBtn.onclick = () => {
-            clearInterval(autoOffersRotatorIntervals[categoryType]);
-            goToSlide((currentIdx + 1) % totalSlides);
-        };
-    }
-
-    dots.forEach(dot => {
-        dot.onclick = () => {
-            clearInterval(autoOffersRotatorIntervals[categoryType]);
-            goToSlide(parseInt(dot.dataset.index, 10));
-        };
-    });
-
-    if (wrapper) {
-        wrapper.onmouseenter = () => clearInterval(autoOffersRotatorIntervals[categoryType]);
-        wrapper.onmouseleave = () => {
-            clearInterval(autoOffersRotatorIntervals[categoryType]);
-            autoOffersRotatorIntervals[categoryType] = setInterval(() => {
-                goToSlide((currentIdx + 1) % totalSlides);
-            }, 4500);
-        };
-    }
 }
 
 
@@ -4044,11 +3832,358 @@ function initWhatsAppPlaneEffect() {
 
 window.initWhatsAppPlaneEffect = initWhatsAppPlaneEffect;
 
+// ==========================================================
+// SISTEMA DE CAMPANA FLOTANTE (FAB) Y POPUP CON EFECTO DE ENCOGIMIENTO
+// ==========================================================
+let currentActiveFeedItems = [];
+let activePopupItem = null;
+
+function initSensunBellAndPopupSystem() {
+    // 1. Inyectar botón de Campana Flotante (FAB) si no existe
+    let bellFab = document.getElementById("sensunBellFab");
+    if (!bellFab) {
+        bellFab = document.createElement("button");
+        bellFab.id = "sensunBellFab";
+        bellFab.className = "sensun-bell-fab";
+        bellFab.setAttribute("aria-label", "Ver Boletines y Ofertas");
+        bellFab.setAttribute("title", "Boletines y Ofertas de Sensuntepeque");
+        bellFab.innerHTML = `
+            <div class="sensun-bell-icon-wrap">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                </svg>
+                <span class="sensun-bell-badge" id="sensunBellBadge" style="display: none;">0</span>
+            </div>
+        `;
+        document.body.appendChild(bellFab);
+
+        bellFab.addEventListener("click", () => {
+            toggleSensunBellHub();
+        });
+    }
+
+    // 2. Inyectar Popup Modal si no existe
+    let popupBackdrop = document.getElementById("sensunPopupBackdrop");
+    if (!popupBackdrop) {
+        popupBackdrop = document.createElement("div");
+        popupBackdrop.id = "sensunPopupBackdrop";
+        popupBackdrop.className = "sensun-popup-backdrop";
+        popupBackdrop.innerHTML = `
+            <div class="sensun-popup-modal" id="sensunPopupModal">
+                <button type="button" class="sensun-popup-close-btn" id="sensunPopupCloseBtn" aria-label="Cerrar y encoger a campana">✕</button>
+                <div class="sensun-popup-img-container" id="sensunPopupImgWrap">
+                    <img id="sensunPopupImg" src="" alt="Boletín / Oferta">
+                </div>
+                <div class="sensun-popup-body">
+                    <div class="sensun-popup-header-row">
+                        <span class="sensun-popup-badge" id="sensunPopupBadge">BOLETÍN</span>
+                        <span class="sensun-popup-date" id="sensunPopupDate">Sensun Shop</span>
+                    </div>
+                    <h2 class="sensun-popup-title" id="sensunPopupTitle">Título</h2>
+                    <div class="sensun-popup-offer-banner" id="sensunPopupOfferBanner" style="display: none;">
+                        <span>🏷️</span>
+                        <span id="sensunPopupOfferText">¡Oferta disponible!</span>
+                    </div>
+                    <p class="sensun-popup-desc" id="sensunPopupDesc">Descripción</p>
+                    <div class="sensun-popup-actions" id="sensunPopupActions">
+                        <a href="#" class="sensun-popup-btn-wsp" id="sensunPopupBtnWsp" target="_blank" rel="noopener noreferrer">
+                            <span>📲 Contactar por WhatsApp</span>
+                        </a>
+                        <a href="#" class="sensun-popup-btn-loc" id="sensunPopupBtnLoc" target="_blank" rel="noopener noreferrer" style="display: none;">
+                            <span>📍 Ubicación</span>
+                        </a>
+                    </div>
+                    <div class="sensun-popup-minimize-hint">
+                        <span>🔔 Al cerrar, se guardará en la campana para cuando quieras volver a verlo.</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(popupBackdrop);
+
+        // Eventos para cerrar y encoger hacia la campana
+        document.getElementById("sensunPopupCloseBtn").addEventListener("click", () => {
+            closeSensunPopupWithShrinkAnimation();
+        });
+
+        popupBackdrop.addEventListener("click", (e) => {
+            if (e.target === popupBackdrop) {
+                closeSensunPopupWithShrinkAnimation();
+            }
+        });
+    }
+
+    // 3. Inyectar Drawer / Hub de la Campana
+    let bellHub = document.getElementById("sensunBellHub");
+    if (!bellHub) {
+        bellHub = document.createElement("div");
+        bellHub.id = "sensunBellHub";
+        bellHub.className = "sensun-bell-hub-drawer";
+        bellHub.innerHTML = `
+            <div class="sensun-hub-header">
+                <div class="sensun-hub-title">
+                    <span>🔔</span>
+                    <span>Boletines & Ofertas Activas</span>
+                </div>
+                <button type="button" class="sensun-hub-close" id="sensunHubCloseBtn">✕</button>
+            </div>
+            <div class="sensun-hub-list" id="sensunHubList">
+                <!-- Se llena con las publicaciones en tiempo real -->
+            </div>
+        `;
+        document.body.appendChild(bellHub);
+
+        document.getElementById("sensunHubCloseBtn").addEventListener("click", () => {
+            bellHub.classList.remove("open");
+        });
+
+        document.addEventListener("click", (e) => {
+            if (!bellHub.contains(e.target) && !bellFab.contains(e.target) && bellHub.classList.contains("open")) {
+                bellHub.classList.remove("open");
+            }
+        });
+    }
+
+    updateBellAndPopupFeed();
+}
+
+// Actualizar contenido de la campana y disparar popup de entrada
+function updateBellAndPopupFeed() {
+    const items = [];
+
+    // 1. Boletines
+    (cachedBulletinsList || []).forEach(b => {
+        const cat = resolveNewsBadge(b.badge || "boletines");
+        items.push({
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: cat.badge,
+            badgeBg: cat.bg,
+            badgeColor: cat.textColor,
+            badgeBorder: cat.border,
+            whatsapp: b.whatsapp,
+            locationUrl: b.locationUrl,
+            hasOffer: false,
+            offerMsg: ""
+        });
+    });
+
+    // 2. Ofertas de comercios o sensunshop/offers
+    (cachedOffersList || []).forEach(o => {
+        const cat = resolveNewsBadge("anuncios");
+        items.push({
+            id: o.id,
+            title: o.title,
+            description: o.description,
+            imgSrc: o.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: "OFERTA",
+            badgeBg: "rgba(234, 88, 12, 0.2)",
+            badgeColor: "#ff8c42",
+            badgeBorder: "rgba(234, 88, 12, 0.5)",
+            whatsapp: o.whatsapp,
+            locationUrl: o.locationUrl,
+            hasOffer: true,
+            offerMsg: o.offerMsg || o.description
+        });
+    });
+
+    (cachedParsedBusinesses || []).filter(b => b.hasOffer).forEach(b => {
+        items.push({
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: "PROMO EXCLUSIVA",
+            badgeBg: "rgba(234, 88, 12, 0.2)",
+            badgeColor: "#ff8c42",
+            badgeBorder: "rgba(234, 88, 12, 0.5)",
+            whatsapp: b.whatsapp,
+            locationUrl: b.locationUrl,
+            hasOffer: true,
+            offerMsg: b.offerMsg || "¡Pregunta por promociones exclusivas en Sensun Shop!"
+        });
+    });
+
+    // 3. Noticias
+    (cachedNewsList || []).forEach(n => {
+        const cat = resolveNewsBadge(n.badge || "noticias");
+        items.push({
+            id: n.id,
+            title: n.title,
+            description: n.description,
+            imgSrc: n.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: cat.badge,
+            badgeBg: cat.bg,
+            badgeColor: cat.textColor,
+            badgeBorder: cat.border,
+            whatsapp: n.whatsapp,
+            locationUrl: n.locationUrl,
+            hasOffer: n.hasOffer,
+            offerMsg: n.offerMsg
+        });
+    });
+
+    const seen = new Set();
+    const uniqueItems = items.filter(item => {
+        if (seen.has(item.id)) return false;
+        seen.add(item.id);
+        return true;
+    });
+
+    currentActiveFeedItems = uniqueItems;
+
+    // Actualizar badge de la campana
+    const badgeEl = document.getElementById("sensunBellBadge");
+    const bellFab = document.getElementById("sensunBellFab");
+
+    if (badgeEl && bellFab) {
+        if (uniqueItems.length > 0) {
+            badgeEl.textContent = uniqueItems.length;
+            badgeEl.style.display = "flex";
+            bellFab.classList.add("has-unread");
+        } else {
+            badgeEl.style.display = "none";
+            bellFab.classList.remove("has-unread");
+        }
+    }
+
+    // Actualizar Hub List
+    const hubList = document.getElementById("sensunHubList");
+    if (hubList) {
+        if (uniqueItems.length === 0) {
+            hubList.innerHTML = `<div style="text-align:center; padding: 20px; color:#94a3b8; font-size:13px;">No hay publicaciones nuevas por ahora</div>`;
+        } else {
+            hubList.innerHTML = uniqueItems.map((item, i) => `
+                <div class="sensun-hub-item" onclick="window.showSensunPopupForItemIndex(${i})">
+                    <img src="${item.imgSrc}" alt="${item.title}" class="sensun-hub-item-img" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'">
+                    <div class="sensun-hub-item-content">
+                        <span class="sensun-hub-item-badge" style="color: ${item.badgeColor};">${item.badge}</span>
+                        <div class="sensun-hub-item-title">${item.title}</div>
+                        <div class="sensun-hub-item-desc">${item.hasOffer ? '🏷️ ' + item.offerMsg : item.description}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Disparar popup emergente en la primera carga si hay items disponibles
+    if (uniqueItems.length > 0 && !sessionStorage.getItem("sensun_popup_seen")) {
+        setTimeout(() => {
+            showSensunPopup(uniqueItems[0]);
+        }, 1200);
+    }
+}
+
+function showSensunPopup(item) {
+    if (!item) return;
+    activePopupItem = item;
+
+    const backdrop = document.getElementById("sensunPopupBackdrop");
+    const modal = document.getElementById("sensunPopupModal");
+    const img = document.getElementById("sensunPopupImg");
+    const badge = document.getElementById("sensunPopupBadge");
+    const title = document.getElementById("sensunPopupTitle");
+    const desc = document.getElementById("sensunPopupDesc");
+    const offerBanner = document.getElementById("sensunPopupOfferBanner");
+    const offerText = document.getElementById("sensunPopupOfferText");
+    const btnWsp = document.getElementById("sensunPopupBtnWsp");
+    const btnLoc = document.getElementById("sensunPopupBtnLoc");
+
+    if (!backdrop || !modal) return;
+
+    modal.classList.remove("shrinking-to-bell");
+
+    img.src = item.imgSrc || "imagenes/logos/icono-sensun-shop.webp";
+    badge.textContent = item.badge;
+    badge.style.background = item.badgeBg || "rgba(232, 98, 26, 0.15)";
+    badge.style.color = item.badgeColor || "var(--ss-orange)";
+    badge.style.border = `1px solid ${item.badgeBorder || "rgba(232, 98, 26, 0.3)"}`;
+
+    title.textContent = item.title;
+    desc.textContent = item.description;
+
+    if (item.hasOffer && item.offerMsg) {
+        offerBanner.style.display = "flex";
+        offerText.textContent = item.offerMsg;
+    } else {
+        offerBanner.style.display = "none";
+    }
+
+    if (item.whatsapp) {
+        btnWsp.style.display = "inline-flex";
+        const cleanPhone = item.whatsapp.replace(/\D/g, "");
+        const msg = encodeURIComponent(`Hola ${item.title}, vi su publicación en Sensun Shop y me gustaría obtener más información.`);
+        btnWsp.href = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
+    } else {
+        btnWsp.style.display = "none";
+    }
+
+    if (item.locationUrl) {
+        btnLoc.style.display = "inline-flex";
+        btnLoc.href = item.locationUrl;
+    } else {
+        btnLoc.style.display = "none";
+    }
+
+    backdrop.classList.add("active");
+}
+
+function closeSensunPopupWithShrinkAnimation() {
+    const backdrop = document.getElementById("sensunPopupBackdrop");
+    const modal = document.getElementById("sensunPopupModal");
+    const bellFab = document.getElementById("sensunBellFab");
+
+    if (!backdrop || !modal) return;
+
+    modal.classList.add("shrinking-to-bell");
+    sessionStorage.setItem("sensun_popup_seen", "true");
+
+    setTimeout(() => {
+        backdrop.classList.remove("active");
+        modal.classList.remove("shrinking-to-bell");
+
+        // Efecto de campana al recibir el encogimiento
+        if (bellFab) {
+            bellFab.style.transform = "scale(1.3) translateY(-5px)";
+            bellFab.style.borderColor = "#ff9f43";
+            setTimeout(() => {
+                bellFab.style.transform = "";
+                bellFab.style.borderColor = "";
+            }, 450);
+        }
+    }, 420);
+}
+
+function toggleSensunBellHub() {
+    const hub = document.getElementById("sensunBellHub");
+    if (!hub) return;
+
+    if (currentActiveFeedItems.length === 1) {
+        showSensunPopup(currentActiveFeedItems[0]);
+    } else {
+        hub.classList.toggle("open");
+    }
+}
+
+window.showSensunPopupForItemIndex = function(index) {
+    const item = currentActiveFeedItems[index];
+    if (item) {
+        const hub = document.getElementById("sensunBellHub");
+        if (hub) hub.classList.remove("open");
+        showSensunPopup(item);
+    }
+};
+
+window.initSensunBellAndPopupSystem = initSensunBellAndPopupSystem;
+
 // Ejecutar inyección y sincronización en tiempo real cuando el DOM esté listo
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => {
         setupBusinessesRealtimeSync();
         setupNewsSync();
+        initSensunBellAndPopupSystem();
         injectCommentButtons();
         injectShareButtons();
         initTagsCarousel();
@@ -4060,6 +4195,7 @@ if (document.readyState === "loading") {
 } else {
     setupBusinessesRealtimeSync();
     setupNewsSync();
+    initSensunBellAndPopupSystem();
     injectCommentButtons();
     injectShareButtons();
     initTagsCarousel();
@@ -4068,6 +4204,7 @@ if (document.readyState === "loading") {
     handleDirectBusinessAnchor();
     initWhatsAppPlaneEffect();
 }
+
 
 
 
