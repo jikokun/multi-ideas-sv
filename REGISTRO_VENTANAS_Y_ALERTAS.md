@@ -20,6 +20,7 @@ Este documento reúne las especificaciones técnicas, estilos CSS, marcado HTML,
    - [15. Menú Flotante Radial (FAB Abanico Desplegable)](#15-menú-flotante-radial-fab-wrap)
    - [16. Carrusel Inferior de Bienvenida (Onboarding Stepper)](#16-carrusel-inferior-de-bienvenida-stp-sheet)
    - [17. Campana FAB Notificadora con Popup y Animación de Encogimiento](#17-campana-fab-notificadora-con-popup-y-animación-de-encogimiento-sensun-bell-fab)
+   - [18. Centro de Notificaciones Multicategoría con Campanas Reactivas](#18-centro-de-notificaciones-multicategoría-con-campanas-reactivas-bell-grid)
 4. [Guía de Integración y Buenas Prácticas](#-guía-de-integración-y-buenas-prácticas)
 
 ---
@@ -1379,6 +1380,123 @@ document.getElementById('stpNext').addEventListener('click', () => {
   transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.35s ease, border-radius 0.45s ease !important;
   pointer-events: none;
 }
+```
+
+---
+
+### 18. Centro de Notificaciones Multicategoría con Campanas Reactivas (`.bell-grid`)
+> **Uso recomendado**: Centro neurálgico de notificaciones con 6 categorías visuales (Ofertas 🔥, Favoritos ❤️, Pedidos 📦, Noticias 📰, Citas 📅, Sistema ⚙️), Master Bell con contador global, Push Banner superior animado y Hoja Desplegable (Sheet Modal) con estado de lectura individual y botón para marcar todas como leídas.
+
+#### 🎨 6 Categorías Registradas y Colores
+| Categoría | Emoji | Color Gradiente 1 | Color Gradiente 2 | Propósito |
+|---|---|---|---|---|
+| **Ofertas** | 🔥 | `#fb923c` | `#ea580c` | Descuentos, 2×1, promociones y envíos gratis |
+| **Favoritos** | ❤️ | `#f472b6` | `#db2777` | Novedades de comercios guardados y bajas de precio |
+| **Pedidos** | 📦 | `#60a5fa` | `#2563eb` | Estado de entrega, despachos y facturas digitales |
+| **Noticias** | 📰 | `#c084fc` | `#7e22ce` | Nuevos comercios, eventos municipales y ferias |
+| **Citas** | 📅 | `#4ade80` | `#16a34a` | Recordatorios de turnos, barberías, consultorios |
+| **Sistema** | ⚙️ | `#a8a29e` | `#57534e` | Actualizaciones, seguridad y respaldos |
+
+#### 🧱 HTML
+```html
+<div class="phone">
+  <!-- Encabezado con Campana Maestra -->
+  <header class="head">
+    <div>
+      <h1>Notificaciones 🔔</h1>
+      <p>Tu centro de eventos de Sensun Shop</p>
+    </div>
+    <button class="master-bell" id="masterBell" aria-label="Ver todas las notificaciones">
+      <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge" id="masterBadge">0</span>
+    </button>
+  </header>
+
+  <!-- Switch Global de Activación -->
+  <div class="global-row">
+    <div><b>Permitir notificaciones</b><small>Recibe alertas y eventos en tiempo real</small></div>
+    <button class="switch on" id="globalSwitch" aria-label="Activar notificaciones"></button>
+  </div>
+
+  <!-- Cuadrícula 2x3 de Campanas por Categoría -->
+  <div class="bell-grid" id="bellGrid"></div>
+
+  <!-- Botón Simulador de Eventos -->
+  <button class="sim-btn" id="simBtn">
+    <svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    Simular evento entrante
+  </button>
+
+  <!-- Banner Push Superior (Estilo iOS / Android Dynamic) -->
+  <div class="push" id="pushBox">
+    <div class="p-ico" id="pushIco">🔔</div>
+    <div class="p-body"><b id="pushTitle">Sensun Shop <small>ahora</small></b><p id="pushMsg"></p></div>
+  </div>
+
+  <!-- Hoja Desplegable (Sheet Modal) de Notificaciones -->
+  <div class="ov" id="ntOverlay">
+    <div class="bd" id="ntBd"></div>
+    <div class="frame">
+      <div class="nt-sheet">
+        <div class="nt-head" id="ntHead">
+          <div class="h-ico" id="ntHeadIco">🔔</div>
+          <div><b id="ntHeadName">Notificaciones</b><span id="ntHeadCount"></span></div>
+        </div>
+        <div class="nt-list" id="ntList"></div>
+        <button class="nt-mark" id="ntMark">✓ Marcar todas como leídas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+```
+
+#### 🎨 CSS
+```css
+/* Campana Maestra */
+.master-bell {
+  position: relative; width: 50px; height: 50px; border: none; border-radius: 17px;
+  cursor: pointer; background: #fff; color: var(--n600); display: grid; place-items: center;
+  box-shadow: var(--shadow); transition: transform .15s;
+}
+.master-bell:active { transform: scale(.9); }
+.master-bell.ring svg { animation: swing .8s ease; transform-origin: top center; }
+
+/* Tarjetas de Campana */
+.bell-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.bell-card { background: #fff; border-radius: 24px; padding: 20px 14px 16px; text-align: center; box-shadow: var(--shadow); }
+.bell-btn {
+  position: relative; width: 66px; height: 66px; border: none; border-radius: 22px; cursor: pointer;
+  margin: 0 auto 12px; background: linear-gradient(135deg, var(--g1), var(--g2)); color: #fff;
+  display: grid; place-items: center; box-shadow: 0 12px 26px color-mix(in srgb, var(--g2) 45%, transparent);
+  transition: transform .15s ease;
+}
+.bell-btn:active { transform: scale(.9); }
+.bell-btn.ring svg { animation: swing .8s ease; transform-origin: top center; }
+
+@keyframes swing {
+  0%{transform:rotate(0)} 15%{transform:rotate(20deg)} 30%{transform:rotate(-16deg)}
+  45%{transform:rotate(11deg)} 60%{transform:rotate(-8deg)} 75%{transform:rotate(4deg)} 100%{transform:rotate(0)}
+}
+
+/* Banner Push Superior */
+.push {
+  position: fixed; top: 14px; left: 50%; transform: translate(-50%, -160%); width: min(392px, calc(100vw - 22px));
+  background: rgba(255,255,255,.94); backdrop-filter: blur(14px); border-radius: 22px; padding: 13px 14px;
+  display: flex; gap: 11px; align-items: center; box-shadow: 0 16px 44px rgba(43,22,8,.3); z-index: 95;
+  transition: transform .6s var(--spring);
+}
+.push.show { transform: translate(-50%, 0); }
+
+/* Hoja Desplegable (Sheet Modal) */
+.nt-sheet {
+  position: absolute; bottom: 0; left: 0; right: 0; max-height: 82vh; overflow-y: auto;
+  background: var(--bg); border-radius: 32px 32px 0 0; padding: 12px 0 30px;
+  transform: translateY(105%); transition: transform .55s var(--spring);
+  box-shadow: 0 -20px 60px rgba(43,22,8,.3);
+}
+.ov.open .nt-sheet { transform: none; }
 ```
 
 ---

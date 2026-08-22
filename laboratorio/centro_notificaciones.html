@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Sensun Shop — Centro de Notificaciones</title>
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-500.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-800.min.css" rel="stylesheet">
+<style>
+  :root{
+    --n50:#fff7ed; --n100:#ffedd5; --n200:#fed7aa; --n300:#fdba74;
+    --n400:#fb923c; --n500:#f97316; --n600:#ea580c; --n700:#c2410c;
+    --n800:#9a3412; --n900:#7c2d12;
+    --ink:#2b1608; --muted:#a18873; --bg:#fdf8f2;
+    --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.32,1.25,.4,1);
+    --shadow:0 10px 30px rgba(194,65,12,.10);
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:linear-gradient(160deg,var(--n100),var(--n50) 40%,#f6ece2);min-height:100vh;color:var(--ink)}
+  .phone{max-width:430px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;padding:22px 20px 50px}
+  @media(min-width:480px){body{padding:24px 0}.phone{min-height:calc(100vh - 48px);border-radius:36px;box-shadow:0 30px 70px rgba(154,52,18,.25);overflow:hidden}}
+
+  /* ---------- header ---------- */
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .head h1{font-size:23px;font-weight:800}
+  .head p{font-size:12px;color:var(--muted);font-weight:600;margin-top:3px}
+  .master-bell{position:relative;width:50px;height:50px;border:none;border-radius:17px;cursor:pointer;background:#fff;color:var(--n600);display:grid;place-items:center;box-shadow:var(--shadow);transition:transform .15s}
+  .master-bell:active{transform:scale(.9)}
+  .master-bell svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .master-bell.ring svg{animation:swing .8s ease;transform-origin:top center}
+  .badge{
+    position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;padding:0 6px;border-radius:99px;
+    background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff;font-size:10.5px;font-weight:800;
+    display:grid;place-items:center;border:2.5px solid var(--bg);
+  }
+  .badge.pop{animation:bpop .45s cubic-bezier(.34,1.56,.64,1)}
+  .badge.zero{display:none}
+  @keyframes bpop{from{transform:scale(.3)}to{transform:scale(1)}}
+
+  /* ---------- switch global ---------- */
+  .global-row{display:flex;align-items:center;justify-content:space-between;background:#fff;border-radius:18px;padding:13px 16px;box-shadow:var(--shadow);margin:16px 0 20px}
+  .global-row b{font-size:13px;font-weight:800;display:block}
+  .global-row small{font-size:10.5px;color:var(--muted);font-weight:600}
+  .switch{width:47px;height:27px;border-radius:99px;background:#e8ddd2;position:relative;border:none;cursor:pointer;transition:.3s;flex-shrink:0}
+  .switch::after{content:"";position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;background:#fff;transition:.3s var(--spring);box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .switch.on{background:linear-gradient(135deg,var(--n400),var(--n600))}
+  .switch.on::after{left:23px}
+
+  /* ---------- cuadrícula de campanas ---------- */
+  .bell-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .bell-card{background:#fff;border-radius:24px;padding:20px 14px 16px;text-align:center;box-shadow:var(--shadow);animation:rise .55s var(--ease) both}
+  .bell-btn{
+    position:relative;width:66px;height:66px;border:none;border-radius:22px;cursor:pointer;margin:0 auto 12px;
+    background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;display:grid;place-items:center;
+    box-shadow:0 12px 26px color-mix(in srgb,var(--g2) 45%,transparent);
+    transition:transform .15s ease;
+  }
+  .bell-btn:active{transform:scale(.9)}
+  .bell-btn svg{width:27px;height:27px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .bell-btn.ring svg{animation:swing .8s ease;transform-origin:top center}
+  @keyframes swing{0%{transform:rotate(0)}15%{transform:rotate(20deg)}30%{transform:rotate(-16deg)}45%{transform:rotate(11deg)}60%{transform:rotate(-8deg)}75%{transform:rotate(4deg)}100%{transform:rotate(0)}}
+  .bell-card b{font-size:13.5px;font-weight:800;display:block}
+  .bell-card small{font-size:10.5px;color:var(--muted);font-weight:700;display:block;margin-top:3px}
+  .bell-card small.hot{color:var(--n600)}
+
+  /* ---------- simular ---------- */
+  .sim-btn{
+    width:100%;margin-top:18px;border:2px dashed var(--n300);background:var(--n50);color:var(--n600);
+    font:inherit;font-size:13px;font-weight:800;padding:15px;border-radius:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:9px;transition:transform .15s;
+  }
+  .sim-btn:active{transform:scale(.97)}
+  .sim-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---------- push banner ---------- */
+  .push{position:fixed;top:14px;left:50%;transform:translate(-50%,-160%);width:min(392px,calc(100vw - 22px));background:rgba(255,255,255,.94);backdrop-filter:blur(14px);border-radius:22px;padding:13px 14px;display:flex;gap:11px;align-items:center;box-shadow:0 16px 44px rgba(43,22,8,.3);z-index:95;transition:transform .6s var(--spring)}
+  .push.show{transform:translate(-50%,0)}
+  .p-ico{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;font-size:19px;flex-shrink:0;color:#fff}
+  .p-body{flex:1;min-width:0}
+  .p-body b{font-size:12.5px;font-weight:800;display:flex;justify-content:space-between}
+  .p-body b small{color:var(--muted);font-weight:600;font-size:10px}
+  .p-body p{font-size:11.5px;color:#6b4c36;font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---------- hoja de notificaciones ---------- */
+  .ov{position:fixed;inset:0;z-index:80;opacity:0;pointer-events:none;transition:opacity .32s}
+  .ov.open{opacity:1;pointer-events:auto}
+  .ov .bd{position:absolute;inset:0;background:rgba(43,22,8,.45);backdrop-filter:blur(6px)}
+  .ov .frame{position:absolute;top:0;bottom:0;left:50%;transform:translateX(-50%);width:min(430px,100vw)}
+  .nt-sheet{position:absolute;bottom:0;left:0;right:0;max-height:82vh;overflow-y:auto;background:var(--bg);border-radius:32px 32px 0 0;padding:12px 0 30px;transform:translateY(105%);transition:transform .55s var(--spring);box-shadow:0 -20px 60px rgba(43,22,8,.3)}
+  .ov.open .nt-sheet{transform:none}
+  .nt-head{margin:6px 20px 16px;border-radius:24px;padding:18px 20px;color:#fff;display:flex;align-items:center;gap:14px;background:linear-gradient(130deg,var(--g1),var(--g2));box-shadow:0 14px 30px color-mix(in srgb,var(--g2) 45%,transparent);position:relative;overflow:hidden}
+  .nt-head::after{content:"";position:absolute;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.14);top:-40px;right:-30px}
+  .nt-head .h-ico{width:50px;height:50px;border-radius:16px;background:rgba(255,255,255,.22);backdrop-filter:blur(4px);display:grid;place-items:center;font-size:23px;flex-shrink:0}
+  .nt-head b{font-size:16.5px;font-weight:800;display:block}
+  .nt-head span{font-size:11.5px;font-weight:600;opacity:.92;display:block;margin-top:2px}
+  .nt-list{padding:0 20px;display:flex;flex-direction:column;gap:10px}
+  .nt-item{display:flex;align-items:center;gap:12px;background:#fff;border-radius:18px;padding:12px;box-shadow:var(--shadow);cursor:pointer;transition:transform .15s,opacity .3s;animation:rise .4s var(--ease) both}
+  .nt-item:active{transform:scale(.97)}
+  .nt-item .i-ico{width:44px;height:44px;border-radius:15px;display:grid;place-items:center;font-size:19px;flex-shrink:0;background:color-mix(in srgb,var(--g1) 15%,#fff)}
+  .nt-item .i-body{flex:1;min-width:0}
+  .nt-item .i-body b{font-size:12.5px;font-weight:800;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nt-item .i-body small{display:block;font-size:10.5px;color:var(--muted);font-weight:600;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nt-item .i-time{font-size:9.5px;color:var(--muted);font-weight:700;flex-shrink:0;text-align:right}
+  .nt-item .dot{width:9px;height:9px;border-radius:50%;background:var(--n500);margin:6px auto 0;box-shadow:0 0 0 3px var(--n100)}
+  .nt-item.read{opacity:.62}
+  .nt-item.read .dot{background:#e0d5c8;box-shadow:none}
+  .nt-mark{width:calc(100% - 40px);margin:16px 20px 0;border:none;cursor:pointer;font:inherit;font-size:13px;font-weight:800;color:var(--n600);background:#fff;border:1.5px solid var(--n200);padding:14px;border-radius:16px;box-shadow:var(--shadow)}
+  .nt-empty{text-align:center;color:var(--muted);font-size:12.5px;font-weight:600;background:#fff;border-radius:18px;padding:26px;box-shadow:var(--shadow)}
+  .nt-empty span{display:block;font-size:30px;margin-bottom:8px}
+
+  .toast{position:fixed;top:18px;left:50%;transform:translate(-50%,-90px);z-index:100;background:rgba(43,22,8,.88);backdrop-filter:blur(8px);color:#fff;font-size:13px;font-weight:700;padding:12px 22px;border-radius:99px;box-shadow:0 14px 30px rgba(0,0,0,.3);transition:transform .45s var(--spring);pointer-events:none;max-width:88vw;text-align:center}
+  .toast.show{transform:translate(-50%,0)}
+  @keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+
+  <header class="head">
+    <div>
+      <h1>Notificaciones 🔔</h1>
+      <p>Tu centro de eventos de Sensun Shop</p>
+    </div>
+    <button class="master-bell" id="masterBell" aria-label="Ver todas las notificaciones">
+      <svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <span class="badge" id="masterBadge">0</span>
+    </button>
+  </header>
+
+  <div class="global-row">
+    <div><b>Permitir notificaciones</b><small>Recibe alertas y eventos en tiempo real</small></div>
+    <button class="switch on" id="globalSwitch" aria-label="Activar notificaciones"></button>
+  </div>
+
+  <div class="bell-grid" id="bellGrid"></div>
+
+  <button class="sim-btn" id="simBtn">
+    <svg viewBox="0 0 24 24"><polyline points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    Simular evento entrante
+  </button>
+
+  <!-- push banner -->
+  <div class="push" id="pushBox">
+    <div class="p-ico" id="pushIco">🔔</div>
+    <div class="p-body"><b id="pushTitle">Sensun Shop <small>ahora</small></b><p id="pushMsg"></p></div>
+  </div>
+
+  <!-- hoja de notificaciones -->
+  <div class="ov" id="ntOverlay">
+    <div class="bd" id="ntBd"></div>
+    <div class="frame">
+      <div class="nt-sheet">
+        <div class="nt-head" id="ntHead">
+          <div class="h-ico" id="ntHeadIco">🔔</div>
+          <div><b id="ntHeadName">Notificaciones</b><span id="ntHeadCount"></span></div>
+        </div>
+        <div class="nt-list" id="ntList"></div>
+        <button class="nt-mark" id="ntMark">✓ Marcar todas como leídas</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  const BELL = '<svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
+
+  /* ============ 6 categorías de notificaciones ============ */
+  const cats = {
+    ofertas:  { nombre:'Ofertas',     emoji:'🔥', g1:'#fb923c', g2:'#ea580c', notis:[
+      { e:'🔥', t:'-20% en Café La Plaza',        d:'Hoy únicamente en todas las bebidas', time:'hace 5 min', unread:true },
+      { e:'🎁', t:'2×1 en Las Terrazas',          d:'Alitas y hamburguesas de lunes a miércoles', time:'hace 2 h', unread:true },
+      { e:'🚚', t:'Envío gratis',                 d:'Boutique Luna en compras mayores a $500', time:'ayer', unread:false } ] },
+    favoritos:{ nombre:'Favoritos',   emoji:'❤️', g1:'#f472b6', g2:'#db2777', notis:[
+      { e:'⭐', t:'A&R Photo Studio agregó novedades', d:'Nuevo paquete de fotografía de producto', time:'hace 30 min', unread:true },
+      { e:'💸', t:'Bajó el precio en tu favorito', d:'Barbería El Patrón: corte clásico $8', time:'hace 3 h', unread:false } ] },
+    pedidos:  { nombre:'Pedidos',     emoji:'📦', g1:'#60a5fa', g2:'#2563eb', notis:[
+      { e:'📦', t:'Tu pedido #128 fue enviado',   d:'Llega hoy entre 3 y 6 pm', time:'hace 1 h', unread:true },
+      { e:'🧾', t:'Recibo disponible',            d:'Tu factura de Domicilios Sensun ya está lista', time:'ayer', unread:false } ] },
+    noticias: { nombre:'Noticias',    emoji:'📰', g1:'#c084fc', g2:'#7e22ce', notis:[
+      { e:'📰', t:'Nuevos negocios en la app',    d:'3 perfiles verificados se unieron a Sensun Shop', time:'hace 4 h', unread:true },
+      { e:'🎪', t:'Feria artesanal este fin de semana', d:'Artesanías de Cabañas en la plaza central', time:'hace 2 d', unread:false } ] },
+    citas:    { nombre:'Citas',       emoji:'📅', g1:'#4ade80', g2:'#16a34a', notis:[
+      { e:'⏰', t:'Recordatorio: corte a las 5 pm', d:'Barbería El Patrón te espera hoy', time:'hace 20 min', unread:true },
+      { e:'✅', t:'Cita confirmada',              d:'Sesión fotográfica el sábado 10:00 am', time:'hace 6 h', unread:false } ] },
+    sistema:  { nombre:'Sistema',     emoji:'⚙️', g1:'#a8a29e', g2:'#57534e', notis:[
+      { e:'🛡️', t:'Respaldo completado',          d:'Tus datos están protegidos', time:'hace 5 d', unread:false },
+      { e:'🚀', t:'Actualización v2.1',           d:'Mejoras de rendimiento y nuevo diseño', time:'hace 3 d', unread:false } ] }
+  };
+
+  let enabled = true, modoActual = 'all';
+  const toastEl = $('toast'); let toastTimer = null;
+  function showToast(m){ toastEl.textContent = m; toastEl.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 2200); }
+  const unreadOf = id => cats[id].notis.filter(n=>n.unread).length;
+  const totalUnread = () => Object.keys(cats).reduce((a,id)=>a+unreadOf(id),0);
+
+  /* ============ cuadrícula de 6 campanas ============ */
+  const refs = {};
+  function buildGrid(){
+    const grid = $('bellGrid'); grid.innerHTML = '';
+    Object.keys(cats).forEach((id,i)=>{
+      const c = cats[id];
+      const card = document.createElement('div');
+      card.className = 'bell-card'; card.style.animationDelay = (i*0.06)+'s';
+      card.innerHTML =
+        '<button class="bell-btn" style="--g1:'+c.g1+';--g2:'+c.g2+'" aria-label="'+c.nombre+'">'+BELL+
+        '<span class="badge"></span></button><b>'+c.nombre+'</b><small></small>';
+      const btn = card.querySelector('.bell-btn');
+      btn.addEventListener('click', ()=>{
+        ring(btn);
+        setTimeout(()=>openSheet(id), 260);
+      });
+      refs[id] = { badge:card.querySelector('.badge'), small:card.querySelector('small'), btn };
+      grid.appendChild(card);
+    });
+    updateBadges();
+  }
+  function ring(btn){ btn.classList.remove('ring'); void btn.offsetWidth; btn.classList.add('ring'); }
+  function updateBadges(){
+    Object.keys(cats).forEach(id=>{
+      const u = unreadOf(id);
+      refs[id].badge.textContent = u;
+      refs[id].badge.classList.toggle('zero', u===0);
+      refs[id].small.textContent = u>0 ? u+' nuevas' : 'Al día ✓';
+      refs[id].small.classList.toggle('hot', u>0);
+    });
+    const t = totalUnread();
+    $('masterBadge').textContent = t;
+    $('masterBadge').classList.toggle('zero', t===0);
+  }
+
+  /* ============ hoja de notificaciones ============ */
+  function openSheet(mode){
+    modoActual = mode;
+    const isAll = mode === 'all';
+    const c = isAll ? { nombre:'Todas las notificaciones', emoji:'🔔', g1:'#fb923c', g2:'#ea580c' } : cats[mode];
+    $('ntHead').style.setProperty('--g1', c.g1); $('ntHead').style.setProperty('--g2', c.g2);
+    $('ntHeadIco').textContent = c.emoji;
+    $('ntHeadName').textContent = c.nombre;
+    renderList();
+    $('ntOverlay').classList.add('open');
+  }
+  function renderList(){
+    const wrap = $('ntList'); wrap.innerHTML = '';
+    let items = [];
+    if(modoActual === 'all'){
+      Object.keys(cats).forEach(id=>cats[id].notis.forEach(n=>items.push({ ...n, cat:id })));
+    } else items = cats[modoActual].notis.map(n=>({ ...n, cat:modoActual }));
+
+    const unread = items.filter(i=>i.unread).length;
+    $('ntHeadCount').textContent = unread>0 ? unread+' sin leer' : 'Todo leído ✓';
+    $('ntMark').style.display = unread>0 ? '' : 'none';
+
+    if(items.length === 0){ wrap.innerHTML = '<div class="nt-empty"><span>🔕</span>No hay notificaciones aquí.</div>'; return; }
+    items.forEach((n,i)=>{
+      const c = cats[n.cat];
+      const el = document.createElement('article');
+      el.className = 'nt-item' + (n.unread ? '' : ' read');
+      el.style.setProperty('--g1', c.g1);
+      el.style.animationDelay = (i*0.05)+'s';
+      el.innerHTML =
+        '<span class="i-ico">'+n.e+'</span>'+
+        '<div class="i-body"><b>'+n.t+'</b><small>'+n.d+'</small></div>'+
+        '<div class="i-time">'+n.time+'<div class="dot"></div></div>';
+      el.addEventListener('click', ()=>{
+        n.unread = false;
+        const real = cats[n.cat].notis.find(x=>x.t===n.t); if(real) real.unread = false;
+        el.classList.add('read');
+        updateBadges(); renderList();
+        showToast('📖 Notificación leída');
+      });
+      wrap.appendChild(el);
+    });
+  }
+  $('ntMark').addEventListener('click', ()=>{
+    if(modoActual === 'all') Object.keys(cats).forEach(id=>cats[id].notis.forEach(n=>n.unread=false));
+    else cats[modoActual].notis.forEach(n=>n.unread=false);
+    updateBadges(); renderList();
+    showToast('✅ Todas marcadas como leídas');
+  });
+  $('ntBd').addEventListener('click', ()=>$('ntOverlay').classList.remove('open'));
+  $('masterBell').addEventListener('click', ()=>{
+    ring($('masterBell'));
+    setTimeout(()=>openSheet('all'), 260);
+  });
+
+  /* ============ switch global ============ */
+  $('globalSwitch').addEventListener('click', ()=>{
+    enabled = !enabled;
+    $('globalSwitch').classList.toggle('on', enabled);
+    showToast(enabled ? '🔔 Notificaciones activadas' : '🔕 Notificaciones silenciadas');
+  });
+
+  /* ============ simular evento entrante ============ */
+  const pool = [
+    { id:'ofertas',  e:'⚡', t:'¡Oferta relámpago!', d:'-30% en Joyería Estrella por 2 horas' },
+    { id:'favoritos',e:'💖', t:'Tu favorito está en promoción', d:'Boutique Luna activó descuentos hoy' },
+    { id:'pedidos',  e:'🛵', t:'Pedido en camino', d:'El repartidor ya salió hacia tu dirección' },
+    { id:'noticias', e:'🗞️', t:'Boletín semanal disponible', d:'Las novedades de Sensuntepeque en un tap' },
+    { id:'citas',    e:'📆', t:'Nueva cita agendada', d:'Revisa tu calendario para esta semana' },
+    { id:'sistema',  e:'🔐', t:'Inicio de sesión nuevo', d:'Se detectó un acceso desde tu dispositivo' }
+  ];
+  let pushT = null;
+  $('simBtn').addEventListener('click', ()=>{
+    if(!enabled){ showToast('🔕 Activa las notificaciones primero'); return; }
+    const ev = pool[Math.floor(Math.random()*pool.length)];
+    cats[ev.id].notis.unshift({ e:ev.e, t:ev.t, d:ev.d, time:'ahora', unread:true });
+    updateBadges();
+    const b = refs[ev.id].badge; b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+    ring(refs[ev.id].btn);
+    const c = cats[ev.id];
+    $('pushIco').textContent = ev.e;
+    $('pushIco').style.background = 'linear-gradient(135deg,'+c.g1+','+c.g2+')';
+    $('pushTitle').innerHTML = 'Sensun Shop · '+c.nombre+' <small>ahora</small>';
+    $('pushMsg').textContent = ev.t+' — '+ev.d;
+    $('pushBox').classList.add('show');
+    clearTimeout(pushT); pushT = setTimeout(()=>$('pushBox').classList.remove('show'), 4000);
+  });
+  $('pushBox').addEventListener('click', ()=>{ $('pushBox').classList.remove('show'); });
+
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') $('ntOverlay').classList.remove('open'); });
+
+  buildGrid();
+</script>
+</body>
+</html>
