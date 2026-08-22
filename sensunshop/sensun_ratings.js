@@ -2149,6 +2149,38 @@ function syncBusinessesToDOM(businessesList) {
     }
 }
 
+// Helper para extraer coordenadas geográficas desde Google Maps / Waze URLs
+function extractCoordinates(url) {
+    if (!url || typeof url !== "string") return null;
+    
+    // Formato 1: !3d13.864123!4d-88.625412 (Google Maps Embed / Place URL)
+    const match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+    if (match3d4d) {
+        return { lat: parseFloat(match3d4d[1]), lng: parseFloat(match3d4d[2]) };
+    }
+
+    // Formato 2: @13.864123,-88.625412
+    const matchAt = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (matchAt) {
+        return { lat: parseFloat(matchAt[1]), lng: parseFloat(matchAt[2]) };
+    }
+
+    // Formato 3: q=13.864123,-88.625412 o ll=13.864123,-88.625412
+    const matchQuery = url.match(/[?&](?:q|ll|sll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+    if (matchQuery) {
+        return { lat: parseFloat(matchQuery[1]), lng: parseFloat(matchQuery[2]) };
+    }
+
+    // Formato 4: Coordenadas directas en texto "13.864123, -88.625412"
+    const matchDirect = url.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+    if (matchDirect) {
+        return { lat: parseFloat(matchDirect[1]), lng: parseFloat(matchDirect[2]) };
+    }
+
+    return null;
+}
+window.extractCoordinatesFromUrl = extractCoordinates;
+
 // Configurar sincronización en tiempo real de sensunshop/businesses
 function setupBusinessesRealtimeSync() {
     try {
@@ -2159,6 +2191,7 @@ function setupBusinessesRealtimeSync() {
             const data = snapshot.val() || {};
             const list = Object.keys(data).map(key => {
                 const item = data[key];
+                const coords = extractCoordinates(item.locationUrl);
                 return {
                     id: item.id || key,
                     code: item.code || "",
@@ -2172,6 +2205,9 @@ function setupBusinessesRealtimeSync() {
                     whatsapp: item.whatsapp || "",
                     whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
                     locationUrl: item.locationUrl || "",
+                    coords: coords,
+                    lat: coords ? coords.lat : null,
+                    lng: coords ? coords.lng : null,
                     websiteUrl: item.websiteUrl || "",
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
@@ -2202,109 +2238,609 @@ function setupBusinessesRealtimeSync() {
     }
 }
 
-// Configurar sincronización en tiempo real de sensunshop/news (Noticias y Boletines)
+// Cache global de fuentes de datos Firebase
+let cachedBulletinsList = [];
+let cachedOffersList = [];
+let autoOffersRotatorIntervals = {};
+let autoNovedadesSliderInterval = null;
+
+// Mapa de Colores para las 4 Categorías Normalizadas de Publicaciones
+const SENSUN_NEWS_CATEGORIES = {
+    "noticias": {
+        badge: "NOTICIA",
+        icon: "📰",
+        color: "#ff6b35",
+        bg: "rgba(255, 107, 53, 0.15)",
+        border: "rgba(255, 107, 53, 0.4)",
+        textColor: "#ff8c42"
+    },
+    "boletines": {
+        badge: "BOLETÍN",
+        icon: "📢",
+        color: "#7b68ee",
+        bg: "rgba(123, 104, 238, 0.15)",
+        border: "rgba(123, 104, 238, 0.4)",
+        textColor: "#a78bfa"
+    },
+    "informativos": {
+        badge: "INFORMATIVO",
+        icon: "💡",
+        color: "#10b981",
+        bg: "rgba(16, 185, 129, 0.15)",
+        border: "rgba(16, 185, 129, 0.4)",
+        textColor: "#34d399"
+    },
+    "anuncios": {
+        badge: "ANUNCIO",
+        icon: "📣",
+        color: "#ef4444",
+        bg: "rgba(239, 68, 68, 0.15)",
+        border: "rgba(239, 68, 68, 0.4)",
+        textColor: "#f87171"
+    }
+};
+
+function resolveNewsBadge(rawBadge) {
+    const key = (rawBadge || "").toLowerCase().trim();
+    if (key.includes("boletin") || key.includes("boletines")) return SENSUN_NEWS_CATEGORIES.boletines;
+    if (key.includes("informativ")) return SENSUN_NEWS_CATEGORIES.informativos;
+    if (key.includes("anuncio") || key.includes("promo") || key.includes("oferta")) return SENSUN_NEWS_CATEGORIES.anuncios;
+    return SENSUN_NEWS_CATEGORIES.noticias;
+}
+
+// Parsear elementos genéricos de boletines / ofertas / noticias
+function parseFeedItems(data, defaultBadge = "noticias") {
+    if (!data || typeof data !== "object") return [];
+    return Object.keys(data).map(key => {
+        const item = data[key];
+        const rawBadge = item.badge || item.category || item.tag || defaultBadge;
+        const catInfo = resolveNewsBadge(rawBadge);
+
+        return {
+            id: item.id || key,
+            title: item.title || item.titulo || item.name || "Publicación",
+            description: item.description || item.descripcion || item.content || item.contenido || "",
+            imgSrc: item.imgSrc || item.imageUrl || item.imagen || "",
+            badge: rawBadge,
+            badgeLabel: catInfo.badge,
+            whatsapp: item.whatsapp || item.telefono || "",
+            whatsappMsg: item.whatsappMsg || "",
+            locationUrl: item.locationUrl || item.mapsUrl || "",
+            link: item.link || item.url || item.websiteUrl || "",
+            hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1 || rawBadge.includes("oferta")),
+            offerMsg: item.offerMsg || item.oferta || item.descuento || "",
+            type: item.type || item.section || item.seccion || "negocioslocales",
+            category: item.category || "comercio",
+            date: item.date || item.fecha || "",
+            timestamp: item.timestamp || 0,
+            accentColor: item.accentColor || catInfo.color,
+            badgeBg: catInfo.bg,
+            badgeBorder: catInfo.border,
+            badgeTextColor: catInfo.textColor,
+            isActive: item.isActive !== false
+        };
+    }).filter(n => n.isActive);
+}
+
+// Configurar sincronización en tiempo real de Noticias, Boletines y Ofertas desde Firebase RTDB
 function setupNewsSync() {
+    if (newsRtdbListener) return;
+    newsRtdbListener = true;
+
     try {
+        // 1. Escuchar sensunshop/news (Noticias generales)
         const newsRef = ref(rtdb, "sensunshop/news");
-        if (newsRtdbListener) return;
-
-        newsRtdbListener = onValue(newsRef, (snapshot) => {
+        onValue(newsRef, (snapshot) => {
             const data = snapshot.val() || {};
-            const list = Object.keys(data).map(key => {
-                const item = data[key];
-                return {
-                    id: item.id || key,
-                    title: item.title || item.titulo || "Novedad",
-                    description: item.description || item.descripcion || item.content || item.contenido || "",
-                    imgSrc: item.imgSrc || item.imageUrl || item.imagen || "",
-                    badge: item.badge || item.category || item.tag || "NOVEDAD",
-                    whatsapp: item.whatsapp || "",
-                    whatsappMsg: item.whatsappMsg || "",
-                    locationUrl: item.locationUrl || item.mapsUrl || "",
-                    link: item.link || item.url || item.websiteUrl || "",
-                    hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
-                    offerMsg: item.offerMsg || "",
-                    date: item.date || item.fecha || "",
-                    timestamp: item.timestamp || 0,
-                    accentColor: item.accentColor || "var(--ss-orange)",
-                    isActive: item.isActive !== false
-                };
-            }).filter(n => n.isActive);
+            cachedNewsList = parseFeedItems(data, "noticias");
+            rebuildUnifiedFeeds();
+        });
 
-            list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        // 2. Escuchar sensunshop/bulletins y sensunshop/boletines (Boletines de la app)
+        const bulletinsRef = ref(rtdb, "sensunshop/bulletins");
+        onValue(bulletinsRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            const list1 = parseFeedItems(data, "boletines");
+            // También escuchar nodo alterno sensunshop/boletines
+            get(ref(rtdb, "sensunshop/boletines")).then(snap => {
+                const data2 = snap.val() || {};
+                const list2 = parseFeedItems(data2, "boletines");
+                const merged = [...list1, ...list2];
+                const seen = new Set();
+                cachedBulletinsList = merged.filter(b => {
+                    if (seen.has(b.id)) return false;
+                    seen.add(b.id);
+                    return true;
+                });
+                rebuildUnifiedFeeds();
+            }).catch(() => {
+                cachedBulletinsList = list1;
+                rebuildUnifiedFeeds();
+            });
+        });
 
-            cachedNewsList = list;
-            window.sensunNewsCache = list;
-
-            // Renderizar en el slider de novedades de la portada
-            renderNewsSlider(list);
-
-            document.dispatchEvent(new CustomEvent("sensun-news-updated", { detail: { news: list } }));
+        // 3. Escuchar sensunshop/offers y sensunshop/ofertas (Ofertas de la app)
+        const offersRef = ref(rtdb, "sensunshop/offers");
+        onValue(offersRef, (snapshot) => {
+            const data = snapshot.val() || {};
+            const list1 = parseFeedItems(data, "anuncios");
+            get(ref(rtdb, "sensunshop/ofertas")).then(snap => {
+                const data2 = snap.val() || {};
+                const list2 = parseFeedItems(data2, "anuncios");
+                const merged = [...list1, ...list2];
+                const seen = new Set();
+                cachedOffersList = merged.filter(o => {
+                    if (seen.has(o.id)) return false;
+                    seen.add(o.id);
+                    return true;
+                });
+                rebuildUnifiedFeeds();
+            }).catch(() => {
+                cachedOffersList = list1;
+                rebuildUnifiedFeeds();
+            });
         });
     } catch (err) {
-        console.warn("Aviso: No se pudo conectar al nodo sensunshop/news en Firebase RTDB:", err);
+        console.warn("Aviso: No se pudo conectar a los nodos de novedades/ofertas en Firebase RTDB:", err);
     }
 }
 
-// Renderizar noticias y boletines en el carrusel de novedades
-function renderNewsSlider(newsList) {
-    const newsSlider = document.getElementById("sensun-slider");
-    if (!newsSlider) return;
+// Reconstruir carrusel de novedades y ventanas rotativas de ofertas
+function rebuildUnifiedFeeds() {
+    renderUnifiedNovedadesSlider();
+    renderAllCategoryOffersShowcases();
+}
 
-    if (!newsList || newsList.length === 0) {
-        return; // Mantener contenido actual si aún no hay noticias en RTDB
-    }
+// Renderizar carrusel unificado de Novedades (3 negocios recientes + boletines + ofertas principales)
+function renderUnifiedNovedadesSlider() {
+    const sliderContainer = document.getElementById("sensun-slider");
+    if (!sliderContainer) return;
+
+    const allItems = [];
+
+    // 1. Obtener los 3 negocios más recientes
+    const recentBiz = (cachedParsedBusinesses || []).slice(0, 3).map(b => ({
+        id: b.id,
+        title: b.title,
+        description: b.description || "Comercio registrado en Sensun Shop",
+        imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+        badge: "✨ " + (b.badge || "RECIÉN AGREGADO"),
+        badgeType: "recent",
+        whatsapp: b.whatsapp,
+        whatsappMsg: b.whatsappMsg,
+        locationUrl: b.locationUrl,
+        link: b.websiteUrl || "",
+        hasOffer: b.hasOffer,
+        offerMsg: b.offerMsg,
+        accentColor: "#ff6b35",
+        badgeBg: "rgba(255, 107, 53, 0.15)",
+        badgeBorder: "rgba(255, 107, 53, 0.4)",
+        badgeTextColor: "#ff8c42"
+    }));
+
+    // 2. Obtener Ofertas Principales (de sensunshop/offers o comercios con hasOffer)
+    const activeBizOffers = (cachedParsedBusinesses || []).filter(b => b.hasOffer).map(b => ({
+        id: b.id,
+        title: b.title,
+        description: b.description,
+        imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+        badge: "🔥 OFERTA DESTACADA",
+        badgeType: "offer",
+        whatsapp: b.whatsapp,
+        whatsappMsg: `Hola ${b.title}, vi su oferta "${b.offerMsg || ''}" en Sensun Shop`,
+        locationUrl: b.locationUrl,
+        link: b.websiteUrl || "",
+        hasOffer: true,
+        offerMsg: b.offerMsg || "¡Promoción especial por tiempo limitado!",
+        accentColor: "#ea580c",
+        badgeBg: "rgba(234, 88, 12, 0.2)",
+        badgeBorder: "rgba(234, 88, 12, 0.5)",
+        badgeTextColor: "#ff8c42"
+    }));
+
+    const directOffers = (cachedOffersList || []).map(o => ({
+        id: o.id,
+        title: o.title,
+        description: o.description,
+        imgSrc: o.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+        badge: "🔥 " + (o.badgeLabel || "OFERTA EXCLUSIVA"),
+        badgeType: "offer",
+        whatsapp: o.whatsapp,
+        whatsappMsg: o.whatsappMsg || `Hola, me interesa la oferta "${o.title}" en Sensun Shop`,
+        locationUrl: o.locationUrl,
+        link: o.link || "",
+        hasOffer: true,
+        offerMsg: o.offerMsg || o.description,
+        accentColor: "#ea580c",
+        badgeBg: "rgba(234, 88, 12, 0.2)",
+        badgeBorder: "rgba(234, 88, 12, 0.5)",
+        badgeTextColor: "#ff8c42"
+    }));
+
+    // 3. Obtener Boletines, Noticias, Informativos y Anuncios
+    const bulletins = (cachedBulletinsList || []).map(b => {
+        const cat = resolveNewsBadge(b.badge || "boletines");
+        return {
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: `${cat.icon} ${cat.badge}`,
+            badgeType: "bulletin",
+            whatsapp: b.whatsapp,
+            whatsappMsg: b.whatsappMsg,
+            locationUrl: b.locationUrl,
+            link: b.link || "",
+            hasOffer: false,
+            offerMsg: "",
+            accentColor: cat.color,
+            badgeBg: cat.bg,
+            badgeBorder: cat.border,
+            badgeTextColor: cat.textColor
+        };
+    });
+
+    const newsItems = (cachedNewsList || []).map(n => {
+        const cat = resolveNewsBadge(n.badge || "noticias");
+        return {
+            id: n.id,
+            title: n.title,
+            description: n.description,
+            imgSrc: n.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            badge: n.hasOffer ? "🔥 OFERTA" : `${cat.icon} ${cat.badge}`,
+            badgeType: n.hasOffer ? "offer" : "news",
+            whatsapp: n.whatsapp,
+            whatsappMsg: n.whatsappMsg,
+            locationUrl: n.locationUrl,
+            link: n.link || "",
+            hasOffer: n.hasOffer,
+            offerMsg: n.offerMsg,
+            accentColor: n.hasOffer ? "#ea580c" : cat.color,
+            badgeBg: n.hasOffer ? "rgba(234, 88, 12, 0.2)" : cat.bg,
+            badgeBorder: n.hasOffer ? "rgba(234, 88, 12, 0.5)" : cat.border,
+            badgeTextColor: n.hasOffer ? "#ff8c42" : cat.textColor
+        };
+    });
+
+    // Mezcla equilibrada: primero ofertas activas, luego negocios recientes, luego boletines/noticias
+    const combinedOffers = [...activeBizOffers, ...directOffers];
+    const seen = new Set();
+
+    combinedOffers.slice(0, 3).forEach(item => {
+        if (!seen.has(item.id)) { seen.add(item.id); allItems.push(item); }
+    });
+
+    recentBiz.forEach(item => {
+        if (!seen.has(item.id)) { seen.add(item.id); allItems.push(item); }
+    });
+
+    [...bulletins, ...newsItems].forEach(item => {
+        if (!seen.has(item.id)) { seen.add(item.id); allItems.push(item); }
+    });
+
+    if (allItems.length === 0) return;
 
     let slidesHtml = "";
-    newsList.forEach(news => {
+    allItems.forEach((item, index) => {
         let wspHref = "#";
-        if (news.whatsapp) {
-            if (news.whatsapp.startsWith("http")) {
-                wspHref = news.whatsapp;
+        if (item.whatsapp) {
+            if (item.whatsapp.startsWith("http")) {
+                wspHref = item.whatsapp;
             } else {
-                const cleanPhone = news.whatsapp.replace(/\D/g, "");
-                const msg = encodeURIComponent(news.whatsappMsg || `Hola, vi la novedad "${news.title}" en Sensun Shop`);
+                const cleanPhone = item.whatsapp.replace(/\D/g, "");
+                const msg = encodeURIComponent(item.whatsappMsg || `Hola ${item.title}, vengo desde Sensun Shop`);
                 wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
             }
         }
 
-        const borderLeft = news.accentColor || "var(--ss-orange)";
-        const badgeColor = news.accentColor || "var(--ss-orange)";
+        const borderLeft = item.accentColor || "var(--ss-orange)";
+        const badgeBg = item.badgeBg || "rgba(232, 98, 26, 0.15)";
+        const badgeColor = item.badgeTextColor || "var(--ss-orange)";
+        const badgeBorder = item.badgeBorder || "rgba(232, 98, 26, 0.3)";
 
         slidesHtml += `
-            <div class="slider-card ${news.hasOffer ? 'has-active-offer' : ''}" style="border-left-color: ${borderLeft}; position: relative;">
-                ${news.hasOffer ? `
-                    <div class="negocio-offer-badge" style="top: 10px; left: 10px;">
+            <div class="slider-card ${item.hasOffer ? 'has-active-offer' : ''}" style="border-left-color: ${borderLeft}; position: relative;">
+                ${item.hasOffer ? `
+                    <div class="negocio-offer-badge" style="top: 10px; left: 10px; z-index: 5;">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                        <span>¡OFERTA / PROMO!</span>
+                        <span>¡OFERTA DESTACADA!</span>
                     </div>
                 ` : ''}
                 <div class="slider-card-img" style="display: flex; align-items: center; justify-content: center; padding: 6px;">
-                    <img src="${news.imgSrc || 'imagenes/logos/icono-sensun-shop.webp'}" alt="${news.title}" style="object-fit: contain; width: 100%; height: 100%;" loading="lazy">
+                    <img src="${item.imgSrc}" alt="${item.title}" style="object-fit: contain; width: 100%; height: 100%;" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'" loading="lazy">
                 </div>
                 <div class="slider-card-content">
-                    <span class="badge" style="background: rgba(232, 98, 26, 0.15); color: ${badgeColor}; border-color: rgba(232, 98, 26, 0.3);">${news.badge.toUpperCase()}</span>
-                    <h3>${news.title}</h3>
-                    ${news.hasOffer && news.offerMsg ? `
-                        <div class="negocio-offer-banner" style="margin: 6px 0 8px 0; padding: 6px 10px; font-size: 0.8rem;">
+                    <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">${item.badge.toUpperCase()}</span>
+                    <h3>${item.title}</h3>
+                    ${item.hasOffer && item.offerMsg ? `
+                        <div class="negocio-offer-banner" style="margin: 6px 0 8px 0; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; color: #ffbe76;">
                             <span class="offer-icon">🏷️</span>
-                            <span class="offer-text">${news.offerMsg}</span>
+                            <span class="offer-text">${item.offerMsg}</span>
                         </div>
                     ` : ''}
-                    <p>${news.description}</p>
+                    <p>${item.description}</p>
                     <div class="negocio-links">
-                        ${news.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
-                        ${news.locationUrl ? `<a href="${news.locationUrl}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer">Ubicación</a>` : ''}
-                        ${news.link ? `<a href="${news.link}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer">Ver Más</a>` : ''}
+                        ${item.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
+                        ${item.locationUrl ? `<a href="${item.locationUrl}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer">Ubicación</a>` : ''}
+                        ${item.link ? `<a href="${item.link}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer">Ver Más</a>` : ''}
                     </div>
                 </div>
             </div>
         `;
     });
 
-    newsSlider.innerHTML = slidesHtml;
+    sliderContainer.innerHTML = slidesHtml;
     if (typeof window.injectShareButtons === "function") window.injectShareButtons();
+    initNovedadesAutoRotation();
 }
+
+// Inicializar auto-rotación del slider de Novedades
+function initNovedadesAutoRotation() {
+    const slider = document.getElementById("sensun-slider");
+    const prevBtn = document.getElementById("slide-prev");
+    const nextBtn = document.getElementById("slide-next");
+    if (!slider) return;
+
+    const cards = slider.querySelectorAll(".slider-card");
+    if (cards.length <= 1) return;
+
+    let currentIndex = 0;
+    function showSlide(idx) {
+        if (idx >= cards.length) currentIndex = 0;
+        else if (idx < 0) currentIndex = cards.length - 1;
+        else currentIndex = idx;
+
+        slider.scrollTo({
+            left: slider.clientWidth * currentIndex,
+            behavior: "smooth"
+        });
+    }
+
+    if (autoNovedadesSliderInterval) clearInterval(autoNovedadesSliderInterval);
+    autoNovedadesSliderInterval = setInterval(() => {
+        showSlide(currentIndex + 1);
+    }, 5500);
+
+    if (prevBtn) {
+        prevBtn.onclick = () => {
+            clearInterval(autoNovedadesSliderInterval);
+            showSlide(currentIndex - 1);
+        };
+    }
+
+    if (nextBtn) {
+        nextBtn.onclick = () => {
+            clearInterval(autoNovedadesSliderInterval);
+            showSlide(currentIndex + 1);
+        };
+    }
+
+    slider.onmouseenter = () => clearInterval(autoNovedadesSliderInterval);
+    slider.onmouseleave = () => {
+        clearInterval(autoNovedadesSliderInterval);
+        autoNovedadesSliderInterval = setInterval(() => {
+            showSlide(currentIndex + 1);
+        }, 5500);
+    };
+
+    window.addEventListener("resize", () => {
+        showSlide(currentIndex);
+    });
+}
+
+// ========================================================
+// VENTANAS ROTATIVAS DE OFERTAS Y DESCUENTOS POR SECCIÓN
+// ========================================================
+function renderAllCategoryOffersShowcases() {
+    const showcaseSections = document.querySelectorAll(".sensun-category-offers-section");
+    if (!showcaseSections || showcaseSections.length === 0) {
+        // Si no está el contenedor en el HTML, buscar si estamos en una página de categoría
+        const path = window.location.pathname.toLowerCase();
+        let targetType = null;
+        if (path.includes("negocioslocales")) targetType = "negocioslocales";
+        else if (path.includes("emprendedores")) targetType = "emprendedores";
+        else if (path.includes("profesionales")) targetType = "profesionales";
+        else if (path.includes("oficios")) targetType = "oficios";
+
+        if (targetType) {
+            injectCategoryOffersShowcase(targetType);
+        }
+        return;
+    }
+
+    showcaseSections.forEach(section => {
+        const type = section.dataset.sectionType || "all";
+        renderCategoryOffersInContainer(section, type);
+    });
+}
+
+function injectCategoryOffersShowcase(categoryType) {
+    const catalogHeader = document.querySelector("#catalogo, .catalogo-section, .filter-section");
+    if (!catalogHeader) return;
+
+    let existing = document.getElementById(`offers-showcase-${categoryType}`);
+    if (!existing) {
+        existing = document.createElement("section");
+        existing.id = `offers-showcase-${categoryType}`;
+        existing.className = "sensun-category-offers-section";
+        existing.dataset.sectionType = categoryType;
+        catalogHeader.parentNode.insertBefore(existing, catalogHeader);
+    }
+
+    renderCategoryOffersInContainer(existing, categoryType);
+}
+
+function renderCategoryOffersInContainer(container, categoryType) {
+    const businesses = cachedParsedBusinesses || [];
+    
+    // Filtrar ofertas de negocios que pertenezcan a esta sección o tengan ofertas
+    let offers = businesses.filter(b => b.hasOffer && (categoryType === "all" || b.type === categoryType));
+
+    // Si no hay ofertas marcadas con hasOffer, usar los 3 comercios principales con promociones de bienvenida
+    if (offers.length === 0) {
+        const fallbackBiz = businesses.filter(b => categoryType === "all" || b.type === categoryType).slice(0, 3);
+        offers = fallbackBiz.map(b => ({
+            ...b,
+            hasOffer: true,
+            offerMsg: b.offerMsg || `¡Pregunta por promociones exclusivas en ${b.title} desde Sensun Shop!`
+        }));
+    }
+
+    if (offers.length === 0) {
+        container.style.display = "none";
+        return;
+    }
+
+    container.style.display = "block";
+
+    let categoryTitle = "Negocios Locales";
+    if (categoryType === "emprendedores") categoryTitle = "Emprendedores";
+    else if (categoryType === "profesionales") categoryTitle = "Profesionales";
+    else if (categoryType === "oficios") categoryTitle = "Oficios y Servicios";
+
+    const rotatorId = `offers-rotator-${categoryType}`;
+
+    container.innerHTML = `
+        <div class="offers-showcase-container">
+            <div class="offers-showcase-header">
+                <div class="offers-header-left">
+                    <div class="offers-header-badge">🔥 VENTANA DE OFERTAS & DESCUENTOS</div>
+                    <h3>Promociones Activas en <span class="gradient-text">${categoryTitle}</span></h3>
+                </div>
+                <div class="offers-counter-pill">
+                    <span class="live-dot"></span>
+                    <span>${offers.length} Oferta${offers.length > 1 ? 's' : ''} Disponible${offers.length > 1 ? 's' : ''}</span>
+                </div>
+            </div>
+            <div class="offers-rotator-wrapper" id="${rotatorId}">
+                <!-- Slides dinámicos -->
+            </div>
+            <div class="offers-rotator-controls">
+                <div class="offers-dots-list" id="${rotatorId}-dots"></div>
+                <div class="offers-nav-buttons">
+                    <button type="button" class="offers-nav-btn" id="${rotatorId}-prev" aria-label="Oferta anterior">&#10094;</button>
+                    <button type="button" class="offers-nav-btn" id="${rotatorId}-next" aria-label="Siguiente oferta">&#10095;</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    const rotatorWrapper = document.getElementById(rotatorId);
+    const dotsContainer = document.getElementById(`${rotatorId}-dots`);
+
+    let slidesHtml = "";
+    let dotsHtml = "";
+
+    offers.forEach((offer, idx) => {
+        let wspHref = "#";
+        if (offer.whatsapp) {
+            const cleanPhone = offer.whatsapp.replace(/\D/g, "");
+            const msg = encodeURIComponent(`Hola ${offer.title}, vi su oferta "${offer.offerMsg || ''}" en Sensun Shop y me gustaría aprovecharla.`);
+            wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
+        }
+
+        slidesHtml += `
+            <div class="offers-rotator-slide" data-slide-index="${idx}" style="display: ${idx === 0 ? 'grid' : 'none'};">
+                <div class="offer-slide-logo">
+                    <span class="offer-floating-tag">OFERTA</span>
+                    <img src="${offer.imgSrc || '../imagenes/logos/icono-sensun-shop.webp'}" alt="${offer.title}" onerror="this.src='../imagenes/logos/icono-sensun-shop.webp'">
+                </div>
+                <div class="offer-slide-info">
+                    <span class="offer-biz-badge">${offer.category || offer.badge || 'COMERCIO'}</span>
+                    <div class="offer-biz-title">${offer.title}</div>
+                    <div class="offer-highlight-banner">
+                        <span>🏷️</span>
+                        <span>${offer.offerMsg || '¡Descuento especial mencionando Sensun Shop!'}</span>
+                    </div>
+                    <p class="offer-slide-desc">${offer.description || ''}</p>
+                </div>
+                <div class="offer-slide-actions">
+                    ${offer.whatsapp ? `
+                        <a href="${wspHref}" class="btn-offer-cta" target="_blank" rel="noopener noreferrer">
+                            <span>📲 Canjear por WhatsApp</span>
+                        </a>
+                    ` : ''}
+                    ${offer.locationUrl ? `
+                        <a href="${offer.locationUrl}" class="btn-offer-secondary" target="_blank" rel="noopener noreferrer">
+                            <span>📍 Ver Ubicación</span>
+                        </a>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+
+        dotsHtml += `<span class="offers-dot ${idx === 0 ? 'active' : ''}" data-index="${idx}"></span>`;
+    });
+
+    rotatorWrapper.innerHTML = slidesHtml;
+    dotsContainer.innerHTML = dotsHtml;
+
+    // Control de auto-rotación para este showcase
+    initCategoryOffersShowcaseRotation(categoryType, offers.length);
+}
+
+function initCategoryOffersShowcaseRotation(categoryType, totalSlides) {
+    if (totalSlides <= 1) return;
+
+    const rotatorId = `offers-rotator-${categoryType}`;
+    const wrapper = document.getElementById(rotatorId);
+    const prevBtn = document.getElementById(`${rotatorId}-prev`);
+    const nextBtn = document.getElementById(`${rotatorId}-next`);
+    const dots = document.querySelectorAll(`#${rotatorId}-dots .offers-dot`);
+    const slides = document.querySelectorAll(`#${rotatorId} .offers-rotator-slide`);
+
+    let currentIdx = 0;
+
+    function goToSlide(idx) {
+        currentIdx = idx;
+        slides.forEach((s, i) => {
+            s.style.display = i === idx ? "grid" : "none";
+        });
+        dots.forEach((d, i) => {
+            d.classList.toggle("active", i === idx);
+        });
+    }
+
+    if (autoOffersRotatorIntervals[categoryType]) {
+        clearInterval(autoOffersRotatorIntervals[categoryType]);
+    }
+
+    autoOffersRotatorIntervals[categoryType] = setInterval(() => {
+        goToSlide((currentIdx + 1) % totalSlides);
+    }, 4500);
+
+    if (prevBtn) {
+        prevBtn.onclick = () => {
+            clearInterval(autoOffersRotatorIntervals[categoryType]);
+            goToSlide((currentIdx - 1 + totalSlides) % totalSlides);
+        };
+    }
+
+    if (nextBtn) {
+        nextBtn.onclick = () => {
+            clearInterval(autoOffersRotatorIntervals[categoryType]);
+            goToSlide((currentIdx + 1) % totalSlides);
+        };
+    }
+
+    dots.forEach(dot => {
+        dot.onclick = () => {
+            clearInterval(autoOffersRotatorIntervals[categoryType]);
+            goToSlide(parseInt(dot.dataset.index, 10));
+        };
+    });
+
+    if (wrapper) {
+        wrapper.onmouseenter = () => clearInterval(autoOffersRotatorIntervals[categoryType]);
+        wrapper.onmouseleave = () => {
+            clearInterval(autoOffersRotatorIntervals[categoryType]);
+            autoOffersRotatorIntervals[categoryType] = setInterval(() => {
+                goToSlide((currentIdx + 1) % totalSlides);
+            }, 4500);
+        };
+    }
+}
+
 
 // Función principal para obtener negocios con soporte de tiempo real
 async function getBusinessesList() {
@@ -2322,6 +2858,7 @@ async function getBusinessesList() {
         if (data && Object.keys(data).length > 0) {
             const list = Object.keys(data).map(key => {
                 const item = data[key];
+                const coords = extractCoordinates(item.locationUrl);
                 return {
                     id: item.id || key,
                     code: item.code || "",
@@ -2335,6 +2872,9 @@ async function getBusinessesList() {
                     whatsapp: item.whatsapp || "",
                     whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
                     locationUrl: item.locationUrl || "",
+                    coords: coords,
+                    lat: coords ? coords.lat : null,
+                    lng: coords ? coords.lng : null,
                     websiteUrl: item.websiteUrl || "",
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
