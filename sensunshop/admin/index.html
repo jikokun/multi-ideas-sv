@@ -1380,6 +1380,12 @@
                 <div class="live-pulse"></div>
                 <span>Firebase RTDB En Vivo</span>
             </div>
+            <div id="adminAuthStatus" style="font-size: 11.5px; color: var(--text-muted); margin-bottom: 8px; text-align: center; background: rgba(0,0,0,0.03); padding: 8px; border-radius: 10px; border: 1px solid var(--border-color);">
+                <div id="adminAuthText">🔒 Sesión: Verificando...</div>
+                <button type="button" id="btnAdminGoogleAuth" style="display: none; width: 100%; margin-top: 6px; padding: 7px 10px; background: white; border: 1.5px solid #4285f4; border-radius: 8px; font-size: 11.5px; font-weight: 700; cursor: pointer; color: #4285f4;">
+                    🔑 Iniciar con Google (Admin)
+                </button>
+            </div>
             <button class="logout-btn" id="logoutBtn">
                 <span>⏻</span>
                 <span>Bloquear Panel</span>
@@ -1789,8 +1795,36 @@
 
     <!-- Firebase Script Logic -->
     <script type="module">
-        import { rtdb } from "../../firebase-config.js";
+        import { auth, rtdb, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "../../firebase-config.js";
+        import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { ref, onValue, set, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Listener de estado de autenticación en Firebase
+        onAuthStateChanged(auth, (user) => {
+            const authText = document.getElementById("adminAuthText");
+            const googleBtn = document.getElementById("btnAdminGoogleAuth");
+            if (user) {
+                if (authText) authText.innerHTML = `🟢 <b>${user.displayName || user.email || 'Admin Autenticado'}</b>`;
+                if (googleBtn) googleBtn.style.display = "none";
+            } else {
+                if (authText) authText.innerHTML = `<span style="color:#ef4444; font-weight:600;">⚠️ Sin sesión Firebase</span>`;
+                if (googleBtn) googleBtn.style.display = "block";
+            }
+        });
+
+        // Botón para autenticación directa con Google
+        const googleBtn = document.getElementById("btnAdminGoogleAuth");
+        if (googleBtn) {
+            googleBtn.onclick = async () => {
+                try {
+                    const provider = new GoogleAuthProvider();
+                    await signInWithPopup(auth, provider);
+                    showToast("✅ Conectado con Google exitosamente");
+                } catch (err) {
+                    showToast("❌ Error Auth: " + err.message, true);
+                }
+            };
+        }
 
         // ==========================================================
         // SISTEMA DE SEGURIDAD CON PIN GATE (50608892)
@@ -1825,10 +1859,20 @@
             }
         }
 
-        function verifyPin() {
+        async function verifyPin() {
             if (enteredPin === SECURITY_PIN) {
                 pinErrorMsg.textContent = "✅ Acceso autorizado...";
                 pinErrorMsg.style.color = "#10b981";
+
+                // Autenticar la sesión en Firebase para asegurar permisos de escritura
+                try {
+                    if (auth && !auth.currentUser) {
+                        await signInAnonymously(auth);
+                    }
+                } catch(authErr) {
+                    console.warn("Aviso Auth anónimo:", authErr);
+                }
+
                 setTimeout(() => {
                     lockScreen.classList.add("unlocked");
                     showToast("👋 ¡Bienvenido al Panel Maestro!");
@@ -2328,22 +2372,44 @@
             };
 
             try {
+                if (auth && !auth.currentUser) {
+                    try { await signInAnonymously(auth); } catch (e) {}
+                }
+
                 const targetRef = ref(rtdb, `sensunshop/news/${rawId}`);
                 await set(targetRef, newsData);
-                showToast("✅ Noticia publicada exitosamente");
+
+                // Si la categoría es boletines o anuncios, sincronizar también en los nodos correspondientes
+                if (badgeCategory === "boletines") {
+                    try { await set(ref(rtdb, `sensunshop/bulletins/${rawId}`), newsData); } catch (e) {}
+                } else if (badgeCategory === "anuncios") {
+                    try { await set(ref(rtdb, `sensunshop/offers/${rawId}`), newsData); } catch (e) {}
+                }
+
+                showToast("✅ Noticia / Boletín guardado exitosamente");
                 closeNewsModal();
             } catch (err) {
-                showToast("❌ Error al guardar noticia: " + err.message, true);
+                console.error("Error al guardar noticia:", err);
+                if (err.message && (err.message.includes("PERMISSION_DENIED") || err.message.includes("permission_denied"))) {
+                    showToast("❌ Permiso denegado: Revisa las Reglas de Firebase Realtime Database para permitir escritura en sensunshop/", true);
+                } else {
+                    showToast("❌ Error al guardar noticia: " + err.message, true);
+                }
             }
         };
 
         window.deleteNewsFromFirebase = async function() {
             if (!currentEditNewsId) return;
-            if (confirm("¿Deseas eliminar esta noticia?")) {
+            if (confirm("¿Deseas eliminar esta publicación?")) {
                 try {
-                    const targetRef = ref(rtdb, `sensunshop/news/${currentEditNewsId}`);
-                    await remove(targetRef);
-                    showToast("🗑️ Noticia eliminada");
+                    if (auth && !auth.currentUser) {
+                        try { await signInAnonymously(auth); } catch (e) {}
+                    }
+
+                    await remove(ref(rtdb, `sensunshop/news/${currentEditNewsId}`));
+                    try { await remove(ref(rtdb, `sensunshop/bulletins/${currentEditNewsId}`)); } catch(e) {}
+                    try { await remove(ref(rtdb, `sensunshop/offers/${currentEditNewsId}`)); } catch(e) {}
+                    showToast("🗑️ Publicación eliminada de Firebase");
                     closeNewsModal();
                 } catch (err) {
                     showToast("❌ Error al eliminar noticia: " + err.message, true);
