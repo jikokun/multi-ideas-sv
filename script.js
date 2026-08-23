@@ -1912,104 +1912,104 @@ function connectFirebaseToAuth(authUI, fb) {
             if (googleText) googleText.textContent = 'Conectando con Google…';
 
             const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({
+                prompt: 'select_account'
+            });
             const currentMode = getCurrentMode();
 
-            // Detectar si está en un navegador móvil
-            const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+            try {
+                // signInWithPopup permite autenticar sin recargar ni navegar fuera de la página en móviles y desktop
+                const result = await signInWithPopup(auth, provider);
+                const additionalUserInfo = getAdditionalUserInfo(result);
+                
+                if (currentMode === 'login') {
+                    // Si el modo es login y es un usuario nuevo, evitamos el login redundante
+                    if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                        const user = result.user;
+                        await user.delete(); 
+                        await signOut(auth);
 
-            if (isMobile) {
-                localStorage.setItem('google_auth_mode', currentMode);
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (error) {
-                    console.error("Error de redirección con Google:", error);
-                    showNotification('Error con Google', 'No se pudo iniciar la redirección.', 'error');
-                    googleBtn.classList.remove('is-loading');
-                    googleBtn.classList.add('is-error');
-                    if (googleText) googleText.textContent = currentMode === 'login' ? 'Iniciar con Google' : 'Registrarse con Google';
-                    if (submitBtn) submitBtn.disabled = false;
-                    if (googleBtn) googleBtn.disabled = false;
-                }
-            } else {
-                try {
-                    const result = await signInWithPopup(auth, provider);
-                    const additionalUserInfo = getAdditionalUserInfo(result);
-                    
-                    if (currentMode === 'login') {
-                        // Si el modo es login y es un usuario nuevo, evitamos el login redundante
-                        if (additionalUserInfo && additionalUserInfo.isNewUser) {
-                            const user = result.user;
-                            await user.delete(); 
-                            await signOut(auth);
+                        googleBtn.classList.remove('is-loading');
+                        googleBtn.classList.add('is-error');
+                        if (googleText) googleText.textContent = 'Iniciar con Google';
 
-                            googleBtn.classList.remove('is-loading');
-                            googleBtn.classList.add('is-error');
-                            if (googleText) googleText.textContent = 'Iniciar con Google';
-
-                            const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
-                            if (errorMsg) {
-                                errorMsg.textContent = msg;
-                                errorMsg.style.display = 'block';
-                            }
-                            showNotification('Registro Requerido', msg, 'info');
-                            if (typeof switchMode === 'function') {
-                                switchMode('register');
-                            }
-                        } else {
-                            // 2. Activar Estado de Éxito Visual con Confeti y Checkmark
-                            googleBtn.classList.remove('is-loading');
-                            googleBtn.classList.add('is-success');
-                            if (googleText) googleText.textContent = '¡Sesión iniciada con éxito! 🎉';
-                            
-                            // Micro-pausa agradable para ver la celebración
-                            await new Promise(r => setTimeout(r, 850));
-                            
-                            showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
-                            closeModal();
-                            
-                            setTimeout(() => {
-                                googleBtn.classList.remove('is-success');
-                                if (googleText) googleText.textContent = 'Iniciar con Google';
-                            }, 500);
+                        const msg = 'Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.';
+                        if (errorMsg) {
+                            errorMsg.textContent = msg;
+                            errorMsg.style.display = 'block';
+                        }
+                        showNotification('Registro Requerido', msg, 'info');
+                        if (typeof switchMode === 'function') {
+                            switchMode('register');
                         }
                     } else {
-                        // Modo Registro Exitoso
+                        // 2. Activar Estado de Éxito Visual con Confeti y Checkmark
                         googleBtn.classList.remove('is-loading');
                         googleBtn.classList.add('is-success');
-                        if (googleText) googleText.textContent = '¡Cuenta registrada con éxito! 🎉';
+                        if (googleText) googleText.textContent = '¡Sesión iniciada con éxito! 🎉';
                         
+                        // Micro-pausa agradable para ver la celebración
                         await new Promise(r => setTimeout(r, 850));
-
-                        showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
+                        
+                        showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
                         closeModal();
-
+                        
                         setTimeout(() => {
                             googleBtn.classList.remove('is-success');
-                            if (googleText) googleText.textContent = 'Registrarse con Google';
+                            if (googleText) googleText.textContent = 'Iniciar con Google';
                         }, 500);
                     }
-                } catch (error) {
-                    console.error("Error de autenticación con Google:", error);
-                    let friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
-                    if (error.code === 'auth/popup-closed-by-user') {
-                        friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
-                    }
-                    if (errorMsg) {
-                        errorMsg.textContent = friendlyMsg;
-                        errorMsg.style.display = 'block';
-                    }
-                    showNotification('Error con Google', friendlyMsg, 'error');
-                    
+                } else {
+                    // Modo Registro Exitoso
                     googleBtn.classList.remove('is-loading');
-                    googleBtn.classList.add('is-error');
+                    googleBtn.classList.add('is-success');
+                    if (googleText) googleText.textContent = '¡Cuenta registrada con éxito! 🎉';
+                    
+                    await new Promise(r => setTimeout(r, 850));
+
+                    showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
+                    closeModal();
+
                     setTimeout(() => {
-                        googleBtn.classList.remove('is-error');
-                        if (googleText) googleText.textContent = currentMode === 'login' ? 'Iniciar con Google' : 'Registrarse con Google';
-                    }, 1500);
-                } finally {
-                    if (submitBtn) submitBtn.disabled = false;
-                    if (googleBtn) googleBtn.disabled = false;
+                        googleBtn.classList.remove('is-success');
+                        if (googleText) googleText.textContent = 'Registrarse con Google';
+                    }, 500);
                 }
+            } catch (error) {
+                console.error("Error de autenticación con Google (popup):", error);
+                
+                // Si el navegador bloquea las ventanas emergentes, intentar fallback de redirect
+                if (error.code === 'auth/popup-blocked') {
+                    try {
+                        localStorage.setItem('google_auth_mode', currentMode);
+                        await signInWithRedirect(auth, provider);
+                        return;
+                    } catch (redirectErr) {
+                        console.error("Error en fallback de redirección:", redirectErr);
+                    }
+                }
+
+                let friendlyMsg = 'No se pudo conectar con Google. Por favor intenta nuevamente.';
+                if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+                    friendlyMsg = 'La ventana de autenticación fue cerrada por el usuario.';
+                }
+                if (errorMsg) {
+                    errorMsg.textContent = friendlyMsg;
+                    errorMsg.style.display = 'block';
+                }
+                if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                    showNotification('Error con Google', friendlyMsg, 'error');
+                }
+                
+                googleBtn.classList.remove('is-loading');
+                googleBtn.classList.add('is-error');
+                setTimeout(() => {
+                    googleBtn.classList.remove('is-error');
+                    if (googleText) googleText.textContent = currentMode === 'login' ? 'Iniciar con Google' : 'Registrarse con Google';
+                }, 1500);
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
+                if (googleBtn) googleBtn.disabled = false;
             }
         });
     }

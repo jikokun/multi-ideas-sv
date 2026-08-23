@@ -10,6 +10,8 @@ import {
     updateProfile,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     getAdditionalUserInfo,
     signOut
 } from "../firebase-config.js";
@@ -1748,76 +1750,99 @@ function createAuthModal() {
         }
 
         const provider = new GoogleAuthProvider();
-        const isMobile = window.innerWidth <= 768 || /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        provider.setCustomParameters({
+            prompt: 'select_account'
+        });
 
-        if (isMobile) {
-            localStorage.setItem('google_auth_mode', isLogin ? 'login' : 'register');
-            try {
-                await signInWithRedirect(auth, provider);
-            } catch (error) {
-                console.error("Error en redirect de Google (ratings):", error);
-                if (btn) {
-                    btn.classList.remove('is-loading');
-                    btn.classList.add('is-error');
-                    if (textSpan) textSpan.textContent = originalText;
-                }
-                alert("No se pudo iniciar la redirección de Google.");
-            }
-        } else {
-            try {
-                const result = await signInWithPopup(auth, provider);
-                const additionalUserInfo = getAdditionalUserInfo(result);
-                
-                if (isLogin) {
-                    if (additionalUserInfo && additionalUserInfo.isNewUser) {
-                        const user = result.user;
-                        await user.delete();
-                        await signOut(auth);
-                        if (btn) {
-                            btn.classList.remove('is-loading');
-                            btn.classList.add('is-error');
-                            if (textSpan) textSpan.textContent = originalText;
-                        }
-                        alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
-                        // Cambiar a registro
-                        loginForm.style.display = 'none';
-                        registerForm.style.display = 'flex';
-                    } else {
-                        // Éxito
-                        if (btn) {
-                            btn.classList.remove('is-loading');
-                            btn.classList.add('is-success');
-                            if (textSpan) textSpan.textContent = '¡Sesión iniciada! 🎉';
-                        }
-                        await new Promise(r => setTimeout(r, 850));
-                        closeAuthModal();
+        try {
+            // Usar signInWithPopup para mantener la página activa sin perder el estado en móviles y desktop
+            const result = await signInWithPopup(auth, provider);
+            const additionalUserInfo = getAdditionalUserInfo(result);
+            
+            if (isLogin) {
+                if (additionalUserInfo && additionalUserInfo.isNewUser) {
+                    const user = result.user;
+                    await user.delete();
+                    await signOut(auth);
+                    if (btn) {
+                        btn.classList.remove('is-loading');
+                        btn.classList.add('is-error');
+                        if (textSpan) textSpan.textContent = originalText;
                     }
+                    alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
+                    // Cambiar a registro
+                    loginForm.style.display = 'none';
+                    registerForm.style.display = 'flex';
                 } else {
-                    // Registro Éxito
+                    // Éxito
                     if (btn) {
                         btn.classList.remove('is-loading');
                         btn.classList.add('is-success');
-                        if (textSpan) textSpan.textContent = '¡Registrado con éxito! 🎉';
+                        if (textSpan) textSpan.textContent = '¡Sesión iniciada! 🎉';
                     }
                     await new Promise(r => setTimeout(r, 850));
                     closeAuthModal();
                 }
-            } catch (error) {
-                console.error("Error en autenticación Google:", error);
+            } else {
+                // Registro Éxito
                 if (btn) {
                     btn.classList.remove('is-loading');
-                    btn.classList.add('is-error');
-                    setTimeout(() => {
-                        btn.classList.remove('is-error');
-                        if (textSpan) textSpan.textContent = originalText;
-                    }, 1400);
+                    btn.classList.add('is-success');
+                    if (textSpan) textSpan.textContent = '¡Registrado con éxito! 🎉';
                 }
-                if (error.code !== 'auth/popup-closed-by-user') {
-                    alert("Error al conectar con Google: " + translateAuthError(error.code));
+                await new Promise(r => setTimeout(r, 850));
+                closeAuthModal();
+            }
+        } catch (error) {
+            console.error("Error en autenticación Google (popup):", error);
+            
+            // Si el navegador bloqueó la ventana emergente, intentar fallback con redirect
+            if (error.code === 'auth/popup-blocked') {
+                try {
+                    localStorage.setItem('google_auth_mode', isLogin ? 'login' : 'register');
+                    await signInWithRedirect(auth, provider);
+                    return;
+                } catch (redirectErr) {
+                    console.error("Error en fallback de redirect:", redirectErr);
                 }
+            }
+
+            if (btn) {
+                btn.classList.remove('is-loading');
+                btn.classList.add('is-error');
+                setTimeout(() => {
+                    btn.classList.remove('is-error');
+                    if (textSpan) textSpan.textContent = originalText;
+                }, 1400);
+            }
+            if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                alert("Error al conectar con Google: " + translateAuthError(error.code));
             }
         }
     };
+
+    // Procesar cualquier redirect previo si existió
+    getRedirectResult(auth).then(async (result) => {
+        if (result) {
+            const additionalUserInfo = getAdditionalUserInfo(result);
+            const savedMode = localStorage.getItem('google_auth_mode') || 'login';
+            localStorage.removeItem('google_auth_mode');
+
+            if (savedMode === 'login' && additionalUserInfo && additionalUserInfo.isNewUser) {
+                const user = result.user;
+                await user.delete();
+                await signOut(auth);
+                alert("Tu cuenta de Google no está registrada. Por favor regístrate primero usando el botón de Google en la pestaña de registro.");
+                openAuthModal();
+                loginForm.style.display = 'none';
+                registerForm.style.display = 'flex';
+            } else {
+                closeAuthModal();
+            }
+        }
+    }).catch((err) => {
+        console.warn("getRedirectResult en sensun_ratings:", err);
+    });
 
     if (googleLoginBtn) {
         googleLoginBtn.addEventListener('click', (e) => {

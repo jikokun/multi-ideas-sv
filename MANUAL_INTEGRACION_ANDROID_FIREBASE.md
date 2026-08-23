@@ -504,3 +504,64 @@ En el directorio raíz del proyecto web se ha generado el archivo [`sensunshop_d
 3. Ve a **Realtime Database**.
 4. Haz clic en los tres puntos verticales **⋮** (esquina superior derecha) y selecciona **Importar JSON**.
 5. Selecciona el archivo `sensunshop_database_seed.json` para poblar el catálogo de negocios.
+
+---
+
+## 9. Sistema de Notificaciones Push Automáticas (Firebase Cloud Functions + FCM v1)
+
+Para despertar los dispositivos Android cuando se publica una noticia u oferta en la web sin exponer claves privadas en el frontend, se ha implementado un motor serverless con **Firebase Cloud Functions**.
+
+### 📡 Arquitectura de Notificación
+1. **Trigger de Base de Datos**: Cada vez que se crea un nodo en `/sensunshop/news/{newsId}` o `/sensunshop/offers/{offerId}`, Firebase dispara la función `sendNewsNotificationOnCreate` o `sendOfferNotificationOnCreate`.
+2. **Protocolo Oficial**: Utiliza **FCM HTTP v1** autenticado de manera segura a nivel de servidor con `firebase-admin`.
+3. **Tópico Compartido**: Envía el mensaje al tópico `news` con `priority: "high"` y canal `sensun_news_channel`.
+
+### 📦 Estructura del Payload Recibido en Android
+
+```json
+{
+  "notification": {
+    "title": "¡Nueva Noticia en Sensun Shop! 📢",
+    "body": "Acabamos de publicar: [Título de la Noticia]",
+    "imageUrl": "https://..."
+  },
+  "data": {
+    "title": "¡Nueva Noticia en Sensun Shop!",
+    "message": "Acabamos de publicar: [Título de la Noticia]",
+    "type": "news",
+    "newsId": "-Nz123456",
+    "badge": "PROMO",
+    "badgeLabel": "Promoción",
+    "imgSrc": "https://...",
+    "description": "Detalle...",
+    "whatsapp": "50379130700",
+    "locationUrl": "https://maps.google.com/...",
+    "timestamp": "1724350000000"
+  },
+  "android": {
+    "priority": "high",
+    "notification": {
+      "channelId": "sensun_news_channel",
+      "sound": "default"
+    }
+  }
+}
+```
+
+### 🚀 Comandos para Desplegar las Funciones
+
+Desde la terminal en el directorio raíz del proyecto web:
+
+```powershell
+# 1. Iniciar sesión en Firebase (si no lo has hecho)
+npx firebase-tools login
+
+# 2. Desplegar únicamente las Cloud Functions
+npx firebase-tools deploy --only functions
+```
+
+### 🧪 Endpoint de Prueba Directo
+
+Puedes disparar una notificación de prueba instantánea abriendo en tu navegador:
+`https://us-central1-sensunshopweb.cloudfunctions.net/sendTestPushNotification?title=Prueba%20Sensun&message=Mensaje%20de%20prueba`
+
