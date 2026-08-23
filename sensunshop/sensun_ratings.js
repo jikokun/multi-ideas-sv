@@ -1990,7 +1990,7 @@ function createBusinessDOMCard(business) {
             <div class="negocio-links">
                 ${business.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/></svg> WhatsApp</a>` : ''}
                 ${business.locationUrl ? `<a href="${locHref}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Ubicación</a>` : ''}
-                ${business.websiteUrl ? `<a href="${business.websiteUrl}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer" style="border-color: rgba(232, 98, 26, 0.4); color: var(--ss-orange);"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg> Sitio Web</a>` : ''}
+                ${business.websiteUrl ? `<a href="${business.websiteUrl.replace(/multi-ideas-sv\.com/gi, 'multiideassv.com')}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer" style="border-color: rgba(232, 98, 26, 0.4); color: var(--ss-orange);"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg> Sitio Web</a>` : ''}
             </div>
         </div>
     `;
@@ -2084,7 +2084,10 @@ function syncBusinessesToDOM(businessesList) {
             const webBtn = targetCard.querySelector(".btn-det");
             if (webBtn) {
                 if (business.websiteUrl) {
-                    webBtn.href = business.websiteUrl;
+                    const cleanUrl = business.websiteUrl.replace(/multi-ideas-sv\.com/gi, "multiideassv.com");
+                    webBtn.href = cleanUrl;
+                    webBtn.target = "_blank";
+                    webBtn.rel = "noopener noreferrer";
                     webBtn.style.display = "";
                 }
             }
@@ -2233,7 +2236,7 @@ function setupBusinessesRealtimeSync() {
                     coords: coords,
                     lat: coords ? coords.lat : null,
                     lng: coords ? coords.lng : null,
-                    websiteUrl: item.websiteUrl || "",
+                    websiteUrl: (item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
                     accentColor: item.accentColor || "#e8621a",
@@ -2330,7 +2333,7 @@ function parseFeedItems(data, defaultBadge = "noticias") {
             whatsapp: item.whatsapp || item.telefono || "",
             whatsappMsg: item.whatsappMsg || "",
             locationUrl: item.locationUrl || item.mapsUrl || "",
-            link: item.link || item.url || item.websiteUrl || "",
+            link: (item.link || item.url || item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
             hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1 || rawBadge.includes("oferta")),
             offerMsg: item.offerMsg || item.oferta || item.descuento || "",
             type: item.type || item.section || item.seccion || "negocioslocales",
@@ -2688,7 +2691,7 @@ async function getBusinessesList() {
                     coords: coords,
                     lat: coords ? coords.lat : null,
                     lng: coords ? coords.lng : null,
-                    websiteUrl: item.websiteUrl || "",
+                    websiteUrl: (item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
                     accentColor: item.accentColor || "#e8621a",
