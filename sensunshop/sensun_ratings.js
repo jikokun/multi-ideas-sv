@@ -4255,7 +4255,559 @@ window.showSensunPopupForItemIndex = function(index) {
     }
 };
 
-window.initSensunBellAndPopupSystem = initSensunBellAndPopupSystem;
+// ==========================================================================
+// SISTEMA DEL MAPA PÚBLICO INTERACTIVO DE NEGOCIOS CERCANOS (SENSUNTEPEQUE)
+// ==========================================================================
+let publicLeafletMap = null;
+let publicMapMarkers = [];
+let publicActiveTileLayer = null;
+let publicActiveCategory = "all";
+let publicSearchFilter = "";
+let userLocationMarker = null;
+let userCoords = null;
+
+const PUBLIC_MAP_TILE_LAYERS = {
+    osm: {
+        url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+        options: { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>', maxZoom: 19 }
+    },
+    esriStreet: {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+        options: { attribution: '&copy; Esri World Street Map', maxZoom: 19 }
+    },
+    satellite: {
+        url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+        options: { attribution: '&copy; Esri World Imagery', maxZoom: 19 }
+    }
+};
+
+function getPublicCategoryVisuals(category, type) {
+    const cat = (category || "").toLowerCase();
+    const t = (type || "").toLowerCase();
+
+    if (cat.includes("comida") || cat.includes("gastro") || cat.includes("restaurante") || cat.includes("pupus") || cat.includes("taco") || cat.includes("cafe")) {
+        return { icon: "🍕", color: "#ff6b35", bg: "linear-gradient(135deg, #ff6b35, #ea580c)" };
+    }
+    if (cat.includes("foto") || cat.includes("estudio") || cat.includes("artesani")) {
+        return { icon: "📸", color: "#7b68ee", bg: "linear-gradient(135deg, #7b68ee, #6366f1)" };
+    }
+    if (cat.includes("salud") || cat.includes("medic") || cat.includes("odont") || cat.includes("ortodoncia")) {
+        return { icon: "🩺", color: "#10b981", bg: "linear-gradient(135deg, #10b981, #059669)" };
+    }
+    if (cat.includes("tecno") || cat.includes("telef") || cat.includes("desarrollo") || cat.includes("web") || cat.includes("imprenta")) {
+        return { icon: "💻", color: "#0284c7", bg: "linear-gradient(135deg, #0284c7, #0369a1)" };
+    }
+    if (cat.includes("diseno") || cat.includes("publicidad") || cat.includes("pintura") || cat.includes("rotul") || cat.includes("moda")) {
+        return { icon: "🎨", color: "#ec4899", bg: "linear-gradient(135deg, #ec4899, #db2777)" };
+    }
+    if (t.includes("emprend")) {
+        return { icon: "🚀", color: "#8b5cf6", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)" };
+    }
+    if (t.includes("profesion")) {
+        return { icon: "🎓", color: "#3b82f6", bg: "linear-gradient(135deg, #3b82f6, #2563eb)" };
+    }
+    return { icon: "🏪", color: "#f59e0b", bg: "linear-gradient(135deg, #f59e0b, #d97706)" };
+}
+
+// Calcular distancia Haversine en metros
+function calculateDistanceMeters(lat1, lon1, lat2, lon2) {
+    const R = 6371e3;
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    return R * c;
+}
+
+function formatDistance(meters) {
+    if (meters < 1000) {
+        return `${Math.round(meters)} m`;
+    }
+    return `${(meters / 1000).toFixed(1)} km`;
+}
+
+// Carga asíncrona de Leaflet si no está presente
+function loadLeafletResources() {
+    return new Promise((resolve, reject) => {
+        if (window.L && window.L.map) {
+            resolve(window.L);
+            return;
+        }
+
+        // Cargar CSS
+        if (!document.getElementById("leaflet-css")) {
+            const link = document.createElement("link");
+            link.id = "leaflet-css";
+            link.rel = "stylesheet";
+            link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+            document.head.appendChild(link);
+        }
+
+        // Cargar JS
+        if (!document.getElementById("leaflet-js")) {
+            const script = document.createElement("script");
+            script.id = "leaflet-js";
+            script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+            script.onload = () => resolve(window.L);
+            script.onerror = (err) => reject(err);
+            document.head.appendChild(script);
+        } else {
+            const existingScript = document.getElementById("leaflet-js");
+            existingScript.addEventListener("load", () => resolve(window.L));
+        }
+    });
+}
+
+// Inyección del modal en el DOM
+function ensurePublicMapModalDOM() {
+    let modalOverlay = document.getElementById("sensunPublicMapModal");
+    if (modalOverlay) return modalOverlay;
+
+    modalOverlay = document.createElement("div");
+    modalOverlay.id = "sensunPublicMapModal";
+    modalOverlay.className = "sensun-map-modal-overlay";
+    modalOverlay.innerHTML = `
+        <div class="sensun-map-modal-card">
+            <!-- Header -->
+            <div class="sensun-map-modal-header">
+                <div class="sensun-map-modal-title">
+                    <h2><span>🗺️</span> Negocios y Comercios Cercanos</h2>
+                    <p>Directorio geográfico interactivo de Sensuntepeque, Cabañas</p>
+                </div>
+                <button type="button" class="sensun-map-close-btn" onclick="closeSensunMapModal()" aria-label="Cerrar mapa">✕</button>
+            </div>
+
+            <!-- Toolbar / Filtros -->
+            <div class="sensun-map-toolbar">
+                <div class="sensun-map-categories" id="publicMapCategories">
+                    <button class="sensun-map-cat-pill active" data-cat="all" onclick="filterPublicMapByCategory('all')">🌟 Todos</button>
+                    <button class="sensun-map-cat-pill" data-cat="comida" onclick="filterPublicMapByCategory('comida')">🍕 Comida</button>
+                    <button class="sensun-map-cat-pill" data-cat="comercio" onclick="filterPublicMapByCategory('comercio')">🏪 Comercio</button>
+                    <button class="sensun-map-cat-pill" data-cat="salud" onclick="filterPublicMapByCategory('salud')">🩺 Salud</button>
+                    <button class="sensun-map-cat-pill" data-cat="emprendedores" onclick="filterPublicMapByCategory('emprendedores')">🚀 Emprendedores</button>
+                    <button class="sensun-map-cat-pill" data-cat="profesionales" onclick="filterPublicMapByCategory('profesionales')">🎓 Profesionales</button>
+                </div>
+
+                <div class="sensun-map-actions">
+                    <button type="button" class="sensun-map-tool-btn" id="btnGpsLocate" onclick="locateUserOnPublicMap()" title="Encuentra negocios más cercanos a tu posición actual">
+                        <span>📍</span> <span id="gpsBtnText">Mi Ubicación</span>
+                    </button>
+                    <button type="button" class="sensun-map-tool-btn" onclick="recenterPublicMap()" title="Centrar en el casco urbano de Sensuntepeque">
+                        <span>🎯</span> Centrar
+                    </button>
+                    <button type="button" class="sensun-map-tool-btn" onclick="fitAllPublicMapMarkers()" title="Ajustar vista para ver todos los negocios">
+                        <span>🔍</span> Ver Todos
+                    </button>
+                    <select class="sensun-map-layer-select" id="publicMapLayerSelect" onchange="changePublicMapLayer(this.value)">
+                        <option value="osm">🌐 OpenStreetMap</option>
+                        <option value="esriStreet">🗺️ Calles Claras</option>
+                        <option value="satellite">🛰️ Satélite Real</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Cuerpo Dividido: Mapa + Lista Lateral -->
+            <div class="sensun-map-body">
+                <div class="sensun-map-viewport-box">
+                    <div id="sensunPublicMap"></div>
+                </div>
+
+                <div class="sensun-map-sidebar">
+                    <div class="sensun-map-sidebar-search">
+                        <input type="text" 
+                               id="publicMapSearchInput" 
+                               class="sensun-map-search-input" 
+                               placeholder="🔍 Filtrar comercios por nombre o categoría..." 
+                               oninput="filterPublicMapBySearch(this.value)">
+                    </div>
+                    <div class="sensun-map-sidebar-list" id="publicMapSidebarList">
+                        <!-- Generado dinámicamente -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modalOverlay);
+
+    // Cerrar con Escape o clic fuera
+    modalOverlay.addEventListener("click", (e) => {
+        if (e.target === modalOverlay) closeSensunMapModal();
+    });
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && modalOverlay.classList.contains("active")) {
+            closeSensunMapModal();
+        }
+    });
+
+    return modalOverlay;
+}
+
+// Inicialización del Mapa
+function initPublicLeafletMap() {
+    if (publicLeafletMap) return;
+
+    const mapContainer = document.getElementById("sensunPublicMap");
+    if (!mapContainer) return;
+
+    publicLeafletMap = L.map('sensunPublicMap', {
+        center: [13.8755, -88.6275],
+        zoom: 16,
+        zoomControl: true,
+        attributionControl: true
+    });
+
+    changePublicMapLayer("osm");
+    L.control.scale({ imperial: false, metric: true }).addTo(publicLeafletMap);
+}
+
+function changePublicMapLayer(layerKey) {
+    if (!publicLeafletMap) return;
+
+    if (publicActiveTileLayer) {
+        publicLeafletMap.removeLayer(publicActiveTileLayer);
+    }
+
+    const config = PUBLIC_MAP_TILE_LAYERS[layerKey] || PUBLIC_MAP_TILE_LAYERS.osm;
+    publicActiveTileLayer = L.tileLayer(config.url, config.options).addTo(publicLeafletMap);
+}
+
+// Obtener lista completa de comercios con coordenadas
+function getBusinessesForMap() {
+    let list = Array.isArray(cachedParsedBusinesses) && cachedParsedBusinesses.length > 0
+        ? [...cachedParsedBusinesses]
+        : (Array.isArray(window.sensunBusinessesCache) ? [...window.sensunBusinessesCache] : []);
+
+    // Si aún no hay lista de Firebase, construir fallback con IDs conocidos
+    if (list.length === 0 && typeof SENSUN_KNOWN_COORDS_MAP !== "undefined") {
+        list = Object.keys(SENSUN_KNOWN_COORDS_MAP).map(key => {
+            const coords = SENSUN_KNOWN_COORDS_MAP[key];
+            return {
+                id: key,
+                title: key.toUpperCase(),
+                category: "comercio",
+                type: "negocioslocales",
+                description: "Comercio en Sensuntepeque",
+                coords: coords,
+                lat: coords.lat,
+                lng: coords.lng
+            };
+        });
+    }
+
+    // Asegurar coordenadas exactas
+    list.forEach(b => {
+        if (!b.coords || !b.coords.lat || !b.coords.lng) {
+            b.coords = extractCoordinates(b.locationUrl, b.id);
+            if (b.coords) {
+                b.lat = b.coords.lat;
+                b.lng = b.coords.lng;
+            }
+        }
+
+        // Calcular distancia si tenemos ubicación del usuario
+        if (userCoords && b.coords && b.coords.lat && b.coords.lng) {
+            b.distanceMeters = calculateDistanceMeters(userCoords.lat, userCoords.lng, b.coords.lat, b.coords.lng);
+        } else {
+            b.distanceMeters = null;
+        }
+    });
+
+    return list.filter(b => b.coords && b.coords.lat && b.coords.lng);
+}
+
+// Renderizar pines y lista lateral
+function renderPublicMapItems() {
+    if (!publicLeafletMap) return;
+
+    // Limpiar marcadores anteriores
+    publicMapMarkers.forEach(m => publicLeafletMap.removeLayer(m));
+    publicMapMarkers = [];
+
+    const allBusinesses = getBusinessesForMap();
+
+    // Filtrar por categoría y búsqueda
+    let filtered = allBusinesses.filter(b => {
+        // Filtro de categoría
+        let matchCat = true;
+        if (publicActiveCategory !== "all") {
+            const bCat = (b.category || "").toLowerCase();
+            const bType = (b.type || "").toLowerCase();
+            const filterCat = publicActiveCategory.toLowerCase();
+
+            if (filterCat === "emprendedores") {
+                matchCat = bType.includes("emprend");
+            } else if (filterCat === "profesionales") {
+                matchCat = bType.includes("profesion");
+            } else {
+                matchCat = bCat.includes(filterCat) || bType.includes(filterCat);
+            }
+        }
+
+        // Filtro de búsqueda
+        let matchSearch = true;
+        if (publicSearchFilter.trim() !== "") {
+            const q = publicSearchFilter.toLowerCase();
+            const title = (b.title || "").toLowerCase();
+            const desc = (b.description || "").toLowerCase();
+            const cat = (b.category || "").toLowerCase();
+            matchSearch = title.includes(q) || desc.includes(q) || cat.includes(q);
+        }
+
+        return matchCat && matchSearch;
+    });
+
+    // Si hay GPS, ordenar por proximidad
+    if (userCoords) {
+        filtered.sort((a, b) => (a.distanceMeters || Infinity) - (b.distanceMeters || Infinity));
+    }
+
+    // Renderizar pines en Leaflet
+    filtered.forEach((b, index) => {
+        const visuals = getPublicCategoryVisuals(b.category, b.type);
+        const { lat, lng } = b.coords;
+
+        const customPinIcon = L.divIcon({
+            className: 'sensun-custom-pin-wrapper',
+            html: `
+                <div class="sensun-pub-pin" style="background: ${visuals.bg};">
+                    <div class="sensun-pub-pin-inner">${visuals.icon}</div>
+                </div>
+            `,
+            iconSize: [38, 38],
+            iconAnchor: [19, 38],
+            popupAnchor: [0, -36]
+        });
+
+        const marker = L.marker([lat, lng], { icon: customPinIcon }).addTo(publicLeafletMap);
+
+        // Tooltip al pasar el cursor
+        marker.bindTooltip(`<b>${b.title}</b><br><small style="color: ${visuals.color}; font-weight: 600;">${visuals.icon} ${b.category || b.type}</small>`, {
+            direction: 'top',
+            offset: [0, -36]
+        });
+
+        // Contenido del Popup
+        const imgTag = b.imgSrc 
+            ? `<div style="width: 100%; height: 110px; border-radius: 12px; overflow: hidden; margin-bottom: 10px; background: #1e2433;">
+                 <img src="${b.imgSrc}" alt="${b.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'">
+               </div>` 
+            : '';
+
+        const distTag = b.distanceMeters !== null 
+            ? `<span style="display: inline-flex; align-items: center; gap: 4px; background: rgba(2, 132, 199, 0.12); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">
+                 📍 A ${formatDistance(b.distanceMeters)} de ti
+               </span>`
+            : '';
+
+        const mapsBtn = b.locationUrl 
+            ? `<a href="${b.locationUrl}" target="_blank" rel="noopener" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #0284c7; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">
+                 🗺️ Cómo Llegar
+               </a>`
+            : '';
+
+        const wspBtn = b.whatsapp 
+            ? `<a href="https://wa.me/${b.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(b.whatsappMsg || `Hola ${b.title}, los vi en el mapa de Sensun Shop`)}" target="_blank" rel="noopener" style="flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; background: #25D366; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">
+                 💬 WhatsApp
+               </a>`
+            : '';
+
+        marker.bindPopup(`
+            <div style="font-family: 'Poppins', sans-serif; min-width: 220px; max-width: 280px; padding: 4px 2px;">
+                ${imgTag}
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                    <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: ${visuals.color};">
+                        ${visuals.icon} ${b.category || b.type}
+                    </span>
+                </div>
+                <h3 style="margin: 0 0 6px 0; font-size: 15px; font-weight: 800; color: #1e293b; line-height: 1.25;">
+                    ${b.title}
+                </h3>
+                ${distTag}
+                <p style="margin: 0 0 10px 0; font-size: 11.5px; color: #64748b; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                    ${b.description || 'Comercio activo en Sensuntepeque.'}
+                </p>
+                <div style="display: flex; gap: 6px; margin-top: 4px;">
+                    ${mapsBtn}
+                    ${wspBtn}
+                </div>
+            </div>
+        `);
+
+        marker.bizId = b.id;
+        publicMapMarkers.push(marker);
+    });
+
+    // Renderizar lista lateral
+    renderPublicSidebarList(filtered);
+}
+
+function renderPublicSidebarList(list) {
+    const container = document.getElementById("publicMapSidebarList");
+    if (!container) return;
+
+    if (list.length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; padding: 35px 15px; color: #94a3b8; font-size: 12px;">
+                <div style="font-size: 28px; margin-bottom: 6px;">🔍</div>
+                <p style="margin: 0; font-weight: 600;">No se encontraron comercios</p>
+                <small style="color: #64748b;">Prueba con otra categoría o término de búsqueda</small>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = list.map(b => {
+        const visuals = getPublicCategoryVisuals(b.category, b.type);
+        const thumbTag = b.imgSrc 
+            ? `<img src="${b.imgSrc}" alt="${b.title}" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
+            : visuals.icon;
+
+        const distTag = b.distanceMeters !== null
+            ? `<span class="sensun-map-biz-dist">📍 ${formatDistance(b.distanceMeters)}</span>`
+            : '';
+
+        return `
+            <div class="sensun-map-biz-card" onclick="focusPublicBusinessOnMap('${b.id}')">
+                <div class="sensun-map-biz-thumb">${thumbTag}</div>
+                <div class="sensun-map-biz-info">
+                    <div class="sensun-map-biz-name">${b.title}</div>
+                    <div class="sensun-map-biz-meta">
+                        <span style="color: ${visuals.color}; font-weight: 700;">${visuals.icon} ${b.category || b.type}</span>
+                        ${distTag}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Centrar y enfocar negocio en el mapa
+window.focusPublicBusinessOnMap = function(bizId) {
+    if (!publicLeafletMap) return;
+    const marker = publicMapMarkers.find(m => m.bizId === bizId);
+    if (marker) {
+        const latlng = marker.getLatLng();
+        publicLeafletMap.flyTo(latlng, 17, { duration: 0.8 });
+        setTimeout(() => marker.openPopup(), 450);
+    }
+};
+
+// Filtro de categorías
+window.filterPublicMapByCategory = function(category) {
+    publicActiveCategory = category;
+    const pills = document.querySelectorAll("#publicMapCategories .sensun-map-cat-pill");
+    pills.forEach(p => {
+        if (p.getAttribute("data-cat") === category) {
+            p.classList.add("active");
+        } else {
+            p.classList.remove("active");
+        }
+    });
+
+    renderPublicMapItems();
+};
+
+// Filtro de búsqueda en vivo
+window.filterPublicMapBySearch = function(query) {
+    publicSearchFilter = query;
+    renderPublicMapItems();
+};
+
+// Ubicación GPS del usuario
+window.locateUserOnPublicMap = function() {
+    if (!navigator.geolocation) {
+        alert("La geolocalización no es compatible con tu navegador.");
+        return;
+    }
+
+    const gpsBtn = document.getElementById("btnGpsLocate");
+    const gpsText = document.getElementById("gpsBtnText");
+    if (gpsText) gpsText.textContent = "Ubicando...";
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            const { latitude, longitude } = pos.coords;
+            userCoords = { lat: latitude, lng: longitude };
+
+            if (gpsBtn) gpsBtn.classList.add("active-gps");
+            if (gpsText) gpsText.textContent = "Ubicado ✅";
+
+            if (publicLeafletMap) {
+                if (userLocationMarker) publicLeafletMap.removeLayer(userLocationMarker);
+
+                const userIcon = L.divIcon({
+                    className: 'sensun-user-gps-pin-wrapper',
+                    html: `<div class="sensun-user-gps-pin" title="Tu ubicación actual"></div>`,
+                    iconSize: [22, 22],
+                    iconAnchor: [11, 11]
+                });
+
+                userLocationMarker = L.marker([latitude, longitude], { icon: userIcon }).addTo(publicLeafletMap);
+                userLocationMarker.bindPopup("<b>📍 Estás aquí</b><br><small>Mostrando negocios más cercanos</small>").openPopup();
+
+                publicLeafletMap.flyTo([latitude, longitude], 16, { duration: 1.2 });
+            }
+
+            renderPublicMapItems();
+        },
+        (err) => {
+            console.warn("No se pudo obtener ubicación GPS:", err);
+            if (gpsText) gpsText.textContent = "Mi Ubicación";
+            alert("No se pudo obtener tu ubicación actual. Asegúrate de permitir el acceso al GPS en tu navegador.");
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+    );
+};
+
+window.recenterPublicMap = function() {
+    if (publicLeafletMap) {
+        publicLeafletMap.setView([13.8755, -88.6275], 16);
+    }
+};
+
+window.fitAllPublicMapMarkers = function() {
+    if (!publicLeafletMap || publicMapMarkers.length === 0) return;
+    const group = L.featureGroup(publicMapMarkers);
+    publicLeafletMap.fitBounds(group.getBounds().pad(0.12));
+};
+
+// Abrir Modal del Mapa
+window.openSensunMapModal = async function() {
+    const modalOverlay = ensurePublicMapModalDOM();
+    modalOverlay.classList.add("active");
+    document.body.style.overflow = "hidden";
+
+    try {
+        await loadLeafletResources();
+        initPublicLeafletMap();
+
+        setTimeout(() => {
+            if (publicLeafletMap) {
+                publicLeafletMap.invalidateSize();
+                renderPublicMapItems();
+            }
+        }, 150);
+    } catch (err) {
+        console.error("Error al cargar Leaflet para el mapa de Sensun Shop:", err);
+    }
+};
+
+// Cerrar Modal del Mapa
+window.closeSensunMapModal = function() {
+    const modalOverlay = document.getElementById("sensunPublicMapModal");
+    if (modalOverlay) {
+        modalOverlay.classList.remove("active");
+        document.body.style.overflow = "";
+    }
+};
 
 // Ejecutar inyección y sincronización en tiempo real cuando el DOM esté listo
 if (document.readyState === "loading") {
