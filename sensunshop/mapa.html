@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+    <title>Mapa de Negocios Cercanos | Sensun Shop</title>
+    <meta name="description"
+        content="Mapa geográfico interactivo de negocios, restaurantes, emprendimientos y profesionales en Sensuntepeque, Cabañas. Encuentra comercios cerca de ti.">
+    <link rel="icon" href="../imagenes/logos/icono-sensun-shop.webp?v=1" type="image/webp">
+    <link rel="shortcut icon" href="../imagenes/logos/icono-sensun-shop.webp?v=1" type="image/webp">
+    <link rel="apple-touch-icon" href="../imagenes/logos/icono-sensun-shop.webp?v=1">
+    <link rel="stylesheet" href="../estilos.css">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <script>
+        (function() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.querySelector('link[href*="estilos.css"]').href = '../estilo_claro.css?v=3';
+            }
+        })();
+    </script>
+
+    <style>
+        :root {
+            --ss-orange: #e8621a;
+            --ss-purple: #8e44ad;
+            --cyan: var(--ss-orange);
+            --cyan-glow: #ff7e33;
+            --cyan-light: #ffb703;
+        }
+
+        .web-logo {
+            filter: none;
+        }
+
+        /* Layout de la Página del Mapa Completo */
+        .map-page-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px 4% 60px 4%;
+        }
+
+        .map-page-header {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .map-page-header h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin: 10px 0 6px 0;
+            line-height: 1.2;
+        }
+
+        .map-page-header p {
+            color: var(--text-gray, #94a3b8);
+            font-size: 0.95rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #ffffff 20%, var(--ss-orange) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Barra de Filtros y Controles */
+        .fullmap-controls-card {
+            background: rgba(18, 22, 32, 0.8);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border: 1px solid rgba(232, 98, 26, 0.25);
+            border-radius: 18px;
+            padding: 14px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            flex-wrap: wrap;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .fullmap-categories {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            padding: 4px 0;
+        }
+
+        .fullmap-categories::-webkit-scrollbar {
+            display: none;
+        }
+
+        .fullmap-cat-btn {
+            padding: 7px 16px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            font-size: 0.84rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.22s ease;
+        }
+
+        .fullmap-cat-btn:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .fullmap-cat-btn.active {
+            background: linear-gradient(135deg, var(--ss-orange), var(--ss-purple));
+            color: #ffffff;
+            border-color: transparent;
+            box-shadow: 0 3px 12px rgba(232, 98, 26, 0.4);
+        }
+
+        .fullmap-actions-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .fullmap-action-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .fullmap-action-btn:hover {
+            background: rgba(232, 98, 26, 0.25);
+            border-color: var(--ss-orange);
+            transform: translateY(-2px);
+        }
+
+        .fullmap-action-btn.active-gps {
+            background: #0284c7;
+            border-color: #38bdf8;
+            box-shadow: 0 0 15px rgba(2, 132, 199, 0.5);
+            animation: gpsPulse 2s infinite;
+        }
+
+        .fullmap-layer-dropdown {
+            padding: 8px 12px;
+            border-radius: 12px;
+            background: #181d2a;
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+            font-size: 0.84rem;
+            font-weight: 700;
+            cursor: pointer;
+            outline: none;
+        }
+
+        /* Contenedor Principal: Mapa y Barra Lateral */
+        .fullmap-main-box {
+            display: flex;
+            background: #0e121a;
+            border: 1px solid rgba(232, 98, 26, 0.3);
+            border-radius: 24px;
+            height: 74vh;
+            min-height: 550px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(232, 98, 26, 0.1);
+        }
+
+        .fullmap-viewport {
+            flex: 1;
+            position: relative;
+            height: 100%;
+        }
+
+        #sensunFullMap {
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: #151922;
+        }
+
+        .fullmap-sidebar-panel {
+            width: 360px;
+            background: #121620;
+            border-left: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+
+        .fullmap-sidebar-head {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .fullmap-search-bar {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            background: #181e2a;
+            border: 1.5px solid rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            font-size: 0.85rem;
+            outline: none;
+            box-sizing: border-box;
+            transition: all 0.2s ease;
+        }
+
+        .fullmap-search-bar:focus {
+            border-color: var(--ss-orange);
+            box-shadow: 0 0 15px rgba(232, 98, 26, 0.3);
+        }
+
+        .fullmap-count-badge {
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fullmap-sidebar-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+
+        .fullmap-sidebar-scroll::-webkit-scrollbar {
+            display: none;
+            width: 0;
+            height: 0;
+        }
+
+        .fullmap-item-card {
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            border-radius: 14px;
+            cursor: pointer;
+            transition: all 0.22s ease;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .fullmap-item-card:hover {
+            background: rgba(232, 98, 26, 0.14);
+            border-color: var(--ss-orange);
+            transform: translateX(4px);
+        }
+
+        .fullmap-item-thumb {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: #1c2230;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+            flex-shrink: 0;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .fullmap-item-thumb img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .fullmap-item-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fullmap-item-title {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fullmap-item-sub {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 3px;
+        }
+
+        .fullmap-dist-pill {
+            display: inline-block;
+            padding: 1px 7px;
+            border-radius: 6px;
+            background: rgba(2, 132, 199, 0.25);
+            color: #38bdf8;
+            font-weight: 800;
+            font-size: 0.72rem;
+        }
+
+        /* Pines Leaflet Personalizados */
+        .sensun-full-pin {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50% 50% 50% 0;
+            transform: rotate(-45deg);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+            border: 2.5px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .sensun-full-pin:hover {
+            transform: rotate(-45deg) scale(1.22);
+            z-index: 1000 !important;
+        }
+
+        .sensun-full-pin-inner {
+            transform: rotate(45deg);
+            font-size: 17px;
+            line-height: 1;
+        }
+
+        /* User Location Pin */
+        .sensun-user-pin {
+            width: 24px;
+            height: 24px;
+            background: #0284c7;
+            border: 3px solid #ffffff;
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(2, 132, 199, 0.9);
+            position: relative;
+        }
+
+        .sensun-user-pin::after {
+            content: '';
+            position: absolute;
+            inset: -7px;
+            border-radius: 50%;
+            border: 2px solid #38bdf8;
+            animation: gpsRing 1.8s infinite;
+        }
+
+        @keyframes gpsRing {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(2.3); opacity: 0; }
+        }
+
+        @keyframes gpsPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.04); }
+            100% { transform: scale(1); }
+        }
+
+        /* Adaptación Responsive */
+        @media (max-width: 900px) {
+            .fullmap-main-box {
+                flex-direction: column;
+                height: 82vh;
+            }
+            .fullmap-sidebar-panel {
+                width: 100%;
+                height: 220px;
+                border-left: none;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+            .fullmap-viewport {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header id="global-header"></header>
+
+    <main class="map-page-wrapper">
+        <!-- Encabezado de la Página -->
+        <div class="map-page-header">
+            <span class="badge" style="background: rgba(232, 98, 26, 0.15); color: var(--ss-orange); border-color: rgba(232, 98, 26, 0.3);">
+                DIRECTORIO GEOGRÁFICO INTERACTIVO
+            </span>
+            <h1>Mapa de Negocios en <span class="gradient-text">Sensuntepeque</span></h1>
+            <p>Explora la ubicación exacta de comercios, restaurantes, servicios y profesionales locales en Cabañas con direcciones y contacto directo.</p>
+        </div>
+
+        <!-- Barra de Filtros y Herramientas -->
+        <div class="fullmap-controls-card">
+            <div class="fullmap-categories" id="fullMapCategoryPills">
+                <button class="fullmap-cat-btn active" data-cat="all" onclick="setFullMapCategory('all')">🌟 Todos</button>
+                <button class="fullmap-cat-btn" data-cat="comida" onclick="setFullMapCategory('comida')">🍕 Comida</button>
+                <button class="fullmap-cat-btn" data-cat="comercio" onclick="setFullMapCategory('comercio')">🏪 Comercio</button>
+                <button class="fullmap-cat-btn" data-cat="salud" onclick="setFullMapCategory('salud')">🩺 Salud</button>
+                <button class="fullmap-cat-btn" data-cat="emprendedores" onclick="setFullMapCategory('emprendedores')">🚀 Emprendedores</button>
+                <button class="fullmap-cat-btn" data-cat="profesionales" onclick="setFullMapCategory('profesionales')">🎓 Profesionales</button>
+            </div>
+
+            <div class="fullmap-actions-group">
+                <button type="button" class="fullmap-action-btn" id="btnFullGps" onclick="triggerFullMapGps()" title="Calcular negocios más cercanos a mi ubicación actual">
+                    <span>📍</span> <span id="fullGpsLabel">Mi Ubicación</span>
+                </button>
+                <button type="button" class="fullmap-action-btn" onclick="recenterFullMap()" title="Centrar mapa en el casco urbano de Sensuntepeque">
+                    <span>🎯</span> Centrar
+                </button>
+                <button type="button" class="fullmap-action-btn" onclick="fitFullMapAllMarkers()" title="Ver todos los comercios en pantalla">
+                    <span>🔍</span> Ver Todos
+                </button>
+                <select class="fullmap-layer-dropdown" id="fullMapLayerSelect" onchange="changeFullMapLayer(this.value)">
+                    <option value="osm">🌐 OpenStreetMap</option>
+                    <option value="esriStreet">🗺️ Calles Claras</option>
+                    <option value="satellite">🛰️ Satélite Real</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Contenedor del Mapa Dividido -->
+        <div class="fullmap-main-box">
+            <div class="fullmap-viewport">
+                <div id="sensunFullMap"></div>
+            </div>
+
+            <div class="fullmap-sidebar-panel">
+                <div class="fullmap-sidebar-head">
+                    <input type="text" 
+                           id="fullMapSearch" 
+                           class="fullmap-search-bar" 
+                           placeholder="🔍 Buscar por nombre o rubro..." 
+                           oninput="onFullMapSearch(this.value)">
+                    <div class="fullmap-count-badge">
+                        <span id="fullMapCountText">Cargando negocios...</span>
+                        <span style="color: var(--ss-orange);">Sensuntepeque</span>
+                    </div>
+                </div>
+
+                <div class="fullmap-sidebar-scroll" id="fullMapSidebarList">
+                    <!-- Generado dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Script principal de navegación global -->
+    <script src="../script.js"></script>
+    <!-- Script de datos Firebase y valoraciones -->
+    <script type="module" src="sensun_ratings.js?v=5"></script>
+
+    <!-- Lógica del Mapa Completo -->
+    <script>
+        let fullMap = null;
+        let fullMarkers = [];
+        let fullTileLayer = null;
+        let fullActiveCat = "all";
+        let fullSearchText = "";
+        let fullUserPos = null;
+        let fullUserMarker = null;
+
+        const FULL_LAYERS = {
+            osm: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }
+            },
+            esriStreet: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                options: { attribution: '&copy; Esri World Street Map', maxZoom: 19 }
+            },
+            satellite: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                options: { attribution: '&copy; Esri World Imagery', maxZoom: 19 }
+            }
+        };
+
+        const SENSUN_EXACT_COORDS = {
+            "arphotostudio": { lat: 13.873011, lng: -88.620773, name: "A&R Photo Studio", cat: "Fotografía", type: "negocioslocales" },
+            "lasterrazas": { lat: 13.869501, lng: -88.619366, name: "Las Terrazas", cat: "Restaurante", type: "negocioslocales" },
+            "neg-006": { lat: 13.878103, lng: -88.630060, name: "Comedor y Pupusería Gloria", cat: "Comida Típica", type: "negocioslocales" },
+            "neg-005": { lat: 13.874233, lng: -88.628282, name: "Mr. Taco", cat: "Restaurante Mexicano", type: "negocioslocales" },
+            "neg-004": { lat: 13.873753, lng: -88.628258, name: "Bistro Café La Bicicleta", cat: "Café & Bistro", type: "negocioslocales" },
+            "neg-003": { lat: 13.876198, lng: -88.621559, name: "Lácteos Mamá Rosa", cat: "Comercio", type: "negocioslocales" },
+            "disenograficopatrick": { lat: 13.878031, lng: -88.628745, name: "Diseño Gráfico Patrick", cat: "Diseño & Imprenta", type: "negocioslocales" },
+            "emp-001": { lat: 13.875139, lng: -88.626428, name: "GIOSMARK", cat: "Tecnología", type: "emprendedores" },
+            "emp-002": { lat: 13.876704, lng: -88.629354, name: "Multi Ideas Sv", cat: "Desarrollo Web", type: "emprendedores" },
+            "drjuliocesarvelasco": { lat: 13.876388, lng: -88.630002, name: "Dr. Julio César Velasco Flores", cat: "Salud & Medicina", type: "profesionales" },
+            "drhenrymartinez": { lat: 13.875842, lng: -88.628102, name: "Dr. Henry Martínez", cat: "Salud & Odontología", type: "profesionales" }
+        };
+
+        function getFullCatVisuals(category, type) {
+            const cat = (category || "").toLowerCase();
+            const t = (type || "").toLowerCase();
+
+            if (cat.includes("comida") || cat.includes("gastro") || cat.includes("restaurante") || cat.includes("pupus") || cat.includes("taco") || cat.includes("cafe")) {
+                return { icon: "🍕", color: "#ff6b35", bg: "linear-gradient(135deg, #ff6b35, #ea580c)" };
+            }
+            if (cat.includes("foto") || cat.includes("estudio") || cat.includes("artesani")) {
+                return { icon: "📸", color: "#7b68ee", bg: "linear-gradient(135deg, #7b68ee, #6366f1)" };
+            }
+            if (cat.includes("salud") || cat.includes("medic") || cat.includes("odont") || cat.includes("ortodoncia")) {
+                return { icon: "🩺", color: "#10b981", bg: "linear-gradient(135deg, #10b981, #059669)" };
+            }
+            if (cat.includes("tecno") || cat.includes("telef") || cat.includes("desarrollo") || cat.includes("web") || cat.includes("imprenta")) {
+                return { icon: "💻", color: "#0284c7", bg: "linear-gradient(135deg, #0284c7, #0369a1)" };
+            }
+            if (cat.includes("diseno") || cat.includes("publicidad") || cat.includes("pintura") || cat.includes("rotul") || cat.includes("moda")) {
+                return { icon: "🎨", color: "#ec4899", bg: "linear-gradient(135deg, #ec4899, #db2777)" };
+            }
+            if (t.includes("emprend")) {
+                return { icon: "🚀", color: "#8b5cf6", bg: "linear-gradient(135deg, #8b5cf6, #7c3aed)" };
+            }
+            if (t.includes("profesion")) {
+                return { icon: "🎓", color: "#3b82f6", bg: "linear-gradient(135deg, #3b82f6, #2563eb)" };
+            }
+            return { icon: "🏪", color: "#f59e0b", bg: "linear-gradient(135deg, #f59e0b, #d97706)" };
+        }
+
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371e3;
+            const φ1 = lat1 * Math.PI / 180, φ2 = lat2 * Math.PI / 180;
+            const Δφ = (lat2 - lat1) * Math.PI / 180, Δλ = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        function formatDist(meters) {
+            return meters < 1000 ? `${Math.round(meters)} m` : `${(meters/1000).toFixed(1)} km`;
+        }
+
+        function initFullMap() {
+            fullMap = L.map('sensunFullMap', {
+                center: [13.8755, -88.6275],
+                zoom: 16,
+                zoomControl: true
+            });
+
+            changeFullMapLayer("osm");
+            L.control.scale({ imperial: false, metric: true }).addTo(fullMap);
+            renderFullMapData();
+        }
+
+        function changeFullMapLayer(layerKey) {
+            if (!fullMap) return;
+            if (fullTileLayer) fullMap.removeLayer(fullTileLayer);
+            const cfg = FULL_LAYERS[layerKey] || FULL_LAYERS.osm;
+            fullTileLayer = L.tileLayer(cfg.url, cfg.options).addTo(fullMap);
+        }
+
+        function getFullMapList() {
+            let list = window.sensunBusinessesCache && window.sensunBusinessesCache.length > 0
+                ? [...window.sensunBusinessesCache]
+                : [];
+
+            if (list.length === 0) {
+                list = Object.keys(SENSUN_EXACT_COORDS).map(k => {
+                    const c = SENSUN_EXACT_COORDS[k];
+                    return {
+                        id: k,
+                        title: c.name,
+                        category: c.cat,
+                        type: c.type,
+                        description: "Comercio en Sensuntepeque, Cabañas.",
+                        coords: { lat: c.lat, lng: c.lng }
+                    };
+                });
+            }
+
+            list.forEach(b => {
+                if (!b.coords || !b.coords.lat) {
+                    const known = SENSUN_EXACT_COORDS[b.id];
+                    if (known) b.coords = { lat: known.lat, lng: known.lng };
+                }
+
+                if (fullUserPos && b.coords && b.coords.lat) {
+                    b.dist = calculateDistance(fullUserPos.lat, fullUserPos.lng, b.coords.lat, b.coords.lng);
+                } else {
+                    b.dist = null;
+                }
+            });
+
+            return list.filter(b => b.coords && b.coords.lat);
+        }
+
+        function renderFullMapData() {
+            if (!fullMap) return;
+
+            fullMarkers.forEach(m => fullMap.removeLayer(m));
+            fullMarkers = [];
+
+            const list = getFullMapList();
+
+            let filtered = list.filter(b => {
+                let matchCat = true;
+                if (fullActiveCat !== "all") {
+                    const bCat = (b.category || "").toLowerCase();
+                    const bType = (b.type || "").toLowerCase();
+                    const fCat = fullActiveCat.toLowerCase();
+                    if (fCat === "emprendedores") matchCat = bType.includes("emprend");
+                    else if (fCat === "profesionales") matchCat = bType.includes("profesion");
+                    else matchCat = bCat.includes(fCat) || bType.includes(fCat);
+                }
+
+                let matchSearch = true;
+                if (fullSearchText.trim() !== "") {
+                    const q = fullSearchText.toLowerCase();
+                    matchSearch = (b.title||"").toLowerCase().includes(q) || (b.category||"").toLowerCase().includes(q) || (b.description||"").toLowerCase().includes(q);
+                }
+
+                return matchCat && matchSearch;
+            });
+
+            if (fullUserPos) {
+                filtered.sort((a, b) => (a.dist || Infinity) - (b.dist || Infinity));
+            }
+
+            filtered.forEach(b => {
+                const visuals = getFullCatVisuals(b.category, b.type);
+                const pinIcon = L.divIcon({
+                    className: 'sensun-custom-pin-node',
+                    html: `
+                        <div class="sensun-full-pin" style="background: ${visuals.bg};">
+                            <div class="sensun-full-pin-inner">${visuals.icon}</div>
+                        </div>
+                    `,
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 40],
+                    popupAnchor: [0, -38]
+                });
+
+                const marker = L.marker([b.coords.lat, b.coords.lng], { icon: pinIcon }).addTo(fullMap);
+
+                marker.bindTooltip(`<b>${b.title}</b><br><small style="color: ${visuals.color}; font-weight: 700;">${visuals.icon} ${b.category || b.type}</small>`, {
+                    direction: 'top',
+                    offset: [0, -38]
+                });
+
+                const thumb = b.imgSrc ? `<div style="width: 100%; height: 115px; border-radius: 12px; overflow: hidden; margin-bottom: 8px;"><img src="${b.imgSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : '';
+                const distTag = b.dist !== null ? `<div style="background: rgba(2, 132, 199, 0.15); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">📍 A ${formatDist(b.dist)} de ti</div>` : '';
+                const wspBtn = b.whatsapp ? `<a href="https://wa.me/${b.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola ' + b.title + ', los vi en el mapa de Sensun Shop')}" target="_blank" style="flex: 1; text-align: center; background: #25D366; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">💬 WhatsApp</a>` : '';
+                const mapBtn = b.locationUrl ? `<a href="${b.locationUrl}" target="_blank" style="flex: 1; text-align: center; background: #0284c7; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">🗺️ Cómo Llegar</a>` : '';
+
+                marker.bindPopup(`
+                    <div style="font-family: 'Poppins', sans-serif; min-width: 220px; max-width: 270px; padding: 2px;">
+                        ${thumb}
+                        <span style="font-size: 10.5px; font-weight: 800; text-transform: uppercase; color: ${visuals.color};">${visuals.icon} ${b.category || b.type}</span>
+                        <h3 style="margin: 3px 0 6px 0; font-size: 15px; font-weight: 800; color: #1e293b; line-height: 1.25;">${b.title}</h3>
+                        ${distTag}
+                        <p style="margin: 0 0 10px 0; font-size: 11.5px; color: #64748b; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">${b.description || 'Comercio activo en Sensuntepeque.'}</p>
+                        <div style="display: flex; gap: 6px;">${mapBtn} ${wspBtn}</div>
+                    </div>
+                `);
+
+                marker.bizId = b.id;
+                fullMarkers.push(marker);
+            });
+
+            renderFullSidebar(filtered);
+        }
+
+        function renderFullSidebar(list) {
+            const container = document.getElementById("fullMapSidebarList");
+            const countText = document.getElementById("fullMapCountText");
+            if (countText) countText.textContent = `${list.length} comercio${list.length !== 1 ? 's' : ''} disponible${list.length !== 1 ? 's' : ''}`;
+
+            if (!container) return;
+
+            if (list.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px 15px; color: #94a3b8; font-size: 13px;">
+                        <div style="font-size: 32px; margin-bottom: 6px;">🔍</div>
+                        <p style="margin: 0; font-weight: 600;">No hay resultados</p>
+                        <small style="color: #64748b;">Prueba con otra categoría o búsqueda</small>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = list.map(b => {
+                const visuals = getFullCatVisuals(b.category, b.type);
+                const thumb = b.imgSrc 
+                    ? `<img src="${b.imgSrc}" alt="${b.title}" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
+                    : visuals.icon;
+                const distBadge = b.dist !== null ? `<span class="fullmap-dist-pill">📍 ${formatDist(b.dist)}</span>` : '';
+
+                return `
+                    <div class="fullmap-item-card" onclick="focusFullBusiness('${b.id}')">
+                        <div class="fullmap-item-thumb">${thumb}</div>
+                        <div class="fullmap-item-info">
+                            <div class="fullmap-item-title">${b.title}</div>
+                            <div class="fullmap-item-sub">
+                                <span style="color: ${visuals.color}; font-weight: 700;">${visuals.icon} ${b.category || b.type}</span>
+                                ${distBadge}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function focusFullBusiness(bizId) {
+            if (!fullMap) return;
+            const marker = fullMarkers.find(m => m.bizId === bizId);
+            if (marker) {
+                fullMap.flyTo(marker.getLatLng(), 17, { duration: 0.8 });
+                setTimeout(() => marker.openPopup(), 450);
+            }
+        }
+
+        function setFullMapCategory(cat) {
+            fullActiveCat = cat;
+            document.querySelectorAll("#fullMapCategoryPills .fullmap-cat-btn").forEach(p => {
+                p.classList.toggle("active", p.getAttribute("data-cat") === cat);
+            });
+            renderFullMapData();
+        }
+
+        function onFullMapSearch(text) {
+            fullSearchText = text;
+            renderFullMapData();
+        }
+
+        function triggerFullMapGps() {
+            if (!navigator.geolocation) {
+                alert("Tu navegador no soporta geolocalización.");
+                return;
+            }
+
+            const btn = document.getElementById("btnFullGps");
+            const lbl = document.getElementById("fullGpsLabel");
+            if (lbl) lbl.textContent = "Ubicando...";
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    fullUserPos = { lat: latitude, lng: longitude };
+
+                    if (btn) btn.classList.add("active-gps");
+                    if (lbl) lbl.textContent = "Ubicado ✅";
+
+                    if (fullMap) {
+                        if (fullUserMarker) fullMap.removeLayer(fullUserMarker);
+
+                        const uIcon = L.divIcon({
+                            className: 'sensun-user-pin-wrap',
+                            html: `<div class="sensun-user-pin" title="Tu posición actual"></div>`,
+                            iconSize: [24, 24],
+                            iconAnchor: [12, 12]
+                        });
+
+                        fullUserMarker = L.marker([latitude, longitude], { icon: uIcon }).addTo(fullMap);
+                        fullUserMarker.bindPopup("<b>📍 Estás aquí</b><br><small>Mostrando comercios más cercanos</small>").openPopup();
+
+                        fullMap.flyTo([latitude, longitude], 16, { duration: 1.2 });
+                    }
+
+                    renderFullMapData();
+                },
+                (err) => {
+                    if (lbl) lbl.textContent = "Mi Ubicación";
+                    alert("Por favor permite el acceso al GPS para encontrar negocios cercanos.");
+                },
+                { enableHighAccuracy: true, timeout: 9000 }
+            );
+        }
+
+        function recenterFullMap() {
+            if (fullMap) fullMap.setView([13.8755, -88.6275], 16);
+        }
+
+        function fitFullMapAllMarkers() {
+            if (!fullMap || fullMarkers.length === 0) return;
+            const group = L.featureGroup(fullMarkers);
+            fullMap.fitBounds(group.getBounds().pad(0.12));
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            initFullMap();
+            document.addEventListener("sensun-businesses-updated", () => {
+                renderFullMapData();
+            });
+        });
+    </script>
+</body>
+
+</html>
