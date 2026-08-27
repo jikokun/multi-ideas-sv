@@ -1717,20 +1717,85 @@
             <div class="page-header">
                 <div class="page-title-section">
                     <h1>Configuración del Sistema</h1>
-                    <p>Ajustes de sincronización y claves operativas</p>
+                    <p>Ajustes de seguridad, cambio de contraseña/PIN y sincronización</p>
                 </div>
             </div>
-            <div style="background: white; padding: 32px; border-radius: 24px; border: 1.5px solid var(--border-color); box-shadow: var(--card-shadow); max-width: 650px;">
-                <h3 style="margin-bottom: 18px; color: #1a1a2e; font-size: 17px;">🔒 Seguridad & Acceso</h3>
-                <div class="form-group">
-                    <label class="form-label">PIN de Seguridad Obligatorio</label>
-                    <input type="text" class="form-input" value="50608892" readonly style="background: #f1f5f9; font-weight: 700; letter-spacing: 2px;">
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; max-width: 960px;">
+                <!-- Tarjeta de Gestión de PIN / Contraseña -->
+                <div style="background: white; padding: 28px; border-radius: 24px; border: 1.5px solid var(--border-color); box-shadow: var(--card-shadow);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                        <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(255, 107, 53, 0.12); display: flex; align-items: center; justify-content: center; font-size: 20px;">🔐</div>
+                        <div>
+                            <h3 style="color: #1a1a2e; font-size: 16.5px; font-weight: 700; margin: 0;">PIN / Contraseña de Acceso</h3>
+                            <p style="color: var(--text-muted); font-size: 12px; margin: 2px 0 0 0;">Modifica la clave numérica para desbloquear el panel</p>
+                        </div>
+                    </div>
+
+                    <!-- PIN Actual -->
+                    <div class="form-group">
+                        <label class="form-label">PIN Actual Activo</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="password" class="form-input" id="settingCurrentPinDisplay" value="50608892" readonly style="background: #f8fafc; font-weight: 700; letter-spacing: 3px; font-size: 16px;">
+                            <button type="button" class="btn btn-secondary" id="btnTogglePinVisibility" onclick="togglePinVisibility()" style="padding: 11px 14px; font-size: 14px;" title="Ver u ocultar PIN">👁️</button>
+                        </div>
+                        <small style="color: #64748b; font-size: 11px; display: block; margin-top: 4px;">💡 Sincronizado en tiempo real con Firebase RTDB y almacenamiento local.</small>
+                    </div>
+
+                    <hr style="border: 0; border-top: 1px solid #f1f5f9; margin: 18px 0;">
+
+                    <!-- Formulario de Cambio de PIN -->
+                    <div class="form-group">
+                        <label class="form-label">Nuevo PIN (4 a 8 dígitos numéricos) <span class="required">*</span></label>
+                        <input type="password" class="form-input" id="inputNewAdminPin" placeholder="Ej: 12345678" maxlength="8" style="letter-spacing: 2px; font-weight: 600;">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Confirmar Nuevo PIN <span class="required">*</span></label>
+                        <input type="password" class="form-input" id="inputConfirmAdminPin" placeholder="Repite el nuevo PIN" maxlength="8" style="letter-spacing: 2px; font-weight: 600;">
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+                        <button type="button" class="btn btn-primary" onclick="saveNewAdminPin()" style="width: 100%; justify-content: center;">
+                            💾 Guardar y Actualizar PIN
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="resetDefaultAdminPin()" style="width: 100%; justify-content: center; font-size: 12px; color: #64748b;">
+                            🔄 Restablecer PIN por defecto (50608892)
+                        </button>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Ruta de Base de Datos</label>
-                    <input type="text" class="form-input" value="https://sensunshopweb-default-rtdb.firebaseio.com" readonly style="background: #f1f5f9;">
+
+                <!-- Tarjeta de Información y Conexión -->
+                <div style="background: white; padding: 28px; border-radius: 24px; border: 1.5px solid var(--border-color); box-shadow: var(--card-shadow); display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px;">
+                            <div style="width: 40px; height: 40px; border-radius: 12px; background: rgba(123, 104, 238, 0.12); display: flex; align-items: center; justify-content: center; font-size: 20px;">⚡</div>
+                            <div>
+                                <h3 style="color: #1a1a2e; font-size: 16.5px; font-weight: 700; margin: 0;">Entorno & Firebase</h3>
+                                <p style="color: var(--text-muted); font-size: 12px; margin: 2px 0 0 0;">Configuración de nodos y servicios en la nube</p>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Base de Datos Firebase RTDB</label>
+                            <input type="text" class="form-input" value="https://sensunshopweb-default-rtdb.firebaseio.com" readonly style="background: #f8fafc; font-size: 12.5px;">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Script de Google Drive (Subida de fotos)</label>
+                            <input type="text" class="form-input" value="https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec" readonly style="background: #f8fafc; font-size: 11.5px;">
+                        </div>
+
+                        <div style="padding: 14px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 14px; margin-top: 14px;">
+                            <div style="font-size: 12.5px; font-weight: 700; color: #166534; margin-bottom: 4px;">🟢 Sincronización Automática Activa</div>
+                            <div style="font-size: 11.5px; color: #15803d; line-height: 1.4;">Cualquier cambio de contraseña se actualiza en la nube y se aplica a todas tus sesiones de administración.</div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 20px; padding-top: 14px; border-top: 1px solid #f1f5f9; text-align: center; font-size: 11.5px; color: var(--text-muted);">
+                        Sensun Shop Web Admin v2.4 • Sensuntepeque, El Salvador
+                    </div>
                 </div>
-                <button class="btn btn-primary" onclick="showToast('✅ Configuración verificada')">💾 Guardar Preferencias</button>
             </div>
         </div>
     </main>
@@ -2009,17 +2074,29 @@
         }
 
         // ==========================================================
-        // SISTEMA DE SEGURIDAD CON PIN GATE (50608892)
-        // OBLIGATORIO AL ENTRAR O RECARGAR
+        // SISTEMA DE SEGURIDAD CON PIN GATE DINÁMICO & CONFIGURABLE
+        // (Por defecto 50608892 o personalizado en Firebase / LocalStorage)
         // ==========================================================
-        const SECURITY_PIN = "50608892";
+        const DEFAULT_SECURITY_PIN = "50608892";
+        let currentSecurityPin = localStorage.getItem("sensunshop_admin_pin") || DEFAULT_SECURITY_PIN;
         let enteredPin = "";
+        let isPinVisibleInSettings = false;
+
         const lockScreen = document.getElementById("securityLockScreen");
         const pinCard = document.getElementById("pinCard");
-        const pinDots = document.getElementById("pinDots").children;
         const pinErrorMsg = document.getElementById("pinErrorMsg");
 
+        function renderPinDots() {
+            const dotsContainer = document.getElementById("pinDots");
+            if (!dotsContainer) return;
+            const targetLength = currentSecurityPin.length || 8;
+            dotsContainer.innerHTML = Array.from({ length: targetLength }, () => '<div class="pin-dot"></div>').join('');
+        }
+
         function updatePinDisplay() {
+            const dotsContainer = document.getElementById("pinDots");
+            if (!dotsContainer) return;
+            const pinDots = dotsContainer.children;
             for (let i = 0; i < pinDots.length; i++) {
                 if (i < enteredPin.length) {
                     pinDots[i].classList.add("filled");
@@ -2030,19 +2107,20 @@
         }
 
         function handlePinDigit(digit) {
-            if (enteredPin.length < 8) {
+            const maxLen = currentSecurityPin.length || 8;
+            if (enteredPin.length < maxLen) {
                 enteredPin += digit;
                 updatePinDisplay();
                 pinErrorMsg.textContent = "";
 
-                if (enteredPin.length === 8) {
+                if (enteredPin.length === maxLen) {
                     verifyPin();
                 }
             }
         }
 
         async function verifyPin() {
-            if (enteredPin === SECURITY_PIN) {
+            if (enteredPin === currentSecurityPin) {
                 pinErrorMsg.textContent = "✅ Acceso autorizado...";
                 pinErrorMsg.style.color = "#10b981";
 
@@ -2071,7 +2149,104 @@
             }
         }
 
-        // Keypad buttons
+        function updatePinSettingUI() {
+            const display = document.getElementById("settingCurrentPinDisplay");
+            if (display) {
+                display.value = currentSecurityPin;
+            }
+        }
+
+        window.togglePinVisibility = function() {
+            const display = document.getElementById("settingCurrentPinDisplay");
+            const btn = document.getElementById("btnTogglePinVisibility");
+            if (!display || !btn) return;
+
+            isPinVisibleInSettings = !isPinVisibleInSettings;
+            display.type = isPinVisibleInSettings ? "text" : "password";
+            btn.textContent = isPinVisibleInSettings ? "🙈" : "👁️";
+        };
+
+        window.saveNewAdminPin = async function() {
+            const newPin = (document.getElementById("inputNewAdminPin").value || "").trim();
+            const confirmPin = (document.getElementById("inputConfirmAdminPin").value || "").trim();
+
+            if (!newPin || !confirmPin) {
+                showToast("⚠️ Ingresa y confirma el nuevo PIN", true);
+                return;
+            }
+
+            if (!/^\d{4,8}$/.test(newPin)) {
+                showToast("⚠️ El PIN debe contener entre 4 y 8 dígitos numéricos", true);
+                return;
+            }
+
+            if (newPin !== confirmPin) {
+                showToast("⚠️ El nuevo PIN y su confirmación no coinciden", true);
+                return;
+            }
+
+            try {
+                currentSecurityPin = newPin;
+                localStorage.setItem("sensunshop_admin_pin", newPin);
+                updatePinSettingUI();
+                renderPinDots();
+
+                document.getElementById("inputNewAdminPin").value = "";
+                document.getElementById("inputConfirmAdminPin").value = "";
+
+                // Guardar en Firebase RTDB
+                const pinConfigRef = ref(rtdb, "sensunshop/config/securityPin");
+                await set(pinConfigRef, newPin);
+
+                showToast("✅ ¡PIN de seguridad actualizado con éxito!");
+            } catch (err) {
+                console.error("Error al guardar PIN en Firebase:", err);
+                showToast("✅ PIN actualizado localmente");
+            }
+        };
+
+        window.resetDefaultAdminPin = async function() {
+            if (confirm(`¿Deseas restablecer el PIN de seguridad al valor por defecto (${DEFAULT_SECURITY_PIN})?`)) {
+                try {
+                    currentSecurityPin = DEFAULT_SECURITY_PIN;
+                    localStorage.setItem("sensunshop_admin_pin", DEFAULT_SECURITY_PIN);
+                    updatePinSettingUI();
+                    renderPinDots();
+
+                    document.getElementById("inputNewAdminPin").value = "";
+                    document.getElementById("inputConfirmAdminPin").value = "";
+
+                    const pinConfigRef = ref(rtdb, "sensunshop/config/securityPin");
+                    await set(pinConfigRef, DEFAULT_SECURITY_PIN);
+
+                    showToast(`🔄 PIN restablecido a ${DEFAULT_SECURITY_PIN}`);
+                } catch (err) {
+                    showToast(`🔄 PIN restablecido localmente a ${DEFAULT_SECURITY_PIN}`);
+                }
+            }
+        };
+
+        // Escuchar cambios de PIN sincronizados desde Firebase Realtime Database
+        try {
+            const pinConfigRef = ref(rtdb, "sensunshop/config/securityPin");
+            onValue(pinConfigRef, (snapshot) => {
+                const remotePin = snapshot.val();
+                if (remotePin && typeof remotePin === "string" && /^\d{4,8}$/.test(remotePin.trim())) {
+                    currentSecurityPin = remotePin.trim();
+                    localStorage.setItem("sensunshop_admin_pin", currentSecurityPin);
+                    updatePinSettingUI();
+                    renderPinDots();
+                }
+            });
+        } catch(e) {
+            console.warn("No se pudo iniciar listener remoto de PIN:", e);
+        }
+
+        // Inicializar dots y UI de PIN
+        renderPinDots();
+        updatePinSettingUI();
+
+        // Botones del Keypad
         document.querySelectorAll(".keypad-btn[data-key]").forEach(btn => {
             btn.addEventListener("click", () => {
                 handlePinDigit(btn.getAttribute("data-key"));
@@ -2233,10 +2408,10 @@
                     link: moreUrl,
                     hasOffer: Boolean(item.hasOffer),
                     offerMsg: item.offerMsg || "",
-                    timestamp: item.timestamp || 0,
+                    timestamp: Number(item.timestamp) || 0,
                     isActive: item.isActive !== false
                 };
-            });
+            }).sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
 
             renderNews();
             updateStatsCounters();
@@ -2314,7 +2489,7 @@
             return NEWS_BADGE_MAP.noticias;
         }
 
-        // Renderizado de Noticias
+        // Renderizado de Noticias (Ordenadas de más reciente a más antigua)
         function renderNews() {
             const grid = document.getElementById("newsGrid");
             if (newsList.length === 0) {
@@ -2330,6 +2505,10 @@
 
             grid.innerHTML = newsList.map(n => {
                 const bInfo = getNewsBadgeInfo(n.badge);
+                const dateDisplay = n.timestamp && n.timestamp > 0 
+                    ? new Date(n.timestamp).toLocaleDateString('es-SV', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : 'Reciente';
+
                 return `
                     <div class="news-card" onclick="openNewsModal('${n.id}')" style="border-top: 4px solid ${bInfo.color};">
                         <div class="news-image">
@@ -2340,7 +2519,7 @@
                             <div class="news-title">${n.title}</div>
                             <div class="news-excerpt">${n.description}</div>
                             <div class="news-footer">
-                                <span>ID: ${n.id}</span>
+                                <span>🕒 ${dateDisplay}</span>
                                 <span class="news-status ${n.isActive ? 'published' : 'draft'}">${n.isActive ? 'Publicado' : 'Oculto'}</span>
                             </div>
                         </div>

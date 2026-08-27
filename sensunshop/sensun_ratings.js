@@ -2354,7 +2354,7 @@ function parseFeedItems(data, defaultBadge = "noticias") {
             badgeTextColor: catInfo.textColor,
             isActive: item.isActive !== false
         };
-    }).filter(n => n.isActive);
+    }).filter(n => n.isActive).sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
 }
 
 // Configurar sincronización en tiempo real de Noticias, Boletines y Ofertas desde Firebase RTDB
