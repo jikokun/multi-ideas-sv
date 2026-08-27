@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#070b12">
+<title>One Chicago · Orden de visualización — Checklist & Firebase</title>
+<link rel="icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed/latin-600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed/latin-700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow-condensed/latin-800.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow/latin-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow/latin-500.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow/latin-600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/barlow/latin-700.css">
+<style>
+:root{
+  --bg:#070b12; --panel:#0d1420; --panel2:#111a29; --line:rgba(148,163,184,.14);
+  --text:#e8eef7; --muted:#93a1b5; --dim:#5c6b80;
+  --fire:#ff7a1f; --fire2:#ffb347;
+  --pd:#4d9fff; --pd2:#9cc7ff;
+  --med:#2fd6bd; --med2:#8ff0e0;
+  --svu:#b18cff; --svu2:#d6c6ff;
+  --justice:#ff6f9c; --justice2:#ffb0c8;
+  --gold:#ffc53d;
+  --disp:'Barlow Condensed','Arial Narrow',sans-serif;
+  --body:'Barlow',system-ui,-apple-system,sans-serif;
+  --hh:76px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--text); font-family:var(--body);
+  min-height:100vh; overflow-x:hidden;
+}
+.glow{position:fixed;border-radius:50%;filter:blur(120px);opacity:.16;pointer-events:none;z-index:0}
+.g1{width:520px;height:520px;background:#ff5a00;top:-160px;left:-120px}
+.g2{width:480px;height:480px;background:#1d6dff;top:-140px;right:-140px}
+.g3{width:520px;height:520px;background:#0fbfa8;bottom:-220px;left:35%}
+
+/* ============ CLOUD BAR ============ */
+.cloud-bar {
+  background: rgba(13, 20, 32, 0.95);
+  border-bottom: 1px solid var(--line);
+  padding: 9px 20px;
+  position: relative;
+  z-index: 70;
+  font-size: 13px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.cloud-inner {
+  max-width: 1040px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  transition: all 0.2s;
+}
+.back-link:hover {
+  color: var(--text);
+  border-color: var(--gold);
+  background: rgba(255, 197, 61, 0.1);
+  transform: translateX(-2px);
+}
+.cloud-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+.cloud-status-icon {
+  font-size: 15px;
+}
+.cloud-status-icon.saving {
+  display: inline-block;
+  animation: spinCloud 1s infinite linear;
+}
+@keyframes spinCloud {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.cloud-user-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+.btn-auth-google {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(66, 133, 244, 0.12);
+  border: 1px solid rgba(66, 133, 244, 0.4);
+  color: #9cc7ff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: var(--body);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-auth-google:hover {
+  background: #4285f4;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(66, 133, 244, 0.4);
+}
+.cloud-user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px 4px 6px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+}
+.cloud-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--gold);
+}
+.cloud-initials {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--fire), var(--gold));
+  color: #111;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+.cloud-user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  text-align: left;
+}
+.cloud-name {
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text);
+}
+.cloud-email {
+  font-size: 10.5px;
+  color: var(--gold);
+  letter-spacing: 0.2px;
+}
+.btn-sync-icon, .btn-logout {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  border-radius: 6px;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.btn-sync-icon:hover {
+  color: var(--gold);
+  border-color: var(--gold);
+}
+.btn-logout:hover {
+  color: #ff6f9c;
+  border-color: #ff6f9c;
+  background: rgba(255, 111, 156, 0.1);
+}
+
+/* ============ HEADER ============ */
+header.topbar{
+  position:sticky;top:0;z-index:60;
+  background:rgba(7,11,18,.86);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);
+}
+.gbar{height:3px;background:rgba(148,163,184,.12)}
+.gbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--fire),var(--gold),var(--pd),var(--med));transition:width .45s ease;border-radius:0 3px 3px 0;box-shadow:0 0 12px rgba(255,197,61,.5)}
+.head-inner{
+  max-width:1040px;margin:0 auto;padding:12px 20px;
+  display:flex;align-items:center;gap:22px;flex-wrap:wrap;min-height:calc(var(--hh) - 3px);
+}
+.brand{display:flex;align-items:center;gap:12px}
+.flame{
+  width:44px;height:44px;border-radius:13px;flex:none;
+  display:grid;place-items:center;color:#fff;
+  background:linear-gradient(145deg,#ff8a2a,#e33d00);
+  box-shadow:0 4px 18px rgba(255,110,30,.35), inset 0 1px 0 rgba(255,255,255,.35);
+}
+.flame svg{width:26px;height:26px;fill:#fff}
+.brand h1{
+  font-family:var(--disp);font-weight:800;font-size:27px;letter-spacing:1.5px;line-height:1;
+  background:linear-gradient(90deg,#fff 20%,var(--gold) 60%,var(--fire));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+}
+.brand p{font-size:12.5px;color:var(--muted);letter-spacing:.4px;margin-top:3px}
+.stats{display:flex;gap:20px;margin-left:auto}
+.stat{text-align:center}
+.stat b{font-family:var(--disp);font-weight:800;font-size:22px;letter-spacing:.5px;display:block;line-height:1}
+.stat span{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px}
+.stat.s-eps b{color:var(--gold)} .stat.s-cross b{color:var(--fire2)} .stat.s-phase b{color:var(--med)}
+.actions{display:flex;gap:10px}
+.btn{
+  font-family:var(--body);font-weight:700;font-size:13.5px;border-radius:11px;cursor:pointer;
+  padding:10px 16px;border:1px solid transparent;transition:transform .15s ease, box-shadow .2s, background .2s;
+  display:inline-flex;align-items:center;gap:7px;
+}
+.btn:active{transform:scale(.96)}
+.btn.primary{background:linear-gradient(135deg,#ff8a2a,#ffb63d);color:#221000;box-shadow:0 4px 16px rgba(255,140,40,.3)}
+.btn.primary:hover{box-shadow:0 6px 22px rgba(255,140,40,.5);transform:translateY(-1px)}
+.btn.ghost{background:transparent;color:var(--muted);border-color:var(--line)}
+.btn.ghost:hover{color:var(--text);border-color:rgba(148,163,184,.4)}
+
+/* ============ TABS / TOOLBAR ============ */
+main{position:relative;z-index:1;max-width:1040px;margin:0 auto;padding:22px 20px 90px}
+.tabs{display:flex;gap:8px;margin-bottom:16px}
+.tab{
+  font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:1px;text-transform:uppercase;
+  padding:9px 20px;border-radius:11px;cursor:pointer;border:1px solid var(--line);
+  background:rgba(255,255,255,.03);color:var(--muted);transition:all .2s;
+}
+.tab.active{background:var(--text);color:#0a0e16;border-color:var(--text);box-shadow:0 4px 16px rgba(232,238,247,.15)}
+.tab:not(.active):hover{color:var(--text);border-color:rgba(148,163,184,.4)}
+.toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:99px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);color:var(--muted);transition:all .18s;
+}
+.chip .dot{width:8px;height:8px;border-radius:50%}
+.chip:hover{color:var(--text);border-color:rgba(148,163,184,.4)}
+.chip.active{background:var(--text);color:#0a0e16;border-color:var(--text);font-weight:700}
+.chip.active .dot{box-shadow:0 0 0 2px rgba(0,0,0,.25)}
+#search{
+  margin-left:auto;background:rgba(255,255,255,.04);border:1px solid var(--line);color:var(--text);
+  border-radius:11px;padding:9px 14px;font-family:var(--body);font-size:13.5px;min-width:210px;outline:none;transition:border-color .2s;
+}
+#search:focus{border-color:var(--gold)}
+#search::placeholder{color:var(--dim)}
+
+/* ============ FASES ============ */
+.phase{margin-bottom:20px}
+.phase-head{
+  position:sticky;top:0;z-index:20;cursor:pointer;user-select:none;
+  display:flex;align-items:center;gap:14px;
+  background:rgba(13,20,32,.93);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border:1px solid var(--line);border-radius:15px;padding:13px 16px;
+  transition:border-color .25s, box-shadow .25s;
+}
+@media(min-width:920px){ .phase-head{top:var(--hh)} }
+.phase-head:hover{border-color:rgba(148,163,184,.35)}
+.phase.complete .phase-head{border-color:rgba(255,197,61,.4);box-shadow:0 0 24px rgba(255,197,61,.08)}
+.pnum{
+  width:38px;height:38px;border-radius:11px;flex:none;display:grid;place-items:center;
+  font-family:var(--disp);font-weight:800;font-size:19px;color:var(--pc);
+  background:rgba(255,255,255,.05);border:1px solid var(--line);transition:all .3s;
+}
+.phase.complete .pnum{background:var(--pc);color:#0a0e16;box-shadow:0 0 16px var(--pc)}
+.pinfo{flex:1;min-width:0}
+.pinfo h2{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.6px;line-height:1.1;text-transform:uppercase}
+.pinfo small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px;letter-spacing:.3px}
+.pprog{display:flex;align-items:center;gap:10px;flex:none}
+.mini-bar{width:110px;height:6px;border-radius:99px;background:rgba(148,163,184,.15);overflow:hidden}
+.mini-bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--pc);transition:width .4s ease}
+.pcount{font-family:var(--disp);font-weight:700;font-size:15px;color:var(--muted);min-width:42px;text-align:right}
+.phase.complete .pcount{color:var(--pc)}
+.chev{flex:none;width:28px;height:28px;display:grid;place-items:center;color:var(--dim);transition:transform .3s}
+.phase.open .chev{transform:rotate(180deg)}
+.phase-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .38s ease}
+.phase.open .phase-body{grid-template-rows:1fr}
+.phase-body-in{overflow:hidden;display:flex;flex-direction:column;gap:10px;padding:12px 2px 6px}
+.phase-intro{
+  font-size:13px;color:var(--muted);border-left:3px solid var(--pc);
+  background:rgba(255,255,255,.03);border-radius:0 10px 10px 0;padding:10px 14px;line-height:1.5;
+}
+.phases.filtering .phase-body{grid-template-rows:1fr!important}
+
+/* ============ ITEMS ============ */
+.unit{transition:opacity .25s, transform .25s}
+.unit.hide{display:none}
+.item{
+  display:flex;gap:13px;align-items:flex-start;
+  background:rgba(255,255,255,.025);border:1px solid var(--line);border-radius:13px;
+  padding:12px 15px;transition:border-color .2s, background .2s, transform .15s;
+}
+.item:hover{border-color:rgba(148,163,184,.32);background:rgba(255,255,255,.04)}
+.toggle-row{cursor:pointer}
+.check{
+  flex:none;width:24px;height:24px;margin-top:1px;border-radius:8px;cursor:pointer;
+  border:2px solid rgba(148,163,184,.4);background:transparent;display:grid;place-items:center;
+  transition:all .2s;
+}
+.check:hover{border-color:var(--c);transform:scale(1.08)}
+.check svg{width:15px;height:15px}
+.check svg path{
+  stroke:#0a0e16;stroke-width:3.4;fill:none;stroke-linecap:round;stroke-linejoin:round;
+  stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .28s ease .05s;
+}
+.done>.check, .part.done .check{
+  background:linear-gradient(135deg,var(--c),var(--c2));border-color:transparent;
+  box-shadow:0 2px 10px rgba(0,0,0,.35);
+}
+.done>.check svg path, .part.done .check svg path{stroke-dashoffset:0}
+.meta{flex:1;min-width:0}
+.line1{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.code{font-family:var(--disp);font-weight:700;font-size:16px;letter-spacing:.8px;color:var(--c,var(--text))}
+.eptitle{font-weight:500;font-size:14.5px}
+.btitle{font-weight:700;font-size:15px;letter-spacing:.2px}
+.note{font-size:12.8px;color:var(--muted);margin-top:4px;line-height:1.5}
+.tag{
+  font-family:var(--disp);font-weight:700;font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;
+  padding:3px 8px;border-radius:6px;color:var(--gold);border:1px solid rgba(255,197,61,.45);background:rgba(255,197,61,.08);
+}
+.item.done .meta, .part.done .meta{opacity:.42}
+.item.done .eptitle, .part.done .eptitle, .item.done .btitle{text-decoration:line-through}
+.label-unit{
+  font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  color:var(--dim);padding:8px 4px 0;
+}
+/* badges */
+.badge{
+  font-family:var(--disp);font-weight:800;font-size:11px;letter-spacing:1.4px;
+  padding:3.5px 9px;border-radius:7px;flex:none;border:1px solid;
+}
+.b-fire{color:var(--fire2);background:rgba(255,122,31,.13);border-color:rgba(255,122,31,.4)}
+.b-pd{color:var(--pd2);background:rgba(77,159,255,.13);border-color:rgba(77,159,255,.4)}
+.b-med{color:var(--med2);background:rgba(47,214,189,.12);border-color:rgba(47,214,189,.4)}
+.b-svu{color:var(--svu2);background:rgba(177,140,255,.13);border-color:rgba(177,140,255,.42)}
+.b-justice{color:var(--justice2);background:rgba(255,111,156,.13);border-color:rgba(255,111,156,.42)}
+/* series color scope */
+.s-fire{--c:var(--fire);--c2:var(--fire2)} .s-pd{--c:var(--pd);--c2:var(--pd2)}
+.s-med{--c:var(--med);--c2:var(--med2)} .s-svu{--c:var(--svu);--c2:var(--svu2)}
+.s-justice{--c:var(--justice);--c2:var(--justice2)}
+
+/* range + parallel */
+.range-top{display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap;width:100%}
+.counter{margin-left:auto;display:flex;align-items:center;gap:7px;flex:none}
+.step{
+  width:31px;height:31px;border-radius:10px;cursor:pointer;font-size:17px;font-weight:700;line-height:1;
+  border:1px solid var(--line);background:#121b2a;color:var(--text);transition:all .15s;
+}
+.step:hover{border-color:var(--c);color:var(--c);transform:scale(1.08)}
+.step:active{transform:scale(.92)}
+.count{font-family:var(--disp);font-weight:700;font-size:16px;min-width:58px;text-align:center;letter-spacing:.6px}
+.fillbtn{
+  font-family:var(--disp);font-weight:700;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;
+  background:transparent;border:1px dashed rgba(148,163,184,.35);color:var(--muted);
+  border-radius:8px;padding:7px 10px;transition:all .15s;
+}
+.fillbtn:hover{color:var(--c);border-color:var(--c)}
+.range-bar{height:6px;border-radius:99px;background:rgba(148,163,184,.13);overflow:hidden;margin-top:11px}
+.range-bar i{display:block;height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,var(--c),var(--c2));transition:width .3s ease}
+.item.done .range-bar i, .pl-cell.done .range-bar i{box-shadow:0 0 10px var(--c)}
+.parallel{flex-direction:column;gap:11px}
+.pl-head{display:flex;align-items:center;gap:10px;width:100%}
+.pl-tick{
+  width:22px;height:22px;border-radius:7px;flex:none;display:grid;place-items:center;
+  border:2px solid rgba(148,163,184,.35);transition:all .3s;
+}
+.pl-tick svg{width:13px;height:13px}
+.pl-tick svg path{stroke:#0a0e16;stroke-width:3.6;fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:24;stroke-dashoffset:24;transition:stroke-dashoffset .3s}
+.parallel.done .pl-tick{background:linear-gradient(135deg,var(--gold),#ffdf8e);border-color:transparent;box-shadow:0 2px 10px rgba(255,197,61,.4)}
+.parallel.done .pl-tick svg path{stroke-dashoffset:0}
+.pl-note{font-size:13px;color:var(--muted);line-height:1.5}
+.pl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;width:100%}
+.pl-cell{background:rgba(7,11,18,.55);border:1px solid var(--line);border-radius:11px;padding:11px 13px;transition:border-color .2s}
+.pl-cell.done{border-color:rgba(255,255,255,.22)}
+.pl-line{display:flex;align-items:center;gap:9px;margin-bottom:9px;flex-wrap:wrap}
+
+/* crossovers */
+.crossover{
+  border-radius:15px;padding:15px 17px;border:1px solid transparent;
+  background:linear-gradient(var(--panel2),var(--panel2)) padding-box,
+             linear-gradient(135deg,rgba(255,197,61,.65),rgba(255,122,31,.35) 40%,rgba(77,159,255,.45) 75%,rgba(47,214,189,.5)) border-box;
+  transition:opacity .3s, filter .3s;
+}
+.crossover.done{filter:saturate(.55) brightness(.82)}
+.x-head{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+.x-tag{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--disp);font-weight:800;font-size:12px;letter-spacing:1.8px;
+  color:#221300;background:linear-gradient(135deg,var(--gold),#ffdf8e);
+  padding:4.5px 11px;border-radius:8px;box-shadow:0 3px 12px rgba(255,197,61,.35);
+}
+.x-name{font-family:var(--disp);font-weight:700;font-size:21px;letter-spacing:.6px;text-transform:uppercase}
+.x-count{margin-left:auto;font-family:var(--disp);font-weight:700;font-size:16px;color:var(--gold)}
+.x-desc{font-size:13px;color:var(--muted);margin:7px 0 11px;line-height:1.5}
+.x-parts{display:flex;flex-direction:column;gap:8px}
+.part{
+  display:flex;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:11px;cursor:pointer;
+  background:rgba(7,11,18,.5);border:1px solid rgba(148,163,184,.1);transition:border-color .2s, background .2s;
+}
+.part:hover{border-color:rgba(148,163,184,.32)}
+.partnum{
+  flex:none;font-family:var(--disp);font-weight:800;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;
+  color:var(--gold);border:1px solid rgba(255,197,61,.35);border-radius:7px;padding:5px 8px;margin-top:1px;
+}
+
+/* pulse */
+.pulse{animation:pulse 1.15s ease 2}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,197,61,.55)}100%{box-shadow:0 0 0 16px rgba(255,197,61,0)}}
+
+/* ============ CRONOLOGÍA ============ */
+.crono-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:15px;background:rgba(255,255,255,.02)}
+table.crono{width:100%;border-collapse:collapse;min-width:760px}
+.crono th{
+  font-family:var(--disp);font-weight:800;font-size:14px;letter-spacing:1.6px;text-transform:uppercase;
+  text-align:left;padding:14px 16px;border-bottom:1px solid var(--line);background:rgba(7,11,18,.5);
+}
+.crono td{padding:12px 16px;border-bottom:1px solid rgba(148,163,184,.08);font-size:13.5px;vertical-align:top}
+.crono tr:last-child td{border-bottom:none}
+.crono tr:hover td{background:rgba(255,255,255,.025)}
+.crono .yr{font-family:var(--disp);font-weight:800;font-size:16px;letter-spacing:.6px;white-space:nowrap}
+.crono .na{color:var(--dim);font-style:italic}
+.crono td.note-c{color:var(--muted);max-width:280px;line-height:1.45}
+.th-fire{color:var(--fire2)} .th-pd{color:var(--pd2)} .th-med{color:var(--med2)}
+
+/* footer */
+footer{position:relative;z-index:1;text-align:center;color:var(--dim);font-size:12px;padding:10px 20px 40px;letter-spacing:.3px}
+
+/* toast + confetti */
+#toasts{position:fixed;bottom:22px;right:22px;z-index:200;display:flex;flex-direction:column;gap:10px;align-items:flex-end}
+.toast{
+  background:rgba(17,26,41,.95);border:1px solid rgba(255,197,61,.4);color:var(--text);
+  padding:13px 18px;border-radius:13px;font-weight:600;font-size:14px;
+  box-shadow:0 10px 34px rgba(0,0,0,.5);backdrop-filter:blur(8px);
+  transform:translateX(30px);opacity:0;transition:all .35s cubic-bezier(.2,.9,.3,1.2);max-width:340px;
+}
+.toast.show{transform:translateX(0);opacity:1}
+#confetti i{position:fixed;top:-14px;width:8px;height:13px;border-radius:2px;z-index:300;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translate(var(--dx),108vh) rotate(var(--rz));opacity:.85}}
+
+@media(max-width:820px){
+  .stats{gap:14px}
+  .head-inner{gap:14px}
+  .actions{width:100%;order:3}
+  .actions .btn{flex:1;justify-content:center}
+  #search{margin-left:0;width:100%}
+  .mini-bar{width:70px}
+  .pinfo h2{font-size:18px}
+  .counter{margin-left:0}
+  .cloud-inner{gap:10px}
+  .cloud-user-actions{width:100%;justify-content:space-between}
+}
+@media print{
+  header.topbar .actions,.toolbar,.tabs,#toasts,#confetti,.glow,.chev,.cloud-bar{display:none!important}
+  body{background:#fff;color:#111}
+  .phase-body{grid-template-rows:1fr!important}
+  .phase-head{position:static;background:#fff;border-color:#bbb}
+  .item,.crossover,.part,.pl-cell{background:#fff;border-color:#ccc}
+  .crossover{background:#fff}
+  .note,.x-desc,.pl-note,.pinfo small{color:#555}
+  .eptitle,.btitle,.x-name,.pinfo h2{color:#111}
+}
+</style>
+</head>
+<body>
+<div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+
+<!-- Barra de Sincronización en la Nube / Firebase -->
+<div class="cloud-bar" id="cloudBar">
+  <div class="cloud-inner">
+    <a href="prueba.html" class="back-link" title="Volver al panel de Zona de Pruebas">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+      <span>Zona de Pruebas</span>
+    </a>
+    
+    <div class="cloud-info" id="cloudInfo">
+      <span class="cloud-status-icon" id="cloudStatusIcon">☁️</span>
+      <span id="cloudStatusText">Verificando conexión con Firebase...</span>
+    </div>
+
+    <div class="cloud-user-actions" id="cloudUserActions">
+      <button class="btn-auth-google" id="btnLoginGoogle">
+        <svg width="15" height="15" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"/><path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"/></svg>
+        <span>Conectar joel.claroso@gmail.com</span>
+      </button>
+
+      <div id="cloudUserProfile" class="cloud-user-profile" style="display: none;">
+        <img id="cloudUserImg" src="" alt="Avatar" class="cloud-avatar" style="display: none;">
+        <span id="cloudUserInitials" class="cloud-initials">J</span>
+        <div class="cloud-user-details">
+          <span id="cloudUserName" class="cloud-name">Joel Claros</span>
+          <span id="cloudUserEmail" class="cloud-email">joel.claroso@gmail.com</span>
+        </div>
+        <button id="btnManualSync" class="btn-sync-icon" title="Sincronizar ahora con Firebase">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+        </button>
+        <button id="btnLogout" class="btn-logout" title="Cerrar sesión">Salir</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<header class="topbar">
+  <div class="gbar"><i id="globalBar"></i></div>
+  <div class="head-inner">
+    <div class="brand">
+      <div class="flame">
+        <svg viewBox="0 0 24 24"><path d="M13.5.67s.74 2.65.74 4.8c0 2.06-1.35 3.73-3.41 3.73-2.07 0-3.63-1.67-3.63-3.73l.03-.36C5.21 7.51 4 10.62 4 14c0 4.42 3.58 8 8 8s8-3.58 8-8C20 8.61 17.41 3.8 13.5.67zM11.71 19c-1.78 0-3.22-1.4-3.22-3.14 0-1.62 1.05-2.76 2.81-3.12 1.77-.36 3.6-1.21 4.62-2.58.39 1.29.59 2.65.59 4.04 0 2.65-2.15 4.8-4.8 4.8z"/></svg>
+      </div>
+      <div>
+        <h1>ONE CHICAGO</h1>
+        <p>Guía cronológica de visualización · Fire · P.D. · Med</p>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat s-eps"><b id="stEps">0/0</b><span>Capítulos</span></div>
+      <div class="stat s-cross"><b id="stCross">0/10</b><span>Crossovers</span></div>
+      <div class="stat s-phase"><b id="stPhases">0/6</b><span>Fases</span></div>
+    </div>
+    <div class="actions">
+      <button class="btn primary" id="btnNext">▶&nbsp; Siguiente capítulo</button>
+      <button class="btn ghost" id="btnReset">Reiniciar</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="tabs">
+    <button class="tab active" data-tab="checklist">✓ Checklist</button>
+    <button class="tab" data-tab="crono">Cronología por temporadas</button>
+  </div>
+
+  <section id="tab-checklist">
+    <div class="toolbar">
+      <div class="chips" id="chips">
+        <button class="chip active" data-f="all">Todos</button>
+        <button class="chip" data-f="fire"><span class="dot" style="background:var(--fire)"></span>Fire</button>
+        <button class="chip" data-f="pd"><span class="dot" style="background:var(--pd)"></span>P.D.</button>
+        <button class="chip" data-f="med"><span class="dot" style="background:var(--med)"></span>Med</button>
+        <button class="chip" data-f="cross"><span class="dot" style="background:var(--gold)"></span>Crossovers</button>
+        <button class="chip" data-f="extra"><span class="dot" style="background:var(--svu)"></span>Invitados</button>
+      </div>
+      <input id="search" type="text" placeholder="Buscar episodio o título…">
+    </div>
+    <div class="phases" id="phases"></div>
+  </section>
+
+  <section id="tab-crono" hidden>
+    <div class="crono-wrap"><table class="crono" id="cronoTable"></table></div>
+    <p style="color:var(--muted);font-size:12.5px;margin-top:12px;line-height:1.6">
+      Emparejamiento oficial de temporadas equivalentes según su año de emisión en NBC. Chicago Justice solo apareció en la temporada 2016-2017.
+    </p>
+  </section>
+</main>
+
+<footer>Basado en la «Guía Definitiva de Visualización de One Chicago» · Franquicia de Dick Wolf · NBC · Multi Ideas Sv</footer>
+<div id="toasts"></div>
+<div id="confetti"></div>
+
+<!-- MÓDULOS DE FIREBASE Y LÓGICA PRINCIPAL -->
+<script type="module">
+"use strict";
+import { auth, rtdb } from "./firebase-config.js?v=4";
+import { 
+  onAuthStateChanged, 
+  GoogleAuthProvider, 
+  signInWithPopup, 
+  signInWithRedirect, 
+  getRedirectResult, 
+  signOut 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { 
+  ref, 
+  get, 
+  set 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+/* ================= DATOS ================= */
+const SERIES = {
+  fire:{name:"Chicago Fire", short:"FIRE"},
+  pd:{name:"Chicago P.D.", short:"P.D."},
+  med:{name:"Chicago Med", short:"MED"},
+  svu:{name:"Law & Order: SVU", short:"SVU"},
+  justice:{name:"Chicago Justice", short:"JUSTICE"}
+};
+
+const PHASES = [
+{
+  title:"Fase 1 · El Origen de la Franquicia", sub:"2012 – 2013 · Chicago Fire en solitario", color:"#ff7a1f",
+  items:[
+    {type:"range", s:"fire", t:1, from:1, to:22, title:"Chicago Fire — Temporada 1", note:"Ver Fire sola. Se introduce a Hank Voight."},
+    {type:"ep", s:"fire", t:1, e:23, title:"Let Her Go", tag:"Piloto no oficial", note:"Se presenta oficialmente a los personajes que formarán Chicago P.D., sirviendo como el piloto no oficial de la serie policial."},
+    {type:"ep", s:"fire", t:1, e:24, title:"A Hell of a Ride", note:"Final de la primera temporada."}
+  ]
+},
+{
+  title:"Fase 2 · Fuego y Policía", sub:"2013 – 2014 · Fire + P.D., primer crossover", color:"#4d9fff",
+  items:[
+    {type:"range", s:"fire", t:2, from:1, to:10, title:"Chicago Fire — Temporada 2", note:"Últimos episodios en solitario: Chicago P.D. se estrena a mitad de esta temporada."},
+    {type:"ep", s:"fire", t:2, e:11, note:"Míralo justo antes de empezar a alternar con P.D."},
+    {type:"ep", s:"pd", t:1, e:1, title:"Stepping Stone", tag:"Estreno", note:"Estreno oficial de Chicago P.D."},
+    {type:"parallel", note:"Alterna uno a uno (Fire ⇄ P.D.): Fire S02E12, P.D. S01E02… hasta llegar al episodio 19 de Fire y 11 de P.D.",
+      ranges:[{s:"fire",t:2,from:12,to:19},{s:"pd",t:1,from:2,to:11}]},
+    {type:"crossover", tag:"CROSSOVER #1", name:"Atentado en Chicago", desc:"El primer gran crossover de la franquicia: una bomba sacude la ciudad.",
+      parts:[
+        {s:"fire",t:2,e:20,title:"A Dark Day"},
+        {s:"pd",t:1,e:12,title:"8:30 PM"}
+      ]},
+    {type:"parallel", note:"Termina estas temporadas alternando los últimos episodios.",
+      ranges:[{s:"fire",t:2,from:21,to:22},{s:"pd",t:1,from:13,to:15}]}
+  ]
+},
+{
+  title:"Fase 3 · Expansión de Historias", sub:"2014 – 2015 · Fire S3 + P.D. S2 y el piloto de Med", color:"#b18cff",
+  items:[
+    {type:"parallel", note:"Alterna un episodio de Chicago Fire (T3) y uno de Chicago P.D. (T2) hasta llegar al episodio 6 de ambas.",
+      ranges:[{s:"fire",t:3,from:1,to:6},{s:"pd",t:2,from:1,to:6}]},
+    {type:"crossover", tag:"CROSSOVER #2", name:"Conexión Nueva York", desc:"Triple crossover con Law & Order: SVU.",
+      parts:[
+        {s:"fire",t:3,e:7,title:"Nobody Touches Anything"},
+        {s:"svu",t:16,e:7,title:"Chicago Crossover"},
+        {s:"pd",t:2,e:7,title:"They'll Have to Go Through Me"}
+      ]},
+    {type:"parallel", note:"Continúa alternando Fire (E08–E12) y P.D. (E08–E12).",
+      ranges:[{s:"fire",t:3,from:8,to:12},{s:"pd",t:2,from:8,to:12}]},
+    {type:"crossover", tag:"CROSSOVER #3", name:"El caso de las Gemelas", desc:"La tragedia de Shay: un caso que conecta ambas series.",
+      parts:[
+        {s:"fire",t:3,e:13,title:"Three Bells"},
+        {s:"pd",t:2,e:13,title:"A Little Devil Complex"}
+      ]},
+    {type:"parallel", note:"Continúa alternando Fire (E14–E18) y P.D. (E14–E18).",
+      ranges:[{s:"fire",t:3,from:14,to:18},{s:"pd",t:2,from:14,to:18}]},
+    {type:"ep", s:"fire", t:3, e:19, title:"I Am the Apocalypse", tag:"Piloto Chicago Med", note:"Presenta formalmente al elenco médico de Chicago Med tras un ataque con gas en el hospital."},
+    {type:"parallel", note:"Continúa alternando Fire (E20) y P.D. (E19).",
+      ranges:[{s:"fire",t:3,from:20,to:20},{s:"pd",t:2,from:19,to:19}]},
+    {type:"crossover", tag:"CROSSOVER #4", name:"Red de Trata", desc:"Crossover con Law & Order: SVU.",
+      parts:[
+        {s:"fire",t:3,e:21,title:"We Called Her Jellybean"},
+        {s:"svu",t:16,e:20,title:"Daydream Believer"},
+        {s:"pd",t:2,e:20,title:"The Number of Rats"}
+      ]},
+    {type:"parallel", note:"Termina de alternar el resto de episodios de ambas temporadas.",
+      ranges:[{s:"fire",t:3,from:22,to:23},{s:"pd",t:2,from:21,to:23}]}
+  ]
+},
+{
+  title:"Fase 4 · La Trinidad", sub:"2015 – 2016 · Llega Chicago Med", color:"#2fd6bd",
+  intro:"A partir de aquí se une Chicago Med. Orden semanal original de emisión en NBC: <b>1° Chicago Med ➔ 2° Chicago Fire ➔ 3° Chicago P.D.</b>",
+  items:[
+    {type:"parallel", note:"Primeros episodios en paralelo (Med aún no se ha estrenado).",
+      ranges:[{s:"fire",t:4,from:1,to:7},{s:"pd",t:3,from:1,to:7}]},
+    {type:"ep", s:"med", t:1, e:1, title:"Derailed", tag:"Estreno", note:"Chicago Med arranca oficialmente a mitad de Fire T4 y P.D. T3."},
+    {type:"label", text:"Intercala en este orden exacto:", series:["med","fire","pd"]},
+    {type:"ep", s:"med", t:1, e:2},
+    {type:"ep", s:"fire", t:4, e:8},
+    {type:"ep", s:"pd", t:3, e:8},
+    {type:"ep", s:"med", t:1, e:3},
+    {type:"ep", s:"fire", t:4, e:9},
+    {type:"ep", s:"pd", t:3, e:9},
+    {type:"ep", s:"med", t:1, e:4},
+    {type:"crossover", tag:"CROSSOVER #5", name:"Caso Médula Ósea", desc:"El primer crossover de las tres series.",
+      parts:[
+        {s:"fire",t:4,e:10,title:"The Beating Heart"},
+        {s:"med",t:1,e:5,title:"Malignant"},
+        {s:"pd",t:3,e:10,title:"Now I'm Good"}
+      ]},
+    {type:"parallel", note:"Continúa alternando Med ➔ Fire ➔ P.D. hasta el final de temporada (Med T1: 18 eps · Fire T4: 23 eps · P.D. T3: 23 eps).",
+      ranges:[{s:"med",t:1,from:6,to:18},{s:"fire",t:4,from:11,to:23},{s:"pd",t:3,from:11,to:23}]}
+  ]
+},
+{
+  title:"Fase 5 · Consolidación", sub:"2016 – 2017 · Fire T5 + P.D. T4 + Med T2", color:"#ffc53d",
+  items:[
+    {type:"parallel", note:"Alterna semana a semana (Med ➔ Fire ➔ P.D.) hasta la antesala del crossover.",
+      ranges:[{s:"med",t:2,from:1,to:9},{s:"fire",t:5,from:1,to:14},{s:"pd",t:4,from:1,to:15}]},
+    {type:"crossover", tag:"CROSSOVER #6", name:"Fuego en Edificio y Juicio", desc:"Introduce Chicago Justice.",
+      parts:[
+        {s:"fire",t:5,e:15,title:"Deathtrap"},
+        {s:"pd",t:4,e:16,title:"Emotional Proximity"},
+        {s:"justice",t:1,e:1,title:"Fake",tag:"Opcional"}
+      ]},
+    {type:"parallel", note:"Termina de alternar las tres series hasta el final de temporada.",
+      ranges:[{s:"med",t:2,from:10,to:23},{s:"fire",t:5,from:16,to:22},{s:"pd",t:4,from:17,to:23}]}
+  ]
+},
+{
+  title:"Fase 6 · Temporadas en Paralelo", sub:"2017 – 2025 · Emisión paralela y grandes eventos", color:"#ff6f9c",
+  intro:"Alterna de forma equitativa por bloques de 5 episodios o de 1 en 1 (Med ➔ Fire ➔ P.D.), prestando especial atención a estos eventos clave.",
+  items:[
+    {type:"block", title:"Temporada 2017-2018 · Fire T6 + P.D. T5 + Med T3", note:"Emisión regular alternada: avanza en paralelo hasta el episodio 12 de Fire y 15 de P.D.", series:["fire","pd","med"]},
+    {type:"crossover", tag:"CROSSOVER · 2017-18", name:"Tragedia en el bloque de departamentos", desc:"Un incendio conecta la estación 51 y el distrito de Inteligencia.",
+      parts:[
+        {s:"fire",t:6,e:13,title:"Hiding Not Seeking"},
+        {s:"pd",t:5,e:16,title:"Profiles"}
+      ]},
+    {type:"block", title:"Continúa la temporada 2017-2018", note:"Retoma la alternancia Med ➔ Fire ➔ P.D. hasta el final de temporada.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2018-2019 · Fire T7 + P.D. T6 + Med T4", note:"Avanza en paralelo hasta el episodio 2 de cada serie.", series:["fire","pd","med"]},
+    {type:"crossover", tag:"CROSSOVER · 2018-19", name:"Going to War", desc:"Un incendio devastador en un edificio de gran altura atrapa a seres queridos.",
+      parts:[
+        {s:"fire",t:7,e:2,title:"Going to War"},
+        {s:"med",t:4,e:2,title:"Going to War II"},
+        {s:"pd",t:6,e:2,title:"Endings"}
+      ]},
+    {type:"block", title:"Continúa la temporada 2018-2019", note:"Retoma la alternancia hasta el final de temporada.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2019-2020 · Fire T8 + P.D. T7 + Med T5", note:"Avanza en paralelo hasta el episodio 4 de cada serie.", series:["fire","pd","med"]},
+    {type:"crossover", tag:"CROSSOVER · 2019-20", name:"Infección", desc:"El crossover más grande de la historia de One Chicago: un brote bacteriológico mortal amenaza a toda la ciudad.",
+      parts:[
+        {s:"fire",t:8,e:4,title:"Infection, Part I"},
+        {s:"med",t:5,e:4,title:"Infection, Part II"},
+        {s:"pd",t:7,e:4,title:"Infection, Part III"}
+      ]},
+    {type:"block", title:"Continúa la temporada 2019-2020", note:"Temporadas más cortas debido a la pandemia.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2020-2021 · Fire T9 + P.D. T8 + Med T6", note:"Temporadas más cortas por la pandemia. Emisión paralela.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2021-2022 · Fire T10 + P.D. T9 + Med T7", note:"Emisión regular paralela.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2022-2023 · Fire T11 + P.D. T10 + Med T8", note:"Emisión regular paralela.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2023-2024 · Fire T12 + P.D. T11 + Med T9", note:"Temporadas recortadas.", series:["fire","pd","med"]},
+    {type:"block", title:"Temporada 2024-2025 · Fire T13 + P.D. T12 + Med T10", note:"Emisión regular paralela: avanza hasta el episodio 10 de cada serie.", series:["fire","pd","med"]},
+    {type:"crossover", tag:"CROSSOVER · 2024-25", name:"Reckoning", desc:"Un gran evento que sacude los cimientos de los tres servicios de emergencia.",
+      parts:[
+        {s:"fire",t:13,e:11,title:"Reckoning"},
+        {s:"med",t:10,e:11,title:"Reckoning II"},
+        {s:"pd",t:12,e:11,title:"Reckoning III"}
+      ]},
+    {type:"block", title:"Final · Continúa alternando", note:"Alterna Med ➔ Fire ➔ P.D. hasta el final de la temporada 2024-2025.", series:["fire","pd","med"]}
+  ],
+  outro:"Nota: en las temporadas más recientes, las huelgas de guionistas y los cambios de calendario redujeron los mega-crossovers físicos de 3 partes por cuestiones de presupuesto, pero la alternancia paralela (Med ➔ Fire ➔ P.D.) sigue siendo fundamental: muchos personajes secundarios y tramas personales continúan evolucionando semana a semana."
+},
+];
+
+const CRONO = [
+  ["2012-2013","T1",null,null,"Ver Fire sola. Se introduce a Hank Voight."],
+  ["2013-2014","T2","T1",null,"P.D. inicia a mitad de Fire T2. Primer crossover mayor."],
+  ["2014-2015","T3","T2",null,"Se introduce el piloto de Chicago Med (Fire T3E19)."],
+  ["2015-2016","T4","T3","T1","Med arranca oficialmente a mitad de Fire T4 y P.D. T3."],
+  ["2016-2017","T5","T4","T2","Se estrena Chicago Justice (ver crossovers)."],
+  ["2017-2018","T6","T5","T3","Emisión regular alternada."],
+  ["2018-2019","T7","T6","T4","Crossover «Going to War»."],
+  ["2019-2020","T8","T7","T5","«Infection»: crossover masivo de 3 partes."],
+  ["2020-2021","T9","T8","T6","Temporadas más cortas debido a la pandemia."],
+  ["2021-2022","T10","T9","T7","Emisión regular paralela."],
+  ["2022-2023","T11","T10","T8","Emisión regular paralela."],
+  ["2023-2024","T12","T11","T9","Temporadas recortadas."],
+  ["2024-2025","T13","T12","T10","Emisión regular paralela."]
+];
+
+/* ================= ESTADO ================= */
+const KEY = "oneChicagoChecklistV1";
+let state = {items:{}, open:[0]};
+try{
+  const raw = localStorage.getItem(KEY);
+  if(raw){ const p = JSON.parse(raw); if(p && p.items) state = p; }
+}catch(err){}
+if(!Array.isArray(state.open)) state.open = [0];
+
+const REG = [];       // {id,item,phase,el,countable,series[]}
+const phaseUI = [];
+let ready = false;
+let prevPhaseDone = PHASES.map(()=>false);
+let prevCrossDone = {};
+let prevAll = false;
+let curFilter = "all";
+
+const pad = n => String(n).padStart(2,"0");
+const rangeLen = r => r.to - r.from + 1;
+
+/* ================= RENDER ================= */
+function checkSVG(){ return '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>'; }
+
+function metaHTML(it){
+  const code = "T" + it.t + " · E" + pad(it.e);
+  let l1 = '<span class="code">'+code+'</span>';
+  if(it.title) l1 += '<span class="eptitle">“'+it.title+'”</span>';
+  if(it.tag) l1 += '<span class="tag">'+it.tag+'</span>';
+  let html = '<div class="line1">'+l1+'</div>';
+  if(it.note) html += '<div class="note">'+it.note+'</div>';
+  return html;
+}
+
+function buildPhases(){
+  const wrap = document.getElementById("phases");
+  PHASES.forEach((ph, pi) => {
+    const sec = document.createElement("section");
+    sec.className = "phase";
+    sec.style.setProperty("--pc", ph.color);
+    sec.dataset.phase = pi;
+
+    const head = document.createElement("header");
+    head.className = "phase-head";
+    head.innerHTML =
+      '<div class="pnum">'+(pi+1)+'</div>'+
+      '<div class="pinfo"><h2>'+ph.title+'</h2><small>'+ph.sub+'</small></div>'+
+      '<div class="pprog"><div class="mini-bar"><i></i></div><span class="pcount">0/0</span></div>'+
+      '<div class="chev"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></div>';
+    sec.appendChild(head);
+
+    const body = document.createElement("div");
+    body.className = "phase-body";
+    const bin = document.createElement("div");
+    bin.className = "phase-body-in";
+    if(ph.intro){
+      const iv = document.createElement("div");
+      iv.className = "phase-intro";
+      iv.innerHTML = ph.intro;
+      bin.appendChild(iv);
+    }
+    ph.items.forEach((it, ii) => bin.appendChild(buildItem(it, pi, ii)));
+    if(ph.outro){
+      const ov = document.createElement("div");
+      ov.className = "phase-intro";
+      ov.textContent = ph.outro;
+      bin.appendChild(ov);
+    }
+    body.appendChild(bin);
+    sec.appendChild(body);
+    wrap.appendChild(sec);
+    phaseUI.push({el:sec, bar:head.querySelector(".mini-bar i"), count:head.querySelector(".pcount"), head:head});
+  });
+}
+
+function buildItem(it, pi, ii){
+  const id = "p"+pi+"x"+ii;
+  let el;
+  if(it.type === "label"){
+    el = document.createElement("div");
+    el.className = "unit label-unit";
+    el.dataset.type = "label";
+    el.dataset.series = (it.series||[]).join(",");
+    el.textContent = it.text;
+    REG.push({id, item:it, phase:pi, el, countable:false, series:it.series||[]});
+    return el;
+  }
+  if(it.type === "ep"){
+    el = document.createElement("div");
+    el.className = "unit item toggle-row s-"+it.s;
+    el.dataset.id = id; el.dataset.type = "ep"; el.dataset.series = it.s;
+    el.innerHTML = '<button class="check" data-kind="toggle" data-id="'+id+'" aria-label="Marcar episodio">'+checkSVG()+'</button><div class="meta">'+metaHTML(it)+'</div>';
+    REG.push({id, item:it, phase:pi, el, countable:true, series:[it.s]});
+    return el;
+  }
+  if(it.type === "block"){
+    el = document.createElement("div");
+    el.className = "unit item toggle-row";
+    el.style.setProperty("--c", "#e8eef7"); el.style.setProperty("--c2", "#ffffff");
+    el.dataset.id = id; el.dataset.type = "block"; el.dataset.series = it.series.join(",");
+    let h = '<div class="line1"><span class="btitle">'+it.title+'</span></div>';
+    if(it.note) h += '<div class="note">'+it.note+'</div>';
+    el.innerHTML = '<button class="check" data-kind="toggle" data-id="'+id+'" aria-label="Marcar bloque">'+checkSVG()+'</button><div class="meta">'+h+'</div>';
+    REG.push({id, item:it, phase:pi, el, countable:true, series:it.series});
+    return el;
+  }
+  if(it.type === "range"){
+    const len = rangeLen(it);
+    el = document.createElement("div");
+    el.className = "unit item range s-"+it.s;
+    el.dataset.id = id; el.dataset.type = "range"; el.dataset.series = it.s;
+    const rangeCode = "T"+it.t+" · E"+pad(it.from)+"–E"+pad(it.to);
+    el.innerHTML =
+      '<div class="range-top">'+
+        '<div class="meta"><div class="line1"><span class="code">'+rangeCode+'</span><span class="eptitle">'+it.title+'</span></div>'+
+        (it.note?'<div class="note">'+it.note+'</div>':'')+'</div>'+
+        '<div class="counter">'+
+          '<button class="step" data-kind="step" data-id="'+id+'" data-d="-1" aria-label="Restar">−</button>'+
+          '<span class="count">0/'+len+'</span>'+
+          '<button class="step" data-kind="step" data-id="'+id+'" data-d="1" aria-label="Sumar">+</button>'+
+          '<button class="fillbtn" data-kind="fill" data-id="'+id+'">Todo</button>'+
+        '</div>'+
+      '</div>'+
+      '<div class="range-bar"><i></i></div>';
+    REG.push({id, item:it, phase:pi, el, countable:true, series:[it.s],
+      countEl:el.querySelector(".count"), barEl:el.querySelector(".range-bar i"), fillEl:el.querySelector(".fillbtn")});
+    return el;
+  }
+  if(it.type === "parallel"){
+    const seriesSet = [...new Set(it.ranges.map(r=>r.s))];
+    el = document.createElement("div");
+    el.className = "unit item parallel";
+    el.dataset.id = id; el.dataset.type = "parallel"; el.dataset.series = seriesSet.join(",");
+    let cells = "";
+    it.ranges.forEach((r, ri) => {
+      const len = rangeLen(r);
+      const rc = "T"+r.t+" · E"+pad(r.from)+"–E"+pad(r.to);
+      cells +=
+        '<div class="pl-cell s-'+r.s+'" data-ri="'+ri+'">'+
+          '<div class="pl-line"><span class="badge b-'+r.s+'">'+SERIES[r.s].short+'</span><span class="code">'+rc+'</span></div>'+
+          '<div class="counter">'+
+            '<button class="step" data-kind="pstep" data-id="'+id+'" data-ri="'+ri+'" data-d="-1" aria-label="Restar">−</button>'+
+            '<span class="count">0/'+len+'</span>'+
+            '<button class="step" data-kind="pstep" data-id="'+id+'" data-ri="'+ri+'" data-d="1" aria-label="Sumar">+</button>'+
+            '<button class="fillbtn" data-kind="pfill" data-id="'+id+'" data-ri="'+ri+'">Todo</button>'+
+          '</div>'+
+          '<div class="range-bar"><i></i></div>'+
+        '</div>';
+    });
+    el.innerHTML =
+      '<div class="pl-head"><span class="pl-tick">'+checkSVG()+'</span><span class="pl-note">'+it.note+'</span></div>'+
+      '<div class="pl-grid">'+cells+'</div>';
+    const rec = {id, item:it, phase:pi, el, countable:true, series:seriesSet, cells:[]};
+    el.querySelectorAll(".pl-cell").forEach(cell => {
+      rec.cells.push({cell, countEl:cell.querySelector(".count"), barEl:cell.querySelector(".range-bar i"), fillEl:cell.querySelector(".fillbtn")});
+    });
+    REG.push(rec);
+    return el;
+  }
+  if(it.type === "crossover"){
+    const seriesSet = [...new Set(it.parts.map(p=>p.s)), "cross"];
+    el = document.createElement("div");
+    el.className = "unit crossover";
+    el.dataset.id = id; el.dataset.type = "crossover"; el.dataset.series = seriesSet.join(",");
+    let parts = "";
+    it.parts.forEach((p, k) => {
+      const pid = id + "k" + k;
+      parts +=
+        '<div class="part toggle-row s-'+p.s+'" data-pid="'+pid+'">'+
+          '<span class="partnum">Parte '+(k+1)+'</span>'+
+          '<button class="check" data-kind="toggle" data-id="'+pid+'" aria-label="Marcar parte">'+checkSVG()+'</button>'+
+          '<div class="meta">'+metaHTML(p)+'</div>'+
+        '</div>';
+    });
+    el.innerHTML =
+      '<div class="x-head"><span class="x-tag">⚡ '+it.tag+'</span><span class="x-name">'+it.name+'</span><span class="x-count">0/'+it.parts.length+'</span></div>'+
+      (it.desc?'<div class="x-desc">'+it.desc+'</div>':'')+
+      '<div class="x-parts">'+parts+'</div>';
+    const rec = {id, item:it, phase:pi, el, countable:true, series:seriesSet,
+      countEl:el.querySelector(".x-count"), partEls:[...el.querySelectorAll(".part")]};
+    REG.push(rec);
+    return el;
+  }
+  return document.createElement("div");
+}
+
+function findRec(id){
+  for(const r of REG){
+    if(r.id === id) return r;
+    if(r.item.type === "crossover" && id.indexOf(r.id) === 0 && id !== r.id) return r;
+  }
+  return null;
+}
+
+/* ================= LÓGICA DE ESTADO ================= */
+function partState(pid){ return state.items[pid] === true; }
+
+function recDone(rec){
+  const it = rec.item, st = state.items[rec.id];
+  switch(it.type){
+    case "ep": case "block": return st === true;
+    case "range": return st === rangeLen(it);
+    case "parallel": return Array.isArray(st) && it.ranges.every((r,i)=> st[i] === rangeLen(r));
+    case "crossover": return it.parts.every((p,k)=> partState(rec.id+"k"+k));
+  }
+  return false;
+}
+function recEps(rec){
+  const it = rec.item, st = state.items[rec.id];
+  switch(it.type){
+    case "ep": return st === true ? 1 : 0;
+    case "block": return 0;
+    case "range": return Math.min(Math.max(st||0,0), rangeLen(it));
+    case "parallel": return Array.isArray(st) ? it.ranges.reduce((a,r,i)=> a + Math.min(Math.max(st[i]||0,0), rangeLen(r)), 0) : 0;
+    case "crossover": return it.parts.reduce((a,p,k)=> a + (partState(rec.id+"k"+k)?1:0), 0);
+  }
+  return 0;
+}
+
+function refreshRec(rec){
+  const done = recDone(rec);
+  const it = rec.item;
+  if(it.type === "ep" || it.type === "block"){
+    rec.el.classList.toggle("done", done);
+  } else if(it.type === "range"){
+    const c = Math.min(Math.max(state.items[rec.id]||0,0), rangeLen(it));
+    rec.countEl.textContent = c + "/" + rangeLen(it);
+    rec.barEl.style.width = (c/rangeLen(it)*100) + "%";
+    rec.fillEl.textContent = done ? "Nada" : "Todo";
+    rec.el.classList.toggle("done", done);
+  } else if(it.type === "parallel"){
+    const arr = Array.isArray(state.items[rec.id]) ? state.items[rec.id] : [];
+    it.ranges.forEach((r,i)=>{
+      const len = rangeLen(r);
+      const c = Math.min(Math.max(arr[i]||0,0), len);
+      rec.cells[i].countEl.textContent = c + "/" + len;
+      rec.cells[i].barEl.style.width = (c/len*100) + "%";
+      rec.cells[i].fillEl.textContent = c === len ? "Nada" : "Todo";
+      rec.cells[i].cell.classList.toggle("done", c === len);
+    });
+    rec.el.classList.toggle("done", done);
+  } else if(it.type === "crossover"){
+    const d = it.parts.reduce((a,p,k)=> a + (partState(rec.id+"k"+k)?1:0), 0);
+    rec.countEl.textContent = d + "/" + it.parts.length;
+    it.parts.forEach((p,k)=> rec.partEls[k].classList.toggle("done", partState(rec.id+"k"+k)));
+    rec.el.classList.toggle("done", done);
+  }
+}
+
+/* ================= SINCRONIZACIÓN FIREBASE REALTIME DB ================= */
+let currentUser = null;
+let saveTimeout = null;
+let isSyncingRemote = false;
+
+const cloudStatusText = document.getElementById("cloudStatusText");
+const cloudStatusIcon = document.getElementById("cloudStatusIcon");
+const btnLoginGoogle = document.getElementById("btnLoginGoogle");
+const cloudUserProfile = document.getElementById("cloudUserProfile");
+const cloudUserImg = document.getElementById("cloudUserImg");
+const cloudUserInitials = document.getElementById("cloudUserInitials");
+const cloudUserName = document.getElementById("cloudUserName");
+const cloudUserEmail = document.getElementById("cloudUserEmail");
+const btnManualSync = document.getElementById("btnManualSync");
+const btnLogout = document.getElementById("btnLogout");
+
+function updateCloudUI(status, message) {
+  if (cloudStatusText) cloudStatusText.textContent = message;
+  if (!cloudStatusIcon) return;
+  if (status === "saving") {
+    cloudStatusIcon.textContent = "⏳";
+    cloudStatusIcon.classList.add("saving");
+  } else if (status === "synced") {
+    cloudStatusIcon.textContent = "☁️";
+    cloudStatusIcon.classList.remove("saving");
+  } else if (status === "error") {
+    cloudStatusIcon.textContent = "⚠️";
+    cloudStatusIcon.classList.remove("saving");
+  } else {
+    cloudStatusIcon.textContent = "💾";
+    cloudStatusIcon.classList.remove("saving");
+  }
+}
+
+async function loadFromFirebase(uid) {
+  try {
+    isSyncingRemote = true;
+    updateCloudUI("saving", "Obteniendo datos de Firebase...");
+    const dbRef = ref(rtdb, `users/${uid}/one_chicago_checklist`);
+    const snapshot = await get(dbRef);
+    if (snapshot.exists()) {
+      const data = snapshot.val();
+      if (data && typeof data === "object") {
+        if (data.items) state.items = data.items;
+        if (Array.isArray(data.open)) state.open = data.open;
+        try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+        
+        REG.forEach(refreshRec);
+        recompute(false);
+        const openSet = new Set(state.open);
+        openSet.forEach(pi => { if (pi >= 0 && pi < PHASES.length) phaseUI[pi].el.classList.add("open"); });
+        
+        const lastSync = data.updatedAt ? new Date(data.updatedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "";
+        updateCloudUI("synced", `Sincronizado con Firebase ${lastSync ? '· ' + lastSync : ''}`);
+        toast("☁️ Progreso sincronizado desde tu cuenta Firebase");
+      }
+    } else {
+      await syncToFirebase(false);
+      updateCloudUI("synced", "Progreso inicial enlazado en Firebase");
+    }
+  } catch (err) {
+    console.error("Error al leer de Firebase:", err);
+    updateCloudUI("error", "Error al leer de Firebase. Usando copia local.");
+  } finally {
+    isSyncingRemote = false;
+  }
+}
+
+async function syncToFirebase(showToast = false) {
+  if (!currentUser || isSyncingRemote) return;
+  updateCloudUI("saving", "Guardando cambios en Firebase...");
+  try {
+    const dbRef = ref(rtdb, `users/${currentUser.uid}/one_chicago_checklist`);
+    const payload = {
+      items: state.items || {},
+      open: state.open || [0],
+      updatedAt: new Date().toISOString(),
+      userEmail: currentUser.email || "joel.claroso@gmail.com",
+      userName: currentUser.displayName || "Joel Claros",
+      totalEpisodes: TOTAL_EP_COUNT
+    };
+    await set(dbRef, payload);
+    const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    updateCloudUI("synced", `Guardado en la nube (${now})`);
+    if (showToast) toast("✅ ¡Progreso sincronizado en Firebase!");
+  } catch (err) {
+    console.error("Error al guardar en Firebase:", err);
+    updateCloudUI("error", "Error de conexión Firebase (guardado local OK)");
+  }
+}
+
+function debouncedSaveToFirebase() {
+  if (!currentUser) return;
+  clearTimeout(saveTimeout);
+  updateCloudUI("saving", "Guardando cambios...");
+  saveTimeout = setTimeout(() => {
+    syncToFirebase(false);
+  }, 400);
+}
+
+function save(){ 
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(err){} 
+  debouncedSaveToFirebase();
+}
+
+// Escuchar Auth State
+onAuthStateChanged(auth, async (user) => {
+  currentUser = user;
+  if (user) {
+    if (btnLoginGoogle) btnLoginGoogle.style.display = "none";
+    if (cloudUserProfile) cloudUserProfile.style.display = "flex";
+    
+    const displayName = user.displayName || user.email.split("@")[0];
+    if (cloudUserName) cloudUserName.textContent = displayName;
+    if (cloudUserEmail) cloudUserEmail.textContent = user.email;
+    
+    if (user.photoURL && cloudUserImg) {
+      cloudUserImg.src = user.photoURL;
+      cloudUserImg.style.display = "block";
+      if (cloudUserInitials) cloudUserInitials.style.display = "none";
+    } else if (cloudUserInitials) {
+      cloudUserInitials.textContent = (displayName.charAt(0) || "J").toUpperCase();
+      cloudUserInitials.style.display = "grid";
+      if (cloudUserImg) cloudUserImg.style.display = "none";
+    }
+
+    updateCloudUI("synced", `Sincronizado con ${user.email}`);
+    await loadFromFirebase(user.uid);
+  } else {
+    if (btnLoginGoogle) btnLoginGoogle.style.display = "inline-flex";
+    if (cloudUserProfile) cloudUserProfile.style.display = "none";
+    updateCloudUI("local", "Modo local · Conecta joel.claroso@gmail.com para guardar en la nube");
+  }
+});
+
+// Procesar posible redirección (móviles)
+getRedirectResult(auth).catch((err) => {
+  console.warn("Error en redirección auth:", err);
+});
+
+// Eventos de botones de autenticación
+if (btnLoginGoogle) {
+  btnLoginGoogle.addEventListener("click", async () => {
+    const provider = new GoogleAuthProvider();
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    try {
+      updateCloudUI("saving", "Iniciando inicio de sesión...");
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+      } else {
+        const result = await signInWithPopup(auth, provider);
+        toast(`👋 ¡Sesión iniciada como ${result.user.displayName || result.user.email}!`);
+      }
+    } catch (err) {
+      console.error("Error al autenticar:", err);
+      updateCloudUI("error", `Error de login: ${err.message}`);
+      toast("❌ No se pudo iniciar sesión con Google");
+    }
+  });
+}
+
+if (btnLogout) {
+  btnLogout.addEventListener("click", async () => {
+    if (!confirm("¿Deseas desconectar tu cuenta de Firebase? Los cambios seguirán guardándose localmente.")) return;
+    await signOut(auth);
+    toast("Sesión cerrada. Ahora en modo local.");
+  });
+}
+
+if (btnManualSync) {
+  btnManualSync.addEventListener("click", async () => {
+    if (!currentUser) {
+      toast("Inicia sesión primero para sincronizar con la nube.");
+      return;
+    }
+    toast("🔄 Sincronizando con Firebase...");
+    await syncToFirebase(true);
+  });
+}
+
+/* ================= RECOMPENSA / STATS ================= */
+function toast(msg){
+  const t = document.createElement("div");
+  t.className = "toast"; t.innerHTML = msg;
+  document.getElementById("toasts").appendChild(t);
+  requestAnimationFrame(()=> t.classList.add("show"));
+  setTimeout(()=>{ t.classList.remove("show"); setTimeout(()=>t.remove(), 400); }, 3400);
+}
+function confetti(n){
+  const c = document.getElementById("confetti");
+  const colors = ["#ff7a1f","#4d9fff","#2fd6bd","#ffc53d","#ff6f9c","#b18cff"];
+  for(let i=0;i<n;i++){
+    const p = document.createElement("i");
+    p.style.background = colors[i % colors.length];
+    p.style.left = (Math.random()*100) + "vw";
+    p.style.setProperty("--dx", ((Math.random()*2-1)*220) + "px");
+    p.style.setProperty("--rz", ((Math.random()*760)-380) + "deg");
+    p.style.animationDelay = (Math.random()*0.25) + "s";
+    p.style.animationDuration = (1.3 + Math.random()*1.3) + "s";
+    c.appendChild(p);
+    setTimeout(()=> p.remove(), 3400);
+  }
+}
+
+let TOTAL_EP_COUNT = 0;
+function recompute(fx){
+  let doneUnits = 0, totalUnits = 0, watched = 0, phasesDone = 0;
+  PHASES.forEach((ph, pi) => {
+    const recs = REG.filter(r => r.phase === pi && r.countable);
+    let d = 0;
+    recs.forEach(r => { if(recDone(r)) d++; watched += recEps(r); });
+    totalUnits += recs.length; doneUnits += d;
+    const ui = phaseUI[pi];
+    ui.bar.style.width = (recs.length ? d/recs.length*100 : 0) + "%";
+    ui.count.textContent = d + "/" + recs.length;
+    const complete = recs.length > 0 && d === recs.length;
+    ui.el.classList.toggle("complete", complete);
+    ui.head.querySelector(".pnum").textContent = complete ? "✓" : (pi+1);
+    if(complete) phasesDone++;
+    if(fx && ready && complete && !prevPhaseDone[pi]){
+      toast("🎉 ¡Fase " + (pi+1) + " completada!");
+      confetti(70);
+      setOpen(pi+1, true);
+    }
+    prevPhaseDone[pi] = complete;
+  });
+  const xRecs = REG.filter(r => r.item.type === "crossover");
+  let xDone = 0;
+  xRecs.forEach(r => {
+    const d = recDone(r);
+    if(d) xDone++;
+    if(fx && ready && d && !prevCrossDone[r.id]){
+      toast("⚡ ¡Crossover «" + r.item.name + "» completado!");
+      confetti(35);
+    }
+    prevCrossDone[r.id] = d;
+  });
+  document.getElementById("stEps").textContent = watched + "/" + TOTAL_EP_COUNT;
+  document.getElementById("stCross").textContent = xDone + "/" + xRecs.length;
+  document.getElementById("stPhases").textContent = phasesDone + "/" + PHASES.length;
+  document.getElementById("globalBar").style.width = (TOTAL_EP_COUNT ? watched/TOTAL_EP_COUNT*100 : 0) + "%";
+  const all = watched === TOTAL_EP_COUNT && doneUnits === totalUnits && totalUnits > 0;
+  if(fx && ready && all && !prevAll){
+    toast("🏆 ¡Has completado todo One Chicago! Enhorabuena.");
+    confetti(160);
+  }
+  prevAll = all;
+}
+
+/* ================= INTERACCIÓN ================= */
+function setOpen(pi, force){
+  if(pi < 0 || pi >= PHASES.length) return;
+  const el = phaseUI[pi].el;
+  const willOpen = force !== undefined ? force : !el.classList.contains("open");
+  el.classList.toggle("open", willOpen);
+  const set = new Set(state.open);
+  if(willOpen) set.add(pi); else set.delete(pi);
+  state.open = [...set];
+  save();
+}
+
+document.getElementById("phases").addEventListener("click", e => {
+  const stepBtn = e.target.closest('[data-kind="step"],[data-kind="pstep"]');
+  if(stepBtn){
+    const id = stepBtn.dataset.id, d = parseInt(stepBtn.dataset.d,10), rec = findRec(id);
+    if(rec.item.type === "range"){
+      const len = rangeLen(rec.item);
+      const cur = Math.min(Math.max(state.items[id]||0,0), len);
+      state.items[id] = Math.min(Math.max(cur + d, 0), len);
+    } else {
+      const ri = parseInt(stepBtn.dataset.ri,10);
+      const len = rangeLen(rec.item.ranges[ri]);
+      const arr = Array.isArray(state.items[id]) ? state.items[id].slice() : rec.item.ranges.map(()=>0);
+      arr[ri] = Math.min(Math.max((arr[ri]||0) + d, 0), len);
+      state.items[id] = arr;
+    }
+    save(); refreshRec(rec); recompute(true);
+    return;
+  }
+  const fillBtn = e.target.closest('[data-kind="fill"],[data-kind="pfill"]');
+  if(fillBtn){
+    const id = fillBtn.dataset.id, rec = findRec(id);
+    if(rec.item.type === "range"){
+      const len = rangeLen(rec.item);
+      state.items[id] = (state.items[id] === len) ? 0 : len;
+    } else {
+      const ri = parseInt(fillBtn.dataset.ri,10);
+      const len = rangeLen(rec.item.ranges[ri]);
+      const arr = Array.isArray(state.items[id]) ? state.items[id].slice() : rec.item.ranges.map(()=>0);
+      arr[ri] = arr[ri] === len ? 0 : len;
+      state.items[id] = arr;
+    }
+    save(); refreshRec(rec); recompute(true);
+    return;
+  }
+  const togBtn = e.target.closest('[data-kind="toggle"]');
+  if(togBtn){
+    const id = togBtn.dataset.id;
+    state.items[id] = !(state.items[id] === true);
+    save();
+    const rec = findRec(id);
+    refreshRec(rec); recompute(true);
+    return;
+  }
+  const row = e.target.closest(".toggle-row");
+  if(row){
+    const id = row.dataset.id || row.dataset.pid;
+    if(id){
+      state.items[id] = !(state.items[id] === true);
+      save();
+      const rec = findRec(id);
+      refreshRec(rec); recompute(true);
+      return;
+    }
+  }
+  const head = e.target.closest(".phase-head");
+  if(head){
+    const sec = head.closest(".phase");
+    setOpen(parseInt(sec.dataset.phase,10));
+  }
+});
+
+/* filtro + búsqueda */
+function applyFilter(){
+  const q = document.getElementById("search").value.trim().toLowerCase();
+  const phasesEl = document.getElementById("phases");
+  const filtering = curFilter !== "all" || q.length > 0;
+  phasesEl.classList.toggle("filtering", filtering);
+  const visiblePerPhase = PHASES.map(()=>0);
+  REG.forEach(rec => {
+    const el = rec.el;
+    const type = el.dataset.type || "label";
+    const series = (el.dataset.series || "").split(",");
+    let ok = true;
+    if(curFilter === "cross") ok = type === "crossover";
+    else if(curFilter === "extra") ok = series.includes("svu") || series.includes("justice");
+    else if(curFilter !== "all") ok = series.includes(curFilter);
+    if(ok && q) ok = el.textContent.toLowerCase().includes(q);
+    el.classList.toggle("hide", !ok);
+    if(ok && rec.countable) visiblePerPhase[rec.phase]++;
+  });
+  phaseUI.forEach((ui, pi) => {
+    ui.el.style.display = visiblePerPhase[pi] > 0 ? "" : "none";
+  });
+}
+document.getElementById("chips").addEventListener("click", e => {
+  const chip = e.target.closest(".chip");
+  if(!chip) return;
+  document.querySelectorAll(".chip").forEach(c => c.classList.remove("active"));
+  chip.classList.add("active");
+  curFilter = chip.dataset.f;
+  applyFilter();
+});
+document.getElementById("search").addEventListener("input", applyFilter);
+
+/* siguiente capítulo */
+document.getElementById("btnNext").addEventListener("click", () => {
+  let target = null, targetPhase = -1;
+  for(const rec of REG){
+    if(!rec.countable) continue;
+    if(!recDone(rec)){ target = rec; targetPhase = rec.phase; break; }
+  }
+  if(!target){ toast("🏆 ¡Ya has completado todos los capítulos!"); return; }
+  setOpen(targetPhase, true);
+  let elTo = target.el;
+  if(target.item.type === "crossover"){
+    const idx = target.item.parts.findIndex((p,k)=> !partState(target.id+"k"+k));
+    if(idx >= 0) elTo = target.partEls[idx];
+  }
+  setTimeout(()=>{
+    elTo.scrollIntoView({behavior:"smooth", block:"center"});
+    elTo.classList.remove("pulse");
+    void elTo.offsetWidth;
+    elTo.classList.add("pulse");
+    setTimeout(()=> elTo.classList.remove("pulse"), 2600);
+  }, 80);
+});
+
+/* reiniciar */
+document.getElementById("btnReset").addEventListener("click", () => {
+  if(!confirm("¿Seguro que quieres reiniciar todo el progreso?")) return;
+  state.items = {};
+  save();
+  REG.forEach(refreshRec);
+  recompute(false);
+  if (currentUser) {
+    syncToFirebase(false);
+  }
+  toast("🔄 Progreso reiniciado. ¡A empezar de nuevo!");
+});
+
+/* tabs */
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+    tab.classList.add("active");
+    document.getElementById("tab-checklist").hidden = tab.dataset.tab !== "checklist";
+    document.getElementById("tab-crono").hidden = tab.dataset.tab !== "crono";
+  });
+});
+
+/* cronología */
+function buildCrono(){
+  const table = document.getElementById("cronoTable");
+  let html = "<thead><tr><th>Año de emisión</th><th class='th-fire'>Chicago Fire</th><th class='th-pd'>Chicago P.D.</th><th class='th-med'>Chicago Med</th><th>Notas de crossover</th></tr></thead><tbody>";
+  CRONO.forEach(row => {
+    const cell = v => v ? '<span class="badge b-'+v.series+'">'+v.label+'</span>' : '<span class="na">No iniciada</span>';
+    html += "<tr><td class='yr'>"+row[0]+"</td><td>"+cell(row[1]?{series:"fire",label:row[1]}:null)+"</td><td>"+cell(row[2]?{series:"pd",label:row[2]}:null)+"</td><td>"+cell(row[3]?{series:"med",label:row[3]}:null)+"</td><td class='note-c'>"+row[4]+"</td></tr>";
+  });
+  html += "</tbody>";
+  table.innerHTML = html;
+}
+
+/* ================= INIT ================= */
+buildPhases();
+buildCrono();
+TOTAL_EP_COUNT = REG.reduce((a,r)=> a + (r.item.type === "block" || r.item.type === "label" ? 0 :
+  r.item.type === "ep" ? 1 :
+  r.item.type === "range" ? rangeLen(r.item) :
+  r.item.type === "parallel" ? r.item.ranges.reduce((b,x)=> b + rangeLen(x), 0) :
+  r.item.type === "crossover" ? r.item.parts.length : 0), 0);
+
+// abrir fases guardadas + primera fase incompleta
+const firstIncomplete = (function(){
+  for(let pi=0; pi<PHASES.length; pi++){
+    const recs = REG.filter(r => r.phase === pi && r.countable);
+    if(recs.some(r => !recDone(r))) return pi;
+  }
+  return 0;
+})();
+const openSet = new Set(state.open);
+openSet.add(firstIncomplete);
+openSet.forEach(pi => { if(pi >= 0 && pi < PHASES.length) phaseUI[pi].el.classList.add("open"); });
+state.open = [...openSet];
+
+REG.forEach(refreshRec);
+recompute(false);
+applyFilter();
+ready = true;
+</script>
+</body>
+</html>
