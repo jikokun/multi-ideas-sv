@@ -1093,6 +1093,138 @@
             transform: translateX(22px);
         }
 
+        /* ==========================================================
+           COMPONENTES DE CARGA A GOOGLE DRIVE Y VISTA PREVIA
+        ========================================================== */
+        .image-upload-wrapper {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .image-input-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .image-input-group .form-input {
+            flex: 1;
+        }
+
+        .btn-drive-upload {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 11px 16px;
+            background: linear-gradient(135deg, #4285f4, #34a853);
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 12.5px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(66, 133, 244, 0.25);
+            transition: all 0.25s var(--spring);
+            flex-shrink: 0;
+        }
+
+        .btn-drive-upload:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(66, 133, 244, 0.35);
+            filter: brightness(1.05);
+        }
+
+        .btn-drive-upload:disabled {
+            opacity: 0.6;
+            pointer-events: none;
+            transform: none;
+        }
+
+        .upload-progress-box {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .progress-bar-track {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4285f4, #34a853);
+            border-radius: 6px;
+            transition: width 0.3s ease;
+        }
+
+        .progress-status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 11.5px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .progress-status-pct {
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        .image-preview-box {
+            position: relative;
+            width: 100%;
+            max-height: 140px;
+            background: #f1f5f9;
+            border: 1.5px dashed #cbd5e1;
+            border-radius: 12px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 6px;
+        }
+
+        .image-preview-box img {
+            max-height: 128px;
+            max-width: 100%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+
+        .btn-clear-preview {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 26px;
+            height: 26px;
+            background: rgba(15, 23, 42, 0.75);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .btn-clear-preview:hover {
+            background: #ef4444;
+            transform: scale(1.1);
+        }
+
         .modal-footer {
             padding: 18px 28px;
             border-top: 1px solid #f1f5f9;
@@ -1657,8 +1789,33 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">URL del Logo / Imagen Principal</label>
-                    <input type="text" class="form-input" id="bizImgSrc" placeholder="https://res.cloudinary.com/...">
+                    <label class="form-label">Logo / Imagen Principal del Negocio</label>
+                    <div class="image-upload-wrapper">
+                        <div class="image-input-group">
+                            <input type="text" class="form-input" id="bizImgSrc" placeholder="https://drive.google.com/... o sube archivo directo" oninput="updateImagePreviewFromUrl('biz')">
+                            <button type="button" class="btn-drive-upload" id="btnUploadBizImg" onclick="triggerDriveUpload('biz')" title="Subir foto desde tu dispositivo a Google Drive">
+                                📁 Subir a Drive
+                            </button>
+                            <input type="file" id="bizFileInput" accept="image/*" style="display: none;" onchange="handleDriveFileSelected(event, 'biz')">
+                        </div>
+                        
+                        <!-- Barra de progreso interactiva Drive -->
+                        <div class="upload-progress-box" id="bizUploadProgress" style="display: none;">
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="bizProgressBar" style="width: 0%;"></div>
+                            </div>
+                            <div class="progress-status-row">
+                                <span class="progress-status-text" id="bizProgressText">⏳ Procesando imagen...</span>
+                                <span class="progress-status-pct" id="bizProgressPct">0%</span>
+                            </div>
+                        </div>
+
+                        <!-- Vista previa de la imagen -->
+                        <div class="image-preview-box" id="bizPreviewBox" style="display: none;">
+                            <img id="bizPreviewImg" src="" alt="Vista previa del logo">
+                            <button type="button" class="btn-clear-preview" onclick="clearImagePreview('biz')" title="Quitar imagen">✕</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-row">
@@ -1763,8 +1920,33 @@
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label">URL de Imagen del Boletín</label>
-                    <input type="text" class="form-input" id="newsImgInput" placeholder="https://res.cloudinary.com/...">
+                    <label class="form-label">Imagen de la Noticia / Boletín / Anuncio</label>
+                    <div class="image-upload-wrapper">
+                        <div class="image-input-group">
+                            <input type="text" class="form-input" id="newsImgInput" placeholder="https://drive.google.com/... o sube archivo directo" oninput="updateImagePreviewFromUrl('news')">
+                            <button type="button" class="btn-drive-upload" id="btnUploadNewsImg" onclick="triggerDriveUpload('news')" title="Subir imagen desde tu dispositivo a Google Drive">
+                                📁 Subir a Drive
+                            </button>
+                            <input type="file" id="newsFileInput" accept="image/*" style="display: none;" onchange="handleDriveFileSelected(event, 'news')">
+                        </div>
+                        
+                        <!-- Barra de progreso interactiva Drive -->
+                        <div class="upload-progress-box" id="newsUploadProgress" style="display: none;">
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="newsProgressBar" style="width: 0%;"></div>
+                            </div>
+                            <div class="progress-status-row">
+                                <span class="progress-status-text" id="newsProgressText">⏳ Procesando imagen...</span>
+                                <span class="progress-status-pct" id="newsProgressPct">0%</span>
+                            </div>
+                        </div>
+
+                        <!-- Vista previa de la imagen -->
+                        <div class="image-preview-box" id="newsPreviewBox" style="display: none;">
+                            <img id="newsPreviewImg" src="" alt="Vista previa de la noticia">
+                            <button type="button" class="btn-clear-preview" onclick="clearImagePreview('news')" title="Quitar imagen">✕</button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -2030,17 +2212,28 @@
             const data = snapshot.val() || {};
             newsList = Object.keys(data).map(key => {
                 const item = data[key];
+                const badgeVal = (item.badge || item.category || "noticias").toLowerCase().trim();
+                const contactWhatsapp = item.contactWhatsapp || item.whatsapp || "";
+                const imageUrl = item.imageUrl || item.imgSrc || "";
+                const locationUrl = item.locationUrl || item.mapsUrl || "";
+                const moreUrl = item.moreUrl || item.link || item.websiteUrl || "";
+
                 return {
                     id: item.id || key,
                     title: item.title || "Novedad",
                     description: item.description || "",
-                    badge: item.badge || "NOVEDAD",
-                    imgSrc: item.imgSrc || "",
-                    whatsapp: item.whatsapp || "",
-                    locationUrl: item.locationUrl || "",
-                    link: item.link || item.websiteUrl || "",
+                    badge: badgeVal,
+                    contactWhatsapp: contactWhatsapp,
+                    imageUrl: imageUrl,
+                    locationUrl: locationUrl,
+                    moreUrl: moreUrl,
+                    // Aliases para componentes internos y retrocompatibilidad
+                    whatsapp: contactWhatsapp,
+                    imgSrc: imageUrl,
+                    link: moreUrl,
                     hasOffer: Boolean(item.hasOffer),
                     offerMsg: item.offerMsg || "",
+                    timestamp: item.timestamp || 0,
                     isActive: item.isActive !== false
                 };
             });
@@ -2176,6 +2369,165 @@
         }
 
         // ==========================================================
+        // GESTIÓN DE CARGA A GOOGLE DRIVE Y VISTA PREVIA
+        // ==========================================================
+        const GOOGLE_DRIVE_UPLOAD_ENDPOINT = "https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec";
+
+        window.triggerDriveUpload = function(targetType) {
+            const fileInput = document.getElementById(targetType === 'biz' ? 'bizFileInput' : 'newsFileInput');
+            if (fileInput) fileInput.click();
+        };
+
+        window.clearImagePreview = function(targetType) {
+            const input = document.getElementById(targetType === 'biz' ? 'bizImgSrc' : 'newsImgInput');
+            const previewBox = document.getElementById(targetType === 'biz' ? 'bizPreviewBox' : 'newsPreviewBox');
+            const previewImg = document.getElementById(targetType === 'biz' ? 'bizPreviewImg' : 'newsPreviewImg');
+            const fileInput = document.getElementById(targetType === 'biz' ? 'bizFileInput' : 'newsFileInput');
+            
+            if (input) input.value = '';
+            if (previewImg) previewImg.src = '';
+            if (previewBox) previewBox.style.display = 'none';
+            if (fileInput) fileInput.value = '';
+        };
+
+        window.updateImagePreviewFromUrl = function(targetType) {
+            const input = document.getElementById(targetType === 'biz' ? 'bizImgSrc' : 'newsImgInput');
+            const previewBox = document.getElementById(targetType === 'biz' ? 'bizPreviewBox' : 'newsPreviewBox');
+            const previewImg = document.getElementById(targetType === 'biz' ? 'bizPreviewImg' : 'newsPreviewImg');
+            
+            const url = input ? input.value.trim() : '';
+            if (url && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:'))) {
+                if (previewImg && previewBox) {
+                    previewImg.src = url;
+                    previewImg.onerror = () => { if (previewBox) previewBox.style.display = 'none'; };
+                    previewImg.onload = () => { if (previewBox) previewBox.style.display = 'flex'; };
+                    previewBox.style.display = 'flex';
+                }
+            } else {
+                if (previewBox) previewBox.style.display = 'none';
+            }
+        };
+
+        function formatWhatsappNumber(val) {
+            let clean = (val || "").replace(/\D/g, "");
+            if (clean.length === 8) clean = "503" + clean;
+            return clean;
+        }
+
+        window.handleDriveFileSelected = async function(event, targetType) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            // Límite de 8MB por archivo
+            if (file.size > 8 * 1024 * 1024) {
+                showToast("⚠️ La imagen no debe superar los 8 MB", true);
+                event.target.value = '';
+                return;
+            }
+
+            const isBiz = targetType === 'biz';
+            const uploadBtn = document.getElementById(isBiz ? 'btnUploadBizImg' : 'btnUploadNewsImg');
+            const progressBox = document.getElementById(isBiz ? 'bizUploadProgress' : 'newsUploadProgress');
+            const progressBar = document.getElementById(isBiz ? 'bizProgressBar' : 'newsProgressBar');
+            const progressText = document.getElementById(isBiz ? 'bizProgressText' : 'newsProgressText');
+            const progressPct = document.getElementById(isBiz ? 'bizProgressPct' : 'newsProgressPct');
+            const urlInput = document.getElementById(isBiz ? 'bizImgSrc' : 'newsImgInput');
+            const previewBox = document.getElementById(isBiz ? 'bizPreviewBox' : 'newsPreviewBox');
+            const previewImg = document.getElementById(isBiz ? 'bizPreviewImg' : 'newsPreviewImg');
+
+            if (uploadBtn) uploadBtn.disabled = true;
+            if (progressBox) progressBox.style.display = 'block';
+            if (progressBar) {
+                progressBar.style.width = '15%';
+                progressBar.style.background = 'linear-gradient(90deg, #4285f4, #34a853)';
+            }
+            if (progressPct) progressPct.textContent = '15%';
+            if (progressText) progressText.textContent = '⏳ Procesando archivo de imagen...';
+
+            const reader = new FileReader();
+            reader.onload = async function() {
+                const localDataUrl = reader.result;
+                
+                // Vista previa local inmediata mientras sube
+                if (previewImg && previewBox) {
+                    previewImg.src = localDataUrl;
+                    previewBox.style.display = 'flex';
+                }
+
+                if (progressBar) progressBar.style.width = '35%';
+                if (progressPct) progressPct.textContent = '35%';
+                if (progressText) progressText.textContent = '⏳ Conectando con Google Drive...';
+
+                try {
+                    const base64Data = localDataUrl.split(',')[1];
+                    const cleanName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+                    const finalFilename = `${isBiz ? 'biz' : 'news'}_${Date.now()}_${cleanName}`;
+
+                    if (progressBar) progressBar.style.width = '60%';
+                    if (progressPct) progressPct.textContent = '60%';
+                    if (progressText) progressText.textContent = '📤 Subiendo a Google Drive...';
+
+                    const payload = {
+                        base64: base64Data,
+                        userName: "Web_Admin_Panel",
+                        filename: finalFilename,
+                        mimeType: file.type || 'image/jpeg'
+                    };
+
+                    const response = await fetch(GOOGLE_DRIVE_UPLOAD_ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'text/plain;charset=utf-8'
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (progressBar) progressBar.style.width = '85%';
+                    if (progressPct) progressPct.textContent = '85%';
+                    if (progressText) progressText.textContent = '🔄 Obteniendo enlace público de Drive...';
+
+                    const res = await response.json();
+                    console.log("[Drive Upload] Respuesta del servidor:", res);
+
+                    const fileUrl = res.fileUrl || res.url || (res.data && res.data.fileUrl);
+
+                    if (fileUrl) {
+                        if (urlInput) urlInput.value = fileUrl;
+                        if (progressBar) progressBar.style.width = '100%';
+                        if (progressPct) progressPct.textContent = '100%';
+                        if (progressText) progressText.textContent = '✅ ¡Imagen subida con éxito a Drive!';
+                        
+                        showToast("✅ Foto subida exitosamente a Google Drive");
+                        
+                        setTimeout(() => {
+                            if (progressBox) progressBox.style.display = 'none';
+                        }, 3000);
+                    } else {
+                        throw new Error(res.message || res.error || "No se recibió 'fileUrl' del script de Drive");
+                    }
+                } catch (err) {
+                    console.error("Error al subir imagen a Google Drive:", err);
+                    showToast("❌ Error al subir a Drive: " + err.message, true);
+                    if (progressBar) {
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = '#ef4444';
+                    }
+                    if (progressText) progressText.textContent = '❌ Error al subir a Google Drive';
+                    if (progressPct) progressPct.textContent = 'Error';
+                } finally {
+                    if (uploadBtn) uploadBtn.disabled = false;
+                    event.target.value = '';
+                }
+            };
+            reader.onerror = () => {
+                showToast("❌ Error al leer archivo local", true);
+                if (uploadBtn) uploadBtn.disabled = false;
+                if (progressBox) progressBox.style.display = 'none';
+            };
+            reader.readAsDataURL(file);
+        };
+
+        // ==========================================================
         // MODALES CRUD: NEGOCIOS
         // ==========================================================
         window.openBusinessModal = function(id = null) {
@@ -2197,7 +2549,7 @@
                 document.getElementById("bizCategory").value = b.category || "";
                 document.getElementById("bizBadge").value = b.badge || "";
                 document.getElementById("bizDesc").value = b.description || "";
-                document.getElementById("bizImgSrc").value = b.imgSrc || "";
+                document.getElementById("bizImgSrc").value = b.imgSrc || b.imageUrl || "";
                 document.getElementById("bizWhatsapp").value = b.whatsapp || "";
                 document.getElementById("bizWebsiteUrl").value = b.websiteUrl || "";
                 document.getElementById("bizLocationUrl").value = b.locationUrl || "";
@@ -2205,6 +2557,7 @@
                 document.getElementById("bizHasOffer").checked = b.hasOffer;
                 document.getElementById("bizOfferMsg").value = b.offerMsg || "";
                 document.getElementById("bizIsActive").checked = b.isActive;
+                updateImagePreviewFromUrl('biz');
             } else {
                 title.textContent = "Añadir Nuevo Negocio";
                 deleteBtn.style.display = "none";
@@ -2224,6 +2577,7 @@
                 document.getElementById("bizHasOffer").checked = false;
                 document.getElementById("bizOfferMsg").value = "";
                 document.getElementById("bizIsActive").checked = true;
+                clearImagePreview('biz');
             }
 
             overlay.classList.add("active");
@@ -2245,7 +2599,10 @@
 
             const locationUrl = document.getElementById("bizLocationUrl").value.trim();
             const coords = extractCoords(locationUrl, rawId);
+            const imgSrc = document.getElementById("bizImgSrc").value.trim();
+            const whatsapp = formatWhatsappNumber(document.getElementById("bizWhatsapp").value.trim());
 
+            // Estructura sincronizada con la app Android (imgSrc, whatsapp, etc.)
             const bizData = {
                 id: rawId,
                 code: document.getElementById("bizCode").value.trim().toUpperCase(),
@@ -2254,8 +2611,9 @@
                 category: document.getElementById("bizCategory").value.trim() || "comercio",
                 badge: document.getElementById("bizBadge").value.trim().toUpperCase(),
                 description: document.getElementById("bizDesc").value.trim(),
-                imgSrc: document.getElementById("bizImgSrc").value.trim(),
-                whatsapp: document.getElementById("bizWhatsapp").value.trim(),
+                imgSrc: imgSrc,
+                imageUrl: imgSrc, // Compatibilidad
+                whatsapp: whatsapp,
                 websiteUrl: document.getElementById("bizWebsiteUrl").value.trim(),
                 locationUrl: locationUrl,
                 lat: coords ? coords.lat : 13.8767,
@@ -2303,25 +2661,26 @@
             if (id) {
                 const n = newsList.find(x => x.id === id);
                 if (!n) return;
-                title.textContent = "Editar Noticia: " + n.title;
+                title.textContent = "Editar Noticia / Aviso: " + n.title;
                 deleteBtn.style.display = "block";
                 document.getElementById("newsId").value = n.id;
                 document.getElementById("newsId").readOnly = true;
                 document.getElementById("newsTitleInput").value = n.title;
                 
-                // Normalizar selección de los 4 tipos de categoría
-                const rawBadge = (n.badge || "noticias").toLowerCase();
+                // Normalizar selección de los 4 tipos de categoría en minúsculas exactas
+                const rawBadge = (n.badge || "noticias").toLowerCase().trim();
                 let selectedCategory = "noticias";
                 if (rawBadge.includes("boletin") || rawBadge.includes("boletines")) selectedCategory = "boletines";
                 else if (rawBadge.includes("informativ")) selectedCategory = "informativos";
                 else if (rawBadge.includes("anuncio") || rawBadge.includes("promo") || rawBadge.includes("oferta")) selectedCategory = "anuncios";
                 
                 document.getElementById("newsBadgeInput").value = selectedCategory;
-                document.getElementById("newsWhatsappInput").value = n.whatsapp || "";
+                document.getElementById("newsWhatsappInput").value = n.contactWhatsapp || n.whatsapp || "";
                 document.getElementById("newsDescInput").value = n.description || "";
-                document.getElementById("newsImgInput").value = n.imgSrc || "";
+                document.getElementById("newsImgInput").value = n.imageUrl || n.imgSrc || "";
                 document.getElementById("newsLocationInput").value = n.locationUrl || "";
-                document.getElementById("newsLinkInput").value = n.link || "";
+                document.getElementById("newsLinkInput").value = n.moreUrl || n.link || "";
+                updateImagePreviewFromUrl('news');
             } else {
                 title.textContent = "Publicar Novedad o Boletín";
                 deleteBtn.style.display = "none";
@@ -2334,6 +2693,7 @@
                 document.getElementById("newsImgInput").value = "";
                 document.getElementById("newsLocationInput").value = "";
                 document.getElementById("newsLinkInput").value = "";
+                clearImagePreview('news');
             }
 
             overlay.classList.add("active");
@@ -2353,20 +2713,32 @@
                 return;
             }
 
-            const badgeCategory = document.getElementById("newsBadgeInput").value;
+            // Insignias normalizadas en minúsculas: 'noticias', 'boletines', 'informativos', 'anuncios'
+            const badgeCategory = document.getElementById("newsBadgeInput").value.toLowerCase().trim();
             const badgeInfo = NEWS_BADGE_MAP[badgeCategory] || NEWS_BADGE_MAP.noticias;
 
+            const contactWhatsapp = formatWhatsappNumber(document.getElementById("newsWhatsappInput").value.trim());
+            const imageUrl = document.getElementById("newsImgInput").value.trim();
+            const locationUrl = document.getElementById("newsLocationInput").value.trim();
+            const moreUrl = document.getElementById("newsLinkInput").value.trim();
+            const description = document.getElementById("newsDescInput").value.trim();
+
+            // Estructura oficial sincronizada con la app Android (contactWhatsapp, imageUrl, locationUrl, moreUrl)
             const newsData = {
                 id: rawId,
                 title: title,
+                description: description,
                 badge: badgeCategory,
                 badgeLabel: badgeInfo.label,
                 accentColor: badgeInfo.color,
-                whatsapp: document.getElementById("newsWhatsappInput").value.trim(),
-                description: document.getElementById("newsDescInput").value.trim(),
-                imgSrc: document.getElementById("newsImgInput").value.trim(),
-                locationUrl: document.getElementById("newsLocationInput").value.trim(),
-                link: document.getElementById("newsLinkInput").value.trim(),
+                contactWhatsapp: contactWhatsapp,
+                imageUrl: imageUrl,
+                locationUrl: locationUrl,
+                moreUrl: moreUrl,
+                // Retrocompatibilidad con esquemas web anteriores
+                whatsapp: contactWhatsapp,
+                imgSrc: imageUrl,
+                link: moreUrl,
                 timestamp: Date.now(),
                 isActive: true
             };
@@ -2379,14 +2751,14 @@
                 const targetRef = ref(rtdb, `sensunshop/news/${rawId}`);
                 await set(targetRef, newsData);
 
-                // Si la categoría es boletines o anuncios, sincronizar también en los nodos correspondientes
+                // Si la categoría es boletines o anuncios, sincronizar también en los nodos correspondientes para redundancia
                 if (badgeCategory === "boletines") {
                     try { await set(ref(rtdb, `sensunshop/bulletins/${rawId}`), newsData); } catch (e) {}
                 } else if (badgeCategory === "anuncios") {
                     try { await set(ref(rtdb, `sensunshop/offers/${rawId}`), newsData); } catch (e) {}
                 }
 
-                showToast("✅ Noticia / Boletín guardado exitosamente");
+                showToast("✅ Publicación guardada exitosamente en sensunshop/news");
                 closeNewsModal();
             } catch (err) {
                 console.error("Error al guardar noticia:", err);

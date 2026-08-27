@@ -39,7 +39,9 @@ exports.sendNewsNotificationOnCreate = functions.database
         }
 
         const titleText = newsData.title || "¡Nueva Noticia en Sensun Shop!";
-        const imageSrc = newsData.imgSrc || "https://sensunshopweb.firebaseapp.com/imagenes/logos/icono-sensun-shop.webp";
+        const imageSrc = newsData.imageUrl || newsData.imgSrc || "https://sensunshopweb.firebaseapp.com/imagenes/logos/icono-sensun-shop.webp";
+        const contactWhatsapp = newsData.contactWhatsapp || newsData.whatsapp || "";
+        const moreUrl = newsData.moreUrl || newsData.link || "";
 
         // Estructura Data-Only FCM v1 (Permite a la app Android control visual 100% nativo y único)
         const message = {
@@ -49,12 +51,16 @@ exports.sendNewsNotificationOnCreate = functions.database
                 message: `Acabamos de publicar: ${titleText}`,
                 type: "news",
                 newsId: String(newsId),
-                badge: String(newsData.badge || "NOTICIA"),
+                badge: String((newsData.badge || "noticias").toLowerCase()),
                 badgeLabel: String(newsData.badgeLabel || "Noticia"),
+                imageUrl: String(imageSrc),
                 imgSrc: String(imageSrc),
                 description: String(newsData.description || ""),
-                whatsapp: String(newsData.whatsapp || ""),
+                contactWhatsapp: String(contactWhatsapp),
+                whatsapp: String(contactWhatsapp),
                 locationUrl: String(newsData.locationUrl || ""),
+                moreUrl: String(moreUrl),
+                link: String(moreUrl),
                 timestamp: String(newsData.timestamp || Date.now()),
                 channelId: "sensun_news_channel"
             },

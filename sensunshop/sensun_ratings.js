@@ -2320,21 +2320,29 @@ function parseFeedItems(data, defaultBadge = "noticias") {
     if (!data || typeof data !== "object") return [];
     return Object.keys(data).map(key => {
         const item = data[key];
-        const rawBadge = item.badge || item.category || item.tag || defaultBadge;
+        const rawBadge = (item.badge || item.category || item.tag || defaultBadge).toString().toLowerCase().trim();
         const catInfo = resolveNewsBadge(rawBadge);
+
+        const contactWhatsapp = item.contactWhatsapp || item.whatsapp || item.telefono || "";
+        const imageUrl = item.imageUrl || item.imgSrc || item.imagen || "";
+        const locationUrl = item.locationUrl || item.mapsUrl || "";
+        const moreUrl = (item.moreUrl || item.link || item.url || item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com");
 
         return {
             id: item.id || key,
             title: item.title || item.titulo || item.name || "Publicación",
             description: item.description || item.descripcion || item.content || item.contenido || "",
-            imgSrc: item.imgSrc || item.imageUrl || item.imagen || "",
+            imageUrl: imageUrl,
+            imgSrc: imageUrl,
             badge: rawBadge,
             badgeLabel: catInfo.badge,
-            whatsapp: item.whatsapp || item.telefono || "",
+            contactWhatsapp: contactWhatsapp,
+            whatsapp: contactWhatsapp,
             whatsappMsg: item.whatsappMsg || "",
-            locationUrl: item.locationUrl || item.mapsUrl || "",
-            link: (item.link || item.url || item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
-            hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1 || rawBadge.includes("oferta")),
+            locationUrl: locationUrl,
+            moreUrl: moreUrl,
+            link: moreUrl,
+            hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1 || rawBadge.includes("oferta") || rawBadge.includes("anuncio")),
             offerMsg: item.offerMsg || item.oferta || item.descuento || "",
             type: item.type || item.section || item.seccion || "negocioslocales",
             category: item.category || "comercio",

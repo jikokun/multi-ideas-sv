@@ -51,14 +51,13 @@ root/
 │   │       ├── id: String
 │   │       ├── title: String
 │   │       ├── description: String
-│   │       ├── imgSrc: String
-│   │       ├── badge: String        (ej: "PROMO", "EVENTO", "NUEVO INGRESO")
-│   │       ├── whatsapp: String
+│   │       ├── imageUrl: String     (URL de la imagen)
+│   │       ├── badge: String        ('noticias' | 'boletines' | 'informativos' | 'anuncios')
+│   │       ├── badgeLabel: String   (Opcional, etiqueta para visualización)
+│   │       ├── accentColor: String  (Color hexadecimal según badge)
+│   │       ├── contactWhatsapp: String
 │   │       ├── locationUrl: String
-│   │       ├── link: String
-│   │       ├── hasOffer: Boolean
-│   │       ├── offerMsg: String
-│   │       ├── date: String
+│   │       ├── moreUrl: String
 │   │       ├── timestamp: Long
 │   │       └── isActive: Boolean
 │   │
@@ -126,15 +125,16 @@ data class Business(
  */
 @IgnoreExtraProperties
 data class NewsItem(
-    val id: String = "",
+    var id: String = "",
     val title: String = "",
     val description: String = "",
-    val imgSrc: String = "",
-    val badge: String = "NOVEDAD",
-    val whatsapp: String = "",
-    val whatsappMsg: String = "",
+    val imageUrl: String = "",
+    val badge: String = "noticias", // 'noticias' | 'boletines' | 'informativos' | 'anuncios'
+    val badgeLabel: String = "",
+    val accentColor: String = "",
+    val contactWhatsapp: String = "",
     val locationUrl: String = "",
-    val link: String = "",
+    val moreUrl: String = "",
     val hasOffer: Boolean = false,
     val offerMsg: String = "",
     val date: String = "",
@@ -564,4 +564,33 @@ npx firebase-tools deploy --only functions
 
 Puedes disparar una notificación de prueba instantánea abriendo en tu navegador:
 `https://us-central1-sensunshopweb.cloudfunctions.net/sendTestPushNotification?title=Prueba%20Sensun&message=Mensaje%20de%20prueba`
+
+---
+
+## 10. Sistema de Carga de Imágenes (Google Drive Script)
+
+Para mantener paridad total entre la aplicación Android y el panel web administrativo, las imágenes se procesan a través del Web App Script de Google Drive:
+
+- **Endpoint (POST)**: `https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec`
+- **Payload (JSON)**:
+  ```json
+  {
+    "base64": "datos_en_base64_sin_prefijo",
+    "userName": "Web_Admin_Panel",
+    "filename": "nombre_archivo.jpg",
+    "mimeType": "image/jpeg"
+  }
+  ```
+- **Respuesta JSON**:
+  ```json
+  {
+    "status": "success",
+    "fileUrl": "https://lh3.googleusercontent.com/d/...",
+    "fileId": "..."
+  }
+  ```
+- **Persistencia en Firebase RTDB**:
+  - `sensunshop/businesses/<bizId>/imgSrc`: Enlace devuelto en `fileUrl`.
+  - `sensunshop/news/<newsId>/imageUrl`: Enlace devuelto en `fileUrl`.
+
 
