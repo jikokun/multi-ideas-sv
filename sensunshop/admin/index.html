@@ -3352,17 +3352,21 @@
         let pickerMarker = null;
 
         const MAP_TILE_LAYERS = {
-            voyager: {
-                url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-                options: { attribution: '&copy; CartoDB & OpenStreetMap', maxZoom: 20 }
+            osm: {
+                url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                options: { attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors', maxZoom: 19 }
+            },
+            esriStreet: {
+                url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+                options: { attribution: '&copy; Esri World Street Map', maxZoom: 19 }
             },
             satellite: {
                 url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
                 options: { attribution: '&copy; Esri World Imagery', maxZoom: 19 }
             },
-            osm: {
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                options: { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }
+            topo: {
+                url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+                options: { attribution: '&copy; OpenTopoMap (CC-BY-SA)', maxZoom: 17 }
             }
         };
 
@@ -3397,15 +3401,16 @@
         function initAdminMap() {
             if (map) return;
 
+            // Centro exacto del casco urbano de Sensuntepeque, Cabañas
             map = L.map('adminMap', {
-                center: [13.8767, -88.6319],
+                center: [13.8755, -88.6275],
                 zoom: 16,
                 zoomControl: true,
                 attributionControl: true
             });
 
-            // Añadir capa de mapa base inicial (CartoDB Voyager)
-            changeMapLayer("voyager");
+            // Añadir capa de mapa base inicial (OpenStreetMap sin marcas de agua ni API key)
+            changeMapLayer("osm");
 
             // Control de escala métrica
             L.control.scale({ imperial: false, metric: true }).addTo(map);
@@ -3628,7 +3633,7 @@
 
         window.recenterAdminMap = function() {
             if (map) {
-                map.setView([13.8767, -88.6319], 16);
+                map.setView([13.8755, -88.6275], 16);
             }
         };
 

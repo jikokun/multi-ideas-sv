@@ -2177,32 +2177,75 @@ function syncBusinessesToDOM(businessesList) {
     }
 }
 
+// Tabla calibrada de coordenadas geográficas de Sensuntepeque, Cabañas
+const SENSUN_KNOWN_COORDS_MAP = {
+    "arphotostudio": { lat: 13.873011, lng: -88.620773 },
+    "lasterrazas": { lat: 13.869501, lng: -88.619366 },
+    "neg-006": { lat: 13.878103, lng: -88.630060 },
+    "neg-005": { lat: 13.874233, lng: -88.628282 },
+    "neg-004": { lat: 13.873753, lng: -88.628258 },
+    "neg-003": { lat: 13.876198, lng: -88.621559 },
+    "disenograficopatrick": { lat: 13.878031, lng: -88.628745 },
+    "emp-001": { lat: 13.875139, lng: -88.626428 },
+    "emp-002": { lat: 13.876704, lng: -88.629354 },
+    "drjuliocesarvelasco": { lat: 13.876388, lng: -88.630002 },
+    "drhenrymartinez": { lat: 13.875842, lng: -88.628102 }
+};
+
+function isValidElSalvadorLatLong(lat, lng) {
+    return !isNaN(lat) && !isNaN(lng) && lat >= 13.0 && lat <= 14.6 && lng >= -90.5 && lng <= -87.5;
+}
+
 // Helper para extraer coordenadas geográficas desde Google Maps / Waze URLs
-function extractCoordinates(url) {
-    if (!url || typeof url !== "string") return null;
-    
-    // Formato 1: !3d13.864123!4d-88.625412 (Google Maps Embed / Place URL)
-    const match3d4d = url.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
-    if (match3d4d) {
-        return { lat: parseFloat(match3d4d[1]), lng: parseFloat(match3d4d[2]) };
+function extractCoordinates(url, id = "") {
+    if (url && typeof url === "string") {
+        const cleanUrl = url.trim();
+
+        // Formato 1: !3d13.864123!4d-88.625412 (Google Maps Embed / Place URL)
+        const match3d4d = cleanUrl.match(/!3d(-?\d+\.\d+)!4d(-?\d+\.\d+)/);
+        if (match3d4d) {
+            const lat = parseFloat(match3d4d[1]), lng = parseFloat(match3d4d[2]);
+            if (isValidElSalvadorLatLong(lat, lng)) return { lat, lng };
+        }
+
+        // Formato 2: @13.864123,-88.625412
+        const matchAt = cleanUrl.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (matchAt) {
+            const lat = parseFloat(matchAt[1]), lng = parseFloat(matchAt[2]);
+            if (isValidElSalvadorLatLong(lat, lng)) return { lat, lng };
+        }
+
+        // Formato 3: q=13.864123,-88.625412 o ll=13.864123,-88.625412
+        const matchQuery = cleanUrl.match(/[?&](?:q|query|ll|sll|center|loc)=(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/);
+        if (matchQuery) {
+            const lat = parseFloat(matchQuery[1]), lng = parseFloat(matchQuery[2]);
+            if (isValidElSalvadorLatLong(lat, lng)) return { lat, lng };
+        }
+
+        // Formato 4: /search/13.878103,+-88.630060 o /place/...
+        const matchPath = cleanUrl.match(/(?:place|dir|search)\/[^/]*\/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/) || cleanUrl.match(/\/search\/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/);
+        if (matchPath) {
+            const lat = parseFloat(matchPath[1]), lng = parseFloat(matchPath[2]);
+            if (isValidElSalvadorLatLong(lat, lng)) return { lat, lng };
+        }
+
+        // Formato 5: Coordenadas directas en texto "13.864123, -88.625412"
+        const matchDirect = cleanUrl.match(/^(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)$/);
+        if (matchDirect) {
+            const lat = parseFloat(matchDirect[1]), lng = parseFloat(matchDirect[2]);
+            if (isValidElSalvadorLatLong(lat, lng)) return { lat, lng };
+        }
     }
 
-    // Formato 2: @13.864123,-88.625412
-    const matchAt = url.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (matchAt) {
-        return { lat: parseFloat(matchAt[1]), lng: parseFloat(matchAt[2]) };
+    const cleanId = (id || "").toLowerCase().trim();
+    if (SENSUN_KNOWN_COORDS_MAP[cleanId]) {
+        return SENSUN_KNOWN_COORDS_MAP[cleanId];
     }
 
-    // Formato 3: q=13.864123,-88.625412 o ll=13.864123,-88.625412
-    const matchQuery = url.match(/[?&](?:q|ll|sll)=(-?\d+\.\d+),(-?\d+\.\d+)/);
-    if (matchQuery) {
-        return { lat: parseFloat(matchQuery[1]), lng: parseFloat(matchQuery[2]) };
-    }
-
-    // Formato 4: Coordenadas directas en texto "13.864123, -88.625412"
-    const matchDirect = url.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
-    if (matchDirect) {
-        return { lat: parseFloat(matchDirect[1]), lng: parseFloat(matchDirect[2]) };
+    for (const [knownKey, coords] of Object.entries(SENSUN_KNOWN_COORDS_MAP)) {
+        if (cleanId.includes(knownKey) || knownKey.includes(cleanId)) {
+            return coords;
+        }
     }
 
     return null;
@@ -2219,7 +2262,7 @@ function setupBusinessesRealtimeSync() {
             const data = snapshot.val() || {};
             const list = Object.keys(data).map(key => {
                 const item = data[key];
-                const coords = extractCoordinates(item.locationUrl);
+                const coords = extractCoordinates(item.locationUrl, item.id || key);
                 return {
                     id: item.id || key,
                     code: item.code || "",
@@ -2682,7 +2725,7 @@ async function getBusinessesList() {
         if (data && Object.keys(data).length > 0) {
             const list = Object.keys(data).map(key => {
                 const item = data[key];
-                const coords = extractCoordinates(item.locationUrl);
+                const coords = extractCoordinates(item.locationUrl, item.id || key);
                 return {
                     id: item.id || key,
                     code: item.code || "",
