@@ -1978,9 +1978,10 @@
                 <div class="map-layer-selector">
                     <span style="font-size: 12px; color: #64748b; font-weight: 600;">Capa:</span>
                     <select id="mapLayerSelect" class="form-select" style="padding: 6px 12px; font-size: 12px; width: auto;" onchange="changeMapLayer(this.value)">
-                        <option value="voyager">🗺️ Calles (Voyager)</option>
-                        <option value="satellite">🛰️ Satélite (Esri)</option>
-                        <option value="osm">🌐 OpenStreetMap</option>
+                        <option value="osm">🌐 OpenStreetMap (Predeterminado)</option>
+                        <option value="esriStreet">🗺️ Calles Claras (Esri)</option>
+                        <option value="satellite">🛰️ Satélite Real (Esri)</option>
+                        <option value="topo">⛰️ Topográfico (Relieve)</option>
                     </select>
                 </div>
             </div>
@@ -2625,18 +2626,21 @@
         // ==========================================================
         // TABLA DE COORDENADAS DE SENSUNTEPEQUE Y EXTRACTOR
         // ==========================================================
+        // ==========================================================
+        // TABLA DE COORDENADAS DE SENSUNTEPEQUE Y EXTRACTOR
+        // ==========================================================
         const SENSUN_KNOWN_COORDS = {
-            "arphotostudio": { lat: 13.8778, lng: -88.6298 },
-            "lasterrazas": { lat: 13.8795, lng: -88.6278 },
-            "neg-006": { lat: 13.8752, lng: -88.6332 },
-            "neg-005": { lat: 13.8768, lng: -88.6325 },
-            "neg-004": { lat: 13.8772, lng: -88.6315 },
-            "neg-003": { lat: 13.8745, lng: -88.6308 },
-            "disenograficopatrick": { lat: 13.8782, lng: -88.6318 },
-            "emp-001": { lat: 13.8758, lng: -88.6338 },
-            "emp-002": { lat: 13.8764, lng: -88.6306 },
-            "drjuliocesarvelasco": { lat: 13.8749, lng: -88.6345 },
-            "drhenrymartinez": { lat: 13.8770, lng: -88.6340 }
+            "arphotostudio": { lat: 13.873011, lng: -88.620773 },
+            "lasterrazas": { lat: 13.869501, lng: -88.619366 },
+            "neg-006": { lat: 13.878103, lng: -88.630060 },
+            "neg-005": { lat: 13.874233, lng: -88.628282 },
+            "neg-004": { lat: 13.873753, lng: -88.628258 },
+            "neg-003": { lat: 13.876198, lng: -88.621559 },
+            "disenograficopatrick": { lat: 13.878031, lng: -88.628745 },
+            "emp-001": { lat: 13.875139, lng: -88.626428 },
+            "emp-002": { lat: 13.876704, lng: -88.629354 },
+            "drjuliocesarvelasco": { lat: 13.876388, lng: -88.630002 },
+            "drhenrymartinez": { lat: 13.875842, lng: -88.628102 }
         };
 
         function isValidElSalvadorCoords(lat, lng) {
@@ -2662,14 +2666,14 @@
                 }
 
                 // 3. Formato Query string: ?q=13.8768,-88.6312 o query= o ll= o loc= o center=
-                const matchQuery = cleanUrl.match(/[?&](?:q|query|ll|sll|center|loc)=(-?\d+\.\d+),(-?\d+\.\d+)/);
+                const matchQuery = cleanUrl.match(/[?&](?:q|query|ll|sll|center|loc)=(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/);
                 if (matchQuery) {
                     const lat = parseFloat(matchQuery[1]), lng = parseFloat(matchQuery[2]);
                     if (isValidElSalvadorCoords(lat, lng)) return { lat, lng };
                 }
 
-                // 4. Formato de ruta / destino / place: /dir//13.8768,-88.6312
-                const matchPath = cleanUrl.match(/(?:place|dir|search)\/[^/]*\/(-?\d+\.\d+),(-?\d+\.\d+)/);
+                // 4. Formato de ruta / destino / search: /search/13.878103,+-88.630060 o /place/...
+                const matchPath = cleanUrl.match(/(?:place|dir|search)\/[^/]*\/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/) || cleanUrl.match(/\/search\/(-?\d+\.\d+),\s*\+?(-?\d+\.\d+)/);
                 if (matchPath) {
                     const lat = parseFloat(matchPath[1]), lng = parseFloat(matchPath[2]);
                     if (isValidElSalvadorCoords(lat, lng)) return { lat, lng };
@@ -2697,9 +2701,9 @@
 
             // Dispersión sutil y uniforme en el casco urbano de Sensuntepeque
             const angle = index * 1.396;
-            const radius = 0.0018 + (index % 4) * 0.0012;
-            const defaultLat = 13.8767 + Math.sin(angle) * radius;
-            const defaultLng = -88.6319 + Math.cos(angle) * radius;
+            const radius = 0.0015 + (index % 4) * 0.0010;
+            const defaultLat = 13.8755 + Math.sin(angle) * radius;
+            const defaultLng = -88.6275 + Math.cos(angle) * radius;
             return { lat: parseFloat(defaultLat.toFixed(6)), lng: parseFloat(defaultLng.toFixed(6)) };
         }
 
