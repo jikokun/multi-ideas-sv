@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Alerta Eléctrica — Kick & Streamer.bot</title>
+
+  <!-- Tipografías de Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Shojumaru&family=Orbitron:wght@600;700;800;900&family=Rajdhani:wght@600;700;800&family=JetBrains+Mono:wght@600;700&display=swap"
+    rel="stylesheet">
+
+  <style>
+    /* ==================================================
+       TOKENS SEMÁNTICOS Y VARIABLES DE DISEÑO
+       ================================================== */
+    :root {
+      /* 1. Colores de Acento e Identidad (Por defecto: Carmesí Eléctrico) */
+      --color-accent-primary: #ff1a40;
+      --color-accent-secondary: #d90429;
+      --color-accent-deep: #800020;
+      --color-accent-rgb: 255, 26, 64;
+
+      /* 2. Tonos Atmosféricos y Fondos Oscuros */
+      --color-bg-ambient: rgba(74, 0, 51, 0.45);
+      --color-bg-surface-dark: rgba(22, 12, 34, 0.92);
+      --color-bg-surface-midnight: #0c0012;
+
+      /* 3. Textos y Borde Metálico */
+      --color-text-main: #ffffff;
+      --color-text-sub: #e8ecf8;
+      --color-text-muted: #94a3b8;
+
+      /* 4. Dinámicas por Tema Activo */
+      --accent-color: var(--color-accent-primary);
+      --accent-secondary: var(--color-accent-secondary);
+      --glow-color: rgba(255, 26, 64, 0.5);
+
+      /* 5. Tipografías */
+      --font-heading: 'Shojumaru', cursive, sans-serif;
+      --font-tech: 'Orbitron', sans-serif;
+      --font-body: 'Rajdhani', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    /* --------------------------------------------------
+       TEMAS DINÁMICOS POR EVENTO
+       -------------------------------------------------- */
+    /* 1. SEGUIDOR: Carmesí Neón */
+    .theme-seguidor {
+      --accent-color: #ff1a40;
+      --accent-secondary: #ff4d6d;
+      --accent-deep: #800020;
+      --accent-rgb: 255, 26, 64;
+      --glow-color: rgba(255, 26, 64, 0.6);
+      --color-bg-ambient: rgba(90, 0, 30, 0.5);
+    }
+
+    /* 2. SUSCRIPTOR: Oro Imperial */
+    .theme-suscriptor {
+      --accent-color: #ffd700;
+      --accent-secondary: #ff9e00;
+      --accent-deep: #b25e00;
+      --accent-rgb: 255, 215, 0;
+      --glow-color: rgba(255, 215, 0, 0.6);
+      --color-bg-ambient: rgba(100, 70, 0, 0.5);
+    }
+
+    /* 3. KICKS / DONACIÓN: Verde Neón Kick */
+    .theme-kicks {
+      --accent-color: #53fc18;
+      --accent-secondary: #00ff88;
+      --accent-deep: #0e6b00;
+      --accent-rgb: 83, 252, 24;
+      --glow-color: rgba(83, 252, 24, 0.65);
+      --color-bg-ambient: rgba(0, 80, 20, 0.55);
+    }
+
+    /* 4. RAID / HOST: Magenta Eléctrico */
+    .theme-host {
+      --accent-color: #e056fd;
+      --accent-secondary: #be2edd;
+      --accent-deep: #68007a;
+      --accent-rgb: 224, 86, 253;
+      --glow-color: rgba(224, 86, 253, 0.65);
+      --color-bg-ambient: rgba(80, 0, 100, 0.55);
+    }
+
+    /* ==================================================
+       RESET & BASE TRANSPARENTE PARA OBS
+       ================================================== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--font-body);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    /* ==================================================
+       ESCENARIO PRINCIPAL (#alert-stage)
+       ================================================== */
+    #alert-stage {
+      position: relative;
+      width: 520px;
+      min-height: 290px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      perspective: 1000px;
+      transform-origin: center center;
+
+      /* Estado Oculto / Reposo por defecto */
+      opacity: 0;
+      transform: scale(0.65) translateY(40px);
+      transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+
+    /* Estado Activo: Rebote overshoot cinematográfico */
+    #alert-stage.active {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+      pointer-events: auto;
+    }
+
+    /* Estado de Salida: Elevación y desvanecimiento hacia arriba */
+    #alert-stage.exiting {
+      opacity: 0;
+      transform: scale(1.08) translateY(-30px);
+      transition: all 0.42s ease-in;
+      pointer-events: none;
+    }
+
+    /* Adaptación para pantallas o iframes compactos */
+    @media (max-width: 560px), (max-height: 320px) {
+      #alert-stage {
+        transform: scale(0.75) translateY(25px);
+      }
+      #alert-stage.active {
+        transform: scale(0.85) translateY(0);
+      }
+      #alert-stage.exiting {
+        transform: scale(0.9) translateY(-20px);
+      }
+    }
+
+    /* ==================================================
+       RESPLANDOR AMBIENTAL (#ambient-glow)
+       ================================================== */
+    #ambient-glow {
+      position: absolute;
+      width: 120%;
+      height: 120%;
+      border-radius: 50%;
+      background: radial-gradient(circle at center, var(--glow-color) 0%, var(--color-bg-ambient) 45%, transparent 75%);
+      filter: blur(28px);
+      opacity: 0.85;
+      z-index: 1;
+      animation: ambientPulse 2.8s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes ambientPulse {
+      0% {
+        transform: scale(0.92);
+        opacity: 0.65;
+      }
+      100% {
+        transform: scale(1.08);
+        opacity: 0.95;
+      }
+    }
+
+    /* ==================================================
+       TARJETA FÍSICA GLASSMORPHISM (#alert-card)
+       ================================================== */
+    #alert-card.card {
+      position: relative;
+      width: 480px;
+      min-height: 250px;
+      background: var(--color-bg-surface-dark);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1.5px solid rgba(255, 255, 255, 0.14);
+      border-radius: 16px;
+      padding: 30px 24px 22px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7),
+                  0 0 25px var(--glow-color),
+                  inset 0 0 20px rgba(255, 255, 255, 0.04);
+      z-index: 2;
+      overflow: visible;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* ==================================================
+       MOTOR DE RAYOS ELÉCTRICOS PROCEDURALES SVG
+       ================================================== */
+    .electric-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 10;
+      overflow: visible;
+    }
+
+    #electric-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+    }
+
+    .lightning-path-glow {
+      fill: none;
+      stroke: var(--accent-color);
+      stroke-width: 3.6px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: url(#lightning-blur);
+      opacity: 0.95;
+      transition: stroke 0.3s ease;
+    }
+
+    .lightning-path-core {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 1.8px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.95;
+    }
+
+    .lightning-path-branch {
+      fill: none;
+      stroke: var(--accent-secondary);
+      stroke-width: 2px;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.8;
+      transition: stroke 0.3s ease;
+    }
+
+    /* ==================================================
+       ESQUINAS ANGULARES SCI-FI (.card-corner)
+       ================================================== */
+    .card-corner {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      pointer-events: none;
+      z-index: 4;
+    }
+
+    .card-corner.tl {
+      top: 6px;
+      left: 6px;
+      border-top: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+    }
+
+    .card-corner.tr {
+      top: 6px;
+      right: 6px;
+      border-top: 2px solid #ffffff;
+      border-right: 2px solid #ffffff;
+    }
+
+    .card-corner.bl {
+      bottom: 6px;
+      left: 6px;
+      border-bottom: 2px solid #ffffff;
+      border-left: 2px solid #ffffff;
+    }
+
+    .card-corner.br {
+      bottom: 6px;
+      right: 6px;
+      border-bottom: 2px solid #ffffff;
+      border-right: 2px solid #ffffff;
+    }
+
+    /* ==================================================
+       PASTILLA SUPERIOR FLOTANTE (#alert-badge)
+       ================================================== */
+    #alert-badge.badge {
+      position: absolute;
+      top: -15px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(12, 5, 20, 0.98);
+      border: 1.5px solid var(--accent-color);
+      box-shadow: 0 0 16px var(--glow-color), 0 4px 10px rgba(0, 0, 0, 0.85);
+      border-radius: 99px;
+      padding: 4px 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-family: var(--font-heading);
+      font-size: 11.5px;
+      letter-spacing: 0.08em;
+      color: #ffffff;
+      text-transform: uppercase;
+      z-index: 25;
+      white-space: nowrap;
+      transition: all 0.3s ease;
+    }
+
+    #alert-badge-icon {
+      font-size: 13px;
+      filter: drop-shadow(0 0 4px var(--accent-color));
+    }
+
+    /* ==================================================
+       SLOT PARA FOTO DE PERFIL DE KICK (.alert-emblem-box)
+       ================================================== */
+    .alert-emblem-box {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: rgba(22, 14, 41, 0.9);
+      border: 2px solid var(--accent-color);
+      box-shadow: 0 0 18px var(--glow-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 8px auto 12px;
+      position: relative;
+      animation: emblemFloat 3.5s ease-in-out infinite alternate;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+      z-index: 3;
+      overflow: hidden;
+    }
+
+    @keyframes emblemFloat {
+      0% {
+        transform: translateY(0) scale(1);
+      }
+      100% {
+        transform: translateY(-5px) scale(1.04);
+      }
+    }
+
+    .alert-emblem-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      transition: opacity 0.3s ease;
+    }
+
+    /* ==================================================
+       TITULARES Y TEXTOS
+       ================================================== */
+    #alert-heading.heading {
+      font-family: var(--font-heading);
+      font-size: 21px;
+      line-height: 1.25;
+      color: #ffffff;
+      text-shadow: 0 0 12px var(--accent-color), 0 2px 4px rgba(0, 0, 0, 0.9);
+      letter-spacing: 0.04em;
+      margin-bottom: 3px;
+      transition: text-shadow 0.3s ease;
+    }
+
+    #alert-detail.detail-text {
+      font-family: var(--font-body);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--color-text-sub);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+
+    #alert-username.user-name-text {
+      font-family: var(--font-tech);
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+      color: var(--accent-color);
+      text-shadow: 0 0 14px var(--glow-color), 0 2px 5px rgba(0, 0, 0, 0.9);
+      margin-bottom: 8px;
+      word-break: break-word;
+      max-width: 100%;
+      transition: color 0.3s ease, text-shadow 0.3s ease;
+    }
+
+    #alert-user-message.user-message-box {
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      font-weight: 600;
+      color: #ffffff;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-left: 3px solid var(--accent-color);
+      border-radius: 6px;
+      padding: 7px 14px;
+      max-width: 90%;
+      word-break: break-word;
+      margin-top: 4px;
+      display: none;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Marca Kick en esquina inferior derecha de la tarjeta */
+    .kick-watermark {
+      position: absolute;
+      bottom: 8px;
+      right: 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 9.5px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.35);
+      letter-spacing: 0.05em;
+    }
+
+    .kick-watermark svg {
+      width: 11px;
+      height: 11px;
+      fill: #53fc18;
+      opacity: 0.7;
+    }
+
+    /* ==================================================
+       BOTONERA DE PRUEBAS FLOTANTE (#test-controls)
+       ================================================== */
+    #test-controls {
+      position: fixed;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(10, 5, 18, 0.94);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.75), 0 0 15px rgba(255, 26, 64, 0.2);
+      border-radius: 99px;
+      padding: 7px 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 1000;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #test-controls.hidden {
+      opacity: 0;
+      transform: translateX(-50%) translateY(50px);
+      pointer-events: none;
+    }
+
+    .test-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f1f5f9;
+      padding: 6px 12px;
+      border-radius: 99px;
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.2s ease;
+    }
+
+    .test-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .test-btn.btn-follow:hover {
+      color: #ff1a40;
+      border-color: #ff1a40;
+      box-shadow: 0 0 10px rgba(255, 26, 64, 0.5);
+    }
+
+    .test-btn.btn-sub:hover {
+      color: #ffd700;
+      border-color: #ffd700;
+      box-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .test-btn.btn-kicks:hover {
+      color: #53fc18;
+      border-color: #53fc18;
+      box-shadow: 0 0 10px rgba(83, 252, 24, 0.5);
+    }
+
+    .test-btn.btn-host:hover {
+      color: #e056fd;
+      border-color: #e056fd;
+      box-shadow: 0 0 10px rgba(224, 86, 253, 0.5);
+    }
+
+    .ws-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 99px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+    }
+
+    .ws-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #ef4444;
+      box-shadow: 0 0 6px #ef4444;
+      transition: all 0.3s ease;
+    }
+
+    .ws-dot.connected {
+      background: #53fc18;
+      box-shadow: 0 0 8px #53fc18;
+    }
+
+    .btn-close-controls {
+      background: none;
+      border: none;
+      color: #94a3b8;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      line-height: 1;
+      border-radius: 50%;
+      transition: color 0.2s ease;
+    }
+
+    .btn-close-controls:hover {
+      color: #ffffff;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ==================================================
+       ESCENARIO DE ALERTA OBS (#alert-stage)
+       ================================================== -->
+  <div id="alert-stage">
+    <!-- Aura Difusa de Fondo -->
+    <div id="ambient-glow"></div>
+
+    <!-- Tarjeta Principal Glassmorphism -->
+    <div id="alert-card" class="card theme-seguidor">
+      
+      <!-- Insignia Superior Flotante -->
+      <div id="alert-badge" class="badge">
+        <span id="alert-badge-icon">⚔️</span>
+        <span id="alert-badge-text">NUEVO SEGUIDOR</span>
+      </div>
+
+      <!-- Lienzo de Rayos Eléctricos SVG Procedurales -->
+      <div class="electric-container">
+        <svg id="electric-svg">
+          <defs>
+            <filter id="lightning-blur" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="4" />
+            </filter>
+          </defs>
+          <g id="electric-group">
+            <path id="path-glow" class="lightning-path-glow" d="" />
+            <path id="path-core" class="lightning-path-core" d="" />
+            <path id="path-branch" class="lightning-path-branch" d="" />
+          </g>
+        </svg>
+      </div>
+
+      <!-- Slot para Foto de Perfil del Usuario de Kick (70x70px circular) -->
+      <div class="alert-emblem-box">
+        <img id="alert-emblem" class="alert-emblem-img" alt="Avatar Kick"
+          src="https://files.kick.com/images/user/default_avatar.png">
+      </div>
+
+      <!-- Titular Ceremonial (Shojumaru) -->
+      <h2 id="alert-heading" class="heading">NUEVO SEGUIDOR</h2>
+
+      <!-- Detalle o Subtítulo Explicativo (Rajdhani) -->
+      <p id="alert-detail" class="detail-text">¡Bienvenido a la comunidad!</p>
+
+      <!-- Nombre de Usuario Gamer (Orbitron) -->
+      <h1 id="alert-username" class="user-name-text">CyberKick</h1>
+
+      <!-- Caja de Mensaje para Subs / Donaciones -->
+      <div id="alert-user-message" class="user-message-box"></div>
+
+      <!-- 4 Esquinas Angulares Sci-Fi -->
+      <span class="card-corner tl"></span>
+      <span class="card-corner tr"></span>
+      <span class="card-corner bl"></span>
+      <span class="card-corner br"></span>
+
+      <!-- Marca Kick en esquina -->
+      <div class="kick-watermark">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 2h6v6h4V2h6v8h-4v4h4v8h-6v-6h-4v6H3V2z" />
+        </svg>
+        <span>KICK LIVE</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================================================
+       BOTONERA DE PRUEBAS OCULTA (#test-controls)
+       ================================================== -->
+  <div id="test-controls" class="hidden">
+    <div class="ws-pill">
+      <span id="sb-status-dot" class="ws-dot"></span>
+      <span id="sb-status-text">WS 4445</span>
+    </div>
+
+    <button type="button" class="test-btn btn-follow" onclick="testAlert('seguidor')">⚔️ Follow</button>
+    <button type="button" class="test-btn btn-sub" onclick="testAlert('suscriptor')">⭐ Sub</button>
+    <button type="button" class="test-btn btn-kicks" onclick="testAlert('kicks')">💚 Kicks</button>
+    <button type="button" class="test-btn btn-host" onclick="testAlert('host')">🚀 Raid</button>
+
+    <button type="button" class="btn-close-controls" onclick="toggleTestControls(event, false)" title="Ocultar barra">✕</button>
+  </div>
+
+  <!-- ==================================================
+       SCRIPT INTEGRADO: ARQUITECTURA MODULAR
+       ================================================== -->
+  <script>
+    (function () {
+      'use strict';
+
+      // --------------------------------------------------
+      // PARÁMETROS DE URL & CONFIGURACIÓN
+      // --------------------------------------------------
+      const urlParams = new URLSearchParams(window.location.search);
+      const configuredPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
+      const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
+      const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
+      const isLoop = urlParams.get('loop') === 'true';
+      const isMuted = urlParams.get('mute') === 'true';
+      const hideControls = urlParams.get('hidecontrols') === 'true';
+      const kickChannel = urlParams.get('channel') || urlParams.get('canal') || urlParams.get('user') || 'jikokun';
+      let masterVolume = parseFloat(urlParams.get('volume') || '85') / 100;
+      if (isNaN(masterVolume)) masterVolume = 0.85;
+
+      // Referencias DOM
+      const alertStage = document.getElementById('alert-stage');
+      const alertCard = document.getElementById('alert-card');
+      const alertBadge = document.getElementById('alert-badge');
+      const alertBadgeIcon = document.getElementById('alert-badge-icon');
+      const alertBadgeText = document.getElementById('alert-badge-text');
+      const alertHeading = document.getElementById('alert-heading');
+      const alertDetail = document.getElementById('alert-detail');
+      const alertUsername = document.getElementById('alert-username');
+      const alertUserMessage = document.getElementById('alert-user-message');
+      const alertEmblem = document.getElementById('alert-emblem');
+      const testControls = document.getElementById('test-controls');
+      const sbStatusDot = document.getElementById('sb-status-dot');
+      const sbStatusText = document.getElementById('sb-status-text');
+
+      // SVG Elements
+      const pathGlow = document.getElementById('path-glow');
+      const pathCore = document.getElementById('path-core');
+      const pathBranch = document.getElementById('path-branch');
+
+      // Sonidos personalizados opcionales
+      let customSounds = {
+        follow: urlParams.get('snd_follow') || '',
+        sub: urlParams.get('snd_sub') || '',
+        gift: urlParams.get('snd_gift') || '',
+        raid: urlParams.get('snd_raid') || '',
+        kicks: urlParams.get('snd_kicks') || '',
+        tip: urlParams.get('snd_tip') || ''
+      };
+
+      // --------------------------------------------------
+      // CARGA AUTOMÁTICA DE AVATAR DE KICK DEL STREAMER
+      // --------------------------------------------------
+      async function loadKickAvatar(channel) {
+        if (!channel || !alertEmblem) return;
+        const clean = channel.trim().toLowerCase().replace(/^@/, '');
+        if (!clean) return;
+
+        const endpoints = [
+          `https://kick.com/api/v2/channels/${clean}`,
+          `https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v1/channels/' + clean)}`,
+          `https://api.allorigins.win/get?url=${encodeURIComponent('https://kick.com/api/v1/channels/' + clean)}`
+        ];
+
+        for (const url of endpoints) {
+          try {
+            const res = await fetch(url);
+            if (res.ok) {
+              const json = await res.json();
+              let pic = null;
+              if (json.contents) {
+                try {
+                  const parsed = JSON.parse(json.contents);
+                  pic = parsed?.user?.profile_pic;
+                } catch(e) {}
+              } else {
+                pic = json?.user?.profile_pic;
+              }
+
+              if (pic) {
+                alertEmblem.src = pic;
+                return;
+              }
+            }
+          } catch (e) {
+            // Intentar con siguiente proxy si hay error de red o CORS
+          }
+        }
+
+        // Fallback por defecto si no responde la API pública
+        alertEmblem.src = 'https://files.kick.com/images/user/default_avatar.png';
+      }
+
+      // Cargar avatar del canal indicado
+      loadKickAvatar(kickChannel);
+
+      // --------------------------------------------------
+      // MÓDULO 1: MOTOR PROCEDURAL DE RAYOS SVG CON CONTORNEO DE BADGE
+      // --------------------------------------------------
+      let lightningInterval = null;
+
+      function createLightningPerimeter(width, height, segmentsPerSide, margin, chaos, badgeWidth) {
+        const x1 = -margin;
+        const y1 = -margin;
+        const x2 = width + margin;
+        const y2 = height + margin;
+        const r = 16; // Radio de esquinas del contenedor
+
+        const points = [];
+
+        // Geometría de la pastilla superior (#alert-badge)
+        const cx = width / 2;
+        const bHalf = Math.max(75, (badgeWidth || 180) / 2 + 12);
+        const bLeft = Math.max(x1 + r + 8, cx - bHalf);
+        const bRight = Math.min(x2 - r - 8, cx + bHalf);
+        const bTop = -23; // Elevación para contornear por encima de la pastilla flotante
+
+        // 1. LADO SUPERIOR (Bordeando la pastilla del título)
+        // 1a. Tramo izquierdo: desde la esquina superior izquierda hasta la pastilla
+        const leftSegs = Math.max(3, Math.floor(segmentsPerSide * 0.3));
+        for (let i = 0; i <= leftSegs; i++) {
+          const t = i / leftSegs;
+          const x = (x1 + r) + (bLeft - (x1 + r)) * t;
+          const jitter = (i > 0 && i < leftSegs) ? (Math.random() - 0.5) * chaos : 0;
+          points.push({ x, y: y1 + jitter });
+        }
+
+        // 1b. Arco ascendente que rodea la pastilla por arriba
+        points.push({ x: bLeft + 5, y: bTop + (Math.random() - 0.5) * (chaos * 0.4) });
+        
+        const badgeSegs = Math.max(4, Math.floor(segmentsPerSide * 0.4));
+        for (let i = 1; i < badgeSegs; i++) {
+          const t = i / badgeSegs;
+          const x = (bLeft + 5) + ((bRight - 5) - (bLeft + 5)) * t;
+          const jitter = (Math.random() - 0.5) * chaos;
+          points.push({ x, y: bTop + jitter });
+        }
+
+        points.push({ x: bRight - 5, y: bTop + (Math.random() - 0.5) * (chaos * 0.4) });
+        points.push({ x: bRight, y: y1 });
+
+        // 1c. Tramo derecho: desde la pastilla hasta la esquina superior derecha
+        const rightSegs = Math.max(3, Math.floor(segmentsPerSide * 0.3));
+        for (let i = 1; i <= rightSegs; i++) {
+          const t = i / rightSegs;
+          const x = bRight + ((x2 - r) - bRight) * t;
+          const jitter = (i < rightSegs) ? (Math.random() - 0.5) * chaos : 0;
+          points.push({ x, y: y1 + jitter });
+        }
+
+        // Esquina Superior Derecha (TR)
+        points.push({ x: x2, y: y1 + r });
+
+        // 2. LADO DERECHO (de arriba a abajo)
+        for (let i = 1; i <= segmentsPerSide; i++) {
+          const t = i / segmentsPerSide;
+          const y = (y1 + r) + ((y2 - r) - (y1 + r)) * t;
+          const jitter = (i < segmentsPerSide) ? (Math.random() - 0.5) * chaos : 0;
+          points.push({ x: x2 + jitter, y });
+        }
+
+        // Esquina Inferior Derecha (BR)
+        points.push({ x: x2 - r, y: y2 });
+
+        // 3. LADO INFERIOR (de derecha a izquierda)
+        for (let i = 1; i <= segmentsPerSide; i++) {
+          const t = i / segmentsPerSide;
+          const x = (x2 - r) - ((x2 - r) - (x1 + r)) * t;
+          const jitter = (i < segmentsPerSide) ? (Math.random() - 0.5) * chaos : 0;
+          points.push({ x, y: y2 + jitter });
+        }
+
+        // Esquina Inferior Izquierda (BL)
+        points.push({ x: x1, y: y2 - r });
+
+        // 4. LADO IZQUIERDO (de abajo a arriba)
+        for (let i = 1; i < segmentsPerSide; i++) {
+          const t = i / segmentsPerSide;
+          const y = (y2 - r) - ((y2 - r) - (y1 + r)) * t;
+          const jitter = (Math.random() - 0.5) * chaos;
+          points.push({ x: x1 + jitter, y });
+        }
+
+        // Esquina Superior Izquierda (TL)
+        points.push({ x: x1 + r, y: y1 });
+
+        if (points.length === 0) return '';
+
+        let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)}`;
+        for (let i = 1; i < points.length; i++) {
+          d += ` L ${points[i].x.toFixed(1)} ${points[i].y.toFixed(1)}`;
+        }
+        d += ' Z';
+        return d;
+      }
+
+      function updateLightning() {
+        if (!alertCard) return;
+        const w = alertCard.offsetWidth || 480;
+        const h = alertCard.offsetHeight || 250;
+        const badgeW = alertBadge ? alertBadge.offsetWidth : 190;
+
+        const path1 = createLightningPerimeter(w, h, 16, 7, 12, badgeW);
+        const path2 = createLightningPerimeter(w, h, 14, 7, 8, badgeW);
+        const path3 = createLightningPerimeter(w, h, 10, 7, 14, badgeW);
+
+        if (pathGlow) pathGlow.setAttribute('d', path1);
+        if (pathCore) pathCore.setAttribute('d', path2);
+        if (pathBranch) pathBranch.setAttribute('d', path3);
+      }
+
+      function startLightningEngine() {
+        if (lightningInterval) clearInterval(lightningInterval);
+        updateLightning();
+        lightningInterval = setInterval(updateLightning, 90);
+      }
+
+      function stopLightningEngine() {
+        if (lightningInterval) {
+          clearInterval(lightningInterval);
+          lightningInterval = null;
+        }
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 2: SINTETIZADOR DE AUDIO NATIVO (WEB AUDIO API)
+      // --------------------------------------------------
+      let audioCtx = null;
+
+      function getAudioContext() {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            audioCtx = new AudioContextClass();
+          }
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        return audioCtx;
+      }
+
+      const THEME_SCALES = {
+        seguidor: [523.25, 659.25, 783.99, 1046.50], // Do Mayor
+        suscriptor: [440.00, 554.37, 659.25, 880.00],  // La Mayor
+        kicks: [659.25, 830.61, 987.77, 1318.51],       // Mi Mayor brillante
+        host: [392.00, 523.25, 659.25, 783.99]          // Sol Mayor
+      };
+
+      function playSynthesizedSound(themeKey) {
+        if (isMuted || masterVolume <= 0) return;
+
+        const customUrl = customSounds[themeKey] || (themeKey === 'kicks' ? customSounds.tip : '');
+        if (customUrl) {
+          try {
+            const snd = new Audio(customUrl);
+            snd.volume = Math.max(0, Math.min(1, masterVolume));
+            snd.play().catch(() => playNativeChimes(themeKey));
+            return;
+          } catch (e) {}
+        }
+
+        playNativeChimes(themeKey);
+      }
+
+      function playNativeChimes(themeKey) {
+        const ctx = getAudioContext();
+        if (!ctx) return;
+
+        const notes = THEME_SCALES[themeKey] || THEME_SCALES.seguidor;
+        const now = ctx.currentTime;
+
+        const masterGain = ctx.createGain();
+        masterGain.gain.setValueAtTime(masterVolume * 0.35, now);
+        masterGain.connect(ctx.destination);
+
+        notes.forEach((freq, idx) => {
+          const osc = ctx.createOscillator();
+          const noteGain = ctx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(freq, now);
+
+          const startTime = now + (idx * 0.08);
+          const duration = 0.65;
+
+          noteGain.gain.setValueAtTime(0, startTime);
+          noteGain.gain.linearRampToValueAtTime(0.7, startTime + 0.02);
+          noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+          osc.connect(noteGain);
+          noteGain.connect(masterGain);
+
+          osc.start(startTime);
+          osc.stop(startTime + duration + 0.05);
+        });
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 3: COLA DE ALERTAS FIFO & RENDERIZADO
+      // --------------------------------------------------
+      const alertQueue = [];
+      let isAlertPlaying = false;
+      let alertTimer = null;
+
+      const THEME_DEFINITIONS = {
+        seguidor: {
+          className: 'theme-seguidor',
+          badgeText: 'NUEVO SEGUIDOR',
+          badgeIcon: '⚔️',
+          defaultHeading: 'NUEVO SEGUIDOR',
+          defaultDetail: '¡Bienvenido a la comunidad!'
+        },
+        suscriptor: {
+          className: 'theme-suscriptor',
+          badgeText: 'SUSCRIPCIÓN SUPREMA',
+          badgeIcon: '⭐',
+          defaultHeading: '¡NUEVA SUSCRIPCIÓN!',
+          defaultDetail: '¡Apoyo legendario al canal!'
+        },
+        kicks: {
+          className: 'theme-kicks',
+          badgeText: 'ENERGÍA KICK',
+          badgeIcon: '💚',
+          defaultHeading: '¡APORTE ELÉCTRICO!',
+          defaultDetail: '¡Energía pura para el directo!'
+        },
+        host: {
+          className: 'theme-host',
+          badgeText: 'INVASIÓN DIMENSIONAL',
+          badgeIcon: '🚀',
+          defaultHeading: '¡INVASIÓN RAID!',
+          defaultDetail: '¡Espectadores al combate!'
+        }
+      };
+
+      function queueAlert(alertData) {
+        alertQueue.push(alertData);
+        processAlertQueue();
+      }
+
+      function processAlertQueue() {
+        if (isAlertPlaying || alertQueue.length === 0) return;
+        const currentAlert = alertQueue.shift();
+        displayAlert(currentAlert);
+      }
+
+      function displayAlert(data) {
+        isAlertPlaying = true;
+
+        const type = data.type || 'seguidor';
+        const themeDef = THEME_DEFINITIONS[type] || THEME_DEFINITIONS.seguidor;
+
+        alertCard.classList.remove('theme-seguidor', 'theme-suscriptor', 'theme-kicks', 'theme-host');
+        alertCard.classList.add(themeDef.className);
+
+        alertBadgeText.textContent = data.badgeText || themeDef.badgeText;
+        alertBadgeIcon.textContent = data.badgeIcon || themeDef.badgeIcon;
+        alertHeading.textContent = data.heading || themeDef.defaultHeading;
+        alertDetail.textContent = data.detail || themeDef.defaultDetail;
+        alertUsername.textContent = data.username || 'Espectador';
+
+        if (data.message && data.message.trim().length > 0) {
+          alertUserMessage.textContent = `"${data.message.trim()}"`;
+          alertUserMessage.style.display = 'block';
+        } else {
+          alertUserMessage.style.display = 'none';
+        }
+
+        startLightningEngine();
+        playSynthesizedSound(type);
+
+        alertStage.classList.remove('exiting');
+        alertStage.classList.add('active');
+
+        if (alertTimer) clearTimeout(alertTimer);
+        alertTimer = setTimeout(() => {
+          dismissAlert();
+        }, alertDuration);
+      }
+
+      function dismissAlert() {
+        alertStage.classList.remove('active');
+        alertStage.classList.add('exiting');
+
+        setTimeout(() => {
+          alertStage.classList.remove('exiting');
+          stopLightningEngine();
+          isAlertPlaying = false;
+
+          if (isLoop && alertQueue.length === 0) {
+            setTimeout(loopDemoAlert, 1200);
+          } else {
+            processAlertQueue();
+          }
+        }, 420);
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 4: CONEXIÓN WEBSOCKET A STREAMER.BOT
+      // --------------------------------------------------
+      let ws = null;
+      let portCandidates = [configuredPort, '4445', '8080', '1234'];
+      portCandidates = [...new Set(portCandidates)];
+      let currentPortIndex = 0;
+      let reconnectTimer = null;
+
+      function updateWsStatus(connected, port) {
+        if (sbStatusDot) {
+          sbStatusDot.className = connected ? 'ws-dot connected' : 'ws-dot';
+        }
+        if (sbStatusText) {
+          sbStatusText.textContent = connected ? `WS Conectado (${port})` : `WS Reconectando...`;
+        }
+      }
+
+      function connectStreamerBot() {
+        if (ws) {
+          try { ws.close(); } catch (e) { }
+          ws = null;
+        }
+
+        const port = portCandidates[currentPortIndex];
+        const wsUrl = `ws://127.0.0.1:${port}/`;
+
+        try {
+          ws = new WebSocket(wsUrl);
+
+          ws.onopen = function () {
+            updateWsStatus(true, port);
+
+            const subPayload = {
+              request: "Subscribe",
+              id: "electric-alerts-overlay",
+              events: {
+                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid"],
+                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer"],
+                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift"],
+                StreamerBot: ["Custom"]
+              }
+            };
+            ws.send(JSON.stringify(subPayload));
+          };
+
+          ws.onmessage = function (event) {
+            try {
+              const data = JSON.parse(event.data);
+              handleStreamerBotMessage(data);
+            } catch (err) {
+              console.warn('[StreamerBot] Error parseando JSON:', err);
+            }
+          };
+
+          ws.onclose = function () {
+            updateWsStatus(false, port);
+            scheduleReconnect();
+          };
+
+          ws.onerror = function () {
+            updateWsStatus(false, port);
+          };
+
+        } catch (err) {
+          updateWsStatus(false, port);
+          scheduleReconnect();
+        }
+      }
+
+      function scheduleReconnect() {
+        if (reconnectTimer) clearTimeout(reconnectTimer);
+        reconnectTimer = setTimeout(() => {
+          currentPortIndex = (currentPortIndex + 1) % portCandidates.length;
+          connectStreamerBot();
+        }, 4000);
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 5: NORMALIZADOR DE EVENTOS STREAMER.BOT
+      // --------------------------------------------------
+      function handleStreamerBotMessage(msg) {
+        if (!msg || !msg.event) return;
+        const source = (msg.event.source || '').toLowerCase();
+        const eventType = (msg.event.type || '').toLowerCase();
+        const payload = msg.data || {};
+
+        const userObj = payload.user || payload.sender || payload.recipient || {};
+        const username = userObj.name || userObj.username || payload.user_name || payload.userName || payload.displayName || 'Espectador';
+
+        // 1. Seguidor
+        if (eventType.includes('follow') || eventType === 'subscribe') {
+          queueAlert({
+            type: 'seguidor',
+            username: username,
+            heading: 'NUEVO SEGUIDOR',
+            detail: `¡Bienvenido al canal (${source.toUpperCase()})!`
+          });
+          return;
+        }
+
+        // 2. Suscripción o Resub
+        if (eventType.includes('resub') || eventType.includes('subscription') || eventType === 'sub') {
+          const months = payload.months || payload.cumulativeMonths || payload.subMonths || 1;
+          const detail = months > 1 ? `¡Ha renovado su suscripción por ${months} meses!` : '¡Nuevo suscriptor del canal!';
+          queueAlert({
+            type: 'suscriptor',
+            username: username,
+            heading: '¡NUEVA SUSCRIPCIÓN!',
+            detail: detail,
+            message: payload.message || payload.subMessage || ''
+          });
+          return;
+        }
+
+        // 3. Regalo de Subs / Kicks / Donación / Bits
+        if (eventType.includes('gift') || eventType.includes('bomb') || eventType.includes('cheer') || eventType.includes('super') || eventType.includes('tip')) {
+          const count = payload.gifts || payload.sub_count || payload.count || payload.amount || '';
+          const detailText = count ? `¡Ha otorgado una donación de ${count}!` : '¡Aporte eléctrico para el canal!';
+          queueAlert({
+            type: 'kicks',
+            username: username,
+            heading: '¡ENERGÍA KICK!',
+            detail: detailText,
+            message: payload.message || ''
+          });
+          return;
+        }
+
+        // 4. Raid / Host
+        if (eventType.includes('raid') || eventType.includes('host')) {
+          const viewers = payload.viewers || payload.viewerCount || payload.raiders || '';
+          const detailText = viewers ? `¡Invasión con ${viewers} espectadores!` : '¡Invasión dimensional!';
+          queueAlert({
+            type: 'host',
+            username: username,
+            heading: '¡INVASIÓN RAID!',
+            detail: detailText
+          });
+          return;
+        }
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 6: PANEL DE PRUEBAS & INTERACCIÓN
+      // --------------------------------------------------
+      window.testAlert = function (themeType) {
+        getAudioContext();
+
+        const sampleNames = ['FoxMaster', 'CyberKick', 'NekoGamer', 'ShadowBlade', 'Valkyrie', 'NeonStrike'];
+        const randomUser = sampleNames[Math.floor(Math.random() * sampleNames.length)];
+
+        const testDataMap = {
+          seguidor: {
+            type: 'seguidor',
+            username: randomUser,
+            heading: 'NUEVO SEGUIDOR',
+            detail: '¡Se ha unido a la comunidad!'
+          },
+          suscriptor: {
+            type: 'suscriptor',
+            username: randomUser,
+            heading: '¡NUEVA SUSCRIPCIÓN!',
+            detail: '¡Nivel 1 • 3 Meses de Fidelidad!',
+            message: '¡Excelente directo, a seguir dándole con todo!'
+          },
+          kicks: {
+            type: 'kicks',
+            username: randomUser,
+            heading: '¡ENERGÍA KICK!',
+            detail: '¡Ha enviado 500 Kicks al canal!',
+            message: '¡Poder y apoyo para el stream!'
+          },
+          host: {
+            type: 'host',
+            username: randomUser,
+            heading: '¡INVASIÓN RAID!',
+            detail: '¡Llegando con una raid de 85 espectadores!'
+          }
+        };
+
+        const alertItem = testDataMap[themeType] || testDataMap.seguidor;
+        queueAlert(alertItem);
+      };
+
+      window.toggleTestControls = function (e, forceState) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        if (!testControls) return;
+
+        if (typeof forceState === 'boolean') {
+          if (forceState) testControls.classList.remove('hidden');
+          else testControls.classList.add('hidden');
+        } else {
+          testControls.classList.toggle('hidden');
+        }
+      };
+
+      document.addEventListener('click', () => {
+        getAudioContext();
+        if (hideControls) return;
+        if (testControls && !testControls.contains(event.target)) {
+          testControls.classList.toggle('hidden');
+        }
+      });
+
+      if (testControls) {
+        testControls.addEventListener('click', (e) => {
+          e.stopPropagation();
+        });
+      }
+
+      let demoIndex = 0;
+      const demoOrder = ['seguidor', 'suscriptor', 'kicks', 'host'];
+      function loopDemoAlert() {
+        if (!isLoop) return;
+        const currentType = demoOrder[demoIndex % demoOrder.length];
+        demoIndex++;
+        window.testAlert(currentType);
+      }
+
+      // --------------------------------------------------
+      // MÓDULO 7: MENSAJERÍA POSTMESSAGE (DESDE GALERÍA IFRAME)
+      // --------------------------------------------------
+      window.addEventListener('message', (event) => {
+        if (!event.data) return;
+
+        if (event.data.type === 'TRIGGER_TEST_ALERT') {
+          const type = event.data.alertType || 'follow';
+          const typeMap = {
+            follow: 'seguidor',
+            sub: 'suscriptor',
+            gift: 'kicks',
+            kicks: 'kicks',
+            donation: 'kicks',
+            tip: 'kicks',
+            raid: 'host'
+          };
+          const mappedType = typeMap[type] || 'seguidor';
+
+          if (event.data.soundUrl) {
+            customSounds[mappedType] = event.data.soundUrl;
+          }
+          if (typeof event.data.volume === 'number') {
+            masterVolume = event.data.volume;
+          }
+
+          window.testAlert(mappedType);
+        } else if (event.data.type === 'SET_CHANNEL') {
+          if (event.data.channel) {
+            loadKickAvatar(event.data.channel);
+          }
+        } else if (event.data.type === 'SET_SOUNDS') {
+          if (event.data.sounds) {
+            customSounds = { ...customSounds, ...event.data.sounds };
+          }
+          if (typeof event.data.volume === 'number') {
+            masterVolume = event.data.volume;
+          }
+        }
+      });
+
+      // --------------------------------------------------
+      // INICIALIZACIÓN
+      // --------------------------------------------------
+      connectStreamerBot();
+
+      if (hideControls && testControls) {
+        testControls.style.display = 'none';
+      }
+
+      if (isPreview) {
+        if (!hideControls && testControls) {
+          testControls.classList.remove('hidden');
+        }
+        setTimeout(() => {
+          window.testAlert('seguidor');
+        }, 700);
+      }
+
+    })();
+  </script>
+</body>
+
+</html>

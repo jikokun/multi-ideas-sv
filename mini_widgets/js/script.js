@@ -349,7 +349,9 @@ const SOCIAL_ICONS_MAP = {
   tiktok: { key: 'tiktok', platform: 'TikTok', color: '#00f2fe', icon: 'recursos/iconos/tiktok_ico.png' },
   telegram: { key: 'telegram', platform: 'Telegram', color: '#0088cc', icon: 'recursos/iconos/telegram_ico.png' },
   youtube: { key: 'youtube', platform: 'YouTube', color: '#ff0000', icon: 'recursos/iconos/youtube_ico.png' },
-  twitch: { key: 'twitch', platform: 'Twitch', color: '#9146ff', icon: 'recursos/iconos/twitch_ico.png' }
+  twitch: { key: 'twitch', platform: 'Twitch', color: '#9146ff', icon: 'recursos/iconos/twitch_ico.png' },
+  x: { key: 'x', platform: 'X', color: '#f8fafc', icon: 'recursos/iconos/x_ico.svg' },
+  twitter: { key: 'x', platform: 'X', color: '#f8fafc', icon: 'recursos/iconos/x_ico.svg' }
 };
 
 function initSocialRotator() {
@@ -363,8 +365,9 @@ function initSocialRotator() {
   const urlParams = new URLSearchParams(window.location.search);
   const socials = [];
 
-  ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch'].forEach(key => {
-    const val = urlParams.get(key);
+  ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch', 'x'].forEach(key => {
+    let val = urlParams.get(key);
+    if (key === 'x' && !val) val = urlParams.get('twitter');
     if (val && SOCIAL_ICONS_MAP[key]) {
       socials.push({ ...SOCIAL_ICONS_MAP[key], handle: val });
     }
@@ -374,6 +377,7 @@ function initSocialRotator() {
   if (socials.length === 0) {
     socials.push(
       { ...SOCIAL_ICONS_MAP.kick, handle: '@jikokun' },
+      { ...SOCIAL_ICONS_MAP.x, handle: '@jikokun_x' },
       { ...SOCIAL_ICONS_MAP.instagram, handle: '@jikokun_official' },
       { ...SOCIAL_ICONS_MAP.tiktok, handle: '@jikokun_tv' },
       { ...SOCIAL_ICONS_MAP.discord, handle: 'discord.gg/jikokun' }
@@ -396,7 +400,8 @@ function initSocialRotator() {
 
     if (widgetBox) {
       widgetBox.style.borderColor = item.color;
-      widgetBox.style.boxShadow = `0 0 25px ${item.color}60, inset 0 0 12px ${item.color}25`;
+      widgetBox.style.boxShadow = `0 0 22px ${item.color}55, inset 0 0 10px ${item.color}20`;
+      widgetBox.style.filter = 'none';
     }
 
     currentIndex = (currentIndex + 1) % socials.length;

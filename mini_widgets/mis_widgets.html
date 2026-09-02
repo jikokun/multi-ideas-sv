@@ -803,10 +803,45 @@
         },
         getSummaryTags: (conf) => {
           const tags = [];
-          const modelName = (conf.model === 'alertas_kiphu.html') ? 'Kiphu ⚡' : 'Rufus5z 🦊';
+          const modelName = (conf.model === 'alertas_kiphu.html') ? 'Kiphu ⚡' : (conf.model === 'alertas_electrica.html' ? 'Eléctrica ⚡' : 'Rufus5z 🦊');
           tags.push({ label: 'Estilo', value: modelName });
           tags.push({ label: 'Duración', value: `${conf.duration || 6}s` });
           tags.push({ label: 'Volumen', value: `${conf.volume || 85}%` });
+          return tags;
+        }
+      },
+      widget_alerts_electric: {
+        id: 'widget_alerts_electric',
+        title: 'Alerta Eléctrica',
+        icon: '⚡',
+        editorAnchor: 'card-electric',
+        defaultFile: 'alertas_electrica.html',
+        buildObsUrl: (conf) => {
+          const params = new URLSearchParams();
+          params.set('channel', conf.channel || 'jikokun');
+          if (conf.port && conf.port !== '4445') params.set('port', conf.port);
+          if (conf.duration && conf.duration !== '6') params.set('duration', (parseInt(conf.duration, 10) * 1000).toString());
+          if (conf.volume && conf.volume !== '85') params.set('volume', conf.volume);
+          if (conf.mute) params.set('mute', 'true');
+          return `alertas_electrica.html${params.toString() ? '?' + params.toString() : ''}`;
+        },
+        buildPreviewUrl: (conf) => {
+          const params = new URLSearchParams();
+          params.set('channel', conf.channel || 'jikokun');
+          if (conf.port && conf.port !== '4445') params.set('port', conf.port);
+          if (conf.duration && conf.duration !== '6') params.set('duration', (parseInt(conf.duration, 10) * 1000).toString());
+          if (conf.volume && conf.volume !== '85') params.set('volume', conf.volume);
+          if (conf.mute) params.set('mute', 'true');
+          params.set('preview', 'true');
+          params.set('loop', 'true');
+          params.set('hidecontrols', 'true');
+          return `alertas_electrica.html?${params.toString()}`;
+        },
+        getSummaryTags: (conf) => {
+          const tags = [];
+          tags.push({ label: 'Canal', value: `@${conf.channel || 'jikokun'}` });
+          tags.push({ label: 'Duración', value: `${conf.duration || 6}s` });
+          tags.push({ label: 'Volumen', value: conf.mute ? 'Mute 🔇' : `${conf.volume || 85}%` });
           return tags;
         }
       },
@@ -817,7 +852,7 @@
         editorAnchor: 'card-social',
         defaultFile: 'widget_redes_sociales.html',
         buildObsUrl: (conf) => {
-          const keys = ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch'];
+          const keys = ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch', 'x'];
           const params = new URLSearchParams();
           keys.forEach(k => {
             if (conf[k] && typeof conf[k] === 'object' && conf[k].enabled && conf[k].value) {
@@ -828,6 +863,7 @@
           });
           if (params.toString() === '') {
             params.set('kick', 'jikokun');
+            params.set('x', 'jikokun_x');
             params.set('instagram', 'jikokun_official');
           }
           if (conf.theme_light) params.set('theme', 'light');
@@ -836,7 +872,7 @@
         buildPreviewUrl: (conf) => WIDGETS_CATALOG.widget_social.buildObsUrl(conf),
         getSummaryTags: (conf) => {
           const tags = [];
-          const activeKeys = ['kick', 'discord', 'instagram', 'tiktok', 'youtube', 'twitch'].filter(k => conf[k] && (conf[k].enabled || typeof conf[k] === 'string'));
+          const activeKeys = ['kick', 'discord', 'instagram', 'tiktok', 'youtube', 'twitch', 'x'].filter(k => conf[k] && (conf[k].enabled || typeof conf[k] === 'string'));
           tags.push({ label: 'Redes', value: `${activeKeys.length || 3} activas` });
           if (conf.theme_light) tags.push({ label: 'Tema', value: 'Claro' });
           return tags;
