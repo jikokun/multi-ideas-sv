@@ -774,16 +774,13 @@
             streamerBotConnected = true;
             console.log(`[Streamer.bot Alertas Rufus] 🟢 Conectado exitosamente en ${url}`);
 
-            // Suscribirse a eventos de Alertas (Follow, Sub, Gift, Raid, Cheer, Tips) con comodines y fuentes soportadas
+            // Suscribirse a eventos de Alertas de Kick exclusivamente
             streamerBotSocket.send(JSON.stringify({
               request: "Subscribe",
               id: "rufus-alerts-overlay",
               events: {
-                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid", "*"],
-                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer", "*"],
-                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift", "*"],
-                General: ["*"],
-                StreamerBot: ["Custom", "*"]
+                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid", "Cheer", "Kicks", "Tip", "*"],
+                StreamerBot: ["Custom"]
               }
             }));
           };
@@ -819,12 +816,23 @@
       tryConnectPort(portsToTry[0]);
     }
 
-    // Parsea los eventos entrantes de Streamer.bot
+    // Parsea los eventos entrantes de Streamer.bot (Exclusivo Kick)
     function parseStreamerBotEvent(data) {
       if (!data) return;
 
       const eventInfo = data.event || {};
       const payload = data.data || data;
+
+      // 🛑 FILTRO ESTRICTO: Aceptar ÚNICAMENTE eventos provenientes de Kick (descartar Twitch, YouTube, etc.)
+      const source = ((eventInfo.source || data.source || payload.source || '') + '').toLowerCase();
+      if (source && source !== 'kick' && !source.includes('kick')) {
+        if (source === 'streamerbot' || source === 'streamer.bot') {
+          const isKick = (payload.platform || payload.source || '').toString().toLowerCase().includes('kick');
+          if (!isKick) return;
+        } else {
+          return; // Descartar Twitch, YouTube u otras plataformas
+        }
+      }
 
       // 1. Extraer nombre de tipo de evento con máxima flexibilidad
       let eventType = '';
@@ -841,8 +849,6 @@
 
       if (payload && payload.type) eventType += ' ' + payload.type.toString().toLowerCase();
       if (payload && payload.event) eventType += ' ' + payload.event.toString().toLowerCase();
-
-      const source = ((eventInfo.source || data.source || payload.source || 'Kick') + '').toLowerCase();
 
       // 2. Extraer nombre de usuario / emisor con máxima flexibilidad
       let username = '';
@@ -898,13 +904,13 @@
         });
       }
       // 3. EVENTO DE SEGUIDOR (Follow / Follower / NewFollower)
-      else if (eventType.includes('follow') || eventType.includes('subscriber') || (source.includes('youtube') && eventType.includes('subscribe'))) {
+      else if (eventType.includes('follow') || eventType.includes('subscriber')) {
         queueAlert({
           theme: 'follow',
           icon: '💚',
           badgeText: 'NUEVO SEGUIDOR',
           username: username,
-          detailHtml: '¡Se ha unido a la manada!'
+          detailHtml: '¡Se ha unido a la comunidad en Kick!'
         });
       }
       // 4. EVENTO DE RAID / HOST

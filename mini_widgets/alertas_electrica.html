@@ -1090,9 +1090,7 @@
               request: "Subscribe",
               id: "electric-alerts-overlay",
               events: {
-                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid"],
-                Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb", "Raid", "Cheer"],
-                YouTube: ["Subscribe", "SuperChat", "SuperSticker", "MembershipGift"],
+                Kick: ["Follow", "Subscription", "SubBomb", "GiftSubscription", "Raid", "Kicks", "Tip", "*"],
                 StreamerBot: ["Custom"]
               }
             };
@@ -1132,13 +1130,23 @@
       }
 
       // --------------------------------------------------
-      // MÓDULO 5: NORMALIZADOR DE EVENTOS STREAMER.BOT
+      // MÓDULO 5: NORMALIZADOR DE EVENTOS STREAMER.BOT (EXCLUSIVO KICK)
       // --------------------------------------------------
       function handleStreamerBotMessage(msg) {
         if (!msg || !msg.event) return;
         const source = (msg.event.source || '').toLowerCase();
         const eventType = (msg.event.type || '').toLowerCase();
         const payload = msg.data || {};
+
+        // 🛑 FILTRO ESTRICTO: Aceptar ÚNICAMENTE eventos provenientes de Kick
+        if (source && source !== 'kick' && !source.includes('kick')) {
+          if (source === 'streamerbot' || source === 'streamer.bot') {
+            const isKick = (payload.platform || payload.source || '').toString().toLowerCase().includes('kick');
+            if (!isKick) return;
+          } else {
+            return; // Ignorar completamente Twitch, YouTube u otras fuentes
+          }
+        }
 
         const userObj = payload.user || payload.sender || payload.recipient || {};
         const username = userObj.name || userObj.username || payload.user_name || payload.userName || payload.displayName || 'Espectador';
@@ -1149,7 +1157,7 @@
             type: 'seguidor',
             username: username,
             heading: 'NUEVO SEGUIDOR',
-            detail: `¡Bienvenido al canal (${source.toUpperCase()})!`
+            detail: '¡Bienvenido a la comunidad en Kick!'
           });
           return;
         }

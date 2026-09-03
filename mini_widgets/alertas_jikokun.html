@@ -1151,10 +1151,8 @@
 
         const rawUser = data.user || data.username || data.follower || data.subscriber || data.sender || data.name || 'Espectador';
         const user = extractCleanUsername(rawUser) || 'Espectador';
-        const sourcePlatform = (data.platform || data.source || 'Kick').toString().toUpperCase();
-        const platformLabel = sourcePlatform.includes('TWITCH') ? 'Twitch' : sourcePlatform.includes('YOUTUBE') ? 'YouTube' : 'Kick';
 
-        alertUsername.innerHTML = `${user} <span>${platformLabel}</span>`;
+        alertUsername.innerHTML = `${user} <span>Kick Live</span>`;
         alertDescription.textContent = data.text || data.description || theme.defaultDesc;
 
         // Highlight opcional (Meses, Cantidad de subs, Donación, etc.)
@@ -1333,20 +1331,13 @@
             wsLight.classList.add('connected');
             wsText.textContent = `🟢 WS ${url.split(':')[2].replace('/', '')}`;
 
-            // Suscribirse a eventos de alertas (con soporte para Kicks regalados, Subs, Raids y Donaciones)
+            // Suscribirse a eventos de alertas de Kick exclusivamente
             streamerBotSocket.send(JSON.stringify({
               request: 'Subscribe',
               id: 'jikokun-card-deck-overlay',
               events: {
                 Kick: ['Follow', 'Subscription', 'SubBomb', 'GiftSubscription', 'Raid', 'Cheer', 'Kicks', 'RewardGift', 'GiftedKicks', 'Gift', 'Donation', 'Tip', '*'],
-                Twitch: ['Follow', 'Sub', 'ReSub', 'GiftSub', 'GiftBomb', 'Raid', 'Cheer', '*'],
-                YouTube: ['Subscribe', 'SuperChat', 'SuperSticker', 'MembershipGift', '*'],
-                Donations: ['*'],
-                Tip: ['*'],
-                TipeeeStream: ['*'],
-                Streamlabs: ['*'],
-                Streamelements: ['*'],
-                StreamerBot: ['Custom', '*']
+                StreamerBot: ['Custom']
               }
             }));
           };
@@ -1390,11 +1381,22 @@
         'streambot'
       ];
 
-      // Parser robusto y seguro de eventos de Kick & Streamer.bot
+      // Parser robusto y seguro de eventos de Kick & Streamer.bot (Exclusivo Kick)
       function handleStreamerBotPacket(data) {
         if (!data) return;
         const eventInfo = data.event || {};
         const payload = data.data || data;
+
+        // 🛑 FILTRO ESTRICTO: Aceptar ÚNICAMENTE eventos de Kick (descartar Twitch, YouTube, etc.)
+        const source = (eventInfo.source || data.source || payload.source || '').toString().toLowerCase();
+        if (source && source !== 'kick' && !source.includes('kick')) {
+          if (source === 'streamerbot' || source === 'streamer.bot') {
+            const isKick = (payload.platform || payload.source || '').toString().toLowerCase().includes('kick');
+            if (!isKick) return;
+          } else {
+            return; // Descartar Twitch, YouTube u otras plataformas
+          }
+        }
 
         // 1. Extraer nombre de tipo de evento
         let eventType = '';
@@ -1403,8 +1405,6 @@
         else if (data.type) eventType = data.type;
         else if (data.action && data.action.name) eventType = data.action.name;
         eventType = (eventType || '').toString().toLowerCase();
-
-        const source = (eventInfo.source || data.source || payload.source || 'Kick').toString().toLowerCase();
 
         // 🛑 2. FILTRAR Y DESCARTAR MENSAJES DE CHAT, SALUDOS O ACCIONES DE BIENVENIDA
         if (
