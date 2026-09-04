@@ -410,18 +410,22 @@
 
             <!-- Iframe de Vista Previa -->
             <div style="border-radius: 14px; overflow: hidden; height: 560px; border: 1.5px solid rgba(83, 252, 24, 0.3); background: radial-gradient(circle at center, #0b1a0e 0%, #030805 100%); margin-bottom: 16px; position: relative; box-shadow: inset 0 0 40px rgba(0,0,0,0.8);">
-                <iframe id="preview-tiendita-test" src="mini_widgets/tiendita.html?preview=true" style="width: 100%; height: 100%; border: none;"></iframe>
+                <iframe id="preview-tiendita-test" src="mini_widgets/tiendita.html" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
 
             <!-- Controles de Configuración -->
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 16px;">
                 <div>
                     <label for="tiendita-port" style="display: block; font-size: 0.85rem; font-weight: 700; color: #53fc18; margin-bottom: 6px;">🔌 Puerto WS Streamer.bot:</label>
                     <input type="text" id="tiendita-port" value="4445" class="gate-input" style="padding: 10px 14px; font-size: 1rem; letter-spacing: normal; text-align: left;" oninput="updateTienditaPrivateWidget()">
                 </div>
                 <div>
-                    <label for="tiendita-duration" style="display: block; font-size: 0.85rem; font-weight: 700; color: #53fc18; margin-bottom: 6px;">⏱️ Tiempo Auto-Cierre (segundos):</label>
+                    <label for="tiendita-duration" style="display: block; font-size: 0.85rem; font-weight: 700; color: #53fc18; margin-bottom: 6px;">⏱️ Tiempo Auto-Cierre (s):</label>
                     <input type="number" id="tiendita-duration" value="40" min="10" max="180" class="gate-input" style="padding: 10px 14px; font-size: 1rem; letter-spacing: normal; text-align: left;" oninput="updateTienditaPrivateWidget()">
+                </div>
+                <div>
+                    <label for="tiendita-cooldown" style="display: block; font-size: 0.85rem; font-weight: 700; color: #ffd35c; margin-bottom: 6px;">⏳ Cooldown Global (s):</label>
+                    <input type="number" id="tiendita-cooldown" value="30" min="0" max="300" class="gate-input" style="padding: 10px 14px; font-size: 1rem; letter-spacing: normal; text-align: left;" oninput="updateTienditaPrivateWidget()">
                 </div>
             </div>
 
@@ -436,6 +440,8 @@
                     <button type="button" class="test-btn" style="border-color: #ff5c6c; color: #ff5c6c;" onclick="triggerTienditaPrivateTest('SELECT_ITEM', 'caja')">🎁 Caja (150 pts)</button>
                     <button type="button" class="test-btn" style="border-color: #53fc18; color: #53fc18; font-weight: 800;" onclick="triggerTienditaPrivateTest('BUY_ITEM')">✅ !comprar</button>
                     <button type="button" class="test-btn" style="border-color: #dc3545; color: #dc3545;" onclick="triggerTienditaPrivateTest('CANCEL_ITEM')">❌ !cancelar</button>
+                    <button type="button" class="test-btn" style="border-color: #ffd35c; color: #ffd35c; font-weight: 800;" onclick="triggerTienditaPrivateTest('TEST_OTHER_USER', 'Visitante_99')">✋ Probar Turno</button>
+                    <button type="button" class="test-btn" style="border-color: #00adb5; color: #00f2fe;" onclick="triggerTienditaPrivateTest('RESET_COOLDOWN')">🔄 Reset CD</button>
                     <button type="button" class="test-btn" style="border-color: #a855f7; color: #c084fc;" onclick="triggerTienditaPrivateTest('GIFT_POINTS', 500)">⚡ +500 JikoPts</button>
                     <button type="button" class="test-btn" style="border-color: #64748b; color: #94a3b8;" onclick="triggerTienditaPrivateTest('RESET_POINTS')">🔄 Reset Saldo</button>
                     <button type="button" class="test-btn" style="border-color: #ef4444; color: #f87171;" onclick="triggerTienditaPrivateTest('CLOSE_STORE')">🚪 Cerrar Tienda</button>
@@ -829,12 +835,15 @@
             const port = portInput ? (portInput.value.trim() || '4445') : '4445';
             const durationInput = document.getElementById('tiendita-duration');
             const durationSec = durationInput ? parseInt(durationInput.value, 10) : 40;
+            const cooldownInput = document.getElementById('tiendita-cooldown');
+            const cooldownSec = cooldownInput ? parseInt(cooldownInput.value, 10) : 30;
             const isMuted = document.getElementById('tiendita-mute') ? document.getElementById('tiendita-mute').checked : false;
             const isClean = document.getElementById('tiendita-clean') ? document.getElementById('tiendita-clean').checked : true;
 
             const obsParams = new URLSearchParams();
             if (port && port !== '4445') obsParams.set('port', port);
             if (durationSec && durationSec !== 40) obsParams.set('duration', durationSec.toString());
+            if (cooldownSec && cooldownSec !== 30) obsParams.set('cooldown', cooldownSec.toString());
             if (isMuted) obsParams.set('mute', 'true');
             if (isClean) obsParams.set('overlay', 'true');
 
@@ -861,6 +870,10 @@
                     type: 'SET_DURATION',
                     duration: durationSec
                 }, '*');
+                previewIframe.contentWindow.postMessage({
+                    type: 'SET_COOLDOWN',
+                    cooldown: cooldownSec
+                }, '*');
             }
         }
 
@@ -874,6 +887,8 @@
                     msg.amount = extraArg || 500;
                 } else if (actionType === 'OPEN_STORE') {
                     msg.user = extraArg || 'LunaGamer';
+                } else if (actionType === 'TEST_OTHER_USER') {
+                    msg.user = extraArg || 'Visitante_99';
                 }
                 iframe.contentWindow.postMessage(msg, '*');
                 log(`[Tiendita] Acción enviada a la vista previa: ${actionType}${extraArg ? ` (${extraArg})` : ''}`, "info");
