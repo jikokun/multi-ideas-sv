@@ -43,7 +43,15 @@ root/
 │   │       ├── websiteUrl: String   (Enlace web opcional o vacío)
 │   │       ├── facebookUrl: String  (Enlace oficial de Facebook)
 │   │       ├── hasOffer: Boolean    (true / false)
-│   │       ├── offerMsg: String     (ej: "2x1 en tacos todos los martes")
+│   │       ├── offerMsg: String     (ej: "-25% Descuento Especial")
+│   │       ├── offerCode: String    (ej: "GLORIA25")
+│   │       ├── offerStyle: Int      (1, 2, 3 o 4: Estilo visual del popup)
+│   │       ├── offerDiscount: String (ej: "-25%", "-50%", "2x1")
+│   │       ├── offerDetail: String  (ej: "En todas las pupusas revueltas de 4 a 7 PM")
+│   │       ├── offerBadge: String   (ej: "-25% DESCUENTO", "¡HOY!")
+│   │       ├── offerDurationHours: Int (ej: 6, horas para contador en vivo en Estilo 2)
+│   │       ├── offerDistance: String (ej: "A 2 cuadras del parque central")
+│   │       ├── offerExpiry: String  (ej: "Válido hasta el 31 de Diciembre")
 │   │       ├── accentColor: String  (ej: "#e74c3c", "#f39c12", "#00adb5")
 │   │       ├── tags: List<String>   (Lista de etiquetas para búsqueda y filtro)
 │   │       └── isActive: Boolean    (true/false)
@@ -120,6 +128,14 @@ data class Business(
     val facebookUrl: String = "", // Enlace a página oficial de Facebook
     val hasOffer: Boolean = false,
     val offerMsg: String = "",
+    val offerCode: String = "",
+    val offerStyle: Int = 1, // 1: Cupón, 2: Festivo, 3: Minimal, 4: Banner
+    val offerDiscount: String = "", // ej: "-25%", "-50%", "2x1"
+    val offerDetail: String = "", // Detalle descriptivo extendido (Estilos 3 y 4)
+    val offerBadge: String = "", // Píldora o insignia destacada (ej: "-25% DESCUENTO", "¡HOY!")
+    val offerDurationHours: Int = 6, // Horas para contador regresivo en vivo (Estilo 2)
+    val offerDistance: String = "", // Distancia o referencia (Estilo 4)
+    val offerExpiry: String = "",
     val accentColor: String = "#f39c12",
     val tags: List<String> = emptyList(),
     val isActive: Boolean = true
@@ -730,6 +746,63 @@ fun generateBusinessSlug(title: String, code: String, existingBusinesses: List<B
 Al persistir el negocio desde la App:
 - Ruta: `db.child("sensunshop/businesses").child(generatedId).setValue(businessObject)`
 - Propiedades requeridas dentro del objeto: `id = generatedId`, `code = generatedCode`.
+
+---
+
+## 13. Módulo de Ofertas Especiales y Estilos 1 al 4 de Popups
+
+La Web y la App Android soportan **4 estilos visuales interactivos de ventanas emergentes (popups)** para promociones y descuentos:
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        ESTILOS DE POPUPS                               │
+├───────────────────┬───────────────────┬────────────────┬───────────────┤
+│ Estilo 1: Cupón   │ Estilo 2: Festivo │ Estilo 3: Min. │ Estilo 4: Ban │
+│ Borde discontinuo │ Fondo morado      │ Tarjeta blanca │ Banner corte  │
+│ Tijeras arriba    │ Puntos festivos   │ Avatar fuera   │ Insignia HOY  │
+│ Cupón copiable    │ Reloj en reversa  │ Estrellas rating Detalle/Fav   │
+└───────────────────┴───────────────────┴────────────────┴───────────────┘
+```
+
+### 13.1 Campos por Estilo de Oferta
+
+| Campo | Tipo | Estilo 1 (Cupón) | Estilo 2 (Festivo) | Estilo 3 (Minimal) | Estilo 4 (Banner) |
+|---|---|:---:|:---:|:---:|:---:|
+| `hasOffer` | `Boolean` | `true` | `true` | `true` | `true` |
+| `offerStyle` | `Int` | `1` | `2` | `3` | `4` |
+| `offerDiscount` | `String` | Sí (ej: `-25%`) | Sí (ej: `-25%`) | Opcional | Sí (ej: `-25%`) |
+| `offerMsg` | `String` | Sí (Título cupón) | Sí (Píldora promo) | Sí (Título promo) | Sí (Título banner) |
+| `offerCode` | `String` | Sí (ej: `GLORIA25`) | No | No | Sí (Píldora morada) |
+| `offerDetail` | `String` | No | No | Sí (Detalle extendido) | Sí (Detalle extendido) |
+| `offerBadge` | `String` | No | No | Sí (`-25% DESCUENTO`) | Sí (`¡HOY!`) |
+| `offerDurationHours` | `Int` | No | Sí (ej: `6` hrs) | No | No |
+| `offerDistance` | `String` | No | No | No | Sí (ej: `A 2 cuadras`) |
+| `offerExpiry` | `String` | Sí | Sí | Sí | Sí |
+
+### 13.2 Comportamiento de cada Estilo
+
+1. **Estilo 1 · Cupón**:
+   - Caja color durazno suave (`#FFF5ED`), borde discontinuo (`2px dashed #F6C9A8`), ícono de tijeras centrado en el borde superior.
+   - Píldora de código con botón de copiar al portapapeles ("¡Copiado!").
+   - Botón CTA directo a WhatsApp con mensaje pre-armado.
+2. **Estilo 2 · Festivo**:
+   - Fondo gradiente púrpura/violeta (`#A66BC0` a `#7D3FA8`) con textura de lunares translúcidos.
+   - Avatar circular del comercio con borde blanco grueso.
+   - **Contador regresivo en vivo**: Temporizador con cajas independientes para **HRS**, **MIN** y **SEG** decreciendo en tiempo real calculado a partir de `offerDurationHours`.
+   - Botón blanco con texto morado para canjear vía WhatsApp.
+3. **Estilo 3 · Minimalista**:
+   - Tarjeta blanca limpia con esquinas redondeadas (`26px`).
+   - Avatar del negocio flotando hacia afuera del borde superior (`margin-top: -30px`).
+   - Insignia píldora con gradiente naranja (`offerBadge`).
+   - Fila de 5 estrellas doradas de calificación.
+   - Texto de detalle extendido (`offerDetail`) de la promoción.
+   - Botón de WhatsApp y enlace para descartar / guardar para después.
+4. **Estilo 4 · Banner Naranja**:
+   - Cabecera con corte diagonal pronunciado (`clip-path: polygon(0 0, 100% 0, 100% 82%, 0 100%)`) en naranja vibrante (`#FF6B00`).
+   - Insignia rotada (`transform: rotate(-3deg)`) con badge destacado (`¡HOY!`).
+   - Tarjeta de comercio flotante que se solapa al banner con foto, título, distancia (`offerDistance`) y rating en estrellas.
+   - Detalle de la oferta, código en caja morada discontinua, botón de WhatsApp e **ícono de corazón para guardar en favoritos**.
+
 
 
 

@@ -8,6 +8,8 @@
     <!-- Leaflet Maps CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Módulo Popups de Ofertas 4 Estilos -->
+    <script src="../sensun_offer_popups.js"></script>
     <!-- Google Fonts -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fontsource-poppins@5.0.0/index.css">
     <style>
@@ -1751,9 +1753,279 @@
             .dashboard-cards {
                 grid-template-columns: 1fr;
             }
-            .form-row {
+        /* ==========================================================
+           ESTILOS: GESTOR DE OFERTAS Y MODAL DINÁMICO (4 ESTILOS)
+        ========================================================== */
+        .offers-grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+            gap: 20px;
+            padding-bottom: 60px;
+        }
+
+        .offer-admin-card {
+            background: #ffffff;
+            border-radius: 22px;
+            border: 1.5px solid var(--border-color);
+            padding: 20px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s var(--spring);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .offer-admin-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 36px rgba(123, 104, 238, 0.14);
+            border-color: var(--primary-orange);
+        }
+
+        .offer-card-top {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 14px;
+        }
+
+        .offer-card-thumb {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            object-fit: cover;
+            border: 1px solid var(--border-color);
+            background: #f8fafc;
+            flex-shrink: 0;
+        }
+
+        .offer-card-biz-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-dark);
+            line-height: 1.3;
+        }
+
+        .offer-card-biz-cat {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .offer-style-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            width: max-content;
+        }
+
+        .style-badge-1 { background: #fff7ed; color: #ea580c; border: 1px solid #ffedd5; }
+        .style-badge-2 { background: #f5f3ff; color: #7c3aed; border: 1px solid #ede9fe; }
+        .style-badge-3 { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+        .style-badge-4 { background: #fef2f2; color: #dc2626; border: 1px solid #fee2e2; }
+
+        .offer-card-details-box {
+            background: #f8fafc;
+            border-radius: 14px;
+            padding: 12px 14px;
+            border: 1px dashed #cbd5e1;
+            margin-bottom: 14px;
+            flex: 1;
+        }
+
+        .offer-card-discount-val {
+            font-size: 24px;
+            font-weight: 800;
+            color: var(--primary-orange);
+            line-height: 1;
+        }
+
+        .offer-card-msg-text {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-top: 4px;
+        }
+
+        .offer-card-code-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: white;
+            border: 1px dashed var(--primary-purple);
+            color: var(--primary-purple);
+            font-family: monospace;
+            font-weight: 700;
+            font-size: 11px;
+            padding: 3px 10px;
+            border-radius: 8px;
+            margin-top: 8px;
+        }
+
+        .offer-card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+
+        .btn-offer-preview {
+            flex: 1;
+            background: rgba(123, 104, 238, 0.1);
+            color: var(--primary-purple);
+            border: 1px solid rgba(123, 104, 238, 0.3);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-offer-preview:hover {
+            background: var(--primary-purple);
+            color: white;
+        }
+
+        .btn-offer-edit {
+            background: rgba(255, 107, 53, 0.1);
+            color: var(--primary-orange);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-offer-edit:hover {
+            background: var(--primary-orange);
+            color: white;
+        }
+
+        .btn-offer-delete {
+            background: #fee2e2;
+            color: #dc2626;
+            border: 1px solid #fca5a5;
+            border-radius: 10px;
+            padding: 8px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-offer-delete:hover {
+            background: #dc2626;
+            color: white;
+        }
+
+        /* Modal Dedicado de Ofertas */
+        .modal-offer-wide {
+            max-width: 920px !important;
+            width: 95% !important;
+        }
+
+        .offer-modal-layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 24px;
+            align-items: start;
+        }
+
+        @media (max-width: 860px) {
+            .offer-modal-layout {
                 grid-template-columns: 1fr;
             }
+        }
+
+        .offer-style-selector-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .offer-style-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 14px;
+            padding: 12px 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            user-select: none;
+        }
+
+        .offer-style-card:hover {
+            border-color: var(--primary-purple);
+            background: #ffffff;
+            transform: translateY(-2px);
+        }
+
+        .offer-style-card.selected {
+            border-color: var(--primary-orange);
+            background: #fff7ed;
+            box-shadow: 0 4px 14px rgba(255, 107, 53, 0.15);
+        }
+
+        .offer-style-card-icon {
+            font-size: 22px;
+            flex-shrink: 0;
+        }
+
+        .offer-style-card-title {
+            font-weight: 700;
+            font-size: 12px;
+            color: var(--text-dark);
+        }
+
+        .offer-style-card-desc {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .offer-preview-pane {
+            background: #181920;
+            border-radius: 24px;
+            padding: 20px 14px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+            position: sticky;
+            top: 10px;
+        }
+
+        .offer-preview-title-bar {
+            color: #94a3b8;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .offer-preview-screen {
+            width: 100%;
+            display: flex;
+            justify-content: center;
         }
     </style>
 </head>
@@ -1822,6 +2094,11 @@
                 <span class="nav-icon">📰</span>
                 <span>Noticias y Novedades</span>
                 <span class="nav-badge" id="badgeNewsCount">0</span>
+            </button>
+            <button class="nav-item" data-view="offers">
+                <span class="nav-icon">🏷️</span>
+                <span>Ofertas & Descuentos</span>
+                <span class="nav-badge" id="badgeOffersCount">0</span>
             </button>
             <button class="nav-item" data-view="map">
                 <span class="nav-icon">🗺️</span>
@@ -1922,6 +2199,14 @@
                     <div class="dashboard-card-desc">Publicar anuncios en el slider principal de Sensun Shop y la App Móvil</div>
                     <div class="dashboard-card-arrow">➔</div>
                 </div>
+                <div class="dashboard-card orange" onclick="switchView('offers')">
+                    <div class="dashboard-card-header">
+                        <div class="dashboard-card-icon">🏷️</div>
+                        <div class="dashboard-card-title">Gestionar Ofertas</div>
+                    </div>
+                    <div class="dashboard-card-desc">Crea promociones con los 4 Estilos Visuales de Popups, códigos y contadores</div>
+                    <div class="dashboard-card-arrow">➔</div>
+                </div>
             </div>
         </div>
 
@@ -1983,6 +2268,38 @@
 
             <div class="news-grid" id="newsGrid">
                 <!-- Se llena dinámicamente con Firebase -->
+            </div>
+        </div>
+
+        <!-- Offers View (4 Estilos de Popups) -->
+        <div class="content-section" id="view-offers">
+            <div class="page-header">
+                <div class="page-title-section">
+                    <h1>Gestión de Ofertas & Descuentos Especiales</h1>
+                    <p>Crea y administra promociones con soporte para los 4 Estilos Visuales de Ventana Emergente</p>
+                </div>
+                <div class="header-actions">
+                    <a href="../ofertas.html" target="_blank" class="btn btn-secondary">🌐 Ver Catálogo Público</a>
+                    <button class="btn btn-primary" onclick="openOfferDedicatedModal()">+ Nueva Oferta</button>
+                </div>
+            </div>
+
+            <div class="list-controls">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" placeholder="Buscar comercio, oferta o código cupón..." id="searchOffersInput" oninput="renderOffersAdminTable()">
+                </div>
+                <select class="filter-select" id="filterOfferStyleSelect" onchange="renderOffersAdminTable()">
+                    <option value="all">Todos los estilos (1 al 4)</option>
+                    <option value="1">✂️ Estilo 1 · Cupón</option>
+                    <option value="2">🎉 Estilo 2 · Festivo</option>
+                    <option value="3">⭐ Estilo 3 · Minimal</option>
+                    <option value="4">🔥 Estilo 4 · Banner</option>
+                </select>
+            </div>
+
+            <div class="offers-grid-container" id="offersGridContainer">
+                <!-- Se llena dinámicamente con JS -->
             </div>
         </div>
 
@@ -2294,18 +2611,48 @@
 
                 <div class="toggle-group">
                     <div>
-                        <div class="toggle-label">🔥 ¿Tiene Oferta / Promoción Activa?</div>
-                        <div class="toggle-desc">Muestra insignia llamativa y banner de descuento</div>
+                        <div class="toggle-label">🔥 ¿Tiene Oferta / Promoción Activa? (hasOffer)</div>
+                        <div class="toggle-desc">Muestra insignia llamativa, popup de descuento y botón de cupón</div>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="bizHasOffer">
+                        <input type="checkbox" id="bizHasOffer" onchange="toggleOfferFieldsVisibility(this.checked)">
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
 
-                <div class="form-group" id="offerMsgContainer">
-                    <label class="form-label">Mensaje de la Oferta</label>
-                    <input type="text" class="form-input" id="bizOfferMsg" placeholder="¡2x1 todos los jueves en pupusas de arroz!">
+                <div id="offerDetailsContainer" style="display: none; background: rgba(255, 107, 53, 0.05); border: 1.5px dashed rgba(255, 107, 53, 0.35); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
+                    <div style="font-weight: 700; color: var(--primary-orange); font-size: 0.9rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span>🏷️ Configuración de Oferta Especial y Popup</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Mensaje de la Oferta (offerMsg) <span class="required">*</span></label>
+                        <input type="text" class="form-input" id="bizOfferMsg" placeholder="Ej: -25% Descuento Especial">
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Código Cupón (offerCode)</label>
+                            <input type="text" class="form-input" id="bizOfferCode" placeholder="Ej: GLORIA25" style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px;">
+                            <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Código copiable por los usuarios en el popup</small>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Selector de Estilo Visual (offerStyle) <span class="required">*</span></label>
+                            <select class="form-select" id="bizOfferStyle">
+                                <option value="1">✂️ Estilo 1 · Cupón (Troquelado & Tijeras)</option>
+                                <option value="2">🎉 Estilo 2 · Festivo (Degradado Morado & Contador)</option>
+                                <option value="3">⭐ Estilo 3 · Minimal (Avatar Flotante & Estrellas)</option>
+                                <option value="4">🔥 Estilo 4 · Banner (Corte Diagonal & Insignia HOY)</option>
+                            </select>
+                            <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Diseño del popup emergente en la app y web</small>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label class="form-label">Vigencia / Caducidad (offerExpiry)</label>
+                        <input type="text" class="form-input" id="bizOfferExpiry" placeholder="Ej: Válido hasta el 31 de Diciembre">
+                        <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Texto descriptivo del periodo de validez</small>
+                    </div>
                 </div>
 
                 <div class="toggle-group">
@@ -2423,6 +2770,135 @@
                 <div class="modal-footer-actions">
                     <button class="btn btn-secondary" onclick="closeNewsModal()">Cancelar</button>
                     <button class="btn btn-primary" onclick="saveNewsToFirebase()">💾 Publicar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================================
+         MODAL CREAR / EDITAR OFERTA DEDICADA (4 ESTILOS CON PREVIEW)
+    ========================================================== -->
+    <div class="modal-overlay" id="offerDedicatedModalOverlay">
+        <div class="modal modal-offer-wide">
+            <div class="modal-header">
+                <button type="button" class="modal-close" onclick="closeOfferDedicatedModal()">✕</button>
+                <h2 id="modalDedicatedOfferTitle">Configurar Oferta Especial</h2>
+                <p>Selecciona el comercio y define el estilo del popup emergente con previsualización interactiva en vivo</p>
+            </div>
+            <div class="modal-body">
+                <div class="offer-modal-layout">
+                    <!-- Columna Izquierda: Formulario Dinámico -->
+                    <div class="offer-form-col">
+                        <!-- Selección de Negocio -->
+                        <div class="form-group">
+                            <label class="form-label">Comercio que tendrá la oferta <span class="required">*</span></label>
+                            <select class="form-select" id="dedOfferBizSelect" onchange="onDedicatedOfferBizChange()">
+                                <option value="">-- Seleccionar Negocio --</option>
+                            </select>
+                            <small style="font-size: 11px; color: #888; display: block; margin-top: 4px;">
+                                Los datos como logo, estrellas, categoría y WhatsApp se obtienen automáticamente del comercio.
+                            </small>
+                        </div>
+
+                        <!-- Selector de Estilo Visual (1 al 4) -->
+                        <div class="form-group">
+                            <label class="form-label">Estilo Visual de Ventana Emergente <span class="required">*</span></label>
+                            <div class="offer-style-selector-grid">
+                                <div class="offer-style-card selected" id="dedStyleCard1" onclick="setDedicatedOfferStyle(1)">
+                                    <div class="offer-style-card-icon">✂️</div>
+                                    <div>
+                                        <div class="offer-style-card-title">Estilo 1 · Cupón</div>
+                                        <div class="offer-style-card-desc">Borde troquelado durazno, tijeras y cupón copiable</div>
+                                    </div>
+                                </div>
+                                <div class="offer-style-card" id="dedStyleCard2" onclick="setDedicatedOfferStyle(2)">
+                                    <div class="offer-style-card-icon">🎉</div>
+                                    <div>
+                                        <div class="offer-style-card-title">Estilo 2 · Festivo</div>
+                                        <div class="offer-style-card-desc">Degradado morado y reloj contador en vivo</div>
+                                    </div>
+                                </div>
+                                <div class="offer-style-card" id="dedStyleCard3" onclick="setDedicatedOfferStyle(3)">
+                                    <div class="offer-style-card-icon">⭐</div>
+                                    <div>
+                                        <div class="offer-style-card-title">Estilo 3 · Minimal</div>
+                                        <div class="offer-style-card-desc">Avatar flotante superior, píldora y detalle</div>
+                                    </div>
+                                </div>
+                                <div class="offer-style-card" id="dedStyleCard4" onclick="setDedicatedOfferStyle(4)">
+                                    <div class="offer-style-card-icon">🔥</div>
+                                    <div>
+                                        <div class="offer-style-card-title">Estilo 4 · Banner</div>
+                                        <div class="offer-style-card-desc">Corte diagonal naranja, ¡HOY!, tarjeta y fav</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="dedOfferStyleVal" value="1">
+                        </div>
+
+                        <!-- Campos Condicionales Dinámicos -->
+                        <div class="form-group" id="groupDedOfferDiscount">
+                            <label class="form-label">Descuento o Porcentaje Destacado <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="dedOfferDiscount" placeholder="Ej: -25%, -50%, $5 OFF" value="-25%" oninput="updateDedicatedOfferLivePreview()">
+                            <small style="font-size: 11px; color: #888;">El número o porcentaje grande que atrae la vista</small>
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferMsg">
+                            <label class="form-label">Título / Mensaje Principal de la Oferta <span class="required">*</span></label>
+                            <input type="text" class="form-input" id="dedOfferMsg" placeholder="Ej: Descuento Especial" value="Descuento Especial" oninput="updateDedicatedOfferLivePreview()">
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferDetail" style="display: none;">
+                            <label class="form-label">Detalle Extendido de la Oferta <span class="required">*</span></label>
+                            <textarea class="form-textarea" id="dedOfferDetail" rows="2" placeholder="Ej: En todo el menú de comida típica. Presenta el código al llegar." oninput="updateDedicatedOfferLivePreview()">En todo el menú de comida típica. Presenta el código al llegar.</textarea>
+                            <small style="font-size: 11px; color: #888;">Explicación detallada de en qué consiste la promoción</small>
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferCode">
+                            <label class="form-label">Código Cupón Promocional</label>
+                            <input type="text" class="form-input" id="dedOfferCode" placeholder="Ej: GLORIA25" style="text-transform: uppercase; font-family: monospace; font-weight: 700; letter-spacing: 1px;" oninput="this.value = this.value.toUpperCase(); updateDedicatedOfferLivePreview()">
+                            <small style="font-size: 11px; color: #888;">Código que el usuario puede copiar directamente con un clic</small>
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferBadge" style="display: none;">
+                            <label class="form-label">Insignia / Texto de Cabecera</label>
+                            <input type="text" class="form-input" id="dedOfferBadge" placeholder="Ej: ¡HOY! o -25% DESCUENTO" oninput="updateDedicatedOfferLivePreview()">
+                            <small style="font-size: 11px; color: #888;">Texto corto en la insignia inclinada o píldora superior</small>
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferDuration" style="display: none;">
+                            <label class="form-label">Duración del Contador Regresivo (Horas) <span class="required">*</span></label>
+                            <input type="number" class="form-input" id="dedOfferDurationHours" min="1" max="168" value="6" oninput="updateDedicatedOfferLivePreview()">
+                            <small style="font-size: 11px; color: #888;">Tiempo para la cuenta regresiva en vivo (HRS : MIN : SEG)</small>
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferDistance" style="display: none;">
+                            <label class="form-label">Distancia o Referencia de Ubicación Corta</label>
+                            <input type="text" class="form-input" id="dedOfferDistance" placeholder="Ej: A 1.2 km o Centro de Sensun" oninput="updateDedicatedOfferLivePreview()">
+                        </div>
+
+                        <div class="form-group" id="groupDedOfferExpiry">
+                            <label class="form-label">Vigencia / Fecha de Expiración (Opcional)</label>
+                            <input type="text" class="form-input" id="dedOfferExpiry" placeholder="Ej: Válido hasta el 31 de diciembre · Presenta el código" oninput="updateDedicatedOfferLivePreview()">
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Previsualización en Tiempo Real -->
+                    <div class="offer-preview-pane">
+                        <div class="offer-preview-title-bar">
+                            <span>📱 Previsualización en Vivo</span>
+                        </div>
+                        <div class="offer-preview-screen" id="dedicatedOfferLivePreviewContainer">
+                            <!-- Inyectado en tiempo real con window.renderSensunOfferHTML -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="btnDeactivateOffer" style="display: none;" onclick="deleteDedicatedOfferFromFirebase()">🗑️ Desactivar Oferta</button>
+                <div class="modal-footer-actions">
+                    <button type="button" class="btn btn-secondary" onclick="closeOfferDedicatedModal()">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveDedicatedOfferToFirebase()">💾 Guardar Oferta</button>
                 </div>
             </div>
         </div>
@@ -2805,6 +3281,15 @@
                     websiteUrl: item.websiteUrl || "",
                     hasOffer: Boolean(item.hasOffer),
                     offerMsg: item.offerMsg || "",
+                    offerDiscount: item.offerDiscount || "-25%",
+                    offerDetail: item.offerDetail || "",
+                    offerCode: item.offerCode || "",
+                    offerBadge: item.offerBadge || "",
+                    offerDurationHours: Number(item.offerDurationHours) || 6,
+                    offerDistance: item.offerDistance || "",
+                    offerStyle: parseInt(item.offerStyle, 10) || 1,
+                    offerExpiry: item.offerExpiry || "",
+                    rating: item.rating || "4.8",
                     accentColor: item.accentColor || "#ff6b35",
                     tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : []),
                     isActive: item.isActive !== false
@@ -2812,6 +3297,7 @@
             });
 
             renderBusinesses();
+            renderOffersAdminTable();
             updateStatsCounters();
             if (map) renderMapMarkers();
         });
@@ -2897,7 +3383,7 @@
                             <div class="business-meta">
                                 <span class="business-rating">⭐ ${b.code || b.id}</span>
                                 <span>· ${b.type}</span>
-                                ${b.hasOffer ? '<span style="color: #ea580c; font-weight: 700;">🏷️ OFERTA</span>' : ''}
+                                ${b.hasOffer ? `<span style="color: #ea580c; font-weight: 700; background: rgba(234, 88, 12, 0.1); padding: 2px 6px; border-radius: 4px;">🏷️ OFERTA (Estilo ${b.offerStyle || 1})</span>` : ''}
                             </div>
                             <div>${locDisplay}</div>
                         </div>
@@ -2974,6 +3460,8 @@
 
             const offersCount = businessesList.filter(b => b.hasOffer).length;
             document.getElementById("statTotalOffers").textContent = offersCount;
+            const badgeOffers = document.getElementById("badgeOffersCount");
+            if (badgeOffers) badgeOffers.textContent = offersCount;
 
             const categories = new Set(businessesList.map(b => b.category.toLowerCase().trim())).size;
             document.getElementById("statsCategoriesCount").textContent = categories;
@@ -3215,6 +3703,13 @@
             }
         };
 
+        window.toggleOfferFieldsVisibility = function(isChecked) {
+            const container = document.getElementById("offerDetailsContainer");
+            if (container) {
+                container.style.display = isChecked ? "block" : "none";
+            }
+        };
+
         // ==========================================================
         // MODALES CRUD: NEGOCIOS
         // ==========================================================
@@ -3258,8 +3753,15 @@
                 document.getElementById("bizFacebookUrl").value = b.facebookUrl || "";
                 document.getElementById("bizLocationUrl").value = b.locationUrl || "";
                 document.getElementById("bizTags").value = (b.tags || []).join(", ");
-                document.getElementById("bizHasOffer").checked = b.hasOffer;
+                
+                const hasOffer = Boolean(b.hasOffer);
+                document.getElementById("bizHasOffer").checked = hasOffer;
                 document.getElementById("bizOfferMsg").value = b.offerMsg || "";
+                document.getElementById("bizOfferCode").value = b.offerCode || "";
+                document.getElementById("bizOfferStyle").value = String(b.offerStyle || 1);
+                document.getElementById("bizOfferExpiry").value = b.offerExpiry || "";
+                toggleOfferFieldsVisibility(hasOffer);
+
                 document.getElementById("bizIsActive").checked = b.isActive;
                 updateImagePreviewFromUrl('biz');
             } else {
@@ -3296,8 +3798,14 @@
                 document.getElementById("bizFacebookUrl").value = "";
                 document.getElementById("bizLocationUrl").value = "";
                 document.getElementById("bizTags").value = "";
+                
                 document.getElementById("bizHasOffer").checked = false;
                 document.getElementById("bizOfferMsg").value = "";
+                document.getElementById("bizOfferCode").value = "";
+                document.getElementById("bizOfferStyle").value = "1";
+                document.getElementById("bizOfferExpiry").value = "";
+                toggleOfferFieldsVisibility(false);
+
                 document.getElementById("bizIsActive").checked = true;
                 clearImagePreview('biz');
             }
@@ -3357,6 +3865,9 @@
                 tags: document.getElementById("bizTags").value.split(",").map(t => t.trim()).filter(Boolean),
                 hasOffer: document.getElementById("bizHasOffer").checked,
                 offerMsg: document.getElementById("bizOfferMsg").value.trim(),
+                offerCode: document.getElementById("bizOfferCode").value.trim().toUpperCase(),
+                offerStyle: parseInt(document.getElementById("bizOfferStyle").value, 10) || 1,
+                offerExpiry: document.getElementById("bizOfferExpiry").value.trim(),
                 isActive: document.getElementById("bizIsActive").checked
             };
 
@@ -3834,6 +4345,382 @@
             setTimeout(() => toast.classList.remove("show"), 3500);
         };
 
+        // ==========================================================
+        // GESTOR DE OFERTAS DEDICADO (4 ESTILOS DE POPUP)
+        // ==========================================================
+        const OFFER_STYLE_LABELS = {
+            1: { name: "Estilo 1 · Cupón", icon: "✂️", badgeClass: "style-badge-1" },
+            2: { name: "Estilo 2 · Festivo", icon: "🎉", badgeClass: "style-badge-2" },
+            3: { name: "Estilo 3 · Minimal", icon: "⭐", badgeClass: "style-badge-3" },
+            4: { name: "Estilo 4 · Banner", icon: "🔥", badgeClass: "style-badge-4" }
+        };
+
+        window.renderOffersAdminTable = function() {
+            const container = document.getElementById("offersGridContainer");
+            if (!container) return;
+
+            const searchInput = document.getElementById("searchOffersInput");
+            const filterStyleSelect = document.getElementById("filterOfferStyleSelect");
+            const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+            const styleVal = filterStyleSelect ? filterStyleSelect.value : "all";
+
+            const offers = businessesList.filter(b => b.hasOffer && b.isActive !== false);
+
+            const filtered = offers.filter(b => {
+                const matchSearch = b.title.toLowerCase().includes(searchVal) ||
+                                    (b.offerMsg && b.offerMsg.toLowerCase().includes(searchVal)) ||
+                                    (b.offerCode && b.offerCode.toLowerCase().includes(searchVal)) ||
+                                    b.category.toLowerCase().includes(searchVal);
+                const matchStyle = styleVal === "all" || String(b.offerStyle || 1) === styleVal;
+                return matchSearch && matchStyle;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div style="grid-column: 1/-1; text-align: center; padding: 50px 20px; background: white; border-radius: 24px; border: 1.5px dashed var(--border-color); box-shadow: var(--card-shadow);">
+                        <div style="font-size: 46px; margin-bottom: 12px;">🏷️</div>
+                        <h3 style="color: var(--text-dark); margin-bottom: 6px; font-size: 1.25rem;">No hay ofertas activas registradas</h3>
+                        <p style="color: var(--text-muted); font-size: 13.5px; max-width: 480px; margin: 0 auto 20px auto;">
+                            Crea una nueva promoción especial y asígnala a cualquier negocio con soporte para los 4 Estilos Visuales de Ventana Emergente.
+                        </p>
+                        <button type="button" class="btn btn-primary" onclick="openOfferDedicatedModal()">+ Crear Primera Oferta</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = filtered.map(b => {
+                const styleNum = parseInt(b.offerStyle, 10) || 1;
+                const styleInfo = OFFER_STYLE_LABELS[styleNum] || OFFER_STYLE_LABELS[1];
+                const thumb = b.imgSrc || '../../imagenes/logos/icono-sensun-shop.webp';
+
+                return `
+                    <div class="offer-admin-card" id="card-offer-${b.id}">
+                        <div class="offer-style-badge ${styleInfo.badgeClass}">
+                            <span>${styleInfo.icon}</span> ${styleInfo.name}
+                        </div>
+
+                        <div class="offer-card-top">
+                            <img class="offer-card-thumb" src="${thumb}" alt="${b.title}" onerror="this.src='../../imagenes/logos/icono-sensun-shop.webp'">
+                            <div>
+                                <div class="offer-card-biz-name">${b.title}</div>
+                                <div class="offer-card-biz-cat">${b.badge || b.category} · ⭐ ${b.rating || '4.8'}</div>
+                            </div>
+                        </div>
+
+                        <div class="offer-card-details-box">
+                            <div class="offer-card-discount-val">${b.offerDiscount || '-25%'}</div>
+                            <div class="offer-card-msg-text">${b.offerMsg || 'Descuento Especial'}</div>
+                            ${b.offerDetail ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 5px; line-height: 1.4;">${b.offerDetail}</div>` : ''}
+                            ${b.offerCode ? `<div class="offer-card-code-pill"><span>✂️ CÓDIGO:</span> <b>${b.offerCode}</b></div>` : ''}
+                            ${b.offerExpiry ? `<div style="font-size: 10px; color: #888; margin-top: 6px;">⏰ ${b.offerExpiry}</div>` : ''}
+                        </div>
+
+                        <div class="offer-card-actions">
+                            <button type="button" class="btn-offer-preview" onclick="previewOfferPopup('${b.id}')">
+                                👁️ Previsualizar
+                            </button>
+                            <button type="button" class="btn-offer-edit" onclick="openOfferDedicatedModal('${b.id}')">
+                                ✏️ Editar
+                            </button>
+                            <button type="button" class="btn-offer-delete" onclick="deleteDedicatedOfferFromFirebase('${b.id}')" title="Desactivar Oferta">
+                                🗑️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.previewOfferPopup = function(bizId) {
+            const b = businessesList.find(x => x.id === bizId);
+            if (!b) return;
+            if (window.openSensunOfferModal) {
+                window.openSensunOfferModal(b);
+            } else {
+                showToast("Abriendo oferta de " + b.title);
+            }
+        };
+
+        let currentDedicatedOfferBizId = null;
+
+        window.openOfferDedicatedModal = function(targetBizId = null) {
+            currentDedicatedOfferBizId = targetBizId;
+            const overlay = document.getElementById("offerDedicatedModalOverlay");
+            const selectEl = document.getElementById("dedOfferBizSelect");
+            const titleEl = document.getElementById("modalDedicatedOfferTitle");
+            const deactivateBtn = document.getElementById("btnDeactivateOffer");
+
+            // Llenar select de negocios ordenados alfabéticamente
+            selectEl.innerHTML = '<option value="">-- Seleccionar Negocio --</option>' +
+                businessesList.map(b => `<option value="${b.id}">${b.title} (${b.category || b.type})</option>`).join('');
+
+            if (targetBizId) {
+                const b = businessesList.find(x => x.id === targetBizId);
+                if (!b) return;
+                titleEl.textContent = "Editar Oferta: " + b.title;
+                selectEl.value = targetBizId;
+                selectEl.disabled = true; // No cambiar de negocio mientras edita
+                if (deactivateBtn) deactivateBtn.style.display = "block";
+
+                // Llenar campos
+                document.getElementById("dedOfferDiscount").value = b.offerDiscount || "-25%";
+                document.getElementById("dedOfferMsg").value = b.offerMsg || "Descuento Especial";
+                document.getElementById("dedOfferDetail").value = b.offerDetail || "En todo el menú y productos seleccionados. Presenta el código al llegar.";
+                document.getElementById("dedOfferCode").value = b.offerCode || "";
+                document.getElementById("dedOfferBadge").value = b.offerBadge || (b.offerStyle === 4 ? "¡HOY!" : "-25% DESCUENTO");
+                document.getElementById("dedOfferDurationHours").value = b.offerDurationHours || 6;
+                document.getElementById("dedOfferDistance").value = b.offerDistance || "Sensuntepeque";
+                document.getElementById("dedOfferExpiry").value = b.offerExpiry || "";
+
+                setDedicatedOfferStyle(b.offerStyle || 1);
+            } else {
+                titleEl.textContent = "Configurar Nueva Oferta Especial";
+                selectEl.disabled = false;
+                if (deactivateBtn) deactivateBtn.style.display = "none";
+
+                // Seleccionar primer negocio que aún no tenga oferta, o el primero
+                const firstWithoutOffer = businessesList.find(b => !b.hasOffer) || businessesList[0];
+                if (firstWithoutOffer) {
+                    selectEl.value = firstWithoutOffer.id;
+                }
+
+                document.getElementById("dedOfferDiscount").value = "-25%";
+                document.getElementById("dedOfferMsg").value = "Descuento Especial";
+                document.getElementById("dedOfferDetail").value = "En todo el menú y platos típicos. Presenta el código al llegar.";
+                document.getElementById("dedOfferCode").value = "PROMO25";
+                document.getElementById("dedOfferBadge").value = "-25% DESCUENTO";
+                document.getElementById("dedOfferDurationHours").value = 6;
+                document.getElementById("dedOfferDistance").value = "Sensuntepeque";
+                document.getElementById("dedOfferExpiry").value = "Válido hasta el 31 de diciembre · Presenta el código";
+
+                setDedicatedOfferStyle(1);
+            }
+
+            updateDedicatedOfferFieldsVisibility();
+            updateDedicatedOfferLivePreview();
+
+            overlay.classList.add("active");
+        };
+
+        window.closeOfferDedicatedModal = function() {
+            const overlay = document.getElementById("offerDedicatedModalOverlay");
+            if (overlay) overlay.classList.remove("active");
+            if (window.closeSensunOfferModal) window.closeSensunOfferModal();
+        };
+
+        window.setDedicatedOfferStyle = function(styleNum) {
+            const num = parseInt(styleNum, 10) || 1;
+            document.getElementById("dedOfferStyleVal").value = num;
+
+            for (let i = 1; i <= 4; i++) {
+                const card = document.getElementById(`dedStyleCard${i}`);
+                if (card) card.classList.toggle("selected", i === num);
+            }
+
+            // Actualizar badge predeterminado si corresponde
+            const badgeInput = document.getElementById("dedOfferBadge");
+            if (badgeInput && (!badgeInput.value || badgeInput.value === "¡HOY!" || badgeInput.value.includes("DESCUENTO"))) {
+                badgeInput.value = num === 4 ? "¡HOY!" : "-25% DESCUENTO";
+            }
+
+            updateDedicatedOfferFieldsVisibility();
+            updateDedicatedOfferLivePreview();
+        };
+
+        window.updateDedicatedOfferFieldsVisibility = function() {
+            const style = parseInt(document.getElementById("dedOfferStyleVal").value, 10) || 1;
+
+            const gDiscount = document.getElementById("groupDedOfferDiscount");
+            const gMsg = document.getElementById("groupDedOfferMsg");
+            const gDetail = document.getElementById("groupDedOfferDetail");
+            const gCode = document.getElementById("groupDedOfferCode");
+            const gBadge = document.getElementById("groupDedOfferBadge");
+            const gDuration = document.getElementById("groupDedOfferDuration");
+            const gDistance = document.getElementById("groupDedOfferDistance");
+            const gExpiry = document.getElementById("groupDedOfferExpiry");
+
+            // Reset
+            if (gDiscount) gDiscount.style.display = "block";
+            if (gMsg) gMsg.style.display = "block";
+            if (gExpiry) gExpiry.style.display = "block";
+
+            if (style === 1) {
+                // Cupón
+                if (gDetail) gDetail.style.display = "none";
+                if (gBadge) gBadge.style.display = "none";
+                if (gDuration) gDuration.style.display = "none";
+                if (gDistance) gDistance.style.display = "none";
+                if (gCode) gCode.style.display = "block";
+            } else if (style === 2) {
+                // Festivo
+                if (gDetail) gDetail.style.display = "none";
+                if (gCode) gCode.style.display = "none";
+                if (gBadge) gBadge.style.display = "none";
+                if (gDistance) gDistance.style.display = "none";
+                if (gDuration) gDuration.style.display = "block";
+            } else if (style === 3) {
+                // Minimal
+                if (gDiscount) gDiscount.style.display = "none";
+                if (gCode) gCode.style.display = "none";
+                if (gDuration) gDuration.style.display = "none";
+                if (gDistance) gDistance.style.display = "none";
+                if (gBadge) gBadge.style.display = "block";
+                if (gDetail) gDetail.style.display = "block";
+            } else if (style === 4) {
+                // Banner
+                if (gDuration) gDuration.style.display = "none";
+                if (gCode) gCode.style.display = "block";
+                if (gBadge) gBadge.style.display = "block";
+                if (gDetail) gDetail.style.display = "block";
+                if (gDistance) gDistance.style.display = "block";
+            }
+        };
+
+        window.onDedicatedOfferBizChange = function() {
+            const selectEl = document.getElementById("dedOfferBizSelect");
+            const bizId = selectEl.value;
+            if (!bizId) return;
+
+            const b = businessesList.find(x => x.id === bizId);
+            if (b && b.hasOffer) {
+                document.getElementById("dedOfferDiscount").value = b.offerDiscount || "-25%";
+                document.getElementById("dedOfferMsg").value = b.offerMsg || "Descuento Especial";
+                document.getElementById("dedOfferDetail").value = b.offerDetail || "";
+                document.getElementById("dedOfferCode").value = b.offerCode || "";
+                document.getElementById("dedOfferBadge").value = b.offerBadge || (b.offerStyle === 4 ? "¡HOY!" : "-25% DESCUENTO");
+                document.getElementById("dedOfferDurationHours").value = b.offerDurationHours || 6;
+                document.getElementById("dedOfferDistance").value = b.offerDistance || "Sensuntepeque";
+                document.getElementById("dedOfferExpiry").value = b.offerExpiry || "";
+                setDedicatedOfferStyle(b.offerStyle || 1);
+            }
+
+            updateDedicatedOfferLivePreview();
+        };
+
+        window.updateDedicatedOfferLivePreview = function() {
+            const previewContainer = document.getElementById("dedicatedOfferLivePreviewContainer");
+            if (!previewContainer) return;
+
+            const selectEl = document.getElementById("dedOfferBizSelect");
+            const bizId = selectEl ? selectEl.value : "";
+            const b = businessesList.find(x => x.id === bizId);
+
+            const style = parseInt(document.getElementById("dedOfferStyleVal").value, 10) || 1;
+            const discount = document.getElementById("dedOfferDiscount").value.trim() || "-25%";
+            const msg = document.getElementById("dedOfferMsg").value.trim() || "Descuento Especial";
+            const detail = document.getElementById("dedOfferDetail").value.trim() || "En todo el menú y productos seleccionados.";
+            const code = document.getElementById("dedOfferCode").value.trim();
+            const badge = document.getElementById("dedOfferBadge").value.trim() || (style === 4 ? "¡HOY!" : `${discount} DESCUENTO`);
+            const duration = parseFloat(document.getElementById("dedOfferDurationHours").value) || 6;
+            const distance = document.getElementById("dedOfferDistance").value.trim() || "Sensuntepeque";
+            const expiry = document.getElementById("dedOfferExpiry").value.trim() || "Válido por tiempo limitado";
+
+            const mockBiz = {
+                title: b ? b.title : "Comedor y Pupusería Gloria",
+                category: b ? (b.badge || b.category) : "Comida típica",
+                imgSrc: b ? (b.imgSrc || b.imageUrl) : "https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp",
+                rating: b ? (b.rating || "4.8") : "4.8",
+                whatsapp: b ? b.whatsapp : "",
+                offerStyle: style,
+                offerDiscount: discount,
+                offerMsg: msg,
+                offerDetail: detail,
+                offerCode: code,
+                offerBadge: badge,
+                offerDurationHours: duration,
+                offerDistance: distance,
+                offerExpiry: expiry
+            };
+
+            if (window.renderSensunOfferHTML) {
+                previewContainer.innerHTML = window.renderSensunOfferHTML(mockBiz, true);
+                if (style === 2 && window.startSensunOfferCountdown) {
+                    window.startSensunOfferCountdown(previewContainer, duration);
+                }
+            }
+        };
+
+        window.saveDedicatedOfferToFirebase = async function() {
+            const selectEl = document.getElementById("dedOfferBizSelect");
+            const bizId = selectEl.value;
+            if (!bizId) {
+                showToast("⚠️ Por favor selecciona el comercio que tendrá la oferta", true);
+                return;
+            }
+
+            const style = parseInt(document.getElementById("dedOfferStyleVal").value, 10) || 1;
+            const discount = document.getElementById("dedOfferDiscount").value.trim();
+            const msg = document.getElementById("dedOfferMsg").value.trim();
+            const detail = document.getElementById("dedOfferDetail").value.trim();
+            const code = document.getElementById("dedOfferCode").value.trim().toUpperCase();
+            const badge = document.getElementById("dedOfferBadge").value.trim();
+            const durationHours = parseFloat(document.getElementById("dedOfferDurationHours").value) || 6;
+            const distance = document.getElementById("dedOfferDistance").value.trim();
+            const expiry = document.getElementById("dedOfferExpiry").value.trim();
+
+            if (!msg) {
+                showToast("⚠️ Por favor ingresa el título o mensaje de la oferta", true);
+                return;
+            }
+
+            try {
+                const bizRef = ref(rtdb, `sensunshop/businesses/${bizId}`);
+                const snapshot = await get(bizRef);
+                const currentData = snapshot.val() || {};
+
+                const updatedData = {
+                    ...currentData,
+                    hasOffer: true,
+                    offerStyle: style,
+                    offerDiscount: discount || "-25%",
+                    offerMsg: msg,
+                    offerDetail: detail,
+                    offerCode: code,
+                    offerBadge: badge,
+                    offerDurationHours: durationHours,
+                    offerDistance: distance,
+                    offerExpiry: expiry
+                };
+
+                await set(bizRef, updatedData);
+                showToast("🎉 ¡Oferta guardada exitosamente en Firebase!");
+                closeOfferDedicatedModal();
+                renderOffersAdminTable();
+            } catch (err) {
+                console.error("Error al guardar oferta en Firebase:", err);
+                showToast("❌ Error al guardar oferta: " + err.message, true);
+            }
+        };
+
+        window.deleteDedicatedOfferFromFirebase = async function(targetBizId = null) {
+            const bizId = targetBizId || (document.getElementById("dedOfferBizSelect") ? document.getElementById("dedOfferBizSelect").value : null);
+            if (!bizId) return;
+
+            const b = businessesList.find(x => x.id === bizId);
+            const bizTitle = b ? b.title : bizId;
+
+            if (confirm(`¿Deseas desactivar la oferta de "${bizTitle}"?`)) {
+                try {
+                    const bizRef = ref(rtdb, `sensunshop/businesses/${bizId}`);
+                    const snapshot = await get(bizRef);
+                    const currentData = snapshot.val() || {};
+
+                    const updatedData = {
+                        ...currentData,
+                        hasOffer: false
+                    };
+
+                    await set(bizRef, updatedData);
+                    showToast("🗑️ Oferta desactivada correctamente");
+                    closeOfferDedicatedModal();
+                    renderOffersAdminTable();
+                } catch (err) {
+                    showToast("❌ Error al desactivar oferta: " + err.message, true);
+                }
+            }
+        };
+
         // Navegación de Vistas
         window.switchView = function(viewName) {
             document.querySelectorAll(".content-section").forEach(s => s.classList.remove("active"));
@@ -3842,6 +4729,10 @@
             });
             const target = document.getElementById(`view-${viewName}`);
             if (target) target.classList.add("active");
+
+            if (viewName === "offers") {
+                renderOffersAdminTable();
+            }
 
             if (viewName === "map") {
                 setTimeout(() => {

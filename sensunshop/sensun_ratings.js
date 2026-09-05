@@ -1967,7 +1967,7 @@ function createBusinessDOMCard(business) {
     card.innerHTML = `
         <div class="producto-img" style="display: flex; align-items: center; justify-content: center; height: 210px; padding: 12px; border-radius: 8px; position: relative;">
             ${business.hasOffer ? `
-                <div class="negocio-offer-badge">
+                <div class="negocio-offer-badge" style="cursor: pointer;" onclick="if(window.openOfferModalForBusiness){event.stopPropagation(); window.openOfferModalForBusiness('${business.id}');}">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
                     </svg>
@@ -1982,9 +1982,12 @@ function createBusinessDOMCard(business) {
             <div class="sensun-rating-widget" data-business-id="${business.id}" data-compact="true"></div>
             <p>${business.description}</p>
             ${business.hasOffer ? `
-                <div class="negocio-offer-banner">
-                    <span class="offer-icon">🏷️</span>
-                    <span class="offer-text">${business.offerMsg || '¡Aprovecha nuestras promociones especiales!'}</span>
+                <div class="negocio-offer-banner" style="cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px;" onclick="if(window.openOfferModalForBusiness){window.openOfferModalForBusiness('${business.id}');}">
+                    <span style="display: flex; align-items: center; gap: 6px;">
+                        <span class="offer-icon">🏷️</span>
+                        <span class="offer-text">${business.offerDiscount ? `<strong style="color: #ff8c42;">${business.offerDiscount}</strong> ` : ''}${business.offerMsg || '¡Aprovecha nuestras promociones especiales!'}</span>
+                    </span>
+                    <span style="font-size: 0.72rem; color: #ff9f43; font-weight: 600; white-space: nowrap;">Ver cupón ➔</span>
                 </div>
             ` : ''}
             <div class="negocio-links">
@@ -2131,13 +2134,19 @@ function syncBusinessesToDOM(businessesList) {
                 // Crear o actualizar banner de oferta
                 const infoContainer = targetCard.querySelector(".producto-info");
                 if (infoContainer) {
-                    const msgText = business.offerMsg ? business.offerMsg : "¡Aprovecha nuestras promociones especiales por tiempo limitado!";
+                    const msgText = (business.offerDiscount ? `${business.offerDiscount} - ` : '') + (business.offerMsg ? business.offerMsg : "¡Aprovecha nuestras promociones especiales por tiempo limitado!");
                     if (!offerBanner) {
                         offerBanner = document.createElement("div");
                         offerBanner.className = "negocio-offer-banner";
+                        offerBanner.style.cursor = "pointer";
+                        offerBanner.onclick = (e) => {
+                            e.stopPropagation();
+                            if (window.openOfferModalForBusiness) window.openOfferModalForBusiness(business.id);
+                        };
                         offerBanner.innerHTML = `
                             <span class="offer-icon">🏷️</span>
                             <span class="offer-text">${msgText}</span>
+                            <span style="font-size: 0.72rem; color: #ff9f43; font-weight: 600; margin-left: auto;">Ver cupón ➔</span>
                         `;
                         const pEl = infoContainer.querySelector("p");
                         if (pEl) {
@@ -2146,6 +2155,11 @@ function syncBusinessesToDOM(businessesList) {
                             infoContainer.appendChild(offerBanner);
                         }
                     } else {
+                        offerBanner.style.cursor = "pointer";
+                        offerBanner.onclick = (e) => {
+                            e.stopPropagation();
+                            if (window.openOfferModalForBusiness) window.openOfferModalForBusiness(business.id);
+                        };
                         const textSpan = offerBanner.querySelector(".offer-text");
                         if (textSpan) textSpan.textContent = msgText;
                     }
@@ -2300,6 +2314,14 @@ function setupBusinessesRealtimeSync() {
                     websiteUrl: (item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
+                    offerCode: item.offerCode || "",
+                    offerStyle: parseInt(item.offerStyle, 10) || 1,
+                    offerExpiry: item.offerExpiry || "",
+                    offerDiscount: item.offerDiscount || "",
+                    offerDetail: item.offerDetail || "",
+                    offerBadge: item.offerBadge || "",
+                    offerDurationHours: parseInt(item.offerDurationHours, 10) || 6,
+                    offerDistance: item.offerDistance || "",
                     accentColor: item.accentColor || "#e8621a",
                     tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : []),
                     isActive: item.isActive !== false
@@ -2521,7 +2543,7 @@ function renderUnifiedNovedadesSlider() {
     }));
 
     // 2. Obtener Ofertas Principales (de sensunshop/offers o comercios con hasOffer)
-    const activeBizOffers = (cachedParsedBusinesses || []).filter(b => b.hasOffer).map(b => ({
+    const activeBizOffers = (cachedParsedBusinesses || []).filter(b => b.hasOffer && b.isActive !== false).map(b => ({
         id: b.id,
         title: b.title,
         description: b.description,
@@ -2534,6 +2556,14 @@ function renderUnifiedNovedadesSlider() {
         link: b.websiteUrl || "",
         hasOffer: true,
         offerMsg: b.offerMsg || "¡Promoción especial por tiempo limitado!",
+        offerCode: b.offerCode || "",
+        offerStyle: b.offerStyle || 1,
+        offerExpiry: b.offerExpiry || "",
+        offerDiscount: b.offerDiscount || "",
+        offerDetail: b.offerDetail || "",
+        offerBadge: b.offerBadge || "",
+        offerDurationHours: b.offerDurationHours || 6,
+        offerDistance: b.offerDistance || "",
         accentColor: "#ea580c",
         badgeBg: "rgba(234, 88, 12, 0.2)",
         badgeBorder: "rgba(234, 88, 12, 0.5)",
@@ -2643,7 +2673,7 @@ function renderUnifiedNovedadesSlider() {
         slidesHtml += `
             <div class="slider-card ${item.hasOffer ? 'has-active-offer' : ''}" style="border-left-color: ${borderLeft}; position: relative;">
                 ${item.hasOffer ? `
-                    <div class="negocio-offer-badge" style="top: 10px; left: 10px; z-index: 5;">
+                    <div class="negocio-offer-badge" style="top: 10px; left: 10px; z-index: 5; cursor: pointer;" onclick="if(window.openOfferModalForBusiness){event.stopPropagation(); window.openOfferModalForBusiness('${item.id}');}">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         <span>¡OFERTA DESTACADA!</span>
                     </div>
@@ -2655,9 +2685,12 @@ function renderUnifiedNovedadesSlider() {
                     <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">${item.badge.toUpperCase()}</span>
                     <h3>${item.title}</h3>
                     ${item.hasOffer && item.offerMsg ? `
-                        <div class="negocio-offer-banner" style="margin: 6px 0 8px 0; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; color: #ffbe76;">
-                            <span class="offer-icon">🏷️</span>
-                            <span class="offer-text">${item.offerMsg}</span>
+                        <div class="negocio-offer-banner" style="margin: 6px 0 8px 0; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; color: #ffbe76; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px;" onclick="if(window.openOfferModalForBusiness){window.openOfferModalForBusiness('${item.id}');}">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span class="offer-icon">🏷️</span>
+                                <span class="offer-text">${item.offerDiscount ? `<strong style="color: #ff8c42;">${item.offerDiscount}</strong> ` : ''}${item.offerMsg}</span>
+                            </span>
+                            <span style="font-size: 0.72rem; color: #ff9f43; font-weight: 600; white-space: nowrap;">Ver cupón ➔</span>
                         </div>
                     ` : ''}
                     <p>${item.description}</p>
@@ -2767,6 +2800,14 @@ async function getBusinessesList() {
                     websiteUrl: (item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerMsg: item.offerMsg || "",
+                    offerCode: item.offerCode || "",
+                    offerStyle: parseInt(item.offerStyle, 10) || 1,
+                    offerExpiry: item.offerExpiry || "",
+                    offerDiscount: item.offerDiscount || "",
+                    offerDetail: item.offerDetail || "",
+                    offerBadge: item.offerBadge || "",
+                    offerDurationHours: parseInt(item.offerDurationHours, 10) || 6,
+                    offerDistance: item.offerDistance || "",
                     accentColor: item.accentColor || "#e8621a",
                     tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : []),
                     isActive: item.isActive !== false
@@ -4154,7 +4195,7 @@ function updateBellAndPopupFeed() {
         });
     });
 
-    (cachedParsedBusinesses || []).filter(b => b.hasOffer).forEach(b => {
+    (cachedParsedBusinesses || []).filter(b => b.hasOffer && b.isActive !== false).forEach(b => {
         items.push({
             id: b.id,
             title: b.title,
@@ -4167,7 +4208,15 @@ function updateBellAndPopupFeed() {
             whatsapp: b.whatsapp,
             locationUrl: b.locationUrl,
             hasOffer: true,
-            offerMsg: b.offerMsg || "¡Pregunta por promociones exclusivas en Sensun Shop!"
+            offerMsg: b.offerMsg || "¡Pregunta por promociones exclusivas en Sensun Shop!",
+            offerCode: b.offerCode || "",
+            offerStyle: b.offerStyle || 1,
+            offerExpiry: b.offerExpiry || "",
+            offerDiscount: b.offerDiscount || "",
+            offerDetail: b.offerDetail || "",
+            offerBadge: b.offerBadge || "",
+            offerDurationHours: b.offerDurationHours || 6,
+            offerDistance: b.offerDistance || ""
         });
     });
 
@@ -4273,9 +4322,18 @@ function showSensunPopup(item) {
 
     if (item.hasOffer && item.offerMsg) {
         offerBanner.style.display = "flex";
-        offerText.textContent = item.offerMsg;
+        offerBanner.style.cursor = "pointer";
+        offerBanner.title = "Toca para abrir la oferta especial";
+        offerBanner.onclick = () => {
+            if (window.openOfferModalForBusiness) {
+                window.openOfferModalForBusiness(item);
+            }
+        };
+        offerText.innerHTML = `${item.offerDiscount ? `<strong style="color:#ff8c42;">${item.offerDiscount}</strong> ` : ''}${item.offerMsg} <span style="font-size:0.75rem; color:#ff9f43; margin-left:auto; display:inline-block; padding-left:8px;">Ver oferta ➔</span>`;
     } else {
         offerBanner.style.display = "none";
+        offerBanner.onclick = null;
+        offerBanner.style.cursor = "default";
     }
 
     if (item.whatsapp) {
@@ -4358,7 +4416,39 @@ window.showSensunPopupForItemIndex = function(index) {
     if (item) {
         const hub = document.getElementById("sensunBellHub");
         if (hub) hub.classList.remove("open");
-        showSensunPopup(item);
+        if (item.hasOffer && window.openOfferModalForBusiness) {
+            window.openOfferModalForBusiness(item);
+        } else {
+            showSensunPopup(item);
+        }
+    }
+};
+
+// Carga dinámica bajo demanda del motor de popups de ofertas especiales (Estilos 1, 2, 3 y 4)
+function ensureSensunOfferPopupsLoaded() {
+    if (typeof window.openSensunOfferModal === 'function') return Promise.resolve();
+    return new Promise((resolve) => {
+        const script = document.createElement("script");
+        const isSubdir = window.location.pathname.includes("/sensunshop/");
+        script.src = isSubdir ? "sensun_offer_popups.js" : "sensunshop/sensun_offer_popups.js";
+        script.onload = () => resolve();
+        script.onerror = () => resolve();
+        document.head.appendChild(script);
+    });
+}
+
+window.openOfferModalForBusiness = async function(businessOrId) {
+    let biz = businessOrId;
+    if (typeof businessOrId === 'string') {
+        biz = (cachedParsedBusinesses || []).find(b => b.id === businessOrId);
+        if (!biz && Array.isArray(window.sensunBusinessesCache)) {
+            biz = window.sensunBusinessesCache.find(b => b.id === businessOrId);
+        }
+    }
+    if (!biz) return;
+    await ensureSensunOfferPopupsLoaded();
+    if (typeof window.openSensunOfferModal === 'function') {
+        window.openSensunOfferModal(biz);
     }
 };
 
