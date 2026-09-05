@@ -2184,12 +2184,19 @@
             <div class="modal-body">
                 <div class="form-row">
                     <div class="form-group">
-                        <label class="form-label">ID Único (Slug) <span class="required">*</span></label>
-                        <input type="text" class="form-input" id="bizId" placeholder="ej: mipupuseria">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>ID Único (Slug) <span class="required">*</span> <span style="font-size: 0.7rem; color: var(--primary-purple); font-weight: 600; background: rgba(123, 104, 238, 0.12); padding: 2px 7px; border-radius: 4px;">✨ Automático</span></span>
+                            <span id="btnToggleManualBizId" onclick="toggleManualBizIdEdit()" style="font-size: 0.72rem; color: var(--primary-orange); cursor: pointer; text-decoration: underline; user-select: none;">✏️ Modificar</span>
+                        </label>
+                        <input type="text" class="form-input" id="bizId" placeholder="Generado automáticamente del título..." readonly style="background: rgba(0,0,0,0.03); cursor: not-allowed; font-family: monospace;">
+                        <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Se asigna automáticamente a partir del título del negocio</small>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">Código (Opcional)</label>
-                        <input type="text" class="form-input" id="bizCode" placeholder="ej: NEG-012">
+                        <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                            <span>Código <span class="required">*</span> <span style="font-size: 0.7rem; color: var(--primary-orange); font-weight: 600; background: rgba(255, 107, 53, 0.12); padding: 2px 7px; border-radius: 4px;">✨ Automático</span></span>
+                        </label>
+                        <input type="text" class="form-input" id="bizCode" placeholder="ej: NEG-009" readonly style="background: rgba(0,0,0,0.03); cursor: not-allowed; font-weight: 600; letter-spacing: 0.5px; font-family: monospace;">
+                        <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Calculado según la sección seleccionada (NEG, EMP, PRO, OFI, EME)</small>
                     </div>
                 </div>
 
@@ -3140,6 +3147,78 @@
         };
 
         // ==========================================================
+        // CÁLCULO AUTOMÁTICO DE CÓDIGOS E ID (NOMENCLATURA UNIFICADA)
+        // ==========================================================
+        function generateNextBusinessCode(type) {
+            const prefixMap = {
+                'negocioslocales': 'NEG',
+                'emprendedores': 'EMP',
+                'profesionales': 'PRO',
+                'oficios': 'OFI',
+                'emergencias': 'EME'
+            };
+            const prefix = prefixMap[type] || 'NEG';
+            let maxNum = 0;
+
+            businessesList.forEach(b => {
+                const code = (b.code || "").toUpperCase().trim();
+                const id = (b.id || "").toUpperCase().trim();
+                [code, id].forEach(str => {
+                    if (str.startsWith(prefix + "-")) {
+                        const numPart = str.substring(prefix.length + 1);
+                        const parsed = parseInt(numPart, 10);
+                        if (!isNaN(parsed) && parsed > maxNum) {
+                            maxNum = parsed;
+                        }
+                    }
+                });
+            });
+
+            const nextNum = maxNum + 1;
+            return `${prefix}-${String(nextNum).padStart(3, '0')}`;
+        }
+
+        function generateBusinessSlug(title, fallbackCode = "") {
+            if (!title || !title.trim()) {
+                return fallbackCode ? fallbackCode.toLowerCase() : "";
+            }
+            let slug = title.toLowerCase()
+                .normalize("NFD")
+                .replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "");
+
+            if (!slug) {
+                return fallbackCode ? fallbackCode.toLowerCase() : "negocio";
+            }
+
+            let finalSlug = slug;
+            let counter = 2;
+            while (businessesList.some(b => b.id === finalSlug && b.id !== currentEditBizId)) {
+                finalSlug = `${slug}${counter}`;
+                counter++;
+            }
+            return finalSlug;
+        }
+
+        window.toggleManualBizIdEdit = function() {
+            const bizIdEl = document.getElementById("bizId");
+            const bizCodeEl = document.getElementById("bizCode");
+            const isReadOnly = bizIdEl.readOnly;
+            bizIdEl.readOnly = !isReadOnly;
+            bizCodeEl.readOnly = !isReadOnly;
+            const bg = isReadOnly ? "#ffffff" : "rgba(0,0,0,0.03)";
+            const cursor = isReadOnly ? "text" : "not-allowed";
+            bizIdEl.style.background = bg;
+            bizIdEl.style.cursor = cursor;
+            bizCodeEl.style.background = bg;
+            bizCodeEl.style.cursor = cursor;
+            const link = document.getElementById("btnToggleManualBizId");
+            if (link) {
+                link.textContent = isReadOnly ? "🔒 Bloquear automático" : "✏️ Modificar";
+            }
+        };
+
+        // ==========================================================
         // MODALES CRUD: NEGOCIOS
         // ==========================================================
         window.openBusinessModal = function(id = null) {
@@ -3147,17 +3226,31 @@
             const overlay = document.getElementById("businessModalOverlay");
             const title = document.getElementById("modalBizTitle");
             const deleteBtn = document.getElementById("btnDeleteBusiness");
+            const bizIdEl = document.getElementById("bizId");
+            const bizCodeEl = document.getElementById("bizCode");
+            const bizTypeEl = document.getElementById("bizType");
+            const bizNameEl = document.getElementById("bizName");
+            const manualToggleBtn = document.getElementById("btnToggleManualBizId");
 
             if (id) {
                 const b = businessesList.find(x => x.id === id);
                 if (!b) return;
                 title.textContent = "Editar Negocio: " + b.title;
                 deleteBtn.style.display = "block";
-                document.getElementById("bizId").value = b.id;
-                document.getElementById("bizId").readOnly = true;
-                document.getElementById("bizCode").value = b.code || "";
-                document.getElementById("bizName").value = b.title || "";
-                document.getElementById("bizType").value = b.type || "negocioslocales";
+                if (manualToggleBtn) manualToggleBtn.style.display = "none";
+
+                bizIdEl.value = b.id;
+                bizIdEl.readOnly = true;
+                bizIdEl.style.background = "rgba(0,0,0,0.03)";
+                bizIdEl.style.cursor = "not-allowed";
+
+                bizCodeEl.value = b.code || "";
+                bizCodeEl.readOnly = true;
+                bizCodeEl.style.background = "rgba(0,0,0,0.03)";
+                bizCodeEl.style.cursor = "not-allowed";
+
+                bizNameEl.value = b.title || "";
+                bizTypeEl.value = b.type || "negocioslocales";
                 document.getElementById("bizCategory").value = b.category || "";
                 document.getElementById("bizBadge").value = b.badge || "";
                 document.getElementById("bizDesc").value = b.description || "";
@@ -3175,11 +3268,27 @@
             } else {
                 title.textContent = "Añadir Nuevo Negocio";
                 deleteBtn.style.display = "none";
-                document.getElementById("bizId").value = "";
-                document.getElementById("bizId").readOnly = false;
-                document.getElementById("bizCode").value = "";
-                document.getElementById("bizName").value = "";
-                document.getElementById("bizType").value = "negocioslocales";
+                if (manualToggleBtn) {
+                    manualToggleBtn.style.display = "inline";
+                    manualToggleBtn.textContent = "✏️ Modificar";
+                }
+
+                const initialType = "negocioslocales";
+                bizTypeEl.value = initialType;
+                bizNameEl.value = "";
+
+                // Generar automáticamente siguiente código y slug inicial
+                const nextCode = generateNextBusinessCode(initialType);
+                bizCodeEl.value = nextCode;
+                bizCodeEl.readOnly = true;
+                bizCodeEl.style.background = "rgba(0,0,0,0.03)";
+                bizCodeEl.style.cursor = "not-allowed";
+
+                bizIdEl.value = nextCode.toLowerCase();
+                bizIdEl.readOnly = true;
+                bizIdEl.style.background = "rgba(0,0,0,0.03)";
+                bizIdEl.style.cursor = "not-allowed";
+
                 document.getElementById("bizCategory").value = "";
                 document.getElementById("bizBadge").value = "";
                 document.getElementById("bizDesc").value = "";
@@ -3205,12 +3314,24 @@
         };
 
         window.saveBusinessToFirebase = async function() {
-            const rawId = document.getElementById("bizId").value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+            let rawId = document.getElementById("bizId").value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, "");
+            let code = document.getElementById("bizCode").value.trim().toUpperCase();
             const name = document.getElementById("bizName").value.trim();
+            const type = document.getElementById("bizType").value;
 
-            if (!rawId || !name) {
-                showToast("⚠️ ID y Título son campos obligatorios", true);
+            if (!name) {
+                showToast("⚠️ El Título del Negocio es obligatorio", true);
                 return;
+            }
+
+            // Asignación automática segura en caso de que estén vacíos
+            if (!code) {
+                code = generateNextBusinessCode(type);
+                document.getElementById("bizCode").value = code;
+            }
+            if (!rawId) {
+                rawId = generateBusinessSlug(name, code);
+                document.getElementById("bizId").value = rawId;
             }
 
             const locationUrl = document.getElementById("bizLocationUrl").value.trim();
@@ -3221,9 +3342,9 @@
             // Estructura sincronizada con la app Android (imgSrc, whatsapp, etc.)
             const bizData = {
                 id: rawId,
-                code: document.getElementById("bizCode").value.trim().toUpperCase(),
+                code: code,
                 title: name,
-                type: document.getElementById("bizType").value,
+                type: type,
                 category: document.getElementById("bizCategory").value.trim() || "comercio",
                 badge: document.getElementById("bizBadge").value.trim().toUpperCase(),
                 description: document.getElementById("bizDesc").value.trim(),
@@ -3723,6 +3844,36 @@
         document.getElementById("searchBusinessInput").addEventListener("input", renderBusinesses);
         document.getElementById("filterCategorySelect").addEventListener("change", renderBusinesses);
         document.getElementById("filterTypeSelect").addEventListener("change", renderBusinesses);
+
+        // Auto-cálculo reactivo de ID y Código para Negocios
+        document.getElementById("bizName").addEventListener("input", function() {
+            if (!currentEditBizId) {
+                const bizIdEl = document.getElementById("bizId");
+                if (bizIdEl.readOnly) {
+                    const code = document.getElementById("bizCode").value;
+                    bizIdEl.value = generateBusinessSlug(this.value, code);
+                }
+            }
+        });
+
+        document.getElementById("bizType").addEventListener("change", function() {
+            if (!currentEditBizId) {
+                const bizCodeEl = document.getElementById("bizCode");
+                const bizIdEl = document.getElementById("bizId");
+                const nextCode = generateNextBusinessCode(this.value);
+                if (bizCodeEl.readOnly) {
+                    bizCodeEl.value = nextCode;
+                }
+                if (bizIdEl.readOnly) {
+                    const currentName = document.getElementById("bizName").value.trim();
+                    if (!currentName) {
+                        bizIdEl.value = nextCode.toLowerCase();
+                    } else {
+                        bizIdEl.value = generateBusinessSlug(currentName, nextCode);
+                    }
+                }
+            }
+        });
 
         // Toast Helper
         window.showToast = function(message, isError = false) {

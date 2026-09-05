@@ -89,7 +89,8 @@
     </div>
 
     <script type="module">
-        import { rtdb } from "../firebase-config.js";
+        import { auth, rtdb } from "../firebase-config.js";
+        import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { ref, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         const btn = document.getElementById("btn-seed-action");
@@ -107,6 +108,11 @@
             log("⏳ Leyendo archivo de datos...");
 
             try {
+                if (auth && !auth.currentUser) {
+                    log("🔑 Autenticando sesión en Firebase...");
+                    await signInAnonymously(auth);
+                }
+
                 const res = await fetch("../businesses_only.json");
                 if (!res.ok) throw new Error("No se pudo cargar el archivo businesses_only.json");
                 const businessesData = await res.json();

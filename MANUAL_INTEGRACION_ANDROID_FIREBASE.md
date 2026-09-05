@@ -658,5 +658,79 @@ fun openFacebookPage(context: Context, facebookUrl: String) {
 }
 ```
 
+---
+
+## 12. Reglas de Asignación Automática de ID y Código al Crear Negocios (Sincronía Web <-> App)
+
+Para evitar colisiones, nomenclaturas incoherentes o claves aleatorias (`-Oxxxx`), tanto en la Web como en la App Android **el `id` (slug de Firebase) y el `code` deben generarse automáticamente** sin que el usuario tenga que ingresarlos manualmente.
+
+### 12.1 Nomenclatura Oficial de Códigos por Sección (`type`)
+
+| Sección (`type`) | Prefijo | Ejemplo / Siguiente Código |
+| :--- | :--- | :--- |
+| `negocioslocales` | `NEG-` | `NEG-001` ... `NEG-008` (Siguiente: `NEG-009`) |
+| `emprendedores` | `EMP-` | `EMP-001`, `EMP-002` (Siguiente: `EMP-003`) |
+| `profesionales` | `PRO-` | `PRO-001`, `PRO-002` (Siguiente: `PRO-003`) |
+| `oficios` | `OFI-` | `OFI-001` (Siguiente: `OFI-001`) |
+| `emergencias` | `EME-` | `EME-001` (*Comandos de Salvamento*) (Siguiente: `EME-002`) |
+
+#### Lógica en Kotlin para calcular el siguiente Código:
+```kotlin
+fun generateNextBusinessCode(type: String, allBusinesses: List<Business>): String {
+    val prefix = when (type.lowercase()) {
+        "negocioslocales" -> "NEG"
+        "emprendedores" -> "EMP"
+        "profesionales" -> "PRO"
+        "oficios" -> "OFI"
+        "emergencias" -> "EME"
+        else -> "NEG"
+    }
+
+    var maxNum = 0
+    allBusinesses.forEach { b ->
+        val candidate = b.code.uppercase().trim()
+        if (candidate.startsWith("$prefix-")) {
+            val numPart = candidate.removePrefix("$prefix-").toIntOrNull()
+            if (numPart != null && numPart > maxNum) {
+                maxNum = numPart
+            }
+        }
+    }
+
+    return String.format("%s-%03d", prefix, maxNum + 1)
+}
+```
+
+### 12.2 Generación del `id` (Slug semántico y clave en Firebase)
+
+El ID no debe ser un `push().key` aleatorio, sino un slug limpio derivado del título del negocio:
+1. Minúsculas, remoción de acentos/diacríticos y caracteres no alfanuméricos (`[^a-z0-9]`).
+2. Si el slug queda vacío, usar el código en minúsculas (ej: `neg-009`).
+3. Si ya existe en la lista de negocios, agregarle un sufijo numérico (`2`, `3`, etc.).
+
+```kotlin
+fun generateBusinessSlug(title: String, code: String, existingBusinesses: List<Business>): String {
+    val unaccented = java.text.Normalizer.normalize(title, java.text.Normalizer.Form.NFD)
+        .replace(Regex("[\\p{InCombiningDiacriticalMarks}]"), "")
+        .lowercase()
+        .replace(Regex("[^a-z0-9]"), "")
+
+    var finalSlug = if (unaccented.isNotEmpty()) unaccented else code.lowercase()
+    
+    var counter = 2
+    while (existingBusinesses.any { it.id == finalSlug }) {
+        finalSlug = "$unaccented$counter"
+        counter++
+    }
+    return finalSlug
+}
+```
+
+### 12.3 Guardado en Firebase RTDB
+Al persistir el negocio desde la App:
+- Ruta: `db.child("sensunshop/businesses").child(generatedId).setValue(businessObject)`
+- Propiedades requeridas dentro del objeto: `id = generatedId`, `code = generatedCode`.
+
+
 
 
