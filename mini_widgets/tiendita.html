@@ -176,6 +176,20 @@
   }
   .track.animando{transition:transform .65s cubic-bezier(.22,.9,.3,1.08)}
 
+  /* Botones sutiles de navegación interactiva */
+  .btn-nav-arrow{
+    position:absolute;top:50%;transform:translateY(-50%);z-index:9;
+    width:34px;height:50px;border-radius:12px;
+    background:rgba(8,24,12,.88);border:1.5px solid rgba(83,252,24,.4);color:var(--kick);
+    font-size:24px;line-height:1;font-weight:900;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;opacity:0;transition:opacity .25s ease, background .2s ease, transform .2s ease, box-shadow .2s ease;
+    box-shadow:0 0 16px rgba(0,0,0,.7);backdrop-filter:blur(4px);user-select:none;
+  }
+  .stage:hover .btn-nav-arrow{opacity:1}
+  .btn-nav-arrow:hover{background:rgba(83,252,24,.28);color:#ffffff;box-shadow:0 0 18px rgba(83,252,24,.5);transform:translateY(-50%) scale(1.08)}
+  .btn-nav-arrow.prev{left:6px}
+  .btn-nav-arrow.next{right:6px}
+
   /* Cartas de ítem en la tira */
   .item-card{
     position:relative;flex:0 0 134px;width:134px;height:164px;overflow:hidden;text-align:center;padding:10px 8px 8px;
@@ -636,6 +650,7 @@
         </div>
         <div class="chips">
           <span class="chip live"><i></i>EN VIVO</span>
+          <span class="chip ok" title="Usa !rotar, !siguiente o !mas para avanzar de 5 en 5"><i></i>!rotar (+5)</span>
           <span class="chip warn" id="ws-chip"><i></i><span id="ws-txt">Conectando…</span></span>
         </div>
 
@@ -656,9 +671,11 @@
 
         <!-- TIRA CONTINUA / CARRUSEL -->
         <div class="stage" id="stage">
+          <button type="button" class="btn-nav-arrow prev" id="btn-nav-prev" title="Ver anteriores 5 platillos (!atras)">‹</button>
           <div class="viewport" id="viewport">
             <div class="track" id="track"></div>
           </div>
+          <button type="button" class="btn-nav-arrow next" id="btn-nav-next" title="Ver siguientes 5 platillos (!rotar / !siguiente / !mas)">›</button>
         </div>
 
         <!-- PANEL DE CONFIRMACIÓN DE COMPRA & CARRITO ("¿AÑADIR O PAGAR?") -->
@@ -739,6 +756,7 @@
   <div id="demo-zone">
     <span class="dz-title">🧪 PRUEBAS</span>
     <button id="demo-cliente">Cliente (1000 pts)</button>
+    <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
     <button id="demo-select">➕ Añadir Ítem</button>
     <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple (Foto)</button>
     <button id="demo-compra" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">💳 Pagar Todo</button>
@@ -1170,6 +1188,64 @@
     $track.classList.remove('animando');
   }
 
+  let rotandoTimer = null;
+  // Avanza o retrocede de 5 en 5 los ítems (o cantidad deseada) y renueva el tiempo
+  function rotarItems(cantidad = 5, user = null){
+    const estaVisible = $menu.classList.contains('visible');
+    if(!estaVisible){
+      mostrarMenu(user || usuarioActual || 'LunaGamer', getUserPoints(user || usuarioActual || 'LunaGamer'));
+      toast(`🛒 <b>@${user || usuarioActual || 'LunaGamer'}</b> abrió la tiendita!`);
+      return;
+    }
+
+    const firstCard = $track.querySelector('.item-card');
+    const step = firstCard ? (firstCard.offsetWidth + 14) : 148;
+    const delta = step * cantidad;
+    const halfWidth = getHalfWidth();
+
+    // Normalizar posición previa sin transición para que el desplazamiento siempre sea suave
+    if(halfWidth > 0){
+      while(scrollPos <= -halfWidth) scrollPos += halfWidth;
+      while(scrollPos > 0) scrollPos -= halfWidth;
+      $track.classList.remove('animando');
+      $track.style.transform = `translateX(${scrollPos}px)`;
+      void $track.offsetWidth;
+    }
+
+    isAutoScrolling = false;
+    $track.classList.add('animando');
+    scrollPos -= delta;
+    $track.style.transform = `translateX(${scrollPos}px)`;
+
+    playSfx('select');
+
+    // Renovar y otorgar tiempo completo en la tiendita para ver los nuevos productos
+    iniciarCd(AUTO_CIERRE_MS);
+    if($fill){
+      $fill.style.animation = 'none';
+      void $fill.offsetWidth;
+      $fill.style.animation = 'flashSaldo .45s ease';
+    }
+
+    if(rotandoTimer) clearTimeout(rotandoTimer);
+    rotandoTimer = setTimeout(()=>{
+      $track.classList.remove('animando');
+      if(halfWidth > 0){
+        while(scrollPos <= -halfWidth) scrollPos += halfWidth;
+        while(scrollPos > 0) scrollPos -= halfWidth;
+        $track.style.transform = `translateX(${scrollPos}px)`;
+      }
+      // Reanudar desplazamiento continuo automático si no hay orden activa
+      if(ordenActual.length === 0){
+        isAutoScrolling = true;
+      }
+    }, 680);
+
+    const quien = user ? `<b>@${user}</b>: ` : '';
+    const dirTxt = cantidad > 0 ? `+${cantidad}` : `${cantidad}`;
+    toast(`⏩ ${quien}Rotando vitrina (${dirTxt} platillos) ⏳ ¡Tiempo renovado!`);
+  }
+
   // Pausar al pasar el mouse por la vitrina
   $viewport.addEventListener('mouseenter',()=>{ if(ordenActual.length === 0) isAutoScrolling=false; });
   $viewport.addEventListener('mouseleave',()=>{ if(ordenActual.length === 0) isAutoScrolling=true; });
@@ -1308,6 +1384,16 @@
     const key = card.dataset.key;
     agregarItemAOrden(key, usuarioActual);
   });
+
+  // Flechas interactivas en la vitrina
+  const btnNavPrev = document.getElementById('btn-nav-prev');
+  if(btnNavPrev){
+    btnNavPrev.onclick = (e) => { e.stopPropagation(); rotarItems(-5, usuarioActual); };
+  }
+  const btnNavNext = document.getElementById('btn-nav-next');
+  if(btnNavNext){
+    btnNavNext.onclick = (e) => { e.stopPropagation(); rotarItems(5, usuarioActual); };
+  }
 
   /* ═══════════ PROCESAR PAGO DE LA ORDEN & MOSTRAR MESERO ═══════════ */
   function procesarPagoOrden(){
@@ -1501,12 +1587,22 @@
     const esComandoAbrir = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop';
     const esComandoCancelar = t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel';
     const esComandoPagar = t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo';
-    const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar'||t==='!mas'||t==='mas';
+    const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar';
+    const esComandoRotar = t==='!rotar'||t==='rotar'||t==='!siguiente'||t==='siguiente'||t==='!avanzar'||t==='avanzar'||t==='!mas'||t==='mas'||t==='!next'||t==='next';
+    const esComandoAtras = t==='!atras'||t==='atras'||t==='!anterior'||t==='anterior'||t==='!prev'||t==='prev';
+    const esPrefijoRotar = t.startsWith('!rotar ')||t.startsWith('rotar ')||
+                           t.startsWith('!siguiente ')||t.startsWith('siguiente ')||
+                           t.startsWith('!avanzar ')||t.startsWith('avanzar ')||
+                           t.startsWith('!mas ')||t.startsWith('mas ')||
+                           t.startsWith('!next ')||t.startsWith('next ');
+    const esPrefijoAtras = t.startsWith('!atras ')||t.startsWith('atras ')||
+                           t.startsWith('!anterior ')||t.startsWith('anterior ')||
+                           t.startsWith('!prev ')||t.startsWith('prev ');
     const esSeleccionItem = ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
     // ── REGLA 1: Si la tienda está ABIERTA y otro usuario intenta usarla, comprar o cancelarle:
     if(tiendaAbierta && userNorm !== actualNorm){
-      if(esComandoAbrir || esComandoCancelar || esComandoPagar || esComandoAnadir || esSeleccionItem){
+      if(esComandoAbrir || esComandoCancelar || esComandoPagar || esComandoAnadir || esComandoRotar || esComandoAtras || esPrefijoRotar || esPrefijoAtras || esSeleccionItem){
         console.log(`[Tiendita] ✋ Intento bloqueado de [@${user}]. La tienda la está usando [@${usuarioActual}].`);
         mostrarAlertaTurno(user);
         return;
@@ -1518,7 +1614,7 @@
       const ahora = Date.now();
       if(ahora < cooldownGlobalFin){
         const segRestantes = Math.ceil((cooldownGlobalFin - ahora) / 1000);
-        if(esComandoAbrir || esComandoPagar || esComandoAnadir || esSeleccionItem){
+        if(esComandoAbrir || esComandoPagar || esComandoAnadir || esComandoRotar || esComandoAtras || esPrefijoRotar || esPrefijoAtras || esSeleccionItem){
           console.log(`[Tiendita] ⏳ Tienda en recarga (${segRestantes}s restantes). Bloqueado intento de [@${user}].`);
           mostrarAlertaCooldown(user, segRestantes);
           return;
@@ -1538,7 +1634,21 @@
       return;
     }
 
-    // 2. Cancelar selección o cerrar tienda
+    // 2. Rotar o avanzar catálogo de 5 en 5 (o cantidad personalizada) y renovar tiempo
+    if(esComandoRotar || esComandoAtras || esPrefijoRotar || esPrefijoAtras){
+      let cant = (esComandoAtras || esPrefijoAtras) ? -5 : 5;
+      if(esPrefijoRotar || esPrefijoAtras){
+        const partes = t.split(/\s+/);
+        const num = parseInt(partes[1], 10);
+        if(!isNaN(num) && num > 0){
+          cant = (esPrefijoAtras ? -1 : 1) * Math.min(num, 15);
+        }
+      }
+      rotarItems(cant, user);
+      return;
+    }
+
+    // 3. Cancelar selección o cerrar tienda
     if(esComandoCancelar){
       if(ordenActual.length > 0){
         vaciarOrden();
@@ -1550,7 +1660,7 @@
       return;
     }
 
-    // 3. Añadir más platillos (reanuda vitrina)
+    // 4. Añadir más platillos (reanuda vitrina)
     if(esComandoAnadir){
       reanudarCarrusel();
       document.querySelectorAll('.item-card').forEach(c=>c.classList.remove('seleccionado'));
@@ -1695,7 +1805,17 @@
         const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
-                                t==='!anadir'||t==='!añadir'||t==='!agregar'||t==='!mas'||
+                                t==='!anadir'||t==='!añadir'||t==='!agregar'||
+                                t==='!rotar'||t==='rotar'||t==='!siguiente'||t==='siguiente'||t==='!avanzar'||t==='avanzar'||t==='!mas'||t==='mas'||t==='!next'||t==='next'||
+                                t==='!atras'||t==='atras'||t==='!anterior'||t==='anterior'||t==='!prev'||t==='prev'||
+                                t.startsWith('!rotar ')||t.startsWith('rotar ')||
+                                t.startsWith('!siguiente ')||t.startsWith('siguiente ')||
+                                t.startsWith('!avanzar ')||t.startsWith('avanzar ')||
+                                t.startsWith('!mas ')||t.startsWith('mas ')||
+                                t.startsWith('!next ')||t.startsWith('next ')||
+                                t.startsWith('!atras ')||t.startsWith('atras ')||
+                                t.startsWith('!anterior ')||t.startsWith('anterior ')||
+                                t.startsWith('!prev ')||t.startsWith('prev ')||
                                 t.startsWith('!comprar ')||
                                 t.startsWith('!darjikopuntos')||
                                 t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
@@ -1798,6 +1918,13 @@
     const n = nombres[Math.floor(Math.random()*nombres.length)];
     mostrarMenu(n, getUserPoints(n));
   };
+  const btnRotar = document.getElementById('demo-rotar');
+  if(btnRotar){
+    btnRotar.onclick = () => {
+      const u = usuarioActual || 'LunaGamer';
+      ejecutarTexto('!rotar', u);
+    };
+  }
   document.getElementById('demo-select').onclick=()=>{
     const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
     agregarItemAOrden(itemAzar.key, usuarioActual);
@@ -1875,6 +2002,11 @@
         break;
       case 'CLOSE_STORE':
         ocultarMenu();
+        break;
+      case 'ROTATE_ITEMS':
+      case 'ROTAR':
+      case 'NEXT_ITEMS':
+        rotarItems(e.data.amount || e.data.count || 5, user || usuarioActual);
         break;
       case 'SELECT_ITEM':
       case 'ADD_ITEM':
