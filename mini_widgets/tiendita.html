@@ -762,7 +762,7 @@
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
-  // Catálogo completo de 27 productos típicos y bebidas (imágenes en ../imagenes/tiendita_jiko/)
+  // Catálogo completo de 28 productos típicos y bebidas (imágenes en ../imagenes/tiendita_jiko/)
   const ITEMS = [
     { key:'pupusas',      nombre:'Pupusas',            precio:80,  emoji:'🫓', img:'../imagenes/tiendita_jiko/pupusas.png' },
     { key:'tamal',        nombre:'Tamal',              precio:70,  emoji:'🫔', img:'../imagenes/tiendita_jiko/tamal.png' },
@@ -783,6 +783,7 @@
     { key:'galleta',      nombre:'Galleta',            precio:40,  emoji:'🍪', img:'../imagenes/tiendita_jiko/galleta.png' },
     { key:'cafe',         nombre:'Café Caliente',      precio:45,  emoji:'☕', img:'../imagenes/tiendita_jiko/cafe.png' },
     { key:'chocolatito',  nombre:'Chocolatito',        precio:50,  emoji:'🍫', img:'../imagenes/tiendita_jiko/chocolatito.png' },
+    { key:'matcha',       nombre:'Matcha',             precio:50,  emoji:'🍵', img:'../imagenes/tiendita_jiko/matcha.png', aliases:['tematcha','te matcha','té matcha','matchalatte'] },
     { key:'horchata',     nombre:'Horchata',           precio:50,  emoji:'🥛', img:'../imagenes/tiendita_jiko/horchata.png' },
     { key:'limonada',     nombre:'Limonada',           precio:45,  emoji:'🍋', img:'../imagenes/tiendita_jiko/limonada.png' },
     { key:'juguito',      nombre:'Juguito',            precio:45,  emoji:'🧃', img:'../imagenes/tiendita_jiko/juguito.png' },
@@ -1176,7 +1177,8 @@
   let meseroTimer = null;
 
   function agregarItemAOrden(itemKey, user=null){
-    const it = ITEMS.find(x=>x.key === norm(itemKey));
+    const k = norm(itemKey);
+    const it = ITEMS.find(x => norm(x.key) === k || (x.aliases && x.aliases.some(a => norm(a) === k)));
     if(!it) return false;
 
     if(user) {
@@ -1489,7 +1491,7 @@
     const esComandoCancelar = t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel';
     const esComandoPagar = t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo';
     const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar'||t==='!mas'||t==='mas';
-    const esSeleccionItem = ITEMS.some(it => t === it.key || t === '!' + it.key);
+    const esSeleccionItem = ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
     // ── REGLA 1: Si la tienda está ABIERTA y otro usuario intenta usarla, comprar o cancelarle:
     if(tiendaAbierta && userNorm !== actualNorm){
@@ -1569,10 +1571,11 @@
       return;
     }
 
-    // 6. Seleccionar / Añadir por nombre directo (ej: "pupusas", "!tamal", "pollofrito")
-    const keyLimpia = t.replace(/^!/,'');
-    if(ITEMS.some(it => it.key === keyLimpia)){
-      agregarItemAOrden(keyLimpia, user);
+    // 6. Seleccionar / Añadir por nombre directo (ej: "pupusas", "!tamal", "pollofrito", "!matcha")
+    const keyLimpia = norm(t.replace(/^!/,''));
+    const itemEncontrado = ITEMS.find(it => norm(it.key) === keyLimpia || (it.aliases && it.aliases.some(a => norm(a) === keyLimpia)));
+    if(itemEncontrado){
+      agregarItemAOrden(itemEncontrado.key, user);
       return;
     }
   }
@@ -1685,7 +1688,7 @@
                                 t.startsWith('!comprar ')||
                                 t.startsWith('!darjikopuntos')||
                                 t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
-                                ITEMS.some(it => t === it.key || t === '!' + it.key);
+                                ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
         // Si es un mensaje ordinario del chat (conversación normal de viewers), se ignora
         if(!esComandoTienda) return;
