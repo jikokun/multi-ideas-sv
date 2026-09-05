@@ -1162,6 +1162,14 @@
   $viewport.addEventListener('mouseenter',()=>{ if(ordenActual.length === 0) isAutoScrolling=false; });
   $viewport.addEventListener('mouseleave',()=>{ if(ordenActual.length === 0) isAutoScrolling=true; });
 
+  function actualizarSeleccionTarjetas(){
+    document.querySelectorAll('.item-card').forEach(c => {
+      const key = c.dataset.key;
+      const estaEnOrden = ordenActual.some(i => i.key === key);
+      c.classList.toggle('seleccionado', estaEnOrden);
+    });
+  }
+
   /* ═══════════ CARRITO / ORDEN ACTUAL & DECISIÓN ("AÑADIR O PAGAR") ═══════════ */
   let ordenActual = []; // Array de platos seleccionados por el cliente
   const MAX_ORDEN_ITEMS = 4; // Máximo 4 platos en la mesa (3 es estándar según la foto)
@@ -1203,17 +1211,9 @@
     ordenActual.push(it);
     playSfx('select');
 
-    // Resaltar y centrar la tarjeta
-    document.querySelectorAll('.item-card').forEach(c=>c.classList.remove('seleccionado'));
-    const cards = Array.from(document.querySelectorAll(`.item-card[data-key="${it.key}"]`));
-    let targetCard = cards[0];
-    if(cards.length > 1 && Math.abs(scrollPos) > getHalfWidth() / 2){
-      targetCard = cards[1];
-    }
-    if(targetCard){
-      targetCard.classList.add('seleccionado');
-      centrarItem(targetCard);
-    }
+    // Añadir selector dorado a las tarjetas del ítem pero manteniendo el giro continuo del carrusel
+    actualizarSeleccionTarjetas();
+    isAutoScrolling = true;
 
     actualizarPanelOrden();
     toast(`➕ <b>@${usuarioActual}</b> añadió <b>${it.nombre}</b> ${it.emoji} a la orden.`);
@@ -1221,13 +1221,15 @@
   }
 
   function actualizarPanelOrden(){
+    actualizarSeleccionTarjetas();
+    isAutoScrolling = true;
+
     const $chips = document.getElementById('orden-chips-row');
     const $totalPts = document.getElementById('cart-total-pts');
     const $btnPts = document.getElementById('btn-pagar-pts');
 
     if(ordenActual.length === 0){
       $confirmBox.classList.remove('activo');
-      reanudarCarrusel();
       return;
     }
 
@@ -1258,17 +1260,16 @@
 
   function vaciarOrden(){
     ordenActual = [];
-    document.querySelectorAll('.item-card').forEach(c=>c.classList.remove('seleccionado'));
+    actualizarSeleccionTarjetas();
     actualizarPanelOrden();
-    reanudarCarrusel();
+    isAutoScrolling = true;
   }
 
   // Configuración de botones interactivos de decisión
   const btnAnadir = document.getElementById('btn-anadir');
   if(btnAnadir){
     btnAnadir.onclick = () => {
-      reanudarCarrusel();
-      document.querySelectorAll('.item-card').forEach(c=>c.classList.remove('seleccionado'));
+      isAutoScrolling = true;
       iniciarCd(AUTO_CIERRE_MS);
       toast(`🛒 Elige otro platillo haciendo clic o escribiendo su comando`);
     };
