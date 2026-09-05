@@ -2026,9 +2026,6 @@
             <div class="map-main-wrapper">
                 <div class="map-container-box">
                     <div id="adminMap"></div>
-                    <div class="map-floating-tip">
-                        <span>💡 Haz clic en el mapa para capturar coordenadas GPS exactas</span>
-                    </div>
                 </div>
 
                 <div class="map-sidebar-list">
@@ -3540,7 +3537,6 @@
         // ==========================================================
         let activeMapCategory = "all";
         let activeTileLayer = null;
-        let pickerMarker = null;
 
         const MAP_TILE_LAYERS = {
             osm: {
@@ -3606,55 +3602,8 @@
             // Control de escala métrica
             L.control.scale({ imperial: false, metric: true }).addTo(map);
 
-            // Capturador de coordenadas GPS al hacer clic
-            map.on("click", (e) => {
-                const { lat, lng } = e.latlng;
-                const formattedUrl = `https://www.google.com/maps?q=${lat.toFixed(6)},${lng.toFixed(6)}`;
-
-                // Colocar o mover marcador de selección
-                if (pickerMarker) map.removeLayer(pickerMarker);
-
-                const pickerIcon = L.divIcon({
-                    className: 'sensun-custom-pin',
-                    html: `
-                        <div class="sensun-pin-body" style="background: linear-gradient(135deg, #ef4444, #b91c1c);">
-                            <div class="sensun-pin-content">🎯</div>
-                        </div>
-                    `,
-                    iconSize: [38, 38],
-                    iconAnchor: [19, 38]
-                });
-
-                pickerMarker = L.marker([lat, lng], { icon: pickerIcon }).addTo(map);
-                pickerMarker.bindPopup(`
-                    <div style="font-size: 12.5px;">
-                        <strong style="color: #ef4444; display: block; margin-bottom: 4px;">📍 Coordenadas Seleccionadas</strong>
-                        <div style="font-family: monospace; font-size: 11.5px; background: #f8fafc; padding: 4px 8px; border-radius: 6px; margin-bottom: 8px; border: 1px solid #e2e8f0;">
-                            ${lat.toFixed(6)}, ${lng.toFixed(6)}
-                        </div>
-                        <button onclick="applyPickedCoordsToModal('${formattedUrl}')" style="width: 100%; background: linear-gradient(135deg, #ff6b35, #7b68ee); color: white; border: none; border-radius: 8px; padding: 6px 10px; font-weight: 600; cursor: pointer; font-size: 11.5px;">
-                            📋 Usar en Formulario de Negocio
-                        </button>
-                    </div>
-                `).openPopup();
-
-                const isModalActive = document.getElementById("businessModalOverlay").classList.contains("active");
-                if (isModalActive) {
-                    document.getElementById("bizLocationUrl").value = formattedUrl;
-                    showToast(`📍 Coordenadas asignadas: ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
-                }
-            });
-
             renderMapMarkers();
         }
-
-        window.applyPickedCoordsToModal = function(url) {
-            if (!document.getElementById("businessModalOverlay").classList.contains("active")) {
-                openBusinessModal();
-            }
-            document.getElementById("bizLocationUrl").value = url;
-            showToast("📍 Coordenadas cargadas en el formulario de negocio");
-        };
 
         window.changeMapLayer = function(layerKey) {
             if (!map || !MAP_TILE_LAYERS[layerKey]) return;
