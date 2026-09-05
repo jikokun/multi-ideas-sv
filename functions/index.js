@@ -42,6 +42,7 @@ exports.sendNewsNotificationOnCreate = functions.database
         const imageSrc = newsData.imageUrl || newsData.imgSrc || "https://sensunshopweb.firebaseapp.com/imagenes/logos/icono-sensun-shop.webp";
         const contactWhatsapp = newsData.contactWhatsapp || newsData.whatsapp || "";
         const moreUrl = newsData.moreUrl || newsData.link || "";
+        const moreText = newsData.moreText || "";
 
         // Estructura Data-Only FCM v1 (Permite a la app Android control visual 100% nativo y único)
         const message = {
@@ -60,6 +61,7 @@ exports.sendNewsNotificationOnCreate = functions.database
                 whatsapp: String(contactWhatsapp),
                 locationUrl: String(newsData.locationUrl || ""),
                 moreUrl: String(moreUrl),
+                moreText: String(moreText),
                 link: String(moreUrl),
                 timestamp: String(newsData.timestamp || Date.now()),
                 channelId: "sensun_news_channel"

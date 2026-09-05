@@ -1988,9 +1988,11 @@ function createBusinessDOMCard(business) {
                 </div>
             ` : ''}
             <div class="negocio-links">
+                ${business.phone ? `<a href="tel:${business.phone.replace(/\D/g, '')}" class="btn-negocio btn-call" title="Llamada directa de emergencia"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg> Llamar</a>` : ''}
                 ${business.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/></svg> WhatsApp</a>` : ''}
                 ${business.locationUrl ? `<a href="${locHref}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Ubicación</a>` : ''}
                 ${business.websiteUrl ? `<a href="${business.websiteUrl.replace(/multi-ideas-sv\.com/gi, 'multiideassv.com')}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer" style="border-color: rgba(232, 98, 26, 0.4); color: var(--ss-orange);"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg> Sitio Web</a>` : ''}
+                ${business.facebookUrl ? `<a href="${business.facebookUrl}" class="btn-negocio btn-fb" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> Facebook</a>` : ''}
             </div>
         </div>
     `;
@@ -2092,6 +2094,18 @@ function syncBusinessesToDOM(businessesList) {
                 }
             }
 
+            // Actualizar enlace Llamada Telefónica (si existe)
+            const callBtn = targetCard.querySelector(".btn-call");
+            if (callBtn && business.phone) {
+                callBtn.href = `tel:${business.phone.replace(/\D/g, "")}`;
+            }
+
+            // Actualizar enlace Facebook (si existe)
+            const fbBtn = targetCard.querySelector(".btn-fb");
+            if (fbBtn && business.facebookUrl) {
+                fbBtn.href = business.facebookUrl;
+            }
+
             // Actualizar badges/banners de OFERTAS (hasOffer & offerMsg)
             let offerBadge = targetCard.querySelector(".negocio-offer-badge");
             let offerBanner = targetCard.querySelector(".negocio-offer-banner");
@@ -2153,6 +2167,7 @@ function syncBusinessesToDOM(businessesList) {
         else if (pathname.includes("emprendedores")) pageType = "emprendedores";
         else if (pathname.includes("profesionales")) pageType = "profesionales";
         else if (pathname.includes("oficios")) pageType = "oficios";
+        else if (pathname.includes("emergencias")) pageType = "emergencias";
 
         businessesList.forEach(business => {
             if (!business.isActive) return;
@@ -2189,7 +2204,8 @@ const SENSUN_KNOWN_COORDS_MAP = {
     "emp-001": { lat: 13.875139, lng: -88.626428 },
     "emp-002": { lat: 13.876704, lng: -88.629354 },
     "drjuliocesarvelasco": { lat: 13.876388, lng: -88.630002 },
-    "drhenrymartinez": { lat: 13.875842, lng: -88.628102 }
+    "drhenrymartinez": { lat: 13.875842, lng: -88.628102 },
+    "comandosdesalvamento": { lat: 13.8701498, lng: -88.6268186 }
 };
 
 function isValidElSalvadorLatLong(lat, lng) {
@@ -2274,6 +2290,8 @@ function setupBusinessesRealtimeSync() {
                     imgSrc: item.imgSrc || "",
                     gallery: Array.isArray(item.gallery) ? item.gallery : [],
                     whatsapp: item.whatsapp || "",
+                    phone: item.phone || "",
+                    facebookUrl: item.facebookUrl || "",
                     whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
                     locationUrl: item.locationUrl || "",
                     coords: coords,
@@ -2370,6 +2388,9 @@ function parseFeedItems(data, defaultBadge = "noticias") {
         const imageUrl = item.imageUrl || item.imgSrc || item.imagen || "";
         const locationUrl = item.locationUrl || item.mapsUrl || "";
         const moreUrl = (item.moreUrl || item.link || item.url || item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com");
+        const moreText = (item.moreText && typeof item.moreText === "string" && item.moreText.trim().length > 0)
+            ? item.moreText.trim()
+            : "Ver más";
 
         return {
             id: item.id || key,
@@ -2384,6 +2405,7 @@ function parseFeedItems(data, defaultBadge = "noticias") {
             whatsappMsg: item.whatsappMsg || "",
             locationUrl: locationUrl,
             moreUrl: moreUrl,
+            moreText: moreText,
             link: moreUrl,
             hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1 || rawBadge.includes("oferta") || rawBadge.includes("anuncio")),
             offerMsg: item.offerMsg || item.oferta || item.descuento || "",
@@ -3918,27 +3940,88 @@ let currentActiveFeedItems = [];
 let activePopupItem = null;
 
 function initSensunBellAndPopupSystem() {
-    // 1. Inyectar botón de Campana Flotante (FAB) si no existe
-    let bellFab = document.getElementById("sensunBellFab");
-    if (!bellFab) {
-        bellFab = document.createElement("button");
-        bellFab.id = "sensunBellFab";
-        bellFab.className = "sensun-bell-fab";
-        bellFab.setAttribute("aria-label", "Ver Boletines y Ofertas");
-        bellFab.setAttribute("title", "Boletines y Ofertas de Sensuntepeque");
-        bellFab.innerHTML = `
-            <div class="sensun-bell-icon-wrap">
-                <svg viewBox="0 0 24 24">
-                    <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
-                </svg>
-                <span class="sensun-bell-badge" id="sensunBellBadge" style="display: none;">0</span>
-            </div>
-        `;
-        document.body.appendChild(bellFab);
+    // 1. Inyectar columna de Botones Flotantes (FABs) si no existe
+    let fabsCol = document.getElementById("sensunFabsColumn");
+    if (!fabsCol) {
+        fabsCol = document.createElement("div");
+        fabsCol.id = "sensunFabsColumn";
+        fabsCol.className = "sensun-fabs-column";
 
-        bellFab.addEventListener("click", () => {
-            toggleSensunBellHub();
-        });
+        // Determinar rutas relativas según el nivel de profundidad
+        const currentPath = window.location.pathname.replace(/\\/g, '/');
+        let relPrefix = "";
+        if (currentPath.includes('/sensunshop/negocioslocales/') || currentPath.includes('/sensunshop/profesionales/')) {
+            relPrefix = "../";
+        } else if (currentPath.includes('/sensunshop/')) {
+            relPrefix = "";
+        } else {
+            relPrefix = "sensunshop/";
+        }
+
+        const isEmergenciasPage = currentPath.endsWith('emergencias.html');
+        const isMapaPage = currentPath.endsWith('mapa.html');
+
+        fabsCol.innerHTML = `
+            <!-- FAB 1: Cuerpos de Emergencia y Salvaguarda (Arriba) -->
+            <a href="${relPrefix}emergencias.html" class="sensun-fab-btn sensun-emergency-fab ${isEmergenciasPage ? 'active-page-fab' : ''}" id="sensunEmergencyFab" aria-label="Cuerpos de Emergencia y Salvaguarda" title="Emergencias y Salvaguarda 24/7">
+                <div class="sensun-fab-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2v2"/>
+                        <path d="M4.93 4.93l1.41 1.41"/>
+                        <path d="M19.07 4.93l-1.41 1.41"/>
+                        <path d="M2 11h2"/>
+                        <path d="M20 11h2"/>
+                        <rect x="6" y="7" width="12" height="11" rx="4" fill="currentColor" fill-opacity="0.25"/>
+                        <path d="M5 19h14"/>
+                        <path d="M12 10v5"/>
+                        <path d="M9.5 12.5h5"/>
+                    </svg>
+                    <span class="sensun-fab-pulse-dot"></span>
+                </div>
+                <span class="sensun-fab-tooltip">🚨 Emergencias</span>
+            </a>
+
+            <!-- FAB 2: Mapa Interactivo de Negocios (En medio) -->
+            <a href="${relPrefix}mapa.html" class="sensun-fab-btn sensun-map-fab ${isMapaPage ? 'active-page-fab' : ''}" id="sensunMapFab" aria-label="Mapa Interactivo de Sensun Shop" title="Mapa Interactivo">
+                <div class="sensun-fab-icon-wrap">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" fill="currentColor" fill-opacity="0.25"/>
+                        <line x1="8" y1="2" x2="8" y2="18"/>
+                        <line x1="16" y1="6" x2="16" y2="22"/>
+                    </svg>
+                </div>
+                <span class="sensun-fab-tooltip">🗺️ Ver Mapa</span>
+            </a>
+
+            <!-- FAB 3: Campana de Boletines y Ofertas (Abajo) -->
+            <button type="button" class="sensun-fab-btn sensun-bell-fab" id="sensunBellFab" aria-label="Ver Boletines y Ofertas" title="Boletines y Ofertas de Sensuntepeque">
+                <div class="sensun-bell-icon-wrap">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 22c1.1 0 2-.9 2-2h-4c0 1.1.9 2 2 2zm6-6v-5c0-3.07-1.63-5.64-4.5-6.32V4c0-.83-.67-1.5-1.5-1.5s-1.5.67-1.5 1.5v.68C7.64 5.36 6 7.92 6 11v5l-2 2v1h16v-1l-2-2zm-2 1H8v-6c0-2.48 1.51-4.5 4-4.5s4 2.02 4 4.5v6z"/>
+                    </svg>
+                    <span class="sensun-bell-badge" id="sensunBellBadge" style="display: none;">0</span>
+                </div>
+                <span class="sensun-fab-tooltip">🔔 Novedades y Ofertas</span>
+            </button>
+        `;
+        document.body.appendChild(fabsCol);
+
+        const bellFab = document.getElementById("sensunBellFab");
+        if (bellFab) {
+            bellFab.addEventListener("click", () => {
+                toggleSensunBellHub();
+            });
+        }
+
+        const mapFab = document.getElementById("sensunMapFab");
+        if (mapFab && isMapaPage) {
+            mapFab.addEventListener("click", (e) => {
+                if (typeof window.recenterPublicMap === "function") {
+                    e.preventDefault();
+                    window.recenterPublicMap();
+                }
+            });
+        }
     }
 
     // 2. Inyectar Popup Modal si no existe
@@ -3970,6 +4053,9 @@ function initSensunBellAndPopupSystem() {
                         </a>
                         <a href="#" class="sensun-popup-btn-loc" id="sensunPopupBtnLoc" target="_blank" rel="noopener noreferrer" style="display: none;">
                             <span>📍 Ubicación</span>
+                        </a>
+                        <a href="#" class="sensun-popup-btn-more" id="sensunPopupBtnMore" target="_blank" rel="noopener noreferrer" style="display: none;">
+                            <span id="sensunPopupBtnMoreText">🔗 Ver más</span>
                         </a>
                     </div>
                     <div class="sensun-popup-minimize-hint">
@@ -4169,6 +4255,8 @@ function showSensunPopup(item) {
     const offerText = document.getElementById("sensunPopupOfferText");
     const btnWsp = document.getElementById("sensunPopupBtnWsp");
     const btnLoc = document.getElementById("sensunPopupBtnLoc");
+    const btnMore = document.getElementById("sensunPopupBtnMore");
+    const btnMoreText = document.getElementById("sensunPopupBtnMoreText");
 
     if (!backdrop || !modal) return;
 
@@ -4204,6 +4292,25 @@ function showSensunPopup(item) {
         btnLoc.href = item.locationUrl;
     } else {
         btnLoc.style.display = "none";
+    }
+
+    // Botón de acción con enlace personalizado (moreUrl y moreText)
+    const rawMoreUrl = (item.moreUrl || item.link || "").trim();
+    if (btnMore) {
+        if (rawMoreUrl.length > 0) {
+            btnMore.style.display = "inline-flex";
+            btnMore.href = rawMoreUrl;
+            const buttonText = (item.moreText && typeof item.moreText === "string" && item.moreText.trim().length > 0)
+                ? item.moreText.trim()
+                : "Ver más";
+            if (btnMoreText) {
+                btnMoreText.textContent = buttonText;
+            } else {
+                btnMore.textContent = buttonText;
+            }
+        } else {
+            btnMore.style.display = "none";
+        }
     }
 
     backdrop.classList.add("active");

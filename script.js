@@ -432,6 +432,7 @@ function highlightCurrentPage() {
         if (path === "emprendedores.html") document.getElementById("nav-emprendedores")?.classList.add("active");
         if (path === "oficios.html") document.getElementById("nav-oficios")?.classList.add("active");
         if (path === "profesionales.html") document.getElementById("nav-profesionales")?.classList.add("active");
+        if (path === "emergencias.html") document.getElementById("nav-emergencias")?.classList.add("active");
         return;
     }
 
@@ -980,7 +981,8 @@ function initSensunSearch(isSensunshop, depth) {
         "negocioslocales.html",
         "emprendedores.html",
         "oficios.html",
-        "profesionales.html"
+        "profesionales.html",
+        "emergencias.html"
     ];
 
     // Cargar negocios priorizando Firebase RTDB en tiempo real
@@ -1006,6 +1008,7 @@ function initSensunSearch(isSensunshop, depth) {
                         if (item.type === "emprendedores") pageName = "emprendedores.html";
                         else if (item.type === "profesionales") pageName = "profesionales.html";
                         else if (item.type === "oficios") pageName = "oficios.html";
+                        else if (item.type === "emergencias") pageName = "emergencias.html";
 
                         return {
                             id: item.id,
@@ -1223,7 +1226,8 @@ function initSensunInlineHeroSearch(depth = 0) {
         "negocioslocales.html",
         "emprendedores.html",
         "oficios.html",
-        "profesionales.html"
+        "profesionales.html",
+        "emergencias.html"
     ];
 
     let prefix = (depth === 2) ? "../" : (depth === 1) ? "./" : "sensunshop/";
@@ -1242,6 +1246,7 @@ function initSensunInlineHeroSearch(depth = 0) {
                         if (item.type === "emprendedores") pageName = "emprendedores.html";
                         else if (item.type === "profesionales") pageName = "profesionales.html";
                         else if (item.type === "oficios") pageName = "oficios.html";
+                        else if (item.type === "emergencias") pageName = "emergencias.html";
 
                         return {
                             id: item.id,

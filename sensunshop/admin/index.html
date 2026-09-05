@@ -2206,6 +2206,7 @@
                             <option value="emprendedores">🚀 Emprendedores</option>
                             <option value="profesionales">🎓 Profesionales</option>
                             <option value="oficios">🛠️ Oficios Generales</option>
+                            <option value="emergencias">🚨 Emergencias y Salvaguarda</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -2260,8 +2261,19 @@
                         <input type="text" class="form-input" id="bizWhatsapp" placeholder="50372300000">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Teléfono Llamada Directa (Opcional)</label>
+                        <input type="text" class="form-input" id="bizPhone" placeholder="ej: 23823328">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
                         <label class="form-label">Sitio Web / Enlace</label>
                         <input type="text" class="form-input" id="bizWebsiteUrl" placeholder="https://...">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Facebook Oficial (Opcional)</label>
+                        <input type="text" class="form-input" id="bizFacebookUrl" placeholder="https://www.facebook.com/...">
                     </div>
                 </div>
 
@@ -2390,9 +2402,16 @@
                     <input type="text" class="form-input" id="newsLocationInput" placeholder="https://maps.app.goo.gl/...">
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label">Enlace "Ver Más" / Web</label>
-                    <input type="text" class="form-input" id="newsLinkInput" placeholder="https://...">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+                    <div class="form-group">
+                        <label class="form-label">Texto del Botón de Acción</label>
+                        <input type="text" class="form-input" id="newsMoreTextInput" name="moreText" placeholder="Ej: Ver más, Descargar, Más info">
+                        <small style="color: var(--text-muted); font-size: 11px; display: block; margin-top: 4px;">Por defecto mostrará "Ver más" si se deja en blanco.</small>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Enlace Web / URL de Acción</label>
+                        <input type="text" class="form-input" id="newsLinkInput" name="moreUrl" placeholder="https://...">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -2804,6 +2823,7 @@
                 const imageUrl = item.imageUrl || item.imgSrc || "";
                 const locationUrl = item.locationUrl || item.mapsUrl || "";
                 const moreUrl = item.moreUrl || item.link || item.websiteUrl || "";
+                const moreText = (item.moreText && typeof item.moreText === "string") ? item.moreText.trim() : (item.linkText || "");
 
                 return {
                     id: item.id || key,
@@ -2814,6 +2834,7 @@
                     imageUrl: imageUrl,
                     locationUrl: locationUrl,
                     moreUrl: moreUrl,
+                    moreText: moreText,
                     // Aliases para componentes internos y retrocompatibilidad
                     whatsapp: contactWhatsapp,
                     imgSrc: imageUrl,
@@ -3142,7 +3163,9 @@
                 document.getElementById("bizDesc").value = b.description || "";
                 document.getElementById("bizImgSrc").value = b.imgSrc || b.imageUrl || "";
                 document.getElementById("bizWhatsapp").value = b.whatsapp || "";
+                document.getElementById("bizPhone").value = b.phone || "";
                 document.getElementById("bizWebsiteUrl").value = b.websiteUrl || "";
+                document.getElementById("bizFacebookUrl").value = b.facebookUrl || "";
                 document.getElementById("bizLocationUrl").value = b.locationUrl || "";
                 document.getElementById("bizTags").value = (b.tags || []).join(", ");
                 document.getElementById("bizHasOffer").checked = b.hasOffer;
@@ -3162,7 +3185,9 @@
                 document.getElementById("bizDesc").value = "";
                 document.getElementById("bizImgSrc").value = "";
                 document.getElementById("bizWhatsapp").value = "";
+                document.getElementById("bizPhone").value = "";
                 document.getElementById("bizWebsiteUrl").value = "";
+                document.getElementById("bizFacebookUrl").value = "";
                 document.getElementById("bizLocationUrl").value = "";
                 document.getElementById("bizTags").value = "";
                 document.getElementById("bizHasOffer").checked = false;
@@ -3205,7 +3230,9 @@
                 imgSrc: imgSrc,
                 imageUrl: imgSrc, // Compatibilidad
                 whatsapp: whatsapp,
+                phone: document.getElementById("bizPhone").value.trim(),
                 websiteUrl: document.getElementById("bizWebsiteUrl").value.trim(),
+                facebookUrl: document.getElementById("bizFacebookUrl").value.trim(),
                 locationUrl: locationUrl,
                 lat: coords ? coords.lat : 13.8767,
                 lng: coords ? coords.lng : -88.6319,
@@ -3271,6 +3298,8 @@
                 document.getElementById("newsImgInput").value = n.imageUrl || n.imgSrc || "";
                 document.getElementById("newsLocationInput").value = n.locationUrl || "";
                 document.getElementById("newsLinkInput").value = n.moreUrl || n.link || "";
+                const inputMoreText = document.getElementById("newsMoreTextInput") || document.getElementById("inputMoreText");
+                if (inputMoreText) inputMoreText.value = n.moreText || "";
                 updateImagePreviewFromUrl('news');
             } else {
                 title.textContent = "Publicar Novedad o Boletín";
@@ -3284,6 +3313,8 @@
                 document.getElementById("newsImgInput").value = "";
                 document.getElementById("newsLocationInput").value = "";
                 document.getElementById("newsLinkInput").value = "";
+                const inputMoreText = document.getElementById("newsMoreTextInput") || document.getElementById("inputMoreText");
+                if (inputMoreText) inputMoreText.value = "";
                 clearImagePreview('news');
             }
 
@@ -3312,9 +3343,11 @@
             const imageUrl = document.getElementById("newsImgInput").value.trim();
             const locationUrl = document.getElementById("newsLocationInput").value.trim();
             const moreUrl = document.getElementById("newsLinkInput").value.trim();
+            const inputMoreText = document.getElementById("newsMoreTextInput") || document.getElementById("inputMoreText");
+            const moreText = inputMoreText ? inputMoreText.value.trim() : "";
             const description = document.getElementById("newsDescInput").value.trim();
 
-            // Estructura oficial sincronizada con la app Android (contactWhatsapp, imageUrl, locationUrl, moreUrl)
+            // Estructura oficial sincronizada con la app Android (contactWhatsapp, imageUrl, locationUrl, moreUrl, moreText)
             const newsData = {
                 id: rawId,
                 title: title,
@@ -3326,6 +3359,7 @@
                 imageUrl: imageUrl,
                 locationUrl: locationUrl,
                 moreUrl: moreUrl,
+                moreText: moreText,
                 // Retrocompatibilidad con esquemas web anteriores
                 whatsapp: contactWhatsapp,
                 imgSrc: imageUrl,

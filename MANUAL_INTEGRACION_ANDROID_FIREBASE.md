@@ -30,16 +30,18 @@ root/
 │   │       ├── id: String           (ej: "arphotostudio", "neg-005")
 │   │       ├── code: String         (ej: "NEG-008", "NEG-005", "EMP-001")
 │   │       ├── title: String        (ej: "Mr. Taco")
-│   │       ├── type: String         ("negocioslocales" | "emprendedores" | "profesionales")
-│   │       ├── category: String     ("comida" | "servicios" | "comercio" | "graduados" | "artesanias")
-│   │       ├── badge: String        (ej: "RESTAURANTE & TAQUERÍA")
+│   │       ├── type: String         ("negocioslocales" | "emprendedores" | "profesionales" | "oficios" | "emergencias")
+│   │       ├── category: String     ("comida" | "servicios" | "comercio" | "graduados" | "artesanias" | "emergencias")
+│   │       ├── badge: String        (ej: "RESTAURANTE & TAQUERÍA", "SALVAGUARDA & EMERGENCIAS 24/7")
 │   │       ├── description: String
 │   │       ├── imgSrc: String       (URL Cloudinary o WebP)
 │   │       ├── gallery: List<String>
-│   │       ├── whatsapp: String     (ej: "50379130700")
-│   │       ├── whatsappMsg: String  (Mensaje predeterminado de saludo)
+│   │       ├── whatsapp: String     (ej: "50379130700", "50378581742")
+│   │       ├── whatsappMsg: String  (Mensaje predeterminado de saludo o reporte)
+│   │       ├── phone: String        (ej: "23823328", número para llamadas directas de emergencia)
 │   │       ├── locationUrl: String  (Enlace de Google Maps)
 │   │       ├── websiteUrl: String   (Enlace web opcional o vacío)
+│   │       ├── facebookUrl: String  (Enlace oficial de Facebook)
 │   │       ├── hasOffer: Boolean    (true / false)
 │   │       ├── offerMsg: String     (ej: "2x1 en tacos todos los martes")
 │   │       ├── accentColor: String  (ej: "#e74c3c", "#f39c12", "#00adb5")
@@ -58,6 +60,7 @@ root/
 │   │       ├── contactWhatsapp: String
 │   │       ├── locationUrl: String
 │   │       ├── moreUrl: String
+│   │       ├── moreText: String    (Texto del botón de acción, ej: 'Descargar', fallback: 'Ver más')
 │   │       ├── timestamp: Long
 │   │       └── isActive: Boolean
 │   │
@@ -96,14 +99,14 @@ package com.sensunshop.models
 import com.google.firebase.database.IgnoreExtraProperties
 
 /**
- * 1. Modelo de Negocio / Emprendimiento / Profesional
+ * 1. Modelo de Negocio / Emprendimiento / Profesional / Emergencias
  */
 @IgnoreExtraProperties
 data class Business(
     val id: String = "",
     val code: String = "",
     val title: String = "",
-    val type: String = "negocioslocales", // negocioslocales | emprendedores | profesionales
+    val type: String = "negocioslocales", // negocioslocales | emprendedores | profesionales | oficios | emergencias
     val category: String = "comida",
     val badge: String = "",
     val description: String = "",
@@ -111,8 +114,10 @@ data class Business(
     val gallery: List<String> = emptyList(),
     val whatsapp: String = "",
     val whatsappMsg: String = "",
+    val phone: String = "", // Teléfono para llamada directa de emergencia (ej: "23823328")
     val locationUrl: String = "",
     val websiteUrl: String = "",
+    val facebookUrl: String = "", // Enlace a página oficial de Facebook
     val hasOffer: Boolean = false,
     val offerMsg: String = "",
     val accentColor: String = "#f39c12",
@@ -135,6 +140,7 @@ data class NewsItem(
     val contactWhatsapp: String = "",
     val locationUrl: String = "",
     val moreUrl: String = "",
+    val moreText: String = "", // Texto del botón de acción (ej: "Descargar", fallback: "Ver más")
     val hasOffer: Boolean = false,
     val offerMsg: String = "",
     val date: String = "",
@@ -592,5 +598,65 @@ Para mantener paridad total entre la aplicación Android y el panel web administ
 - **Persistencia en Firebase RTDB**:
   - `sensunshop/businesses/<bizId>/imgSrc`: Enlace devuelto en `fileUrl`.
   - `sensunshop/news/<newsId>/imageUrl`: Enlace devuelto en `fileUrl`.
+
+---
+
+## 11. Módulo de Emergencias y Salvaguarda en Android
+
+La sección de **Emergencias** (ej. Comandos de Salvamento Sensuntepeque `EME-001`) se sincroniza en tiempo real desde el nodo `sensunshop/businesses`.
+
+### 11.1 Filtrado en Android ViewModel / Repositorio
+Para mostrar únicamente los cuerpos de socorro y asistencia:
+
+```kotlin
+// En tu ViewModel o Fragment de Emergencias
+fun getEmergencyEntities(allBusinesses: List<Business>): List<Business> {
+    return allBusinesses.filter { business ->
+        business.isActive && (
+            business.type.equals("emergencias", ignoreCase = true) ||
+            business.category.contains("emergencia", ignoreCase = true) ||
+            business.tags.any { it.contains("emergencia", ignoreCase = true) }
+        )
+    }
+}
+```
+
+### 11.2 Acciones Inmediatas (Intents en Android)
+
+#### 📞 Marcación Rápida Telefónica (Llamada Directa)
+Permite al usuario llamar con 1 toque al número de emergencia (ej: `23823328`):
+
+```kotlin
+fun makeEmergencyCall(context: Context, phoneNumber: String) {
+    val cleanNumber = phoneNumber.replace(Regex("[^0-9]"), "")
+    if (cleanNumber.isNotEmpty()) {
+        val dialIntent = Intent(Intent.ACTION_DIAL).apply {
+            data = Uri.parse("tel:$cleanNumber")
+        }
+        context.startActivity(dialIntent)
+    }
+}
+```
+
+#### 💬 WhatsApp de Emergencias / Reporte Inmediato
+```kotlin
+fun openEmergencyWhatsApp(context: Context, whatsappNumber: String, customMessage: String) {
+    val cleanPhone = whatsappNumber.replace(Regex("[^0-9]"), "")
+    val url = "https://api.whatsapp.com/send?phone=$cleanPhone&text=${Uri.encode(customMessage)}"
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+    context.startActivity(intent)
+}
+```
+
+#### 📘 Página Oficial de Facebook
+```kotlin
+fun openFacebookPage(context: Context, facebookUrl: String) {
+    if (facebookUrl.isNotEmpty()) {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(facebookUrl))
+        context.startActivity(intent)
+    }
+}
+```
+
 
 
