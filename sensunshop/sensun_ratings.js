@@ -2442,10 +2442,18 @@ function parseFeedItems(data, defaultBadge = "noticias") {
             isActive: item.isActive !== false
         };
     }).filter(n => n.isActive).sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+// Determinar si la página actual es un perfil individual independiente (ej. landing personalizada del Dr. Henry Martinez)
+function isSensunStandaloneProfile() {
+    const path = (window.location.pathname || "").replace(/\\/g, "/").toLowerCase();
+    return document.body.classList.contains("standalone-profile") ||
+           document.body.getAttribute("data-standalone-profile") === "true" ||
+           document.querySelector("[data-standalone-profile='true']") !== null ||
+           path.includes("/profesionales/drhenrymartinez");
 }
 
 // Configurar sincronización en tiempo real de Noticias, Boletines y Ofertas desde Firebase RTDB
 function setupNewsSync() {
+    if (isSensunStandaloneProfile()) return;
     if (newsRtdbListener) return;
     newsRtdbListener = true;
 
@@ -3398,6 +3406,7 @@ function initTagsCarousel() {
 
 // Inicializar Modal de Ficha Ampliada (Perfil de negocio flotante al tocar Imagen, Título o Descripción en la cartelera)
 function initCardExpandModal() {
+    if (isSensunStandaloneProfile()) return;
     let modal = document.getElementById("card-expand-modal");
     if (!modal) {
         modal = document.createElement("div");
@@ -3846,6 +3855,7 @@ window.handleDirectBusinessAnchor = handleDirectBusinessAnchor;
 
 // Inicializar Modal de Imagen Ampliada (Lightbox)
 function initImageLightboxModal() {
+    if (isSensunStandaloneProfile()) return;
     let lightbox = document.getElementById("sensun-image-lightbox");
     if (!lightbox) {
         lightbox = document.createElement("div");
@@ -3981,6 +3991,7 @@ let currentActiveFeedItems = [];
 let activePopupItem = null;
 
 function initSensunBellAndPopupSystem() {
+    if (isSensunStandaloneProfile()) return;
     // 1. Inyectar columna de Botones Flotantes (FABs) si no existe
     let fabsCol = document.getElementById("sensunFabsColumn");
     if (!fabsCol) {
@@ -5006,21 +5017,20 @@ window.closeSensunMapModal = function() {
     }
 };
 
-// Ejecutar inyección y sincronización en tiempo real cuando el DOM esté listo
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-        setupBusinessesRealtimeSync();
-        setupNewsSync();
-        initSensunBellAndPopupSystem();
-        injectCommentButtons();
-        injectShareButtons();
-        initTagsCarousel();
-        initCardExpandModal();
-        initImageLightboxModal();
-        handleDirectBusinessAnchor();
-        initWhatsAppPlaneEffect();
+// Función de arranque de módulos según el tipo de página
+function initSensunPageModules() {
+    // Inicializar inmediatamente widgets de calificación presentes en el DOM
+    document.querySelectorAll("[id='sensun-rating-widget'], .sensun-rating-widget").forEach(widget => {
+        if (typeof initRatingWidget === "function") {
+            initRatingWidget(widget);
+        }
     });
-} else {
+
+    // En páginas de perfil individual independiente, no inyectar barras flotantes de directorio, popups de noticias ni elementos de catálogo
+    if (isSensunStandaloneProfile()) {
+        return;
+    }
+
     setupBusinessesRealtimeSync();
     setupNewsSync();
     initSensunBellAndPopupSystem();
@@ -5031,6 +5041,13 @@ if (document.readyState === "loading") {
     initImageLightboxModal();
     handleDirectBusinessAnchor();
     initWhatsAppPlaneEffect();
+}
+
+// Ejecutar inyección y sincronización en tiempo real cuando el DOM esté listo
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initSensunPageModules);
+} else {
+    initSensunPageModules();
 }
 
 

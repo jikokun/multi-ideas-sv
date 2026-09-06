@@ -35,11 +35,14 @@ root/
 │   │       ├── badge: String        (ej: "RESTAURANTE & TAQUERÍA", "SALVAGUARDA & EMERGENCIAS 24/7")
 │   │       ├── description: String
 │   │       ├── imgSrc: String       (URL Cloudinary o WebP)
+│   │       ├── imageUrl: String     (Mismo valor de imgSrc para retrocompatibilidad)
 │   │       ├── gallery: List<String>
 │   │       ├── whatsapp: String     (ej: "50379130700", "50378581742")
 │   │       ├── whatsappMsg: String  (Mensaje predeterminado de saludo o reporte)
 │   │       ├── phone: String        (ej: "23823328", número para llamadas directas de emergencia)
 │   │       ├── locationUrl: String  (Enlace de Google Maps)
+│   │       ├── lat: Double          (ej: 13.8767, latitud geográfica para el mapa)
+│   │       ├── lng: Double          (ej: -88.6319, longitud geográfica para el mapa)
 │   │       ├── websiteUrl: String   (Enlace web opcional o vacío)
 │   │       ├── facebookUrl: String  (Enlace oficial de Facebook)
 │   │       ├── hasOffer: Boolean    (true / false)
@@ -119,11 +122,14 @@ data class Business(
     val badge: String = "",
     val description: String = "",
     val imgSrc: String = "",
+    val imageUrl: String = "", // Espejo de imgSrc para retrocompatibilidad
     val gallery: List<String> = emptyList(),
     val whatsapp: String = "",
     val whatsappMsg: String = "",
     val phone: String = "", // Teléfono para llamada directa de emergencia (ej: "23823328")
     val locationUrl: String = "",
+    val lat: Double = 13.8767, // Latitud geográfica para el mapa interactivo (Sensuntepeque por defecto)
+    val lng: Double = -88.6319, // Longitud geográfica para el mapa interactivo (Sensuntepeque por defecto)
     val websiteUrl: String = "",
     val facebookUrl: String = "", // Enlace a página oficial de Facebook
     val hasOffer: Boolean = false,
