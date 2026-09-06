@@ -55,6 +55,7 @@
             color: #ffffff;
             margin: 10px 0 6px 0;
             line-height: 1.2;
+            transition: color 0.25s ease;
         }
 
         .map-page-header p {
@@ -62,30 +63,80 @@
             font-size: 0.95rem;
             max-width: 700px;
             margin: 0 auto;
+            transition: color 0.25s ease;
         }
 
         .gradient-text {
-            background: linear-gradient(135deg, #ffffff 20%, var(--ss-orange) 100%);
+            background: linear-gradient(135deg, #ffa366 0%, var(--ss-orange) 50%, #8e44ad 100%);
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* Barra de Filtros y Controles */
+        /* Barra de Filtros y Controles con Carrusel */
         .fullmap-controls-card {
-            background: rgba(18, 22, 32, 0.8);
+            background: rgba(18, 22, 32, 0.85);
             backdrop-filter: blur(14px);
             -webkit-backdrop-filter: blur(14px);
             border: 1px solid rgba(232, 98, 26, 0.25);
             border-radius: 18px;
-            padding: 14px 18px;
+            padding: 12px 16px;
             margin-bottom: 18px;
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 14px;
-            flex-wrap: wrap;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        /* Contenedor del Carrusel de Categorías */
+        .fullmap-categories-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-width: 0;
+            position: relative;
+        }
+
+        .fullmap-carousel-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #cbd5e1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+            user-select: none;
+            z-index: 2;
+        }
+
+        .fullmap-carousel-btn:hover {
+            background: var(--ss-orange);
+            border-color: var(--ss-orange);
+            color: #ffffff;
+            transform: scale(1.08);
+            box-shadow: 0 4px 12px rgba(232, 98, 26, 0.4);
+        }
+
+        .fullmap-carousel-btn:active {
+            transform: scale(0.94);
+        }
+
+        .fullmap-carousel-btn:disabled,
+        .fullmap-carousel-btn.disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            pointer-events: none;
+            transform: none;
+            box-shadow: none;
         }
 
         .fullmap-categories {
@@ -93,9 +144,19 @@
             align-items: center;
             gap: 8px;
             overflow-x: auto;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
             -ms-overflow-style: none;
-            padding: 4px 0;
+            padding: 4px 2px;
+            cursor: grab;
+            user-select: none;
+            flex: 1;
+        }
+
+        .fullmap-categories.is-dragging {
+            cursor: grabbing;
+            scroll-behavior: auto;
         }
 
         .fullmap-categories::-webkit-scrollbar {
@@ -103,21 +164,26 @@
         }
 
         .fullmap-cat-btn {
-            padding: 7px 16px;
+            padding: 7px 15px;
             border-radius: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
             color: #cbd5e1;
             font-size: 0.84rem;
             font-weight: 600;
             cursor: pointer;
             white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
             transition: all 0.22s ease;
         }
 
         .fullmap-cat-btn:hover {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.14);
             color: #ffffff;
+            border-color: rgba(232, 98, 26, 0.4);
             transform: translateY(-1px);
         }
 
@@ -125,14 +191,14 @@
             background: linear-gradient(135deg, var(--ss-orange), var(--ss-purple));
             color: #ffffff;
             border-color: transparent;
-            box-shadow: 0 3px 12px rgba(232, 98, 26, 0.4);
+            box-shadow: 0 3px 12px rgba(232, 98, 26, 0.45);
         }
 
         .fullmap-actions-group {
             display: flex;
             align-items: center;
             gap: 8px;
-            flex-wrap: wrap;
+            flex-shrink: 0;
         }
 
         .fullmap-action-btn {
@@ -391,6 +457,21 @@
 
         /* Adaptación Responsive */
         @media (max-width: 900px) {
+            .fullmap-controls-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 12px;
+                padding: 12px 14px;
+            }
+            .fullmap-categories-wrapper {
+                width: 100%;
+            }
+            .fullmap-actions-group {
+                justify-content: space-between;
+                overflow-x: auto;
+                padding-bottom: 2px;
+                width: 100%;
+            }
             .fullmap-main-box {
                 flex-direction: column;
                 height: 82vh;
@@ -405,6 +486,190 @@
                 flex: 1;
             }
         }
+
+        /* ========================================================
+           SOPORTE Y OPTIMIZACIÓN EN MODO CLARO
+           ======================================================== */
+        body.light-theme .map-page-header h1,
+        html.light-theme .map-page-header h1,
+        .light-theme .map-page-header h1 {
+            color: #0f172a !important;
+        }
+
+        body.light-theme .gradient-text,
+        html.light-theme .gradient-text,
+        .light-theme .gradient-text {
+            background: linear-gradient(135deg, var(--ss-purple) 0%, var(--ss-orange) 100%) !important;
+            -webkit-background-clip: text !important;
+            background-clip: text !important;
+            -webkit-text-fill-color: transparent !important;
+            filter: drop-shadow(0 2px 4px rgba(232, 98, 26, 0.15)) !important;
+        }
+
+        body.light-theme .map-page-header p,
+        html.light-theme .map-page-header p,
+        .light-theme .map-page-header p {
+            color: #475569 !important;
+        }
+
+        body.light-theme .map-badge,
+        html.light-theme .map-badge,
+        .light-theme .map-badge {
+            background: rgba(232, 98, 26, 0.1) !important;
+            color: #c2410c !important;
+            border-color: rgba(232, 98, 26, 0.35) !important;
+            font-weight: 700 !important;
+        }
+
+        body.light-theme .fullmap-controls-card,
+        html.light-theme .fullmap-controls-card,
+        .light-theme .fullmap-controls-card {
+            background: rgba(255, 255, 255, 0.92) !important;
+            border: 1.5px solid rgba(232, 98, 26, 0.22) !important;
+            box-shadow: 0 10px 30px rgba(142, 68, 173, 0.05), 0 2px 8px rgba(232, 98, 26, 0.04) !important;
+        }
+
+        body.light-theme .fullmap-carousel-btn,
+        html.light-theme .fullmap-carousel-btn,
+        .light-theme .fullmap-carousel-btn {
+            background: #ffffff !important;
+            border: 1.5px solid rgba(203, 213, 225, 0.8) !important;
+            color: #1e293b !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06) !important;
+        }
+
+        body.light-theme .fullmap-carousel-btn:hover,
+        html.light-theme .fullmap-carousel-btn:hover,
+        .light-theme .fullmap-carousel-btn:hover {
+            background: #fff7ed !important;
+            border-color: var(--ss-orange) !important;
+            color: var(--ss-orange) !important;
+            box-shadow: 0 4px 12px rgba(232, 98, 26, 0.25) !important;
+        }
+
+        body.light-theme .fullmap-cat-btn,
+        html.light-theme .fullmap-cat-btn,
+        .light-theme .fullmap-cat-btn {
+            background: #ffffff !important;
+            border: 1.5px solid rgba(226, 232, 240, 0.95) !important;
+            color: #475569 !important;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.03) !important;
+        }
+
+        body.light-theme .fullmap-cat-btn:hover,
+        html.light-theme .fullmap-cat-btn:hover,
+        .light-theme .fullmap-cat-btn:hover {
+            background: #fff7ed !important;
+            border-color: var(--ss-orange) !important;
+            color: var(--ss-orange) !important;
+            transform: translateY(-1px);
+        }
+
+        body.light-theme .fullmap-cat-btn.active,
+        html.light-theme .fullmap-cat-btn.active,
+        .light-theme .fullmap-cat-btn.active {
+            background: linear-gradient(135deg, #e8621a 0%, #8e44ad 100%) !important;
+            color: #ffffff !important;
+            border-color: transparent !important;
+            box-shadow: 0 4px 14px rgba(232, 98, 26, 0.35) !important;
+        }
+
+        body.light-theme .fullmap-action-btn,
+        html.light-theme .fullmap-action-btn,
+        .light-theme .fullmap-action-btn {
+            background: #ffffff !important;
+            border: 1.5px solid rgba(203, 213, 225, 0.8) !important;
+            color: #1e293b !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+        }
+
+        body.light-theme .fullmap-action-btn:hover,
+        html.light-theme .fullmap-action-btn:hover,
+        .light-theme .fullmap-action-btn:hover {
+            background: #fff7ed !important;
+            border-color: var(--ss-orange) !important;
+            color: var(--ss-orange) !important;
+        }
+
+        body.light-theme .fullmap-layer-dropdown,
+        html.light-theme .fullmap-layer-dropdown,
+        .light-theme .fullmap-layer-dropdown {
+            background: #ffffff !important;
+            border: 1.5px solid rgba(203, 213, 225, 0.8) !important;
+            color: #1e293b !important;
+        }
+
+        body.light-theme .fullmap-main-box,
+        html.light-theme .fullmap-main-box,
+        .light-theme .fullmap-main-box {
+            background: #ffffff !important;
+            border: 1.5px solid rgba(232, 98, 26, 0.22) !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        body.light-theme .fullmap-sidebar-panel,
+        html.light-theme .fullmap-sidebar-panel,
+        .light-theme .fullmap-sidebar-panel {
+            background: rgba(255, 255, 255, 0.98) !important;
+            border-left: 1px solid rgba(226, 232, 240, 0.9) !important;
+        }
+
+        body.light-theme .fullmap-sidebar-head,
+        html.light-theme .fullmap-sidebar-head,
+        .light-theme .fullmap-sidebar-head {
+            background: rgba(255, 255, 255, 0.98) !important;
+            border-bottom: 1px solid rgba(226, 232, 240, 0.9) !important;
+        }
+
+        body.light-theme .fullmap-search-bar,
+        html.light-theme .fullmap-search-bar,
+        .light-theme .fullmap-search-bar {
+            background: #f8fafc !important;
+            border: 1.5px solid #cbd5e1 !important;
+            color: #1e293b !important;
+        }
+
+        body.light-theme .fullmap-search-bar:focus,
+        html.light-theme .fullmap-search-bar:focus,
+        .light-theme .fullmap-search-bar:focus {
+            border-color: var(--ss-orange) !important;
+            background: #ffffff !important;
+            box-shadow: 0 0 0 3px rgba(232, 98, 26, 0.15) !important;
+        }
+
+        body.light-theme .fullmap-count-badge,
+        html.light-theme .fullmap-count-badge,
+        .light-theme .fullmap-count-badge {
+            color: #64748b !important;
+        }
+
+        body.light-theme .fullmap-item-card,
+        html.light-theme .fullmap-item-card,
+        .light-theme .fullmap-item-card {
+            background: #ffffff !important;
+            border: 1px solid rgba(226, 232, 240, 0.9) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02) !important;
+        }
+
+        body.light-theme .fullmap-item-card:hover,
+        html.light-theme .fullmap-item-card:hover,
+        .light-theme .fullmap-item-card:hover {
+            background: #fff7ed !important;
+            border-color: rgba(232, 98, 26, 0.4) !important;
+        }
+
+        body.light-theme .fullmap-item-thumb,
+        html.light-theme .fullmap-item-thumb,
+        .light-theme .fullmap-item-thumb {
+            background: #f1f5f9 !important;
+            border: 1px solid #e2e8f0 !important;
+        }
+
+        body.light-theme .fullmap-item-title,
+        html.light-theme .fullmap-item-title,
+        .light-theme .fullmap-item-title {
+            color: #0f172a !important;
+        }
     </style>
 </head>
 
@@ -414,23 +679,37 @@
     <main class="map-page-wrapper">
         <!-- Encabezado de la Página -->
         <div class="map-page-header">
-            <span class="badge" style="background: rgba(232, 98, 26, 0.15); color: var(--ss-orange); border-color: rgba(232, 98, 26, 0.3);">
+            <span class="badge map-badge" style="background: rgba(232, 98, 26, 0.15); color: var(--ss-orange); border-color: rgba(232, 98, 26, 0.3);">
                 DIRECTORIO GEOGRÁFICO INTERACTIVO
             </span>
             <h1>Mapa de Negocios en <span class="gradient-text">Sensuntepeque</span></h1>
             <p>Explora la ubicación exacta de comercios, restaurantes, servicios y profesionales locales en Cabañas con direcciones y contacto directo.</p>
         </div>
 
-        <!-- Barra de Filtros y Herramientas -->
+        <!-- Barra de Filtros y Herramientas con Carrusel -->
         <div class="fullmap-controls-card">
-            <div class="fullmap-categories" id="fullMapCategoryPills">
-                <button class="fullmap-cat-btn active" data-cat="all" onclick="setFullMapCategory('all')">🌟 Todos</button>
-                <button class="fullmap-cat-btn" data-cat="comida" onclick="setFullMapCategory('comida')">🍕 Comida</button>
-                <button class="fullmap-cat-btn" data-cat="comercio" onclick="setFullMapCategory('comercio')">🏪 Comercio</button>
-                <button class="fullmap-cat-btn" data-cat="salud" onclick="setFullMapCategory('salud')">🩺 Salud</button>
-                <button class="fullmap-cat-btn" data-cat="emprendedores" onclick="setFullMapCategory('emprendedores')">🚀 Emprendedores</button>
-                <button class="fullmap-cat-btn" data-cat="profesionales" onclick="setFullMapCategory('profesionales')">🎓 Profesionales</button>
-                <button class="fullmap-cat-btn" data-cat="emergencias" onclick="setFullMapCategory('emergencias')">🚨 Emergencias</button>
+            <div class="fullmap-categories-wrapper">
+                <button type="button" class="fullmap-carousel-btn prev" id="fullmapCatPrev" aria-label="Desplazar categorías a la izquierda" title="Desplazar a la izquierda">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                </button>
+                <div class="fullmap-categories" id="fullMapCategoryPills" role="tablist">
+                    <button class="fullmap-cat-btn active" data-cat="all" onclick="setFullMapCategory('all', this)"><span>🌟</span> <span>Todos</span></button>
+                    <button class="fullmap-cat-btn" data-cat="comida" onclick="setFullMapCategory('comida', this)"><span>🍕</span> <span>Comida</span></button>
+                    <button class="fullmap-cat-btn" data-cat="comercio" onclick="setFullMapCategory('comercio', this)"><span>🏪</span> <span>Comercio</span></button>
+                    <button class="fullmap-cat-btn" data-cat="salud" onclick="setFullMapCategory('salud', this)"><span>🩺</span> <span>Salud</span></button>
+                    <button class="fullmap-cat-btn" data-cat="emergencias" onclick="setFullMapCategory('emergencias', this)"><span>🚨</span> <span>Emergencias</span></button>
+                    <button class="fullmap-cat-btn" data-cat="emprendedores" onclick="setFullMapCategory('emprendedores', this)"><span>🚀</span> <span>Emprendedores</span></button>
+                    <button class="fullmap-cat-btn" data-cat="profesionales" onclick="setFullMapCategory('profesionales', this)"><span>🎓</span> <span>Profesionales</span></button>
+                    <button class="fullmap-cat-btn" data-cat="servicios" onclick="setFullMapCategory('servicios', this)"><span>🛠️</span> <span>Oficios & Servicios</span></button>
+                    <button class="fullmap-cat-btn" data-cat="fotografia" onclick="setFullMapCategory('fotografia', this)"><span>📸</span> <span>Fotografía</span></button>
+                    <button class="fullmap-cat-btn" data-cat="tecnologia" onclick="setFullMapCategory('tecnologia', this)"><span>💻</span> <span>Tecnología</span></button>
+                    <button class="fullmap-cat-btn" data-cat="diseno" onclick="setFullMapCategory('diseno', this)"><span>🎨</span> <span>Diseño</span></button>
+                    <button class="fullmap-cat-btn" data-cat="mascotas" onclick="setFullMapCategory('mascotas', this)"><span>🐾</span> <span>Mascotas</span></button>
+                    <button class="fullmap-cat-btn" data-cat="belleza" onclick="setFullMapCategory('belleza', this)"><span>💈</span> <span>Belleza</span></button>
+                </div>
+                <button type="button" class="fullmap-carousel-btn next" id="fullmapCatNext" aria-label="Desplazar categorías a la derecha" title="Desplazar a la derecha">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+                </button>
             </div>
 
             <div class="fullmap-actions-group">
@@ -635,10 +914,23 @@
                     const bCat = (b.category || "").toLowerCase();
                     const bType = (b.type || "").toLowerCase();
                     const fCat = fullActiveCat.toLowerCase();
-                    if (fCat === "emprendedores") matchCat = bType.includes("emprend");
-                    else if (fCat === "profesionales") matchCat = bType.includes("profesion");
-                    else if (fCat === "emergencias") matchCat = bType.includes("emergen") || bCat.includes("emergen") || bCat.includes("salvamento");
-                    else matchCat = bCat.includes(fCat) || bType.includes(fCat);
+
+                    if (fCat === "emprendedores") matchCat = bType.includes("emprend") || bCat.includes("emprend");
+                    else if (fCat === "profesionales") matchCat = bType.includes("profesion") || bCat.includes("profesion");
+                    else if (fCat === "emergencias") matchCat = bType.includes("emergen") || bCat.includes("emergen") || bCat.includes("salvamento") || bCat.includes("socorro") || bCat.includes("bomber");
+                    else if (fCat === "servicios" || fCat === "oficios") matchCat = bType.includes("oficio") || bType.includes("servicio") || bCat.includes("oficio") || bCat.includes("servicio");
+                    else if (fCat === "comida") matchCat = bCat.includes("comida") || bCat.includes("restauran") || bCat.includes("pupus") || bCat.includes("taco") || bCat.includes("cafe") || bCat.includes("panad") || bCat.includes("bistro");
+                    else if (fCat === "comercio") matchCat = bCat.includes("comercio") || bCat.includes("tienda") || bCat.includes("lacteo") || bCat.includes("super");
+                    else if (fCat === "salud") matchCat = bCat.includes("salud") || bCat.includes("medic") || bCat.includes("odont") || bCat.includes("doctor") || bCat.includes("farmac");
+                    else if (fCat === "fotografia") matchCat = bCat.includes("foto") || bCat.includes("estudio");
+                    else if (fCat === "tecnologia") matchCat = bCat.includes("tecno") || bCat.includes("web") || bCat.includes("desarrollo");
+                    else if (fCat === "diseno") matchCat = bCat.includes("disen") || bCat.includes("imprent") || bCat.includes("publicid");
+                    else if (fCat === "mascotas") matchCat = bCat.includes("mascot") || bCat.includes("veterin");
+                    else if (fCat === "belleza") matchCat = bCat.includes("bellez") || bCat.includes("barber") || bCat.includes("salon");
+                    else {
+                        const normBCat = bCat.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                        matchCat = normBCat.includes(fCat) || bCat.includes(fCat) || bType.includes(fCat);
+                    }
                 }
 
                 let matchSearch = true;
@@ -747,12 +1039,166 @@
             }
         }
 
-        function setFullMapCategory(cat) {
-            fullActiveCat = cat;
-            document.querySelectorAll("#fullMapCategoryPills .fullmap-cat-btn").forEach(p => {
-                p.classList.toggle("active", p.getAttribute("data-cat") === cat);
+        const BASE_MAP_CATEGORIES = [
+            { id: "all", name: "Todos", icon: "🌟" },
+            { id: "comida", name: "Comida & Restaurantes", icon: "🍕" },
+            { id: "comercio", name: "Comercio", icon: "🏪" },
+            { id: "salud", name: "Salud & Medicina", icon: "🩺" },
+            { id: "emergencias", name: "Emergencias", icon: "🚨" },
+            { id: "emprendedores", name: "Emprendedores", icon: "🚀" },
+            { id: "profesionales", name: "Profesionales", icon: "🎓" },
+            { id: "servicios", name: "Oficios & Servicios", icon: "🛠️" },
+            { id: "fotografia", name: "Fotografía", icon: "📸" },
+            { id: "tecnologia", name: "Tecnología & Web", icon: "💻" },
+            { id: "diseno", name: "Diseño & Imprenta", icon: "🎨" },
+            { id: "mascotas", name: "Mascotas & Veterinaria", icon: "🐾" },
+            { id: "belleza", name: "Belleza & Barbería", icon: "💈" }
+        ];
+
+        function renderCategoryCarousel() {
+            const container = document.getElementById("fullMapCategoryPills");
+            if (!container) return;
+
+            const list = getFullMapList();
+            const catMap = new Map();
+
+            // 1. Categorías base universales
+            BASE_MAP_CATEGORIES.forEach(c => {
+                catMap.set(c.id, { id: c.id, name: c.name, icon: c.icon });
             });
+
+            // 2. Extraer categorías únicas descubiertas desde comercios
+            list.forEach(b => {
+                const rawCat = (b.category || "").trim();
+                if (rawCat) {
+                    const normId = rawCat.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+                    let alreadyCovered = false;
+                    for (const [k] of catMap) {
+                        if (k !== "all" && (normId.includes(k) || k.includes(normId))) {
+                            alreadyCovered = true;
+                            break;
+                        }
+                    }
+                    if (!alreadyCovered && normId.length >= 3) {
+                        const visuals = getFullCatVisuals(rawCat, b.type);
+                        catMap.set(normId, { id: normId, name: rawCat, icon: visuals.icon, isCustom: true, query: rawCat.toLowerCase() });
+                    }
+                }
+            });
+
+            // 3. Renderizar botones en la pista
+            container.innerHTML = Array.from(catMap.values()).map(cat => {
+                const isActive = fullActiveCat === cat.id;
+                return `
+                    <button type="button" 
+                            class="fullmap-cat-btn ${isActive ? 'active' : ''}" 
+                            data-cat="${cat.id}"
+                            onclick="setFullMapCategory('${cat.id}', this)"
+                            role="tab"
+                            aria-selected="${isActive}">
+                        <span>${cat.icon}</span> <span>${cat.name}</span>
+                    </button>
+                `;
+            }).join('');
+
+            updateCarouselArrows();
+        }
+
+        function setFullMapCategory(cat, targetBtn) {
+            fullActiveCat = cat;
+            const container = document.getElementById("fullMapCategoryPills");
+            if (container) {
+                container.querySelectorAll(".fullmap-cat-btn").forEach(p => {
+                    const isMatch = p.getAttribute("data-cat") === cat;
+                    p.classList.toggle("active", isMatch);
+                    p.setAttribute("aria-selected", isMatch ? "true" : "false");
+                    if (isMatch) {
+                        p.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+                    }
+                });
+            }
             renderFullMapData();
+        }
+
+        function initCategoryCarouselControls() {
+            const track = document.getElementById("fullMapCategoryPills");
+            const btnPrev = document.getElementById("fullmapCatPrev");
+            const btnNext = document.getElementById("fullmapCatNext");
+            if (!track) return;
+
+            // 1. Flechas laterales
+            if (btnPrev) {
+                btnPrev.addEventListener("click", () => {
+                    track.scrollBy({ left: -260, behavior: "smooth" });
+                    setTimeout(updateCarouselArrows, 320);
+                });
+            }
+
+            if (btnNext) {
+                btnNext.addEventListener("click", () => {
+                    track.scrollBy({ left: 260, behavior: "smooth" });
+                    setTimeout(updateCarouselArrows, 320);
+                });
+            }
+
+            // 2. Desplazamiento horizontal con el rodillo del ratón (Mouse Wheel)
+            track.addEventListener("wheel", (e) => {
+                if (Math.abs(e.deltaY) > 0) {
+                    e.preventDefault();
+                    track.scrollLeft += e.deltaY * 1.3;
+                    updateCarouselArrows();
+                }
+            }, { passive: false });
+
+            // 3. Deslizamiento por arrastre con el ratón (Drag to Scroll)
+            let isDown = false;
+            let startX = 0;
+            let scrollLeftStart = 0;
+
+            track.addEventListener("mousedown", (e) => {
+                isDown = true;
+                track.classList.add("is-dragging");
+                startX = e.pageX - track.offsetLeft;
+                scrollLeftStart = track.scrollLeft;
+            });
+
+            window.addEventListener("mouseup", () => {
+                if (isDown) {
+                    isDown = false;
+                    track.classList.remove("is-dragging");
+                }
+            });
+
+            track.addEventListener("mousemove", (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - track.offsetLeft;
+                const walk = (x - startX) * 1.6;
+                track.scrollLeft = scrollLeftStart - walk;
+                updateCarouselArrows();
+            });
+
+            // 4. Actualizar estado de las flechas
+            track.addEventListener("scroll", updateCarouselArrows, { passive: true });
+            window.addEventListener("resize", updateCarouselArrows);
+        }
+
+        function updateCarouselArrows() {
+            const track = document.getElementById("fullMapCategoryPills");
+            const btnPrev = document.getElementById("fullmapCatPrev");
+            const btnNext = document.getElementById("fullmapCatNext");
+            if (!track || !btnPrev || !btnNext) return;
+
+            const maxScroll = track.scrollWidth - track.clientWidth;
+            if (maxScroll <= 5) {
+                btnPrev.style.display = "none";
+                btnNext.style.display = "none";
+            } else {
+                btnPrev.style.display = "inline-flex";
+                btnNext.style.display = "inline-flex";
+                btnPrev.disabled = track.scrollLeft <= 5;
+                btnNext.disabled = track.scrollLeft >= maxScroll - 5;
+            }
         }
 
         function onFullMapSearch(text) {
@@ -816,7 +1262,10 @@
 
         document.addEventListener("DOMContentLoaded", () => {
             initFullMap();
+            renderCategoryCarousel();
+            initCategoryCarouselControls();
             document.addEventListener("sensun-businesses-updated", () => {
+                renderCategoryCarousel();
                 renderFullMapData();
             });
         });
