@@ -780,7 +780,7 @@
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
-  // Catálogo completo de 39 productos típicos y bebidas (imágenes en ../imagenes/tiendita_jiko/)
+  // Catálogo completo de 44 productos típicos y bebidas (imágenes en ../imagenes/tiendita_jiko/)
   const ITEMS = [
     { key:'pupusas',         nombre:'Pupusas',            precio:80,  emoji:'🫓', img:'../imagenes/tiendita_jiko/pupusas.png' },
     { key:'tamal',           nombre:'Tamal',              precio:70,  emoji:'🫔', img:'../imagenes/tiendita_jiko/tamal.png' },
@@ -799,6 +799,10 @@
     { key:'chocopastel',     nombre:'Choco Pastel',       precio:80,  emoji:'🍰', img:'../imagenes/tiendita_jiko/chocopastel.png' },
     { key:'helado',          nombre:'Helado',             precio:50,  emoji:'🍦', img:'../imagenes/tiendita_jiko/helado.png' },
     { key:'galleta',         nombre:'Galleta',            precio:40,  emoji:'🍪', img:'../imagenes/tiendita_jiko/galleta.png' },
+    { key:'arepita',         nombre:'Arepita',            precio:65,  emoji:'🫓', img:'../imagenes/tiendita_jiko/arepita.png', aliases:['arepa','arepas','arepitas','arepitarellena','areparellena'] },
+    { key:'empanadamechada', nombre:'Empanada Mechada',   precio:80,  emoji:'🥟', img:'../imagenes/tiendita_jiko/empanadamechada.png', aliases:['empanada','empanadas','mechada','empanaditamechada','empanada mechada','empanadacarne'] },
+    { key:'pabellon',        nombre:'Pabellón Criollo',   precio:125, emoji:'🍛', img:'../imagenes/tiendita_jiko/pabellon.png', aliases:['pabelloncriollo','pabellon criollo','pabellón','pabellón criollo','platopabellon'] },
+    { key:'tequeyoyo',       nombre:'Tequeyoyo',          precio:75,  emoji:'🧀', img:'../imagenes/tiendita_jiko/tequeyoyo.png', aliases:['tequeyoyos','tequeyoyo zuliano','tequeno','tequeño','tequenos','tequeños'] },
     { key:'cafe',            nombre:'Café Caliente',      precio:45,  emoji:'☕', img:'../imagenes/tiendita_jiko/cafe.png' },
     { key:'chocolatito',     nombre:'Chocolatito',        precio:50,  emoji:'🍫', img:'../imagenes/tiendita_jiko/chocolatito.png' },
     { key:'matcha',          nombre:'Matcha',             precio:50,  emoji:'🍵', img:'../imagenes/tiendita_jiko/matcha.png', aliases:['tematcha','te matcha','té matcha','matchalatte'] },
@@ -810,6 +814,7 @@
     { key:'cerveza',         nombre:'Cerveza Helada',     precio:75,  emoji:'🍺', img:'../imagenes/tiendita_jiko/cerveza.png' },
     { key:'guarito',         nombre:'Guarito',            precio:85,  emoji:'🍶', img:'../imagenes/tiendita_jiko/guarito.png' },
     { key:'vinito',          nombre:'Vinito Especial',    precio:90,  emoji:'🍷', img:'../imagenes/tiendita_jiko/vinito.png' },
+    { key:'vasoagua',        nombre:'Vaso de Agua',       precio:25,  emoji:'🥛', img:'../imagenes/tiendita_jiko/vasoagua.png', aliases:['vasodeagua','vaso de agua','vasito de agua','vasitodeagua','aguavaso','aguafresca','agua fresca'] },
     { key:'aguabotella',     nombre:'Agua en Botella',    precio:35,  emoji:'💧', img:'../imagenes/tiendita_jiko/aguabotella.png', aliases:['agua','botella','botelladeagua','botella de agua','aguita'] },
     { key:'aguacoco',        nombre:'Agua de Coco',       precio:50,  emoji:'🥥', img:'../imagenes/tiendita_jiko/aguacoco.png', aliases:['coco','aguadecoco'] },
     { key:'aguagalon',       nombre:'Galón de Agua',      precio:55,  emoji:'🪣', img:'../imagenes/tiendita_jiko/aguagalon.png', aliases:['galon','galondeagua','garrafon'] },
@@ -1193,8 +1198,8 @@
   function rotarItems(cantidad = 5, user = null){
     const estaVisible = $menu.classList.contains('visible');
     if(!estaVisible){
-      mostrarMenu(user || usuarioActual || 'LunaGamer', getUserPoints(user || usuarioActual || 'LunaGamer'));
-      toast(`🛒 <b>@${user || usuarioActual || 'LunaGamer'}</b> abrió la tiendita!`);
+      toast(`ℹ️ <b>@${user || usuarioActual}</b>: Usa <b>!tienda</b> o <b>!tiendita</b> para abrir el mostrador primero.`,'warn');
+      playSfx('error');
       return;
     }
 
@@ -1277,7 +1282,7 @@
     }
 
     if(!$menu.classList.contains('visible')){
-      mostrarMenu(usuarioActual, saldoActual);
+      return false;
     } else {
       iniciarCd(AUTO_CIERRE_MS); // refresca el temporizador para decidir
     }
@@ -1584,7 +1589,9 @@
     const actualNorm = norm(usuarioActual);
     const tiendaAbierta = $menu.classList.contains('visible');
 
-    const esComandoAbrir = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop';
+    const esComandoAbrir = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
+                           t.startsWith('!tienda ')||t.startsWith('!tiendita ')||
+                           t.startsWith('!menu ')||t.startsWith('!shop ');
     const esComandoCancelar = t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel';
     const esComandoPagar = t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo';
     const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar';
@@ -1630,6 +1637,16 @@
       } else {
         iniciarCd(AUTO_CIERRE_MS);
         toast(`⏳ <b>@${user}</b> renovó su tiempo en la tiendita.`);
+      }
+      return;
+    }
+
+    // ── REGLA 3: Si la tienda está CERRADA, NO se puede operar ni comprar sin antes usar !tienda o !tiendita
+    if(!tiendaAbierta){
+      if(t.startsWith('!')){
+        console.log(`[Tiendita] ℹ️ Intento de usar comando con tienda cerrada por [@${user}]: "${raw}"`);
+        toast(`ℹ️ <b>@${user}</b>: Usa <b>!tienda</b> o <b>!tiendita</b> para abrir el mostrador primero.`,'warn');
+        playSfx('error');
       }
       return;
     }
@@ -1802,6 +1819,13 @@
 
         // Comprobar si el contenido es un comando o ítem de la tiendita
         const t = norm(contenido);
+
+        // Si la tienda está cerrada y el mensaje no empieza con '!', es conversación ordinaria del chat
+        const tiendaAbiertaActualmente = $menu && $menu.classList.contains('visible');
+        if(!tiendaAbiertaActualmente && !t.startsWith('!')){
+          return;
+        }
+
         const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
@@ -1922,12 +1946,18 @@
   if(btnRotar){
     btnRotar.onclick = () => {
       const u = usuarioActual || 'LunaGamer';
-      ejecutarTexto('!rotar', u);
+      if(!$menu.classList.contains('visible')){
+        mostrarMenu(u, getUserPoints(u));
+      }
+      rotarItems(5, u);
     };
   }
   document.getElementById('demo-select').onclick=()=>{
+    if(!$menu.classList.contains('visible')){
+      mostrarMenu(usuarioActual || 'LunaGamer', getUserPoints(usuarioActual || 'LunaGamer'));
+    }
     const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
-    agregarItemAOrden(itemAzar.key, usuarioActual);
+    agregarItemAOrden(itemAzar.key, usuarioActual || 'LunaGamer');
   };
   const btnOrdenFoto = document.getElementById('demo-orden-foto');
   if(btnOrdenFoto){
@@ -2006,10 +2036,16 @@
       case 'ROTATE_ITEMS':
       case 'ROTAR':
       case 'NEXT_ITEMS':
+        if(!$menu.classList.contains('visible')){
+          mostrarMenu(user || usuarioActual || 'LunaGamer', getUserPoints(user || usuarioActual || 'LunaGamer'));
+        }
         rotarItems(e.data.amount || e.data.count || 5, user || usuarioActual);
         break;
       case 'SELECT_ITEM':
       case 'ADD_ITEM':
+        if(!$menu.classList.contains('visible')){
+          mostrarMenu(user || usuarioActual || 'LunaGamer', getUserPoints(user || usuarioActual || 'LunaGamer'));
+        }
         if(itemKey){
           agregarItemAOrden(itemKey, user || usuarioActual);
         } else {
