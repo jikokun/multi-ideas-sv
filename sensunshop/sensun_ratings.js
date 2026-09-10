@@ -2442,6 +2442,8 @@ function parseFeedItems(data, defaultBadge = "noticias") {
             isActive: item.isActive !== false
         };
     }).filter(n => n.isActive).sort((a, b) => (Number(b.timestamp) || 0) - (Number(a.timestamp) || 0));
+}
+
 // Determinar si la página actual es un perfil individual independiente (ej. landing personalizada del Dr. Henry Martinez)
 function isSensunStandaloneProfile() {
     const path = (window.location.pathname || "").replace(/\\/g, "/").toLowerCase();
@@ -2578,7 +2580,11 @@ function renderUnifiedNovedadesSlider() {
         badgeTextColor: "#ff8c42"
     }));
 
-    const directOffers = (cachedOffersList || []).map(o => ({
+    const directOffers = (cachedOffersList || []).filter(o => {
+        const isNewsItem = (o.id && o.id.startsWith("news-")) || o.badge === "anuncios" || o.badge === "noticias";
+        const hasOffer = Boolean(o.hasOffer === true || o.hasOffer === "true" || o.hasOffer === 1);
+        return hasOffer && !isNewsItem && o.offerMsg && o.isActive !== false;
+    }).map(o => ({
         id: o.id,
         title: o.title,
         description: o.description,
@@ -4060,7 +4066,8 @@ function initSensunBellAndPopupSystem() {
 
         const bellFab = document.getElementById("sensunBellFab");
         if (bellFab) {
-            bellFab.addEventListener("click", () => {
+            bellFab.addEventListener("click", (e) => {
+                e.stopPropagation();
                 toggleSensunBellHub();
             });
         }
@@ -4128,6 +4135,12 @@ function initSensunBellAndPopupSystem() {
                 closeSensunPopupWithShrinkAnimation();
             }
         });
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && popupBackdrop.classList.contains("active")) {
+                closeSensunPopupWithShrinkAnimation();
+            }
+        });
     }
 
     // 3. Inyectar Drawer / Hub de la Campana
@@ -4140,9 +4153,12 @@ function initSensunBellAndPopupSystem() {
             <div class="sensun-hub-header">
                 <div class="sensun-hub-title">
                     <span>🔔</span>
-                    <span>Boletines & Ofertas Activas</span>
+                    <span>Boletines & Ofertas</span>
                 </div>
-                <button type="button" class="sensun-hub-close" id="sensunHubCloseBtn">✕</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" class="sensun-hub-mark-read" id="sensunHubMarkReadBtn" title="Marcar todas como leídas">✓ Marcar leídas</button>
+                    <button type="button" class="sensun-hub-close" id="sensunHubCloseBtn" aria-label="Cerrar">✕</button>
+                </div>
             </div>
             <div class="sensun-hub-list" id="sensunHubList">
                 <!-- Se llena con las publicaciones en tiempo real -->
@@ -4150,18 +4166,114 @@ function initSensunBellAndPopupSystem() {
         `;
         document.body.appendChild(bellHub);
 
-        document.getElementById("sensunHubCloseBtn").addEventListener("click", () => {
+        bellHub.addEventListener("click", (e) => {
+            e.stopPropagation();
+        });
+
+        document.getElementById("sensunHubCloseBtn").addEventListener("click", (e) => {
+            e.stopPropagation();
             bellHub.classList.remove("open");
         });
 
-        document.addEventListener("click", (e) => {
-            if (!bellHub.contains(e.target) && !bellFab.contains(e.target) && bellHub.classList.contains("open")) {
-                bellHub.classList.remove("open");
+        // Botón Marcar todas como leídas
+        const markReadBtn = document.getElementById("sensunHubMarkReadBtn");
+        if (markReadBtn) {
+            markReadBtn.addEventListener("click", (e) => {
+                e.stopPropagation();
+                const today = getSensunTodayKey();
+                localStorage.setItem("sensun_feed_marked_read_date", today);
+                localStorage.setItem("sensun_feed_last_seen_date", today);
+                markReadBtn.textContent = "✓ Leídas";
+                markReadBtn.classList.add("is-read");
+                const badgeEl = document.getElementById("sensunBellBadge");
+                const bellFab = document.getElementById("sensunBellFab");
+                if (badgeEl) badgeEl.style.display = "none";
+                if (bellFab) bellFab.classList.remove("has-unread");
+            });
+        }
+
+        document.addEventListener("click", () => {
+            const hub = document.getElementById("sensunBellHub");
+            if (hub && hub.classList.contains("open")) {
+                hub.classList.remove("open");
             }
         });
     }
 
     updateBellAndPopupFeed();
+}
+
+// Clave de fecha actual YYYY-MM-DD
+function getSensunTodayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Determinar si el contador de novedades debe mostrarse hoy (solo una vez al día o hasta que se marque como leído)
+function shouldShowBellBadgeToday(count) {
+    if (!count || count <= 0) return false;
+    const today = getSensunTodayKey();
+    if (localStorage.getItem("sensun_feed_marked_read_date") === today) return false;
+    if (localStorage.getItem("sensun_feed_last_seen_date") === today) return false;
+    return true;
+}
+
+// Resuelve la categoría, colores por defecto e iconos para elementos sin foto
+function resolveHubItemCategory(item) {
+    const rawBadge = (item.badge || item.badgeLabel || "").toString().toUpperCase();
+    if (item.hasOffer || rawBadge.includes("OFERTA") || rawBadge.includes("PROMO")) {
+        return {
+            key: "oferta",
+            badge: item.badge || "OFERTA",
+            icon: item.icon || "🏷️",
+            color: "#ff8c42",
+            badgeColor: "#ea580c",
+            fallbackBg: "linear-gradient(135deg, rgba(234, 88, 12, 0.3) 0%, rgba(255, 107, 53, 0.45) 100%)",
+            fallbackBorder: "rgba(255, 107, 53, 0.65)"
+        };
+    }
+    if (rawBadge.includes("BOLET") || rawBadge.includes("COMUNICADO")) {
+        return {
+            key: "boletin",
+            badge: item.badge || "BOLETÍN",
+            icon: item.icon || "📢",
+            color: "#a78bfa",
+            badgeColor: "#7c3aed",
+            fallbackBg: "linear-gradient(135deg, rgba(123, 104, 238, 0.3) 0%, rgba(142, 68, 173, 0.45) 100%)",
+            fallbackBorder: "rgba(142, 68, 173, 0.65)"
+        };
+    }
+    if (rawBadge.includes("INFORMATIV")) {
+        return {
+            key: "informativo",
+            badge: item.badge || "INFORMATIVO",
+            icon: item.icon || "💡",
+            color: "#34d399",
+            badgeColor: "#059669",
+            fallbackBg: "linear-gradient(135deg, rgba(16, 185, 129, 0.3) 0%, rgba(5, 150, 105, 0.45) 100%)",
+            fallbackBorder: "rgba(16, 185, 129, 0.65)"
+        };
+    }
+    if (rawBadge.includes("ANUNCIO")) {
+        return {
+            key: "anuncio",
+            badge: item.badge || "ANUNCIO",
+            icon: item.icon || "📣",
+            color: "#f87171",
+            badgeColor: "#dc2626",
+            fallbackBg: "linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(220, 38, 38, 0.45) 100%)",
+            fallbackBorder: "rgba(239, 68, 68, 0.65)"
+        };
+    }
+    return {
+        key: "noticia",
+        badge: item.badge || "NOTICIA",
+        icon: item.icon || "📰",
+        color: "#ff8c42",
+        badgeColor: "#ea580c",
+        fallbackBg: "linear-gradient(135deg, rgba(255, 107, 53, 0.28) 0%, rgba(234, 88, 12, 0.42) 100%)",
+        fallbackBorder: "rgba(255, 107, 53, 0.6)"
+    };
 }
 
 // Actualizar contenido de la campana y disparar popup de entrada
@@ -4175,7 +4287,8 @@ function updateBellAndPopupFeed() {
             id: b.id,
             title: b.title,
             description: b.description,
-            imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            imgSrc: b.imgSrc || b.imageUrl || "",
+            icon: cat.icon || "📢",
             badge: cat.badge,
             badgeBg: cat.bg,
             badgeColor: cat.textColor,
@@ -4189,20 +4302,24 @@ function updateBellAndPopupFeed() {
 
     // 2. Ofertas de comercios o sensunshop/offers
     (cachedOffersList || []).forEach(o => {
-        const cat = resolveNewsBadge("anuncios");
+        const isNewsItem = (o.id && o.id.startsWith("news-")) || o.badge === "anuncios" || o.badge === "noticias";
+        const hasOffer = Boolean(o.hasOffer === true || o.hasOffer === "true" || o.hasOffer === 1);
+        if (!hasOffer || isNewsItem || !o.offerMsg || o.isActive === false) return;
+
         items.push({
             id: o.id,
             title: o.title,
             description: o.description,
-            imgSrc: o.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            imgSrc: o.imgSrc || o.imageUrl || "",
+            icon: "🏷️",
             badge: "OFERTA",
-            badgeBg: "rgba(234, 88, 12, 0.2)",
+            badgeBg: "rgba(234, 88, 12, 0.18)",
             badgeColor: "#ff8c42",
             badgeBorder: "rgba(234, 88, 12, 0.5)",
             whatsapp: o.whatsapp,
             locationUrl: o.locationUrl,
             hasOffer: true,
-            offerMsg: o.offerMsg || o.description
+            offerMsg: o.offerMsg
         });
     });
 
@@ -4211,9 +4328,10 @@ function updateBellAndPopupFeed() {
             id: b.id,
             title: b.title,
             description: b.description,
-            imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            imgSrc: b.imgSrc || b.imageUrl || "",
+            icon: "🏷️",
             badge: "PROMO EXCLUSIVA",
-            badgeBg: "rgba(234, 88, 12, 0.2)",
+            badgeBg: "rgba(234, 88, 12, 0.18)",
             badgeColor: "#ff8c42",
             badgeBorder: "rgba(234, 88, 12, 0.5)",
             whatsapp: b.whatsapp,
@@ -4238,7 +4356,8 @@ function updateBellAndPopupFeed() {
             id: n.id,
             title: n.title,
             description: n.description,
-            imgSrc: n.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
+            imgSrc: n.imgSrc || n.imageUrl || "",
+            icon: cat.icon || "📰",
             badge: cat.badge,
             badgeBg: cat.bg,
             badgeColor: cat.textColor,
@@ -4259,12 +4378,24 @@ function updateBellAndPopupFeed() {
 
     currentActiveFeedItems = uniqueItems;
 
-    // Actualizar badge de la campana
+    // Actualizar badge de la campana respetando la regla diaria y marcado de lectura
     const badgeEl = document.getElementById("sensunBellBadge");
     const bellFab = document.getElementById("sensunBellFab");
+    const markReadBtn = document.getElementById("sensunHubMarkReadBtn");
+
+    if (markReadBtn) {
+        const today = getSensunTodayKey();
+        if (localStorage.getItem("sensun_feed_marked_read_date") === today) {
+            markReadBtn.textContent = "✓ Leídas";
+            markReadBtn.classList.add("is-read");
+        } else {
+            markReadBtn.textContent = "✓ Marcar leídas";
+            markReadBtn.classList.remove("is-read");
+        }
+    }
 
     if (badgeEl && bellFab) {
-        if (uniqueItems.length > 0) {
+        if (uniqueItems.length > 0 && shouldShowBellBadgeToday(uniqueItems.length)) {
             badgeEl.textContent = uniqueItems.length;
             badgeEl.style.display = "flex";
             bellFab.classList.add("has-unread");
@@ -4274,22 +4405,39 @@ function updateBellAndPopupFeed() {
         }
     }
 
-    // Actualizar Hub List
+    // Actualizar Hub List con iconos por defecto con el color correspondiente para publicaciones sin foto
     const hubList = document.getElementById("sensunHubList");
     if (hubList) {
         if (uniqueItems.length === 0) {
             hubList.innerHTML = `<div style="text-align:center; padding: 20px; color:#94a3b8; font-size:13px;">No hay publicaciones nuevas por ahora</div>`;
         } else {
-            hubList.innerHTML = uniqueItems.map((item, i) => `
-                <div class="sensun-hub-item" onclick="window.showSensunPopupForItemIndex(${i})">
-                    <img src="${item.imgSrc}" alt="${item.title}" class="sensun-hub-item-img" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'">
-                    <div class="sensun-hub-item-content">
-                        <span class="sensun-hub-item-badge" style="color: ${item.badgeColor};">${item.badge}</span>
-                        <div class="sensun-hub-item-title">${item.title}</div>
-                        <div class="sensun-hub-item-desc">${item.hasOffer ? '🏷️ ' + item.offerMsg : item.description}</div>
+            hubList.innerHTML = uniqueItems.map((item, i) => {
+                const catMeta = resolveHubItemCategory(item);
+                const hasRealPhoto = item.imgSrc && typeof item.imgSrc === "string" && item.imgSrc.trim().length > 0 && !item.imgSrc.includes("icono-sensun-shop.webp");
+                const defaultIcon = item.icon || catMeta.icon;
+
+                const thumbHtml = hasRealPhoto ? `
+                    <div class="sensun-hub-thumb-box thumb-${catMeta.key}" style="background: ${catMeta.fallbackBg}; border: 1.5px solid ${catMeta.fallbackBorder};">
+                        <img src="${item.imgSrc}" alt="${item.title}" class="sensun-hub-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <div class="sensun-hub-fallback-icon" style="display: none;">${defaultIcon}</div>
                     </div>
-                </div>
-            `).join('');
+                ` : `
+                    <div class="sensun-hub-thumb-box thumb-${catMeta.key}" style="background: ${catMeta.fallbackBg}; border: 1.5px solid ${catMeta.fallbackBorder};">
+                        <div class="sensun-hub-fallback-icon" style="display: flex;">${defaultIcon}</div>
+                    </div>
+                `;
+
+                return `
+                    <div class="sensun-hub-item" onclick="window.showSensunPopupForItemIndex(${i})">
+                        ${thumbHtml}
+                        <div class="sensun-hub-item-content">
+                            <span class="sensun-hub-item-badge" style="color: ${item.badgeColor || catMeta.color};">${item.badge || catMeta.badge}</span>
+                            <div class="sensun-hub-item-title">${item.title}</div>
+                            <div class="sensun-hub-item-desc">${item.hasOffer ? '🏷️ ' + item.offerMsg : item.description}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
     }
 
@@ -4322,7 +4470,9 @@ function showSensunPopup(item) {
 
     modal.classList.remove("shrinking-to-bell");
 
-    img.src = item.imgSrc || "imagenes/logos/icono-sensun-shop.webp";
+    const defaultLogo = window.location.pathname.includes("/sensunshop/") ? "../imagenes/logos/icono-sensun-shop.webp" : "imagenes/logos/icono-sensun-shop.webp";
+    img.src = item.imgSrc || defaultLogo;
+    img.onerror = () => { img.src = defaultLogo; };
     badge.textContent = item.badge;
     badge.style.background = item.badgeBg || "rgba(232, 98, 26, 0.15)";
     badge.style.color = item.badgeColor || "var(--ss-orange)";
@@ -4415,12 +4565,21 @@ function toggleSensunBellHub() {
     const hub = document.getElementById("sensunBellHub");
     if (!hub) return;
 
+    // Al abrir el hub, registrar que ya se vieron las alertas hoy para no volver a mostrar el número hoy
+    const today = getSensunTodayKey();
+    localStorage.setItem("sensun_feed_last_seen_date", today);
+    const badgeEl = document.getElementById("sensunBellBadge");
+    const bellFab = document.getElementById("sensunBellFab");
+    if (badgeEl) badgeEl.style.display = "none";
+    if (bellFab) bellFab.classList.remove("has-unread");
+
     if (currentActiveFeedItems.length === 1) {
         showSensunPopup(currentActiveFeedItems[0]);
     } else {
         hub.classList.toggle("open");
     }
 }
+window.toggleSensunBellHub = toggleSensunBellHub;
 
 window.showSensunPopupForItemIndex = function(index) {
     const item = currentActiveFeedItems[index];

@@ -433,6 +433,7 @@ function highlightCurrentPage() {
         if (path === "oficios.html") document.getElementById("nav-oficios")?.classList.add("active");
         if (path === "profesionales.html") document.getElementById("nav-profesionales")?.classList.add("active");
         if (path === "emergencias.html") document.getElementById("nav-emergencias")?.classList.add("active");
+        if (path === "ofertas.html") document.getElementById("nav-ofertas")?.classList.add("active");
         return;
     }
 

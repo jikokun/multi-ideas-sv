@@ -913,10 +913,10 @@
             // Estilo 4 · Banner
             return `
             <div class="so-m4" id="so-popup-m4">
+                ${closeBtnLight}
                 <div class="so-m4-banner">
                     <div class="so-m4-pct">${discount}<div class="so-m4-blbl">DESCUENTO</div></div>
-                    <span class="so-m4-hoy">${badge}</span>
-                    ${closeBtnLight}
+                    <span class="so-m4-hoy" style="right: 50px;">${badge}</span>
                 </div>
                 <div class="so-m4-biz">
                     <img class="so-m4-thumb" src="${thumb}" alt="${title}" onerror="this.src='https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp'">
@@ -1055,6 +1055,15 @@
             overlay.classList.add('open');
             document.body.style.overflow = 'hidden';
         });
+
+        // Escuchar tecla Escape
+        const onEscClose = (e) => {
+            if (e.key === 'Escape') {
+                closeSensunOfferModal();
+                document.removeEventListener('keydown', onEscClose);
+            }
+        };
+        document.addEventListener('keydown', onEscClose);
     }
 
     function closeSensunOfferModal() {
