@@ -1887,7 +1887,7 @@
     const userNorm = norm(user);
     const actualNorm = norm(usuarioActual);
     const tiendaAbierta = $menu.classList.contains('visible');
-    const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer';
+    const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userNorm.startsWith('jikokun');
 
     const parseado = parsearItemYCantidad(raw);
     const esSeleccionItem = parseado !== null;
@@ -2029,34 +2029,44 @@
   }
 
   /* ═══════════ WEBSOCKET STREAMER.BOT ═══════════ */
+  const portsToTry = [WS_PORT, '4445', '8080', '1234'].filter((v, i, a) => a.indexOf(v) === i);
+  let currentPortIndex = 0;
+
   function setStatus(estado,txt){
-    document.getElementById('ws-chip').className='chip '+estado;
-    document.getElementById('ws-txt').textContent=txt;
+    const chip = document.getElementById('ws-chip');
+    const txtEl = document.getElementById('ws-txt');
+    if(chip) chip.className='chip '+estado;
+    if(txtEl) txtEl.textContent=txt;
   }
+
   function conectarWS(){
+    const currentPort = portsToTry[currentPortIndex] || '4445';
+    const currentUrl = `ws://127.0.0.1:${currentPort}/`;
     try {
-      socket=new WebSocket(WS_URL);
+      socket = new WebSocket(currentUrl);
     } catch(err){
-      setStatus('warn','Reconectando…');
-      setTimeout(conectarWS,3000);
+      setStatus('warn', 'Reconectando…');
+      currentPortIndex = (currentPortIndex + 1) % portsToTry.length;
+      setTimeout(conectarWS, 2500);
       return;
     }
 
-    socket.onopen=()=>{ 
-      setStatus('ok','Conectado');
-      console.log('[Tiendita] 🟢 WebSocket conectado con éxito a Streamer.bot');
+    socket.onopen = () => { 
+      setStatus('ok', `Conectado (${currentPort})`);
+      console.log(`[Tiendita] 🟢 WebSocket conectado con éxito a Streamer.bot en ${currentUrl}`);
       socket.send(JSON.stringify({
-        request:'Subscribe',
-        id:'sub-tiendita',
-        events:{
-          General:['Custom'],
-          Kick:['ChatMessage', 'Message'],
-          Twitch:['ChatMessage']
+        request: 'Subscribe',
+        id: 'sub-tiendita',
+        events: {
+          General: ['Custom'],
+          StreamerBot: ['Custom'],
+          Kick: ['ChatMessage', 'Message', 'UserBanned', 'MessageDeleted', '*'],
+          Twitch: ['ChatMessage', 'Message', '*']
         }
       })); 
     };
 
-    socket.onmessage=(ev)=>{
+    socket.onmessage = (ev) => {
       let msg; try { msg = JSON.parse(ev.data); } catch(e){ return; }
 
       const eventObj = msg.event || {};
@@ -2078,20 +2088,20 @@
         return;
       }
 
-      // 2. Mensajes de chat en vivo de Kick / Twitch
-      const isChat = eventType.includes('chatmessage') || eventType === 'message' || data.message || data.messageText || data.text || data.content;
+      // 2. Mensajes de chat en vivo de Kick / Twitch / Streamer.bot
+      const isChat = eventType.includes('chatmessage') || eventType.includes('message') || eventType === 'message' || Boolean(data.message || data.messageText || data.text || data.content);
       if(isChat){
         const messageObj = data.message || data;
-        let userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+        let userObj = data.user || data.sender || (typeof messageObj === 'object' && messageObj ? (messageObj.user || messageObj.sender) : null) || {};
         let user = 'anon';
         if(typeof userObj === 'string') user = userObj;
         else if(typeof userObj === 'object' && userObj !== null){
-          user = userObj.username || userObj.slug || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || data.user_slug || 'anon';
+          user = userObj.name || userObj.username || userObj.slug || userObj.displayName || userObj.user_name || userObj.login || data.userName || data.username || 'anon';
         }
 
         user = String(user || 'anon').replace(/^@/, '').trim();
         const userNorm = norm(user);
-        const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userObj.is_broadcaster === true || userObj.isBroadcaster === true;
+        const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userNorm.startsWith('jikokun') || userObj.is_broadcaster === true || userObj.isBroadcaster === true;
 
         // FILTRO ESTRICTO DE BOTS: Ignorar bots conocidos sin bloquear al streamer ni viewers normales
         const BOTS_IGNORADOS = [
@@ -2109,7 +2119,7 @@
         const isBot = !esAdmin && (
           BOTS_IGNORADOS.includes(userNorm) || 
           BOTS_IGNORADOS.some(b => userNorm === b || userNorm.startsWith(b + '_') || userNorm.endsWith('_' + b)) ||
-          userObj.is_bot === true || userObj.isBot === true || data.is_bot === true || data.isBot === true
+          userObj.is_bot === true || userObj.isBot === true
         );
 
         if(isBot){
@@ -2121,21 +2131,17 @@
         if(avatarDirecto) avatarCache[norm(user)] = avatarDirecto;
 
         let contenido = '';
-        if(typeof data.rawInput === 'string' && data.rawInput) contenido = data.rawInput;
-        else if(typeof data.input === 'string' && data.input) contenido = data.input;
-        else if(typeof data.messageText === 'string') contenido = data.messageText;
-        else if(typeof data.message === 'string') contenido = data.message;
-        else if(typeof data.text === 'string') contenido = data.text;
-        else if(typeof data.content === 'string') contenido = data.content;
-        else if(typeof data.body === 'string') contenido = data.body;
+        if(typeof messageObj === 'string') contenido = messageObj;
         else if(typeof messageObj === 'object' && messageObj !== null){
-          contenido = (typeof messageObj.message === 'string' ? messageObj.message : '') ||
-                      (typeof messageObj.text === 'string' ? messageObj.text : '') ||
-                      (typeof messageObj.content === 'string' ? messageObj.content : '') ||
-                      (typeof messageObj.rawText === 'string' ? messageObj.rawText : '') ||
-                      (typeof messageObj.body === 'string' ? messageObj.body : '') || '';
+          contenido = messageObj.message || messageObj.text || messageObj.content || '';
         }
-        if(!contenido && typeof rawData === 'string') contenido = rawData;
+        if(!contenido){
+          if(typeof data.message === 'string') contenido = data.message;
+          else if(typeof data.messageText === 'string') contenido = data.messageText;
+          else if(typeof data.text === 'string') contenido = data.text;
+          else if(typeof data.content === 'string') contenido = data.content;
+          else if(typeof rawData === 'string') contenido = rawData;
+        }
         contenido = String(contenido || '').trim();
 
         if(!contenido) return;
@@ -2174,7 +2180,8 @@
                                 t.startsWith('!comprar ')||t.startsWith('comprar ')||
                                 t.startsWith('!darjikopuntos')||
                                 t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
-                                itemDetectado !== null;
+                                itemDetectado !== null ||
+                                ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
         // Si es un mensaje ordinario del chat (conversación normal de viewers), se ignora
         if(!esComandoTienda) return;
@@ -2183,8 +2190,14 @@
         ejecutarTexto(contenido, user);
       }
     };
-    socket.onclose=()=>{ setStatus('warn','Reconectando…'); setTimeout(conectarWS,3000); };
-    socket.onerror=()=>setStatus('warn','Reconectando…');
+    socket.onclose = () => { 
+      setStatus('warn', 'Reconectando…'); 
+      currentPortIndex = (currentPortIndex + 1) % portsToTry.length;
+      setTimeout(conectarWS, 2500); 
+    };
+    socket.onerror = () => { 
+      setStatus('warn', 'Reconectando…'); 
+    };
   }
 
   /* ═══════════ MOSTRAR / OCULTAR & TEMPORIZADOR ═══════════ */
