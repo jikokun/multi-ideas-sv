@@ -75,9 +75,35 @@ root/
 │   │       ├── timestamp: Long
 │   │       └── isActive: Boolean
 │   │
-│   └── ratings/                     <-- Votos globales de cada negocio
-│       └── <businessId>/
-│           └── <uid_usuario>: Int   (Valor del 1 al 5)
+│   ├── ratings/                     <-- Votos globales de cada negocio
+│   │   └── <businessId>/
+│   │       └── <uid_usuario>: Int   (Valor del 1 al 5)
+│   │
+│   ├── users/                       <-- Directorio de usuarios registrados (Gmail/App/Web)
+│   │   └── <uid>/
+│   │       ├── uid: String
+│   │       ├── displayName: String
+│   │       ├── email: String
+│   │       ├── photoURL: String
+│   │       ├── provider: String     ("google.com" | "password")
+│   │       ├── isGoogle: Boolean
+│   │       ├── createdAt: Long      (Milisegundos Unix)
+│   │       ├── lastLoginAt: Long
+│   │       ├── lastActiveAt: Long
+│   │       └── platform: String     ("android" | "web")
+│   │
+│   └── presence/                    <-- Monitor de usuarios activos en vivo
+│       └── <sessionId>/
+│           ├── sessionId: String
+│           ├── uid: String?
+│           ├── displayName: String
+│           ├── email: String?
+│           ├── photoURL: String?
+│           ├── isGoogle: Boolean
+│           ├── platform: String     ("android" | "web")
+│           ├── page: String         (Nombre de pantalla o vista)
+│           ├── connectedAt: Long
+│           └── lastActiveAt: Long
 │
 ├── comments/                        <-- Comentarios comunitarios anónimos
 │   └── <businessId>/
@@ -89,6 +115,7 @@ root/
 │
 └── users/                           <-- Datos privados y actividad del usuario
     └── <uid>/
+        ├── profile/                 <-- Espejo del perfil de usuario
         ├── sensunshop_favorites/    <-- Lista de favoritos del usuario
         │   └── <businessId>: true   (Se crea con true, se borra al desmarcar)
         │
@@ -809,7 +836,89 @@ La Web y la App Android soportan **4 estilos visuales interactivos de ventanas e
    - Tarjeta de comercio flotante que se solapa al banner con foto, título, distancia (`offerDistance`) y rating en estrellas.
    - Detalle de la oferta, código en caja morada discontinua, botón de WhatsApp e **ícono de corazón para guardar en favoritos**.
 
+---
 
+## 10. Módulo de Usuarios Gmail y Monitor de Presencia Activa (App Android)
 
+Para que el panel administrativo web (`sensunshop/admin.html`) reporte en vivo los registros de Google/Gmail y la cantidad de usuarios activos en la app:
 
+### 10.1 Modelo de Datos en Kotlin
+```kotlin
+package com.sensunshop.models
 
+import com.google.firebase.database.IgnoreExtraProperties
+
+@IgnoreExtraProperties
+data class UserProfile(
+    val uid: String = "",
+    val displayName: String = "",
+    val email: String = "",
+    val photoURL: String = "",
+    val provider: String = "google.com",
+    val isGoogle: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis(),
+    val lastLoginAt: Long = System.currentTimeMillis(),
+    val lastActiveAt: Long = System.currentTimeMillis(),
+    val platform: String = "android"
+)
+```
+
+### 10.2 Registro al Autenticar con Google
+```kotlin
+fun registerUserToAdminDashboard(user: com.google.firebase.auth.FirebaseUser) {
+    val db = com.google.firebase.database.FirebaseDatabase.getInstance().reference
+    val isGoogle = user.providerData.any { it.providerId == "google.com" } ||
+                   (user.email?.lowercase()?.endsWith("@gmail.com") == true)
+
+    val profile = mapOf<String, Any>(
+        "uid" to user.uid,
+        "displayName" to (user.displayName ?: user.email?.substringBefore("@") ?: "Usuario Android"),
+        "email" to (user.email ?: ""),
+        "photoURL" to (user.photoUrl?.toString() ?: ""),
+        "provider" to if (isGoogle) "google.com" else "password",
+        "isGoogle" to isGoogle,
+        "createdAt" to (user.metadata?.creationTimestamp ?: System.currentTimeMillis()),
+        "lastLoginAt" to (user.metadata?.lastSignInTimestamp ?: System.currentTimeMillis()),
+        "lastActiveAt" to com.google.firebase.database.ServerValue.TIMESTAMP,
+        "platform" to "android"
+    )
+
+    db.child("sensunshop/users").child(user.uid).updateChildren(profile)
+    db.child("users").child(user.uid).child("profile").updateChildren(profile)
+}
+```
+
+### 10.3 Presencia Activa en Tiempo Real
+```kotlin
+fun monitorActivePresence(user: com.google.firebase.auth.FirebaseUser?) {
+    val rtdb = com.google.firebase.database.FirebaseDatabase.getInstance()
+    val connectedRef = rtdb.getReference(".info/connected")
+    val presenceRef = rtdb.getReference("sensunshop/presence").push()
+
+    connectedRef.addValueEventListener(object : com.google.firebase.database.ValueEventListener {
+        override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+            val connected = snapshot.getValue(Boolean::class.java) ?: false
+            if (connected) {
+                presenceRef.onDisconnect().removeValue()
+
+                val data = mapOf<String, Any>(
+                    "sessionId" to (presenceRef.key ?: ""),
+                    "uid" to (user?.uid ?: ""),
+                    "displayName" to (user?.displayName ?: "Usuario App Android"),
+                    "email" to (user?.email ?: ""),
+                    "photoURL" to (user?.photoUrl?.toString() ?: ""),
+                    "isGoogle" to (user?.email?.lowercase()?.endsWith("@gmail.com") == true),
+                    "isRegistered" to (user != null),
+                    "platform" to "android",
+                    "page" to "Sensun Shop App Nativa",
+                    "connectedAt" to com.google.firebase.database.ServerValue.TIMESTAMP,
+                    "lastActiveAt" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+
+                presenceRef.setValue(data)
+            }
+        }
+        override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+    })
+}
+```

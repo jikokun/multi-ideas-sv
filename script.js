@@ -1765,20 +1765,28 @@ function setupAuthUI(authModal) {
     };
 }
 
-function connectFirebaseToAuth(authUI, fb) {
+async function connectFirebaseToAuth(authUI, fb) {
     const { 
         auth, 
+        rtdb,
         signInWithEmailAndPassword, 
         createUserWithEmailAndPassword, 
         signOut, 
-        updateProfile,
-        onAuthStateChanged,
-        GoogleAuthProvider,
-        signInWithPopup,
-        getAdditionalUserInfo,
-        signInWithRedirect,
-        getRedirectResult
+        updateProfile, 
+        onAuthStateChanged, 
+        GoogleAuthProvider, 
+        signInWithPopup, 
+        getAdditionalUserInfo, 
+        signInWithRedirect, 
+        getRedirectResult 
     } = fb;
+
+    let dbHelpers = null;
+    try {
+        dbHelpers = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+    } catch(e) {
+        console.warn("[Auth RTDB Import] Aviso al cargar firebase-database:", e);
+    }
 
     const { authForm, inputEmail, inputPassword, inputName, errorMsg, submitBtn, closeModal, googleBtn, googleText, switchMode, getCurrentMode } = authUI;
 
@@ -2023,9 +2031,143 @@ function connectFirebaseToAuth(authUI, fb) {
     window.firebaseSignOut = signOut;
     window.firebaseAuth = auth;
 
+    async function syncUserProfile(user) {
+        if (!user || !user.uid || !rtdb || !dbHelpers) return;
+        try {
+            const { ref, update } = dbHelpers;
+            const isGoogle = Boolean(
+                (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) || 
+                (user.email && user.email.toLowerCase().endsWith('@gmail.com'))
+            );
+            const providerId = (user.providerData && user.providerData[0]) ? user.providerData[0].providerId : (isGoogle ? 'google.com' : 'password');
+            const ua = navigator.userAgent || '';
+            const platform = /android/i.test(ua) ? 'android' : 'web';
+            const createdAt = user.metadata && user.metadata.createdAt ? parseInt(user.metadata.createdAt, 10) : Date.now();
+            const lastLoginAt = user.metadata && user.metadata.lastLoginAt ? parseInt(user.metadata.lastLoginAt, 10) : Date.now();
+
+            const profile = {
+                uid: user.uid,
+                displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Usuario"),
+                email: user.email || "",
+                photoURL: user.photoURL || "",
+                provider: providerId,
+                isGoogle: isGoogle,
+                createdAt: createdAt,
+                lastLoginAt: lastLoginAt,
+                lastActiveAt: Date.now(),
+                platform: platform
+            };
+
+            await update(ref(rtdb, `sensunshop/users/${user.uid}`), profile);
+            await update(ref(rtdb, `users/${user.uid}/profile`), profile);
+        } catch(e) {
+            console.warn("[MultiIdeas User Sync] Aviso:", e);
+        }
+    }
+
+    let scriptPresenceSessionId = null;
+    let scriptPresenceRef = null;
+
+    async function initPresence(user) {
+        if (!rtdb || !dbHelpers) return;
+        try {
+            const { ref, set, onDisconnect, onValue, update } = dbHelpers;
+
+            // Intentar autenticación anónima si no hay sesión para evitar errores de permisos en Firebase RTDB
+            if (!auth.currentUser) {
+                try {
+                    const { signInAnonymously } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
+                    await signInAnonymously(auth);
+                } catch(e) {
+                    // Continuar si falla o no está habilitada
+                }
+            }
+
+            const activeUser = auth.currentUser || user;
+
+            if (!scriptPresenceSessionId) {
+                scriptPresenceSessionId = "sess_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
+            }
+            const sessionRef = ref(rtdb, `sensunshop/presence/${scriptPresenceSessionId}`);
+            scriptPresenceRef = sessionRef;
+            const connectedRef = ref(rtdb, ".info/connected");
+
+            function writeCurrentPresence() {
+                const ua = navigator.userAgent || '';
+                const isAndroid = /android/i.test(ua);
+                const isIOS = /iphone|ipad|ipod/i.test(ua);
+                const platform = isAndroid ? "android" : (isIOS ? "ios" : "web");
+
+                const isRegistered = Boolean(activeUser && activeUser.uid && !activeUser.isAnonymous);
+                const isGoogle = isRegistered ? Boolean(
+                    (activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')) || 
+                    (activeUser.email && activeUser.email.toLowerCase().endsWith('@gmail.com'))
+                ) : false;
+
+                const pageTitle = document.title ? document.title.split('—')[0].split('·')[0].trim() : "Multi Ideas SV";
+                const pathName = window.location.pathname ? window.location.pathname.split('/').pop() : "index.html";
+
+                const data = {
+                    sessionId: scriptPresenceSessionId,
+                    uid: isRegistered ? activeUser.uid : null,
+                    displayName: isRegistered 
+                        ? (activeUser.displayName || (activeUser.email ? activeUser.email.split('@')[0] : "Usuario"))
+                        : (isAndroid ? "Visitante en App/Móvil Android" : (isIOS ? "Visitante en iPhone" : "Visitante Web")),
+                    email: isRegistered ? (activeUser.email || "") : "",
+                    photoURL: isRegistered ? (activeUser.photoURL || "") : "",
+                    isGoogle: isGoogle,
+                    isRegistered: isRegistered,
+                    platform: platform,
+                    page: pageTitle,
+                    path: pathName,
+                    connectedAt: Date.now(),
+                    lastActiveAt: Date.now()
+                };
+
+                set(sessionRef, data).catch(() => {});
+            }
+
+            onValue(connectedRef, (snap) => {
+                if (snap.val() === true) {
+                    onDisconnect(sessionRef).remove().catch(() => {});
+                    writeCurrentPresence();
+                }
+            });
+
+            // En dispositivos móviles, actualizar presencia de inmediato cuando la pantalla o pestaña vuelva a estar visible
+            if (!window._presenceVisibilityRegistered) {
+                window._presenceVisibilityRegistered = true;
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible' && scriptPresenceRef) {
+                        writeCurrentPresence();
+                    }
+                });
+                window.addEventListener('focus', () => {
+                    if (scriptPresenceRef) writeCurrentPresence();
+                });
+            }
+
+            // Intervalo periódico de latido (cada 45 segundos)
+            if (!window._scriptPresenceInterval) {
+                window._scriptPresenceInterval = setInterval(() => {
+                    if (scriptPresenceRef && document.visibilityState !== 'hidden') {
+                        update(scriptPresenceRef, { lastActiveAt: Date.now() }).catch(() => {});
+                    }
+                }, 45000);
+            }
+        } catch(e) {
+            console.warn("[MultiIdeas Presence] Aviso:", e);
+        }
+    }
+
+    // Inicializar presencia
+    initPresence(null);
+
     // Escuchar cambios de estado en la sesión
     onAuthStateChanged(auth, (user) => {
         window.firebaseUserInstance = user;
+        if (user && !user.isAnonymous) syncUserProfile(user);
+        initPresence(user);
         updateHeaderUI(user, window.openAuthModal, signOut, auth);
     });
 }

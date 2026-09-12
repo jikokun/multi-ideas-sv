@@ -15,7 +15,8 @@ import {
     getAdditionalUserInfo,
     signOut
 } from "../firebase-config.js";
-import { ref, set, get, onValue, push, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { ref, set, get, onValue, push, remove, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // Estilos dinámicos para las estrellas y el modal
 const styles = `
@@ -1390,10 +1391,155 @@ function setupFavoritesSync(user) {
     }
 }
 
+// ==========================================================================
+// SINCRONIZACIÓN DE USUARIOS GMAIL Y PRESENCIA EN TIEMPO REAL (RTDB)
+// ==========================================================================
+async function syncUserProfileToDatabase(user) {
+    if (!user || !user.uid || user.isAnonymous) return;
+    try {
+        const isGoogle = Boolean(
+            (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) || 
+            (user.email && user.email.toLowerCase().endsWith('@gmail.com'))
+        );
+        const providerId = (user.providerData && user.providerData[0]) ? user.providerData[0].providerId : (isGoogle ? 'google.com' : 'password');
+        
+        const ua = navigator.userAgent || '';
+        const isAndroid = /android/i.test(ua);
+        const platform = isAndroid ? 'android' : 'web';
+
+        const createdAt = user.metadata && user.metadata.createdAt ? parseInt(user.metadata.createdAt, 10) : Date.now();
+        const lastLoginAt = user.metadata && user.metadata.lastLoginAt ? parseInt(user.metadata.lastLoginAt, 10) : Date.now();
+
+        const userProfile = {
+            uid: user.uid,
+            displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Usuario Sensun"),
+            email: user.email || "",
+            photoURL: user.photoURL || "",
+            provider: providerId,
+            isGoogle: isGoogle,
+            createdAt: createdAt,
+            lastLoginAt: lastLoginAt,
+            lastActiveAt: Date.now(),
+            platform: platform
+        };
+
+        // Guardar en el nodo central de usuarios para el panel administrativo
+        await update(ref(rtdb, `sensunshop/users/${user.uid}`), userProfile);
+        // Espejo en users/<uid>/profile para compatibilidad
+        await update(ref(rtdb, `users/${user.uid}/profile`), userProfile);
+    } catch (err) {
+        console.warn("[Sensun Users Sync] Aviso al sincronizar perfil en RTDB:", err);
+    }
+}
+
+let currentPresenceSessionId = null;
+let currentPresenceRef = null;
+
+async function initPresenceTracking(user) {
+    try {
+        // Asegurar sesión autenticada (anónima o con cuenta) para permisos de escritura en Firebase RTDB
+        if (!auth.currentUser) {
+            try {
+                await signInAnonymously(auth);
+            } catch(anonErr) {
+                console.warn("[Sensun Auth] Aviso anonymous auth:", anonErr);
+            }
+        }
+
+        const activeUser = auth.currentUser || user;
+
+        if (!currentPresenceSessionId) {
+            currentPresenceSessionId = "sess_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
+        }
+        const sessionRef = ref(rtdb, `sensunshop/presence/${currentPresenceSessionId}`);
+        currentPresenceRef = sessionRef;
+
+        function writePresenceData() {
+            const ua = navigator.userAgent || '';
+            const isAndroid = /android/i.test(ua);
+            const isIOS = /iphone|ipad|ipod/i.test(ua);
+            const platform = isAndroid ? 'android' : (isIOS ? 'ios' : 'web');
+
+            const isRegistered = Boolean(activeUser && activeUser.uid && !activeUser.isAnonymous);
+            const isGoogle = isRegistered ? Boolean(
+                (activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')) || 
+                (activeUser.email && activeUser.email.toLowerCase().endsWith('@gmail.com'))
+            ) : false;
+
+            const pageTitle = document.title ? document.title.split('—')[0].split('·')[0].trim() : "Sensun Shop";
+            const pathName = window.location.pathname ? window.location.pathname.split('/').pop() : "sensunshop.html";
+
+            const presenceData = {
+                sessionId: currentPresenceSessionId,
+                uid: isRegistered ? activeUser.uid : null,
+                displayName: isRegistered 
+                    ? (activeUser.displayName || (activeUser.email ? activeUser.email.split('@')[0] : "Usuario"))
+                    : (isAndroid ? "Visitante en App/Móvil Android" : (isIOS ? "Visitante en iPhone" : "Visitante Web")),
+                email: isRegistered ? (activeUser.email || "") : "",
+                photoURL: isRegistered ? (activeUser.photoURL || "") : "",
+                isGoogle: isGoogle,
+                isRegistered: isRegistered,
+                platform: platform,
+                page: pageTitle,
+                path: pathName,
+                connectedAt: Date.now(),
+                lastActiveAt: Date.now()
+            };
+
+            set(sessionRef, presenceData).catch((err) => {
+                console.warn("[Sensun Presence] Aviso al escribir presencia:", err);
+            });
+        }
+
+        const connectedRef = ref(rtdb, ".info/connected");
+        onValue(connectedRef, (snap) => {
+            if (snap.val() === true) {
+                // Al desconectarse (cerrar pestaña/app), eliminar la sesión activa automáticamente
+                onDisconnect(sessionRef).remove().catch(() => {});
+                writePresenceData();
+            }
+        });
+
+        // Manejar reactivación de pantalla en teléfonos (cuando la pantalla se desbloquea o se regresa a la pestaña)
+        if (!window._sensunVisibilityPresenceRegistered) {
+            window._sensunVisibilityPresenceRegistered = true;
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible' && currentPresenceRef) {
+                    writePresenceData();
+                }
+            });
+            window.addEventListener('focus', () => {
+                if (currentPresenceRef) writePresenceData();
+            });
+        }
+
+        // Actualizar lastActiveAt periódicamente mientras la página esté activa
+        if (!window._sensunPresenceInterval) {
+            window._sensunPresenceInterval = setInterval(() => {
+                if (currentPresenceRef && document.visibilityState !== 'hidden') {
+                    update(currentPresenceRef, { lastActiveAt: Date.now() }).catch(() => {});
+                }
+            }, 45000);
+        }
+    } catch(e) {
+        console.warn("[Sensun Presence] Error iniciando tracking:", e);
+    }
+}
+
+// Iniciar presencia inmediatamente para visitantes
+initPresenceTracking(currentUser);
+
 // Escuchar el estado de autenticación de Firebase
 onAuthStateChanged(auth, (user) => {
     currentUser = user;
     
+    // Registrar / Actualizar perfil en RTDB si está autenticado con cuenta real
+    if (user && !user.isAnonymous) {
+        syncUserProfileToDatabase(user);
+    }
+    // Actualizar presencia con datos del usuario
+    initPresenceTracking(user);
+
     // Sincronizar favoritos del usuario
     setupFavoritesSync(user);
 

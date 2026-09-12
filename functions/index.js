@@ -179,3 +179,179 @@ exports.sendTestPushNotification = functions.https.onRequest(async (req, res) =>
         });
     }
 });
+
+/**
+ * ------------------------------------------------------------------------------
+ * 4. OBTENER LISTADO COMPLETO DE USUARIOS DE FIREBASE AUTHENTICATION (ENDPOINT HTTP)
+ * URL: https://us-central1-sensunshopweb.cloudfunctions.net/getAuthUsers
+ * ------------------------------------------------------------------------------
+ */
+exports.getAuthUsers = functions.https.onRequest(async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === "OPTIONS") {
+        return res.status(204).send("");
+    }
+
+    try {
+        let allUsers = [];
+        let nextPageToken;
+
+        do {
+            const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+            listUsersResult.users.forEach((userRecord) => {
+                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
+                                 Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+                const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
+
+                allUsers.push({
+                    uid: userRecord.uid,
+                    displayName: userRecord.displayName || (userRecord.email ? userRecord.email.split("@")[0] : "Usuario"),
+                    email: userRecord.email || "",
+                    photoURL: userRecord.photoURL || "",
+                    phoneNumber: userRecord.phoneNumber || "",
+                    disabled: userRecord.disabled,
+                    provider: mainProvider,
+                    isGoogle: isGoogle,
+                    createdAt: userRecord.metadata.creationTime ? new Date(userRecord.metadata.creationTime).getTime() : Date.now(),
+                    lastLoginAt: userRecord.metadata.lastSignInTime ? new Date(userRecord.metadata.lastSignInTime).getTime() : Date.now(),
+                    platform: "web"
+                });
+            });
+            nextPageToken = listUsersResult.pageToken;
+        } while (nextPageToken);
+
+        return res.status(200).json({
+            success: true,
+            total: allUsers.length,
+            users: allUsers
+        });
+    } catch (error) {
+        console.error("[getAuthUsers] Error:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * ------------------------------------------------------------------------------
+ * 5. SINCRONIZAR AUTOMÁTICAMENTE TODOS LOS USUARIOS DE FIREBASE AUTH A REALTIME DATABASE
+ * URL: https://us-central1-sensunshopweb.cloudfunctions.net/syncAuthUsersToDatabase
+ * ------------------------------------------------------------------------------
+ */
+exports.syncAuthUsersToDatabase = functions.https.onRequest(async (req, res) => {
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === "OPTIONS") {
+        return res.status(204).send("");
+    }
+
+    try {
+        let syncedCount = 0;
+        let nextPageToken;
+        const db = admin.database();
+
+        do {
+            const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
+            const updates = {};
+
+            listUsersResult.users.forEach((userRecord) => {
+                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
+                                 Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+                const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
+
+                const userObj = {
+                    uid: userRecord.uid,
+                    displayName: userRecord.displayName || (userRecord.email ? userRecord.email.split("@")[0] : "Usuario"),
+                    email: userRecord.email || "",
+                    photoURL: userRecord.photoURL || "",
+                    provider: mainProvider,
+                    isGoogle: isGoogle,
+                    createdAt: userRecord.metadata.creationTime ? new Date(userRecord.metadata.creationTime).getTime() : Date.now(),
+                    lastLoginAt: userRecord.metadata.lastSignInTime ? new Date(userRecord.metadata.lastSignInTime).getTime() : Date.now(),
+                    lastActiveAt: Date.now(),
+                    platform: "web"
+                };
+
+                updates[`sensunshop/users/${userRecord.uid}`] = userObj;
+                syncedCount++;
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await db.ref().update(updates);
+            }
+            nextPageToken = listUsersResult.pageToken;
+        } while (nextPageToken);
+
+        return res.status(200).json({
+            success: true,
+            syncedCount: syncedCount,
+            message: `Sincronizados exitosamente ${syncedCount} usuarios a sensunshop/users en RTDB`
+        });
+    } catch (error) {
+        console.error("[syncAuthUsersToDatabase] Error:", error);
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
+    }
+});
+
+/**
+ * ------------------------------------------------------------------------------
+ * 6. TRIGGER AUTOMÁTICO EN TIEMPO REAL: NUEVO USUARIO REGISTRADO EN FIREBASE AUTH
+ * Guarda inmediatamente el perfil en sensunshop/users al registrarse por Android o Web
+ * ------------------------------------------------------------------------------
+ */
+exports.onUserCreated = functions.auth.user().onCreate(async (userRecord) => {
+    try {
+        const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
+                         Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+        const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
+
+        const userObj = {
+            uid: userRecord.uid,
+            displayName: userRecord.displayName || (userRecord.email ? userRecord.email.split("@")[0] : "Usuario"),
+            email: userRecord.email || "",
+            photoURL: userRecord.photoURL || "",
+            provider: mainProvider,
+            isGoogle: isGoogle,
+            createdAt: userRecord.metadata.creationTime ? new Date(userRecord.metadata.creationTime).getTime() : Date.now(),
+            lastLoginAt: userRecord.metadata.lastSignInTime ? new Date(userRecord.metadata.lastSignInTime).getTime() : Date.now(),
+            lastActiveAt: Date.now(),
+            platform: "web"
+        };
+
+        const db = admin.database();
+        await db.ref(`sensunshop/users/${userRecord.uid}`).set(userObj);
+        console.log(`[onUserCreated] ✅ Usuario ${userRecord.uid} sincronizado en sensunshop/users`);
+        return null;
+    } catch (error) {
+        console.error("[onUserCreated] ❌ Error sincronizando usuario:", error);
+        return null;
+    }
+});
+
+/**
+ * ------------------------------------------------------------------------------
+ * 7. TRIGGER AUTOMÁTICO: USUARIO ELIMINADO EN FIREBASE AUTH
+ * ------------------------------------------------------------------------------
+ */
+exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
+    try {
+        const db = admin.database();
+        await db.ref(`sensunshop/users/${userRecord.uid}`).remove();
+        console.log(`[onUserDeleted] 🗑️ Usuario ${userRecord.uid} eliminado de sensunshop/users`);
+        return null;
+    } catch (error) {
+        console.error("[onUserDeleted] ❌ Error al eliminar:", error);
+        return null;
+    }
+});
+

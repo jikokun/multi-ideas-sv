@@ -17,6 +17,8 @@ Todos los clientes (Web y App) **deben conectarse exactamente a los mismos nodos
 | **3. Ofertas Especiales** | `sensunshop/businesses/<id>` | **Mismo nodo del negocio** (campos `hasOffer`, `offerStyle`, etc.) |
 | *(Opcional - Espejo de Anuncios)* | `sensunshop/offers/<id>` | Copia automática de publicaciones de tipo `anuncios` |
 | *(Opcional - Espejo de Boletines)* | `sensunshop/bulletins/<id>` | Copia automática de publicaciones de tipo `boletines` |
+| **4. Usuarios Registrados (Gmail/Web/App)** | `sensunshop/users/<uid>` | UID de Firebase Authentication del usuario |
+| **5. Monitor de Presencia en Vivo (App/Web)** | `sensunshop/presence/<sessionId>` | Clave autogenerada única de sesión (`push().key`) |
 
 ---
 
@@ -306,3 +308,88 @@ suspend fun saveSpecialOffer(
     bizRef.updateChildren(offerUpdates).await()
 }
 ```
+
+---
+
+## 6. Módulo 4: Sincronización de Usuarios Gmail y Monitor de Uso en Vivo (App Android)
+
+Para que el nuevo **Dashboard de Control de Usuarios** del panel web muestre quiénes se registran con Google/Gmail en la App Android, y cuántas personas están usando la aplicación en tiempo real, implementa las siguientes 2 rutinas en tu proyecto de Android Studio:
+
+### 6.1 Registro Automático al Iniciar Sesión con Google en Android
+Cada vez que el usuario inicie sesión o se registre exitosamente mediante `GoogleSignInClient` / Credential Manager en Android:
+
+```kotlin
+fun syncUserToFirebase(user: com.google.firebase.auth.FirebaseUser) {
+    val db = com.google.firebase.database.FirebaseDatabase.getInstance().reference
+    val userRef = db.child("sensunshop/users").child(user.uid)
+
+    val isGoogle = user.providerData.any { it.providerId == "google.com" } || 
+                   (user.email?.lowercase()?.endsWith("@gmail.com") == true)
+
+    val userData = mapOf<String, Any>(
+        "uid" to user.uid,
+        "displayName" to (user.displayName ?: user.email?.substringBefore("@") ?: "Usuario Android"),
+        "email" to (user.email ?: ""),
+        "photoURL" to (user.photoUrl?.toString() ?: ""),
+        "provider" to if (isGoogle) "google.com" else "password",
+        "isGoogle" to isGoogle,
+        "createdAt" to (user.metadata?.creationTimestamp ?: System.currentTimeMillis()),
+        "lastLoginAt" to (user.metadata?.lastSignInTimestamp ?: System.currentTimeMillis()),
+        "lastActiveAt" to com.google.firebase.database.ServerValue.TIMESTAMP,
+        "platform" to "android"
+    )
+
+    userRef.updateChildren(userData)
+    // Espejo en users/<uid>/profile
+    db.child("users").child(user.uid).child("profile").updateChildren(userData)
+}
+```
+
+### 6.2 Monitor de Presencia en Vivo ("¿Quiénes y cuántos están usando la app ahora?")
+Coloca este bloque en tu `MainActivity` (en `onStart()` o tras inicializar Firebase). Utiliza la desconexión nativa del servidor de Firebase para que el panel web sepa en el segundo exacto en que la app se abre o se cierra:
+
+```kotlin
+private var presenceRef: com.google.firebase.database.DatabaseReference? = null
+
+fun setupAppPresence(user: com.google.firebase.auth.FirebaseUser?) {
+    val rtdb = com.google.firebase.database.FirebaseDatabase.getInstance()
+    val connectedRef = rtdb.getReference(".info/connected")
+    
+    if (presenceRef == null) {
+        presenceRef = rtdb.getReference("sensunshop/presence").push()
+    }
+
+    val currentSession = presenceRef ?: return
+
+    connectedRef.addValueEventListener(object : com.google.firebase.database.ValueEventListener {
+        override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+            val connected = snapshot.getValue(Boolean::class.java) ?: false
+            if (connected) {
+                // Al salir de la app o desconectarse, Firebase borra la sesión automáticamente
+                currentSession.onDisconnect().removeValue()
+
+                val isGoogle = user?.email?.lowercase()?.endsWith("@gmail.com") == true
+
+                val sessionData = mapOf<String, Any>(
+                    "sessionId" to (currentSession.key ?: ""),
+                    "uid" to (user?.uid ?: ""),
+                    "displayName" to (user?.displayName ?: "Usuario App Android"),
+                    "email" to (user?.email ?: ""),
+                    "photoURL" to (user?.photoUrl?.toString() ?: ""),
+                    "isGoogle" to isGoogle,
+                    "isRegistered" to (user != null),
+                    "platform" to "android",
+                    "page" to "Sensun Shop App Nativa",
+                    "connectedAt" to com.google.firebase.database.ServerValue.TIMESTAMP,
+                    "lastActiveAt" to com.google.firebase.database.ServerValue.TIMESTAMP
+                )
+
+                currentSession.setValue(sessionData)
+            }
+        }
+
+        override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+    })
+}
+```
+
