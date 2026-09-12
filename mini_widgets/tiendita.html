@@ -305,10 +305,7 @@
   .orden-chips-row{
     display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;
     background:rgba(0,0,0,.45);border:1px dashed rgba(255,211,92,.35);min-height:38px;
-    max-height:86px;overflow-y:auto;
   }
-  .orden-chips-row::-webkit-scrollbar{width:4px}
-  .orden-chips-row::-webkit-scrollbar-thumb{background:rgba(83,252,24,.4);border-radius:4px}
   .orden-chip{
     display:inline-flex;align-items:center;gap:6px;padding:3.5px 10px 3.5px 6px;border-radius:8px;
     background:rgba(83,252,24,.12);border:1px solid rgba(83,252,24,.4);color:var(--tinta);
@@ -316,12 +313,7 @@
   }
   @keyframes popChip{0%{transform:scale(0.7);opacity:0}100%{transform:scale(1);opacity:1}}
   .orden-chip img{width:24px;height:24px;object-fit:contain;border-radius:4px;flex-shrink:0}
-  .orden-chip .chip-name{font-weight:800;color:#ffffff;display:inline-flex;align-items:center;gap:4px}
-  .orden-chip .chip-qty{
-    display:inline-block;padding:1px 5px;border-radius:4px;
-    background:rgba(83,252,24,.22);border:1px solid rgba(83,252,24,.4);
-    color:var(--kick);font-size:11px;font-weight:900;
-  }
+  .orden-chip .chip-name{font-weight:800;color:#ffffff}
   .orden-chip .chip-price{color:var(--oro);font-weight:900;font-size:11.5px}
   .orden-chip .chip-del{
     color:rgba(255,255,255,.5);cursor:pointer;font-size:12px;margin-left:3px;padding:0 2px;transition:color .2s;
@@ -379,103 +371,25 @@
 
   /* Contenedor exacto sobre la superficie de la mesa de madera de mesero.png */
   .mesero-mesa{
-    position:absolute;bottom:3.5%;left:4%;right:4%;height:68%;
+    position:absolute;bottom:6%;left:4%;right:4%;height:48%;
+    display:flex;align-items:flex-end;justify-content:space-evenly;
     pointer-events:none;z-index:2;
   }
 
-  /* Filas de la mesa */
-  .mesa-fila{
-    position:absolute;left:0;right:0;width:100%;
-    display:flex;align-items:flex-end;justify-content:space-evenly;
-    pointer-events:none;
-  }
-
-  /* ═══ MODO 1: Cuando son <= 4 platillos (GRANDES y bien distribuidos en 1 sola fila sobre la mesa) ═══ */
-  .mesero-mesa.modo-grande{
-    height:74%;bottom:3%;
-  }
-  .mesero-mesa.modo-grande .mesa-fila-atras{
-    display:none !important;
-  }
-  .mesero-mesa.modo-grande .mesa-fila-adelante{
-    bottom:0;height:100%;z-index:3;
-    display:flex;align-items:flex-end;justify-content:space-evenly;width:100%;
-  }
-  .mesero-mesa.modo-grande .plato-servido{
+  /* Cada plato servido sobre la mesa */
+  .plato-servido{
     position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-    height:100%;
-    width:var(--plato-w, 285px);
-    max-width:var(--plato-max-w, 32%);
-    flex:0 1 var(--plato-max-w, 32%);
-    animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
+    height:100%;max-width:32%;animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
   }
-  .mesero-mesa.modo-grande .plato-servido img{
-    width:auto;
-    height:var(--plato-h, 270px);
-    max-width:var(--plato-w, 100%);
-    max-height:100%;
-    object-fit:contain;
-    transform:scale(var(--plato-scale, 1));
-    transform-origin:bottom center;
-    filter:drop-shadow(0 18px 22px rgba(0,0,0,.75)) drop-shadow(0 5px 8px rgba(0,0,0,.5));
+  .plato-servido img{
+    max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;
+    filter:drop-shadow(0 14px 14px rgba(0,0,0,.65)) drop-shadow(0 4px 6px rgba(0,0,0,.4));
     transition:transform .3s ease;
   }
-  /* Escala extra para bebidas/vasos/botellas para que no se vean delgadas o diminutas sobre la gran mesa */
-  .mesero-mesa.modo-grande .plato-servido.es-bebida img{
-    transform:scale(var(--bebida-scale, 1.35));
-    transform-origin:bottom center;
-  }
-
-  /* ═══ MODO 2: Cuando superan 4 platillos (5 a 10 platillos, 2 filas y clusters cercanos) ═══ */
-  .mesa-fila-atras{
-    bottom:28%;height:42%;z-index:1;
-  }
-  .mesa-fila-adelante{
-    bottom:0;height:50%;z-index:3;
-  }
-
-  /* Cluster de platos idénticos (solo cuando son > 4 platos para ahorrar espacio) */
-  .plato-cluster{
-    position:relative;display:inline-flex;align-items:flex-end;justify-content:center;
-    flex-shrink:0;height:100%;
-    transition:transform .3s ease;
-  }
-  .mesero-mesa:not(.modo-grande) .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
-    margin-left:calc(var(--plato-w, 130px) * -0.34);
-  }
-  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
-    margin-left:calc(var(--plato-w, 115px) * -0.32);
-  }
-
-  /* Cada plato servido sobre la mesa en modo 2 filas */
-  .mesero-mesa:not(.modo-grande) .plato-servido{
-    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-    height:100%;flex-shrink:0;animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
-  }
-  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-servido{
-    animation:servirPlatoAtras .55s cubic-bezier(.18,.9,.24,1.25) backwards;
-  }
-  .mesero-mesa:not(.modo-grande) .plato-servido img{
-    width:auto;height:auto;max-height:100%;max-width:var(--plato-w, 130px);object-fit:contain;
-    filter:drop-shadow(0 12px 14px rgba(0,0,0,.68)) drop-shadow(0 3px 5px rgba(0,0,0,.4));
-    transition:transform .3s ease;
-  }
-  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-servido img{
-    max-width:var(--plato-w, 115px);
-    transform:scale(0.85);
-    transform-origin:bottom center;
-    filter:drop-shadow(0 10px 12px rgba(0,0,0,.62)) drop-shadow(0 3px 5px rgba(0,0,0,.4)) brightness(0.94);
-  }
-
   @keyframes servirPlato{
     0%{opacity:0;transform:translateY(-60px) scale(0.7) rotate(-4deg)}
     60%{opacity:1;transform:translateY(6px) scale(1.04) rotate(1deg)}
     100%{opacity:1;transform:translateY(0) scale(1) rotate(0deg)}
-  }
-  @keyframes servirPlatoAtras{
-    0%{opacity:0;transform:translateY(-48px) scale(0.58) rotate(-3deg)}
-    60%{opacity:1;transform:translateY(4px) scale(0.9) rotate(1deg)}
-    100%{opacity:1;transform:translateY(0) scale(0.85) rotate(0deg)}
   }
 
   /* Barra de temporizador ampliada (40s) */
@@ -505,20 +419,14 @@
     display: none !important;
   }
 
-  /* ════════════ ZONA DE PRUEBA (OCULTA POR DEFECTO, SOLO VISIBLE AL TOCAR LA PANTALLA) ════════════ */
+  /* ════════════ ZONA DE PRUEBA ════════════ */
   #demo-zone{
     position:fixed;left:20px;bottom:20px;z-index:60;display:flex;gap:8px;align-items:center;
     padding:10px 14px;border-radius:14px;background:rgba(12,16,9,.94);
     border:1px solid rgba(83,252,24,.4);box-shadow:0 10px 30px rgba(0,0,0,.6);backdrop-filter:blur(8px);
-    transition:transform .4s cubic-bezier(.4,.9,.4,1), opacity .3s ease;
-    transform:translateY(190%);opacity:0;pointer-events:none;
+    transition:transform .55s cubic-bezier(.4,.9,.4,1),opacity .4s;
   }
-  #demo-zone.activo{
-    transform:translateY(0);opacity:1;pointer-events:auto;
-  }
-  #demo-zone.oculto{
-    transform:translateY(190%) !important;opacity:0 !important;pointer-events:none !important;
-  }
+  #demo-zone.oculto{transform:translateY(190%);opacity:0;pointer-events:none}
   .dz-title{font-size:10px;letter-spacing:1.8px;color:var(--apagado);font-weight:700;margin-right:2px}
   #demo-zone button{
     font-family:var(--f-cuerpo);font-weight:700;font-size:11px;letter-spacing:.4px;cursor:pointer;
@@ -808,11 +716,8 @@
   <div id="mesero-overlay" class="mesero-overlay">
     <div class="mesero-stage">
       <img src="../imagenes/tiendita_jiko/mesero.png" alt="Mesero Jikokun" class="mesero-bg-img">
-      <!-- Área sobre la mesa donde se colocan los platos servidos (en 2 filas con perspectiva) -->
-      <div class="mesero-mesa" id="mesero-mesa">
-        <div class="mesa-fila mesa-fila-atras" id="mesa-fila-atras"></div>
-        <div class="mesa-fila mesa-fila-adelante" id="mesa-fila-adelante"></div>
-      </div>
+      <!-- Área sobre la mesa donde se colocan los platos servidos -->
+      <div class="mesero-mesa" id="mesero-mesa"></div>
     </div>
   </div>
 
@@ -852,13 +757,8 @@
     <span class="dz-title">🧪 PRUEBAS</span>
     <button id="demo-cliente">Cliente (1000 pts)</button>
     <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
-    <button id="demo-uno-matcha" style="color:var(--kick);border-color:rgba(83,252,24,.6);font-weight:800;">🍵 !matcha 1</button>
-    <button id="demo-dos-matcha" style="color:var(--kick);border-color:rgba(83,252,24,.6);font-weight:800;">🍵 !matcha 2</button>
-    <button id="demo-uno-plato" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 1</button>
-    <button id="demo-bloque-pupusas" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 2</button>
-    <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple</button>
-    <button id="demo-cuatro-platos" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 4 Platos</button>
-    <button id="demo-diez-platos" style="color:var(--oro);border-color:rgba(255,211,92,.7);font-weight:800;">🍱 Fiesta 10 (2 Filas)</button>
+    <button id="demo-select">➕ Añadir Ítem</button>
+    <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple (Foto)</button>
     <button id="demo-compra" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">💳 Pagar Todo</button>
     <button id="demo-cancelar">Vaciar / !cancelar</button>
     <button id="demo-otro-user" style="color:var(--oro);border-color:rgba(255,211,92,.5);">Probar Turno</button>
@@ -877,8 +777,6 @@
   let AUTO_CIERRE_MS = (customDuration > 0 ? customDuration : 40) * 1000;
   const USER_DEFAULT_POINTS = 1000; // 1000 puntos exactos por usuario para pruebas
   let isMuted = urlParams.get('mute') === 'true';
-  const customChannel = urlParams.get('channel') || urlParams.get('canal') || urlParams.get('streamer') || 'jikokun';
-  const STREAMER_CHANNEL = String(customChannel).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^@/, '').trim();
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
@@ -940,7 +838,7 @@
 
   /* ═══════════ GESTIÓN DE TURNOS Y COOLDOWN GLOBAL ═══════════ */
   const customCooldown = parseInt(urlParams.get('cooldown'), 10);
-  let COOLDOWN_GLOBAL_MS = (!isNaN(customCooldown) && customCooldown >= 0 ? customCooldown : 0) * 1000;
+  let COOLDOWN_GLOBAL_MS = (!isNaN(customCooldown) && customCooldown >= 0 ? customCooldown : 30) * 1000;
   let cooldownGlobalFin = 0;
 
   const $turnAlert = document.getElementById('turn-alert');
@@ -1367,17 +1265,13 @@
 
   /* ═══════════ CARRITO / ORDEN ACTUAL & DECISIÓN ("AÑADIR O PAGAR") ═══════════ */
   let ordenActual = []; // Array de platos seleccionados por el cliente
-  const MAX_ORDEN_ITEMS = 10; // Máximo 10 platos en la mesa (organizados en 2 filas con clusters)
+  const MAX_ORDEN_ITEMS = 4; // Máximo 4 platos en la mesa (3 es estándar según la foto)
   let meseroTimer = null;
 
-  function agregarItemAOrden(itemKey, user=null, cantidad=1){
+  function agregarItemAOrden(itemKey, user=null){
     const k = norm(itemKey);
     const it = ITEMS.find(x => norm(x.key) === k || (x.aliases && x.aliases.some(a => norm(a) === k)));
     if(!it) return false;
-
-    let cant = parseInt(cantidad, 10);
-    if(isNaN(cant) || cant < 1) cant = 1;
-    cant = Math.min(cant, MAX_ORDEN_ITEMS);
 
     if(user) {
       usuarioActual = user;
@@ -1393,45 +1287,22 @@
       iniciarCd(AUTO_CIERRE_MS); // refresca el temporizador para decidir
     }
 
-    const espacioDisponible = MAX_ORDEN_ITEMS - ordenActual.length;
-    if(espacioDisponible <= 0){
+    if(ordenActual.length >= MAX_ORDEN_ITEMS){
       toast(`⚠️ Límite de ${MAX_ORDEN_ITEMS} platos alcanzado en la mesa. ¡Paga todo para servir tu orden!`,'warn');
       playSfx('error');
       actualizarPanelOrden();
       return true;
     }
 
-    if(cant > espacioDisponible){
-      toast(`⚠️ Solo hay espacio para ${espacioDisponible} platillo(s) más en la mesa (límite: ${MAX_ORDEN_ITEMS}).`,'warn');
-      cant = espacioDisponible;
-    }
-
     // Verificar si el costo acumulado supera el saldo actual
-    const totalActual = ordenActual.reduce((acc, i) => acc + i.precio, 0);
-    let cantAprobada = 0;
-    for(let c = 1; c <= cant; c++){
-      if(totalActual + (c * it.precio) <= saldoActual){
-        cantAprobada = c;
-      } else {
-        break;
-      }
-    }
-
-    if(cantAprobada <= 0){
-      const costoTotalIntento = totalActual + (cant * it.precio);
-      toast(`❌ Puntos insuficientes para añadir <b>${cant > 1 ? cant + 'x ' : ''}${it.nombre}</b>. Tienes <b>${saldoActual} pts</b> y la orden sumaría <b>${costoTotalIntento} pts</b>`,'err');
+    const nuevoTotal = ordenActual.reduce((acc, i) => acc + i.precio, 0) + it.precio;
+    if(nuevoTotal > saldoActual){
+      toast(`❌ Puntos insuficientes para añadir <b>${it.nombre}</b>. Tienes <b>${saldoActual} pts</b> y la orden sumaría <b>${nuevoTotal} pts</b>`,'err');
       playSfx('error');
       return false;
     }
 
-    if(cantAprobada < cant){
-      toast(`⚠️ Solo alcanzaron puntos para ${cantAprobada} de ${cant} platillos de <b>${it.nombre}</b>.`,'warn');
-      cant = cantAprobada;
-    }
-
-    for(let i = 0; i < cant; i++){
-      ordenActual.push(it);
-    }
+    ordenActual.push(it);
     playSfx('select');
 
     // Añadir selector dorado a las tarjetas del ítem pero manteniendo el giro continuo del carrusel
@@ -1439,8 +1310,7 @@
     isAutoScrolling = true;
 
     actualizarPanelOrden();
-    const cantTxt = cant > 1 ? `<b>${cant}x ${it.nombre}</b>` : `<b>${it.nombre}</b>`;
-    toast(`➕ <b>@${usuarioActual}</b> añadió ${cantTxt} ${it.emoji} a la orden.`);
+    toast(`➕ <b>@${usuarioActual}</b> añadió <b>${it.nombre}</b> ${it.emoji} a la orden.`);
     return true;
   }
 
@@ -1461,38 +1331,16 @@
     $totalPts.textContent = total;
     $btnPts.textContent = total;
 
-    // Agrupar platos idénticos para presentación limpia y compacta
-    const grupos = [];
-    ordenActual.forEach((it) => {
-      const g = grupos.find(x => x.item.key === it.key);
-      if(g) {
-        g.cantidad++;
-        g.precioTotal += it.precio;
-      } else {
-        grupos.push({ item: it, cantidad: 1, precioTotal: it.precio });
-      }
-    });
-
-    $chips.innerHTML = grupos.map(g => `
-      <div class="orden-chip" title="${g.item.nombre} (${g.cantidad} uds)">
-        <img src="${g.item.img}" alt="${g.item.key}" onerror="this.style.display='none'">
-        <span class="chip-name">${g.item.nombre}${g.cantidad > 1 ? `<span class="chip-qty">x${g.cantidad}</span>` : ''}</span>
-        <span class="chip-price">${g.precioTotal} pts</span>
-        <span class="chip-del" onclick="removerItemPorKey('${g.item.key}')" title="Quitar 1 unidad">✕</span>
+    $chips.innerHTML = ordenActual.map((it, idx) => `
+      <div class="orden-chip">
+        <img src="${it.img}" alt="${it.key}" onerror="this.style.display='none'">
+        <span class="chip-name">${it.nombre}</span>
+        <span class="chip-price">${it.precio} pts</span>
+        <span class="chip-del" onclick="removerItemDeOrden(${idx})" title="Quitar">✕</span>
       </div>
     `).join('');
 
     $confirmBox.classList.add('activo');
-  }
-
-  function removerItemPorKey(key){
-    const idx = ordenActual.map(i => i.key).lastIndexOf(key);
-    if(idx !== -1){
-      const eliminado = ordenActual.splice(idx, 1)[0];
-      playSfx('select');
-      toast(`🗑️ Removido 1x <b>${eliminado.nombre}</b> de la orden.`);
-      actualizarPanelOrden();
-    }
   }
 
   function removerItemDeOrden(idx){
@@ -1611,189 +1459,42 @@
     mostrarMeseroEntrega(user, platosAServir);
   }
 
-  /* ═══════════ PARSER DE COMANDOS CON CANTIDAD / BLOQUES ═══════════ */
-  function parsearItemYCantidad(raw){
-    if(!raw || typeof raw !== 'string') return null;
-    let s = norm(raw).trim();
-    if(s.startsWith('!')) s = s.slice(1).trim();
-    if(s.startsWith('comprar ')) s = s.replace(/^comprar\s+/, '').trim();
-
-    // Extraer cantidad si termina en número o x<numero> (ej: "pupusas 2", "pupusas x2", "pupusas por 2")
-    let cantidad = 1;
-    const matchNum = s.match(/\s+(?:x\s*|por\s*)?(\d+)$/i);
-    if(matchNum){
-      cantidad = parseInt(matchNum[1], 10);
-      s = s.slice(0, matchNum.index).trim();
-    }
-
-    if(isNaN(cantidad) || cantidad < 1) cantidad = 1;
-
-    // Buscar ítem exacto por key o por aliases
-    const item = ITEMS.find(it => norm(it.key) === s || (it.aliases && it.aliases.some(a => norm(a) === s)));
-    if(item){
-      return { item, cantidad };
-    }
-    return null;
-  }
-
-  /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA (2 FILAS & CLUSTERS) ═══════════ */
-  function calcularAnchoPlato(countTotalFila, esAtras, totalOrden){
-    // Cuando superan el límite (> 4 platos, hasta 10): se reducen y acomodan en 2 filas con clusters
-    if(countTotalFila <= 2) return esAtras ? '145px' : '170px';
-    if(countTotalFila === 3) return esAtras ? '130px' : '150px';
-    if(countTotalFila === 4) return esAtras ? '118px' : '135px';
-    return esAtras ? '108px' : '124px'; // 5 platos en fila
-  }
-
-  function renderFilaMesa(filaEl, clusters, esAtras, baseDelayFila, totalOrden){
-    if(!filaEl) return;
-    filaEl.innerHTML = '';
-    if(!clusters || clusters.length === 0) return;
-
-    const countTotal = clusters.reduce((acc, c) => acc + c.count, 0);
-    const platoW = calcularAnchoPlato(countTotal, esAtras, totalOrden);
-    filaEl.style.setProperty('--plato-w', platoW);
-
-    let delayAcumulado = baseDelayFila;
-    clusters.forEach((c) => {
-      const clusterDiv = document.createElement('div');
-      clusterDiv.className = 'plato-cluster' + (c.count > 1 ? ' tiene-multiples' : '');
-      
-      for(let i = 0; i < c.count; i++){
-        const platoDiv = document.createElement('div');
-        platoDiv.className = 'plato-servido';
-        platoDiv.style.animationDelay = `${(delayAcumulado + (i * 0.08)).toFixed(2)}s`;
-        platoDiv.style.zIndex = i + 1;
-        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre}">`;
-        clusterDiv.appendChild(platoDiv);
-      }
-
-      // Nota: No se coloca número ni badge sobre las fotos en la mesa a petición del usuario
-
-      delayAcumulado += 0.12;
-      filaEl.appendChild(clusterDiv);
-    });
-  }
-
+  /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA ═══════════ */
   function mostrarMeseroEntrega(user, platos){
     if(!$meseroOverlay || !$meseroMesa) return;
 
     // Sonido de servicio en restaurante
     playSfx('serve');
 
-    // Asegurar estructura de 2 filas
-    let $filaAtras = document.getElementById('mesa-fila-atras');
-    let $filaAdelante = document.getElementById('mesa-fila-adelante');
-    if(!$filaAtras || !$filaAdelante){
-      $meseroMesa.innerHTML = '<div class="mesa-fila mesa-fila-atras" id="mesa-fila-atras"></div><div class="mesa-fila mesa-fila-adelante" id="mesa-fila-adelante"></div>';
-      $filaAtras = document.getElementById('mesa-fila-atras');
-      $filaAdelante = document.getElementById('mesa-fila-adelante');
-    }
-    $filaAtras.innerHTML = '';
-    $filaAdelante.innerHTML = '';
+    // Limpiar mesa previa
+    $meseroMesa.innerHTML = '';
 
+    // Ajustar proporción de ancho máximo según cantidad de platos servidos
     const totalPlatos = platos.length;
+    let maxWidthPercent = '32%';
+    if(totalPlatos === 1) maxWidthPercent = '36%';
+    else if(totalPlatos === 2) maxWidthPercent = '33%';
+    else if(totalPlatos === 3) maxWidthPercent = '30%'; // Idéntico a la foto de muestra
+    else if(totalPlatos >= 4) maxWidthPercent = '23%';
 
-    if(totalPlatos <= 4){
-      // ════════════ MODO <= 4 PLATOS: GRANDES Y BIEN DISTRIBUIDOS SOBRE LA MESA ════════════
-      $meseroMesa.classList.add('modo-grande');
-
-      // Tamaños generosos ocupando la mesa: 1 y 2 platillos son GRANDES y prominentes
-      const configGrande = {
-        1: { w: '520px', h: '360px', maxW: '58%', scale: '1.25', bebidaScale: '1.42' },
-        2: { w: '430px', h: '330px', maxW: '46%', scale: '1.18', bebidaScale: '1.30' },
-        3: { w: '290px', h: '270px', maxW: '32%', scale: '1.05', bebidaScale: '1.15' }, // Idéntico a la foto de muestra
-        4: { w: '230px', h: '235px', maxW: '24%', scale: '1.00', bebidaScale: '1.08' }
-      }[totalPlatos] || { w: '230px', h: '235px', maxW: '24%', scale: '1.00', bebidaScale: '1.08' };
-
-      $filaAdelante.style.setProperty('--plato-w', configGrande.w);
-      $filaAdelante.style.setProperty('--plato-h', configGrande.h);
-      $filaAdelante.style.setProperty('--plato-max-w', configGrande.maxW);
-      $filaAdelante.style.setProperty('--plato-scale', configGrande.scale);
-      $filaAdelante.style.setProperty('--bebida-scale', configGrande.bebidaScale);
-
-      // Claves de bebidas o vasos altos que requieren un impulso de escala para no verse delgados
-      const BEBIDAS_KEYS = new Set([
-        'matcha', 'coca', 'cerveza', 'aguabotella', 'vinito', 'frozen',
-        'limonada', 'vasoagua', 'juguitocaja', 'juguitofresa', 'capuchinohelado',
-        'helado', 'aguagalon'
-      ]);
-
-      // Si son 4 o menos, NUNCA se enciman ni se agrupan con márgenes negativos:
-      // se distribuyen de forma limpia, amplia e individual en toda la mesa
-      platos.forEach((it, idx) => {
-        const platoDiv = document.createElement('div');
-        const esBebida = BEBIDAS_KEYS.has(it.key);
-        platoDiv.className = 'plato-servido' + (esBebida ? ' es-bebida' : '');
-        platoDiv.style.animationDelay = `${(0.10 + (idx * 0.12)).toFixed(2)}s`;
-        platoDiv.innerHTML = `<img src="${it.img}" alt="${it.nombre}" title="${it.nombre}">`;
-        $filaAdelante.appendChild(platoDiv);
-      });
-    } else {
-      // ════════════ MODO > 4 PLATOS (5 A 10): 2 FILAS, REDUCIDOS Y CLUSTERS CERCANOS ════════════
-      $meseroMesa.classList.remove('modo-grande');
-
-      // Agrupar platos por ítem para juntar los idénticos en clusters solo cuando superan el límite
-      const gruposMap = new Map();
-      platos.forEach(p => {
-        if(!gruposMap.has(p.key)){
-          gruposMap.set(p.key, { item: p, count: 0 });
-        }
-        gruposMap.get(p.key).count++;
-      });
-      const grupos = Array.from(gruposMap.values());
-
-      const targetAtras = Math.floor(totalPlatos / 2);
-      const targetAdelante = totalPlatos - targetAtras;
-      let cantAtras = 0;
-      let cantAdelante = 0;
-      let clustersAtras = [];
-      let clustersAdelante = [];
-
-      grupos.forEach(g => {
-        if(g.count > 5){
-          // Si un solo grupo supera 5 unidades, se divide entre ambas filas
-          const nAtras = Math.ceil(g.count / 2);
-          const nAdelante = g.count - nAtras;
-          clustersAtras.push({ item: g.item, count: nAtras });
-          clustersAdelante.push({ item: g.item, count: nAdelante });
-          cantAtras += nAtras;
-          cantAdelante += nAdelante;
-        } else if(cantAdelante + g.count <= targetAdelante){
-          clustersAdelante.push({ item: g.item, count: g.count });
-          cantAdelante += g.count;
-        } else if(cantAtras + g.count <= targetAtras){
-          clustersAtras.push({ item: g.item, count: g.count });
-          cantAtras += g.count;
-        } else {
-          if(cantAdelante <= cantAtras){
-            clustersAdelante.push({ item: g.item, count: g.count });
-            cantAdelante += g.count;
-          } else {
-            clustersAtras.push({ item: g.item, count: g.count });
-            cantAtras += g.count;
-          }
-        }
-      });
-
-      if(clustersAtras.length === 0 && clustersAdelante.length > 1){
-        clustersAtras.push(clustersAdelante.pop());
-      }
-
-      // Renderizar: Fila trasera entra primero (0.08s), fila delantera entra después (0.28s)
-      renderFilaMesa($filaAtras, clustersAtras, true, 0.08, totalPlatos);
-      renderFilaMesa($filaAdelante, clustersAdelante, false, 0.28, totalPlatos);
-    }
+    platos.forEach((it, idx) => {
+      const platoDiv = document.createElement('div');
+      platoDiv.className = 'plato-servido';
+      platoDiv.style.maxWidth = maxWidthPercent;
+      platoDiv.style.animationDelay = `${0.12 * (idx + 1)}s`;
+      platoDiv.innerHTML = `<img src="${it.img}" alt="${it.nombre}" title="${it.nombre}">`;
+      $meseroMesa.appendChild(platoDiv);
+    });
 
     // Ocultar zona de pruebas durante la entrega para vista 100% limpia
-    if(demoZone) demoZone.classList.remove('activo');
+    if(demoZone) demoZone.style.display = 'none';
 
     // Activar mesero a pantalla completa (sin fondo, solo mesero.png y platos)
     document.body.classList.add('mesero-activo');
     $meseroOverlay.classList.remove('saliendo');
     $meseroOverlay.classList.add('visible');
 
-    console.log(`[Tiendita] 🍽️ Mesero entregando orden de @${user} (${totalPlatos} platillos):`, platos.map(p => p.nombre));
+    console.log(`[Tiendita] 🍽️ Mesero entregando orden de @${user}:`, platos.map(p => p.nombre));
 
     if(meseroTimer) clearTimeout(meseroTimer);
     meseroTimer = setTimeout(()=>{
@@ -1802,8 +1503,8 @@
       setTimeout(()=>{
         $meseroOverlay.classList.remove('visible', 'saliendo');
         document.body.classList.remove('mesero-activo');
-        if($filaAtras) $filaAtras.innerHTML = '';
-        if($filaAdelante) $filaAdelante.innerHTML = '';
+        $meseroMesa.innerHTML = '';
+        if(demoZone && !isOverlayMode) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
       }, 600);
     }, 9000);
@@ -1887,17 +1588,10 @@
     const userNorm = norm(user);
     const actualNorm = norm(usuarioActual);
     const tiendaAbierta = $menu.classList.contains('visible');
-    const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userNorm.startsWith('jikokun');
 
-    const parseado = parsearItemYCantidad(raw);
-    const esSeleccionItem = parseado !== null;
-
-    const esComandoAbrir = t==='!tienda'||t==='tienda'||t==='!tiendita'||t==='tiendita'||
-                           t==='!menu'||t==='menu'||t==='!shop'||t==='shop'||
-                           t.startsWith('!tienda')||t.startsWith('tienda')||
-                           t.startsWith('!tiendita')||t.startsWith('tiendita')||
-                           t.startsWith('!menu')||t.startsWith('menu')||
-                           t.startsWith('!shop')||t.startsWith('shop');
+    const esComandoAbrir = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
+                           t.startsWith('!tienda ')||t.startsWith('!tiendita ')||
+                           t.startsWith('!menu ')||t.startsWith('!shop ');
     const esComandoCancelar = t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel';
     const esComandoPagar = t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo';
     const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar';
@@ -1911,10 +1605,10 @@
     const esPrefijoAtras = t.startsWith('!atras ')||t.startsWith('atras ')||
                            t.startsWith('!anterior ')||t.startsWith('anterior ')||
                            t.startsWith('!prev ')||t.startsWith('prev ');
+    const esSeleccionItem = ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
     // ── REGLA 1: Si la tienda está ABIERTA y otro usuario intenta usarla, comprar o cancelarle:
-    // Excepción: Jikokun / Streamer NUNCA es bloqueado por turno ajeno
-    if(tiendaAbierta && userNorm !== actualNorm && !esAdmin){
+    if(tiendaAbierta && userNorm !== actualNorm){
       if(esComandoAbrir || esComandoCancelar || esComandoPagar || esComandoAnadir || esComandoRotar || esComandoAtras || esPrefijoRotar || esPrefijoAtras || esSeleccionItem){
         console.log(`[Tiendita] ✋ Intento bloqueado de [@${user}]. La tienda la está usando [@${usuarioActual}].`);
         mostrarAlertaTurno(user);
@@ -1923,8 +1617,7 @@
     }
 
     // ── REGLA 2: Si la tienda está CERRADA y está en COOLDOWN GLOBAL:
-    // Excepción: Jikokun / Streamer NUNCA es bloqueado por cooldown
-    if(!tiendaAbierta && !esAdmin){
+    if(!tiendaAbierta){
       const ahora = Date.now();
       if(ahora < cooldownGlobalFin){
         const segRestantes = Math.ceil((cooldownGlobalFin - ahora) / 1000);
@@ -1936,18 +1629,9 @@
       }
     }
 
-    // 1. Abrir tienda (o renovar tiempo si es el mismo usuario o admin)
+    // 1. Abrir tienda (o renovar tiempo si es el mismo usuario)
     if(esComandoAbrir){
-      // Si el mesero de la orden anterior aún está visible, retirarlo de inmediato para abrir la tienda
-      if($meseroOverlay && ($meseroOverlay.classList.contains('visible') || document.body.classList.contains('mesero-activo'))){
-        $meseroOverlay.classList.remove('visible', 'saliendo');
-        document.body.classList.remove('mesero-activo');
-        if($filaAtras) $filaAtras.innerHTML = '';
-        if($filaAdelante) $filaAdelante.innerHTML = '';
-        if(meseroTimer) clearTimeout(meseroTimer);
-      }
-
-      if(!tiendaAbierta || esAdmin || userNorm !== actualNorm){
+      if(!tiendaAbierta){
         mostrarMenu(user, getUserPoints(user));
         toast(`🛒 <b>@${user}</b> abrió la tiendita!`);
       } else {
@@ -2013,60 +1697,56 @@
       return;
     }
 
-    // 5. Compra / Adición directa con cantidad y soporte de bloques (ej: "!pupusas 2", "!comprar cafe 3", "tamal 2")
-    if(parseado){
-      agregarItemAOrden(parseado.item.key, user, parseado.cantidad);
+    // 5. Compra / Adición directa con nombre: !comprar <item>
+    if(t.startsWith('!comprar ')){
+      const key = t.replace(/^!comprar\s+/,'');
+      if(agregarItemAOrden(key, user)){
+        // añadido con éxito
+      } else {
+        toast(`❌ El ítem "<b>${key}</b>" no existe en la tiendita`,'err');
+        playSfx('error');
+      }
       return;
     }
 
-    // 6. Mensaje de error para !comprar no reconocido
-    if(t.startsWith('!comprar ')){
-      const key = t.replace(/^!comprar\s+/,'');
-      toast(`❌ El ítem "<b>${key}</b>" no existe en la tiendita`,'err');
-      playSfx('error');
+    // 6. Seleccionar / Añadir por nombre directo (ej: "pupusas", "!tamal", "pollofrito", "!matcha")
+    const keyLimpia = norm(t.replace(/^!/,''));
+    const itemEncontrado = ITEMS.find(it => norm(it.key) === keyLimpia || (it.aliases && it.aliases.some(a => norm(a) === keyLimpia)));
+    if(itemEncontrado){
+      agregarItemAOrden(itemEncontrado.key, user);
       return;
     }
   }
 
   /* ═══════════ WEBSOCKET STREAMER.BOT ═══════════ */
-  const portsToTry = [WS_PORT, '4445', '8080', '1234'].filter((v, i, a) => a.indexOf(v) === i);
-  let currentPortIndex = 0;
-
   function setStatus(estado,txt){
-    const chip = document.getElementById('ws-chip');
-    const txtEl = document.getElementById('ws-txt');
-    if(chip) chip.className='chip '+estado;
-    if(txtEl) txtEl.textContent=txt;
+    document.getElementById('ws-chip').className='chip '+estado;
+    document.getElementById('ws-txt').textContent=txt;
   }
-
   function conectarWS(){
-    const currentPort = portsToTry[currentPortIndex] || '4445';
-    const currentUrl = `ws://127.0.0.1:${currentPort}/`;
     try {
-      socket = new WebSocket(currentUrl);
+      socket=new WebSocket(WS_URL);
     } catch(err){
-      setStatus('warn', 'Reconectando…');
-      currentPortIndex = (currentPortIndex + 1) % portsToTry.length;
-      setTimeout(conectarWS, 2500);
+      setStatus('warn','Reconectando…');
+      setTimeout(conectarWS,3000);
       return;
     }
 
-    socket.onopen = () => { 
-      setStatus('ok', `Conectado (${currentPort})`);
-      console.log(`[Tiendita] 🟢 WebSocket conectado con éxito a Streamer.bot en ${currentUrl}`);
+    socket.onopen=()=>{ 
+      setStatus('ok','Conectado');
+      console.log('[Tiendita] 🟢 WebSocket conectado con éxito a Streamer.bot');
       socket.send(JSON.stringify({
-        request: 'Subscribe',
-        id: 'sub-tiendita',
-        events: {
-          General: ['Custom'],
-          StreamerBot: ['Custom'],
-          Kick: ['ChatMessage', 'Message', 'UserBanned', 'MessageDeleted', '*'],
-          Twitch: ['ChatMessage', 'Message', '*']
+        request:'Subscribe',
+        id:'sub-tiendita',
+        events:{
+          General:['Custom'],
+          Kick:['ChatMessage', 'Message'],
+          Twitch:['ChatMessage']
         }
       })); 
     };
 
-    socket.onmessage = (ev) => {
+    socket.onmessage=(ev)=>{
       let msg; try { msg = JSON.parse(ev.data); } catch(e){ return; }
 
       const eventObj = msg.event || {};
@@ -2088,22 +1768,19 @@
         return;
       }
 
-      // 2. Mensajes de chat en vivo de Kick / Twitch / Streamer.bot
-      const isChat = eventType.includes('chatmessage') || eventType.includes('message') || eventType === 'message' || Boolean(data.message || data.messageText || data.text || data.content);
+      // 2. Mensajes de chat en vivo de Kick / Twitch
+      const isChat = eventType.includes('chatmessage') || eventType === 'message' || data.message || data.messageText || data.text || data.content;
       if(isChat){
         const messageObj = data.message || data;
-        let userObj = data.user || data.sender || (typeof messageObj === 'object' && messageObj ? (messageObj.user || messageObj.sender) : null) || {};
+        let userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
         let user = 'anon';
         if(typeof userObj === 'string') user = userObj;
         else if(typeof userObj === 'object' && userObj !== null){
-          user = userObj.name || userObj.username || userObj.slug || userObj.displayName || userObj.user_name || userObj.login || data.userName || data.username || 'anon';
+          user = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || 'anon';
         }
 
-        user = String(user || 'anon').replace(/^@/, '').trim();
+        // FILTRO ESTRICTO DE BOTS: Ignorar completamente botrix, lobito_mensajero, kickbot, etc.
         const userNorm = norm(user);
-        const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userNorm.startsWith('jikokun') || userObj.is_broadcaster === true || userObj.isBroadcaster === true;
-
-        // FILTRO ESTRICTO DE BOTS: Ignorar bots conocidos sin bloquear al streamer ni viewers normales
         const BOTS_IGNORADOS = [
           'botrix',
           'lobito_mensajero',
@@ -2114,13 +1791,12 @@
           'jikobot',
           'creepingbot',
           'streamerbot',
-          'wizebot'
+          'wizebot',
+          'bot'
         ];
-        const isBot = !esAdmin && (
-          BOTS_IGNORADOS.includes(userNorm) || 
-          BOTS_IGNORADOS.some(b => userNorm === b || userNorm.startsWith(b + '_') || userNorm.endsWith('_' + b)) ||
-          userObj.is_bot === true || userObj.isBot === true
-        );
+        const isBot = BOTS_IGNORADOS.includes(userNorm) || 
+                      BOTS_IGNORADOS.some(b => userNorm === b || userNorm.startsWith(b + '_') || userNorm.endsWith('_' + b)) ||
+                      Boolean(userObj.is_bot || userObj.isBot || data.is_bot || data.isBot);
 
         if(isBot){
           // Ignorar silenciosamente sin alterar cliente ni abrir tienda
@@ -2131,39 +1807,26 @@
         if(avatarDirecto) avatarCache[norm(user)] = avatarDirecto;
 
         let contenido = '';
-        if(typeof messageObj === 'string') contenido = messageObj;
+        if(typeof data.messageText === 'string') contenido = data.messageText;
+        else if(typeof data.message === 'string') contenido = data.message;
+        else if(typeof data.text === 'string') contenido = data.text;
+        else if(typeof data.content === 'string') contenido = data.content;
         else if(typeof messageObj === 'object' && messageObj !== null){
           contenido = messageObj.message || messageObj.text || messageObj.content || '';
         }
-        if(!contenido){
-          if(typeof data.message === 'string') contenido = data.message;
-          else if(typeof data.messageText === 'string') contenido = data.messageText;
-          else if(typeof data.text === 'string') contenido = data.text;
-          else if(typeof data.content === 'string') contenido = data.content;
-          else if(typeof rawData === 'string') contenido = rawData;
-        }
-        contenido = String(contenido || '').trim();
 
         if(!contenido) return;
 
-        // Comprobar si el contenido es un comando o ítem de la tiendita (con soporte de cantidades / bloques)
+        // Comprobar si el contenido es un comando o ítem de la tiendita
         const t = norm(contenido);
-        const itemDetectado = parsearItemYCantidad(contenido);
 
-        const esComandoAbrir = t==='!tienda'||t==='tienda'||t==='!tiendita'||t==='tiendita'||
-                               t==='!menu'||t==='menu'||t==='!shop'||t==='shop'||
-                               t.startsWith('!tienda')||t.startsWith('tienda')||
-                               t.startsWith('!tiendita')||t.startsWith('tiendita')||
-                               t.startsWith('!menu')||t.startsWith('menu')||
-                               t.startsWith('!shop')||t.startsWith('shop');
-
-        // Si la tienda está cerrada y el mensaje no es comando de abrir ni empieza con '!', es conversación normal
+        // Si la tienda está cerrada y el mensaje no empieza con '!', es conversación ordinaria del chat
         const tiendaAbiertaActualmente = $menu && $menu.classList.contains('visible');
-        if(!tiendaAbiertaActualmente && !esComandoAbrir && !t.startsWith('!')){
+        if(!tiendaAbiertaActualmente && !t.startsWith('!')){
           return;
         }
 
-        const esComandoTienda = esComandoAbrir ||
+        const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
                                 t==='!anadir'||t==='!añadir'||t==='!agregar'||
@@ -2177,10 +1840,9 @@
                                 t.startsWith('!atras ')||t.startsWith('atras ')||
                                 t.startsWith('!anterior ')||t.startsWith('anterior ')||
                                 t.startsWith('!prev ')||t.startsWith('prev ')||
-                                t.startsWith('!comprar ')||t.startsWith('comprar ')||
+                                t.startsWith('!comprar ')||
                                 t.startsWith('!darjikopuntos')||
                                 t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
-                                itemDetectado !== null ||
                                 ITEMS.some(it => t === it.key || t === '!' + it.key || (it.aliases && it.aliases.some(a => norm(t) === norm(a) || norm(t) === '!' + norm(a))));
 
         // Si es un mensaje ordinario del chat (conversación normal de viewers), se ignora
@@ -2190,14 +1852,8 @@
         ejecutarTexto(contenido, user);
       }
     };
-    socket.onclose = () => { 
-      setStatus('warn', 'Reconectando…'); 
-      currentPortIndex = (currentPortIndex + 1) % portsToTry.length;
-      setTimeout(conectarWS, 2500); 
-    };
-    socket.onerror = () => { 
-      setStatus('warn', 'Reconectando…'); 
-    };
+    socket.onclose=()=>{ setStatus('warn','Reconectando…'); setTimeout(conectarWS,3000); };
+    socket.onerror=()=>setStatus('warn','Reconectando…');
   }
 
   /* ═══════════ MOSTRAR / OCULTAR & TEMPORIZADOR ═══════════ */
@@ -2276,32 +1932,9 @@
   }
 
   /* ═══════════ PANEL DE PRUEBA: Alternar tocando la pantalla ═══════════ */
-  let demoZoneTimer = null;
-  function alternarDemoZone(forzar = null){
-    if(!demoZone) return;
-    const activar = forzar !== null ? forzar : !demoZone.classList.contains('activo');
-    demoZone.classList.toggle('activo', activar);
-    if(demoZoneTimer) { clearTimeout(demoZoneTimer); demoZoneTimer = null; }
-    if(activar){
-      demoZoneTimer = setTimeout(() => {
-        if(demoZone) demoZone.classList.remove('activo');
-      }, 15000);
-    }
-  }
-
   addEventListener('pointerdown', e => {
-    // Si toca dentro de los botones de prueba o dentro del menú de la tienda o card de puntos, no cerrar
-    if (e.target.closest('#demo-zone, #tiendita-menu, #card-jikopuntos')) {
-      // Renovar el temporizador de 15s para que no se cierre mientras el streamer prueba
-      if(demoZone && demoZone.classList.contains('activo')){
-        if(demoZoneTimer) clearTimeout(demoZoneTimer);
-        demoZoneTimer = setTimeout(() => {
-          if(demoZone) demoZone.classList.remove('activo');
-        }, 15000);
-      }
-      return;
-    }
-    alternarDemoZone();
+    if (e.target.closest('#demo-zone, #tiendita-menu')) return;
+    demoZone.classList.toggle('oculto');
   }, { passive: true });
 
   const nombres=['LunaGamer','elpana_juan','DonChente','MoraPixel','Kafecito_'];
@@ -2326,73 +1959,6 @@
     const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
     agregarItemAOrden(itemAzar.key, usuarioActual || 'LunaGamer');
   };
-  const btnUnoMatcha = document.getElementById('demo-uno-matcha');
-  if(btnUnoMatcha){
-    btnUnoMatcha.onclick = ()=>{
-      const u = usuarioActual || 'LunaGamer';
-      if(!$menu.classList.contains('visible')){
-        mostrarMenu(u, getUserPoints(u));
-      }
-      ejecutarTexto('!matcha 1', u);
-    };
-  }
-  const btnDosMatcha = document.getElementById('demo-dos-matcha');
-  if(btnDosMatcha){
-    btnDosMatcha.onclick = ()=>{
-      const u = usuarioActual || 'LunaGamer';
-      if(!$menu.classList.contains('visible')){
-        mostrarMenu(u, getUserPoints(u));
-      }
-      ejecutarTexto('!matcha 2', u);
-    };
-  }
-  const btnUnoPlato = document.getElementById('demo-uno-plato');
-  if(btnUnoPlato){
-    btnUnoPlato.onclick = ()=>{
-      const u = usuarioActual || 'LunaGamer';
-      if(!$menu.classList.contains('visible')){
-        mostrarMenu(u, getUserPoints(u));
-      }
-      ejecutarTexto('!pupusas 1', u);
-    };
-  }
-  const btnBloquePupusas = document.getElementById('demo-bloque-pupusas');
-  if(btnBloquePupusas){
-    btnBloquePupusas.onclick = ()=>{
-      const u = usuarioActual || 'LunaGamer';
-      if(!$menu.classList.contains('visible')){
-        mostrarMenu(u, getUserPoints(u));
-      }
-      ejecutarTexto('!pupusas 2', u);
-    };
-  }
-  const btnCuatroPlatos = document.getElementById('demo-cuatro-platos');
-  if(btnCuatroPlatos){
-    btnCuatroPlatos.onclick = ()=>{
-      const u = usuarioActual || 'LunaGamer';
-      if(!$menu.classList.contains('visible')){
-        mostrarMenu(u, getUserPoints(u));
-      }
-      ejecutarTexto('!pupusas 4', u);
-    };
-  }
-  const btnDiezPlatos = document.getElementById('demo-diez-platos');
-  if(btnDiezPlatos){
-    btnDiezPlatos.onclick = ()=>{
-      // Simula orden completa de 10 platillos con bloques en 2 filas y clusters:
-      // 2 Pupusas, 2 Pollo Frito, 2 Tamales, 2 Salchipapas, 2 Vinito Especial
-      const user = usuarioActual || 'LunaGamer';
-      mostrarMenu(user, getUserPoints(user));
-      ordenActual = [];
-      const keys = ['pupusas', 'pupusas', 'pollofrito', 'pollofrito', 'tamal', 'tamal', 'salchipapa', 'salchipapa', 'vinito', 'vinito'];
-      keys.forEach(k => {
-        const it = ITEMS.find(i => i.key === k);
-        if(it) ordenActual.push(it);
-      });
-      actualizarPanelOrden();
-      procesarPagoOrden();
-    };
-  }
   const btnOrdenFoto = document.getElementById('demo-orden-foto');
   if(btnOrdenFoto){
     btnOrdenFoto.onclick = ()=>{
@@ -2447,7 +2013,7 @@
   };
 
   if(isOverlayMode){
-    if(demoZone) demoZone.classList.remove('activo');
+    demoZone.classList.add('oculto');
   }
 
   /* ═══════════ RECEPTOR DE ACCIONES EXTERNAS (PANEL DE PRUEBA) ═══════════ */
@@ -2481,34 +2047,10 @@
           mostrarMenu(user || usuarioActual || 'LunaGamer', getUserPoints(user || usuarioActual || 'LunaGamer'));
         }
         if(itemKey){
-          agregarItemAOrden(itemKey, user || usuarioActual, amount || 1);
+          agregarItemAOrden(itemKey, user || usuarioActual);
         } else {
           const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
-          agregarItemAOrden(itemAzar.key, user || usuarioActual, amount || 1);
-        }
-        break;
-      case 'PUPUSAS_2':
-        {
-          const targetUser = user || usuarioActual || 'LunaGamer';
-          if(!$menu.classList.contains('visible')){
-            mostrarMenu(targetUser, getUserPoints(targetUser));
-          }
-          ejecutarTexto('!pupusas 2', targetUser);
-        }
-        break;
-      case 'FEAST_10':
-      case 'DIEZ_ITEMS':
-        {
-          const targetUser = user || usuarioActual || 'LunaGamer';
-          mostrarMenu(targetUser, getUserPoints(targetUser));
-          ordenActual = [];
-          const keys = ['pupusas', 'pupusas', 'pollofrito', 'pollofrito', 'tamal', 'tamal', 'salchipapa', 'salchipapa', 'vinito', 'vinito'];
-          keys.forEach(k => {
-            const it = ITEMS.find(i => i.key === k);
-            if(it) ordenActual.push(it);
-          });
-          actualizarPanelOrden();
-          procesarPagoOrden();
+          agregarItemAOrden(itemAzar.key, user || usuarioActual);
         }
         break;
       case 'TRIPLE_ORDER':
