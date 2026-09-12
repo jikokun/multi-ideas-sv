@@ -379,51 +379,79 @@
 
   /* Contenedor exacto sobre la superficie de la mesa de madera de mesero.png */
   .mesero-mesa{
-    position:absolute;bottom:8%;left:3%;right:3%;height:52%;
+    position:absolute;bottom:3.5%;left:4%;right:4%;height:68%;
     pointer-events:none;z-index:2;
   }
 
-  /* Filas de la mesa: Atrás (perspectiva profunda) y Adelante (primer plano) */
+  /* Filas de la mesa */
   .mesa-fila{
     position:absolute;left:0;right:0;width:100%;
     display:flex;align-items:flex-end;justify-content:space-evenly;
     pointer-events:none;
   }
-  .mesa-fila-atras{
-    bottom:24%;height:44%;z-index:1;
+
+  /* ═══ MODO 1: Cuando son <= 4 platillos (GRANDES y bien distribuidos en 1 sola fila sobre la mesa) ═══ */
+  .mesero-mesa.modo-grande .mesa-fila-atras{
+    display:none !important;
   }
-  .mesa-fila-adelante{
-    bottom:2%;height:52%;z-index:3;
+  .mesero-mesa.modo-grande .mesa-fila-adelante{
+    bottom:0;height:100%;z-index:3;
+    display:flex;align-items:flex-end;justify-content:space-evenly;width:100%;
+  }
+  .mesero-mesa.modo-grande .plato-servido{
+    position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+    height:100%;
+    width:var(--plato-w, 285px);
+    max-width:var(--plato-max-w, 32%);
+    flex:0 1 var(--plato-max-w, 32%);
+    animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
+  }
+  .mesero-mesa.modo-grande .plato-servido img{
+    width:100%;
+    height:var(--plato-h, 270px);
+    max-width:var(--plato-w, 100%);
+    max-height:100%;
+    object-fit:contain;
+    filter:drop-shadow(0 18px 22px rgba(0,0,0,.75)) drop-shadow(0 5px 8px rgba(0,0,0,.5));
+    transition:transform .3s ease;
   }
 
-  /* Cluster de platos idénticos que se colocan juntos sin números encima */
+  /* ═══ MODO 2: Cuando superan 4 platillos (5 a 10 platillos, 2 filas y clusters cercanos) ═══ */
+  .mesa-fila-atras{
+    bottom:28%;height:42%;z-index:1;
+  }
+  .mesa-fila-adelante{
+    bottom:0;height:50%;z-index:3;
+  }
+
+  /* Cluster de platos idénticos (solo cuando son > 4 platos para ahorrar espacio) */
   .plato-cluster{
     position:relative;display:inline-flex;align-items:flex-end;justify-content:center;
     flex-shrink:0;height:100%;
     transition:transform .3s ease;
   }
-  .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
-    margin-left:calc(var(--plato-w, 160px) * -0.32);
+  .mesero-mesa:not(.modo-grande) .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
+    margin-left:calc(var(--plato-w, 130px) * -0.34);
   }
-  .mesa-fila-atras .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
-    margin-left:calc(var(--plato-w, 135px) * -0.30);
+  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
+    margin-left:calc(var(--plato-w, 115px) * -0.32);
   }
 
-  /* Cada plato servido sobre la mesa */
-  .plato-servido{
+  /* Cada plato servido sobre la mesa en modo 2 filas */
+  .mesero-mesa:not(.modo-grande) .plato-servido{
     position:relative;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
     height:100%;flex-shrink:0;animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
   }
-  .mesa-fila-atras .plato-servido{
+  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-servido{
     animation:servirPlatoAtras .55s cubic-bezier(.18,.9,.24,1.25) backwards;
   }
-  .plato-servido img{
-    width:auto;height:auto;max-height:100%;max-width:var(--plato-w, 160px);object-fit:contain;
-    filter:drop-shadow(0 14px 14px rgba(0,0,0,.68)) drop-shadow(0 4px 6px rgba(0,0,0,.45));
+  .mesero-mesa:not(.modo-grande) .plato-servido img{
+    width:auto;height:auto;max-height:100%;max-width:var(--plato-w, 130px);object-fit:contain;
+    filter:drop-shadow(0 12px 14px rgba(0,0,0,.68)) drop-shadow(0 3px 5px rgba(0,0,0,.4));
     transition:transform .3s ease;
   }
-  .mesa-fila-atras .plato-servido img{
-    max-width:var(--plato-w, 135px);
+  .mesero-mesa:not(.modo-grande) .mesa-fila-atras .plato-servido img{
+    max-width:var(--plato-w, 115px);
     transform:scale(0.85);
     transform-origin:bottom center;
     filter:drop-shadow(0 10px 12px rgba(0,0,0,.62)) drop-shadow(0 3px 5px rgba(0,0,0,.4)) brightness(0.94);
@@ -809,9 +837,11 @@
     <button id="demo-cliente">Cliente (1000 pts)</button>
     <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
     <button id="demo-select">➕ Añadir Ítem</button>
+    <button id="demo-uno-plato" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 1</button>
     <button id="demo-bloque-pupusas" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 2</button>
-    <button id="demo-diez-platos" style="color:var(--oro);border-color:rgba(255,211,92,.7);font-weight:800;">🍱 Fiesta 10 (2 Filas)</button>
     <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple</button>
+    <button id="demo-cuatro-platos" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 4 Platos</button>
+    <button id="demo-diez-platos" style="color:var(--oro);border-color:rgba(255,211,92,.7);font-weight:800;">🍱 Fiesta 10 (2 Filas)</button>
     <button id="demo-compra" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">💳 Pagar Todo</button>
     <button id="demo-cancelar">Vaciar / !cancelar</button>
     <button id="demo-otro-user" style="color:var(--oro);border-color:rgba(255,211,92,.5);">Probar Turno</button>
@@ -1589,18 +1619,11 @@
 
   /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA (2 FILAS & CLUSTERS) ═══════════ */
   function calcularAnchoPlato(countTotalFila, esAtras, totalOrden){
-    if(totalOrden <= 4){
-      // 4 o menos items en total: SIEMPRE EN GRANDE sobre la mesa (idéntico a la foto original)
-      if(totalOrden === 1) return '310px';
-      if(totalOrden === 2) return '265px';
-      if(totalOrden === 3) return '235px'; // Idéntico a la foto de muestra
-      return '195px'; // 4 platos grandes
-    }
-    // Más de 4 platillos: reducen su tamaño y se distribuyen en filas para caber perfectamente
+    // Cuando superan el límite (> 4 platos, hasta 10): se reducen y acomodan en 2 filas con clusters
     if(countTotalFila <= 2) return esAtras ? '145px' : '170px';
     if(countTotalFila === 3) return esAtras ? '130px' : '150px';
     if(countTotalFila === 4) return esAtras ? '118px' : '135px';
-    return esAtras ? '105px' : '122px'; // 5 platos en fila
+    return esAtras ? '108px' : '124px'; // 5 platos en fila
   }
 
   function renderFilaMesa(filaEl, clusters, esAtras, baseDelayFila, totalOrden){
@@ -1650,29 +1673,53 @@
     $filaAtras.innerHTML = '';
     $filaAdelante.innerHTML = '';
 
-    // Agrupar platos por ítem para juntar los idénticos en clusters
-    const gruposMap = new Map();
-    platos.forEach(p => {
-      if(!gruposMap.has(p.key)){
-        gruposMap.set(p.key, { item: p, count: 0 });
-      }
-      gruposMap.get(p.key).count++;
-    });
-    const grupos = Array.from(gruposMap.values());
-
     const totalPlatos = platos.length;
-    let clustersAtras = [];
-    let clustersAdelante = [];
 
     if(totalPlatos <= 4){
-      // 1 a 4 platos: Todos en la fila delantera con amplio espacio
-      clustersAdelante = grupos;
+      // ════════════ MODO <= 4 PLATOS: GRANDES Y BIEN DISTRIBUIDOS SOBRE LA MESA ════════════
+      $meseroMesa.classList.add('modo-grande');
+
+      // Tamaños generosos aprovechando el área de la mesa de madera según la cantidad (1 a 4 platos)
+      const configGrande = {
+        1: { w: '390px', h: '330px', maxW: '48%' },
+        2: { w: '330px', h: '300px', maxW: '40%' },
+        3: { w: '290px', h: '270px', maxW: '32%' }, // Idéntico a la foto original de muestra
+        4: { w: '230px', h: '235px', maxW: '24%' }
+      }[totalPlatos] || { w: '230px', h: '235px', maxW: '24%' };
+
+      $filaAdelante.style.setProperty('--plato-w', configGrande.w);
+      $filaAdelante.style.setProperty('--plato-h', configGrande.h);
+      $filaAdelante.style.setProperty('--plato-max-w', configGrande.maxW);
+
+      // Si son 4 o menos, NUNCA se enciman ni se agrupan con márgenes negativos:
+      // se distribuyen de forma limpia, amplia e individual en toda la mesa
+      platos.forEach((it, idx) => {
+        const platoDiv = document.createElement('div');
+        platoDiv.className = 'plato-servido';
+        platoDiv.style.animationDelay = `${(0.10 + (idx * 0.12)).toFixed(2)}s`;
+        platoDiv.innerHTML = `<img src="${it.img}" alt="${it.nombre}" title="${it.nombre}">`;
+        $filaAdelante.appendChild(platoDiv);
+      });
     } else {
-      // 5 a 10 platos: Distribuir en 2 filas (fila trasera y fila delantera)
+      // ════════════ MODO > 4 PLATOS (5 A 10): 2 FILAS, REDUCIDOS Y CLUSTERS CERCANOS ════════════
+      $meseroMesa.classList.remove('modo-grande');
+
+      // Agrupar platos por ítem para juntar los idénticos en clusters solo cuando superan el límite
+      const gruposMap = new Map();
+      platos.forEach(p => {
+        if(!gruposMap.has(p.key)){
+          gruposMap.set(p.key, { item: p, count: 0 });
+        }
+        gruposMap.get(p.key).count++;
+      });
+      const grupos = Array.from(gruposMap.values());
+
       const targetAtras = Math.floor(totalPlatos / 2);
       const targetAdelante = totalPlatos - targetAtras;
       let cantAtras = 0;
       let cantAdelante = 0;
+      let clustersAtras = [];
+      let clustersAdelante = [];
 
       grupos.forEach(g => {
         if(g.count > 5){
@@ -1703,11 +1750,11 @@
       if(clustersAtras.length === 0 && clustersAdelante.length > 1){
         clustersAtras.push(clustersAdelante.pop());
       }
-    }
 
-    // Renderizar: Fila trasera entra primero (0.08s), fila delantera entra después (0.28s)
-    renderFilaMesa($filaAtras, clustersAtras, true, 0.08, totalPlatos);
-    renderFilaMesa($filaAdelante, clustersAdelante, false, clustersAtras.length > 0 ? 0.28 : 0.10, totalPlatos);
+      // Renderizar: Fila trasera entra primero (0.08s), fila delantera entra después (0.28s)
+      renderFilaMesa($filaAtras, clustersAtras, true, 0.08, totalPlatos);
+      renderFilaMesa($filaAdelante, clustersAdelante, false, 0.28, totalPlatos);
+    }
 
     // Ocultar zona de pruebas durante la entrega para vista 100% limpia
     if(demoZone) demoZone.style.display = 'none';
@@ -2180,6 +2227,16 @@
     const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
     agregarItemAOrden(itemAzar.key, usuarioActual || 'LunaGamer');
   };
+  const btnUnoPlato = document.getElementById('demo-uno-plato');
+  if(btnUnoPlato){
+    btnUnoPlato.onclick = ()=>{
+      const u = usuarioActual || 'LunaGamer';
+      if(!$menu.classList.contains('visible')){
+        mostrarMenu(u, getUserPoints(u));
+      }
+      ejecutarTexto('!pupusas 1', u);
+    };
+  }
   const btnBloquePupusas = document.getElementById('demo-bloque-pupusas');
   if(btnBloquePupusas){
     btnBloquePupusas.onclick = ()=>{
@@ -2188,6 +2245,16 @@
         mostrarMenu(u, getUserPoints(u));
       }
       ejecutarTexto('!pupusas 2', u);
+    };
+  }
+  const btnCuatroPlatos = document.getElementById('demo-cuatro-platos');
+  if(btnCuatroPlatos){
+    btnCuatroPlatos.onclick = ()=>{
+      const u = usuarioActual || 'LunaGamer';
+      if(!$menu.classList.contains('visible')){
+        mostrarMenu(u, getUserPoints(u));
+      }
+      ejecutarTexto('!pupusas 4', u);
     };
   }
   const btnDiezPlatos = document.getElementById('demo-diez-platos');
