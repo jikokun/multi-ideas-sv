@@ -391,6 +391,9 @@
   }
 
   /* ═══ MODO 1: Cuando son <= 4 platillos (GRANDES y bien distribuidos en 1 sola fila sobre la mesa) ═══ */
+  .mesero-mesa.modo-grande{
+    height:74%;bottom:3%;
+  }
   .mesero-mesa.modo-grande .mesa-fila-atras{
     display:none !important;
   }
@@ -407,13 +410,20 @@
     animation:servirPlato .55s cubic-bezier(.18,.9,.24,1.25) backwards;
   }
   .mesero-mesa.modo-grande .plato-servido img{
-    width:100%;
+    width:auto;
     height:var(--plato-h, 270px);
     max-width:var(--plato-w, 100%);
     max-height:100%;
     object-fit:contain;
+    transform:scale(var(--plato-scale, 1));
+    transform-origin:bottom center;
     filter:drop-shadow(0 18px 22px rgba(0,0,0,.75)) drop-shadow(0 5px 8px rgba(0,0,0,.5));
     transition:transform .3s ease;
+  }
+  /* Escala extra para bebidas/vasos/botellas para que no se vean delgadas o diminutas sobre la gran mesa */
+  .mesero-mesa.modo-grande .plato-servido.es-bebida img{
+    transform:scale(var(--bebida-scale, 1.35));
+    transform-origin:bottom center;
   }
 
   /* ═══ MODO 2: Cuando superan 4 platillos (5 a 10 platillos, 2 filas y clusters cercanos) ═══ */
@@ -836,7 +846,8 @@
     <span class="dz-title">🧪 PRUEBAS</span>
     <button id="demo-cliente">Cliente (1000 pts)</button>
     <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
-    <button id="demo-select">➕ Añadir Ítem</button>
+    <button id="demo-uno-matcha" style="color:var(--kick);border-color:rgba(83,252,24,.6);font-weight:800;">🍵 !matcha 1</button>
+    <button id="demo-dos-matcha" style="color:var(--kick);border-color:rgba(83,252,24,.6);font-weight:800;">🍵 !matcha 2</button>
     <button id="demo-uno-plato" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 1</button>
     <button id="demo-bloque-pupusas" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 2</button>
     <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple</button>
@@ -1679,23 +1690,33 @@
       // ════════════ MODO <= 4 PLATOS: GRANDES Y BIEN DISTRIBUIDOS SOBRE LA MESA ════════════
       $meseroMesa.classList.add('modo-grande');
 
-      // Tamaños generosos aprovechando el área de la mesa de madera según la cantidad (1 a 4 platos)
+      // Tamaños generosos ocupando la mesa: 1 y 2 platillos son GRANDES y prominentes
       const configGrande = {
-        1: { w: '390px', h: '330px', maxW: '48%' },
-        2: { w: '330px', h: '300px', maxW: '40%' },
-        3: { w: '290px', h: '270px', maxW: '32%' }, // Idéntico a la foto original de muestra
-        4: { w: '230px', h: '235px', maxW: '24%' }
-      }[totalPlatos] || { w: '230px', h: '235px', maxW: '24%' };
+        1: { w: '520px', h: '360px', maxW: '58%', scale: '1.25', bebidaScale: '1.42' },
+        2: { w: '430px', h: '330px', maxW: '46%', scale: '1.18', bebidaScale: '1.30' },
+        3: { w: '290px', h: '270px', maxW: '32%', scale: '1.05', bebidaScale: '1.15' }, // Idéntico a la foto de muestra
+        4: { w: '230px', h: '235px', maxW: '24%', scale: '1.00', bebidaScale: '1.08' }
+      }[totalPlatos] || { w: '230px', h: '235px', maxW: '24%', scale: '1.00', bebidaScale: '1.08' };
 
       $filaAdelante.style.setProperty('--plato-w', configGrande.w);
       $filaAdelante.style.setProperty('--plato-h', configGrande.h);
       $filaAdelante.style.setProperty('--plato-max-w', configGrande.maxW);
+      $filaAdelante.style.setProperty('--plato-scale', configGrande.scale);
+      $filaAdelante.style.setProperty('--bebida-scale', configGrande.bebidaScale);
+
+      // Claves de bebidas o vasos altos que requieren un impulso de escala para no verse delgados
+      const BEBIDAS_KEYS = new Set([
+        'matcha', 'coca', 'cerveza', 'aguabotella', 'vinito', 'frozen',
+        'limonada', 'vasoagua', 'juguitocaja', 'juguitofresa', 'capuchinohelado',
+        'helado', 'aguagalon'
+      ]);
 
       // Si son 4 o menos, NUNCA se enciman ni se agrupan con márgenes negativos:
       // se distribuyen de forma limpia, amplia e individual en toda la mesa
       platos.forEach((it, idx) => {
         const platoDiv = document.createElement('div');
-        platoDiv.className = 'plato-servido';
+        const esBebida = BEBIDAS_KEYS.has(it.key);
+        platoDiv.className = 'plato-servido' + (esBebida ? ' es-bebida' : '');
         platoDiv.style.animationDelay = `${(0.10 + (idx * 0.12)).toFixed(2)}s`;
         platoDiv.innerHTML = `<img src="${it.img}" alt="${it.nombre}" title="${it.nombre}">`;
         $filaAdelante.appendChild(platoDiv);
@@ -2227,6 +2248,26 @@
     const itemAzar = ITEMS[Math.floor(Math.random()*ITEMS.length)];
     agregarItemAOrden(itemAzar.key, usuarioActual || 'LunaGamer');
   };
+  const btnUnoMatcha = document.getElementById('demo-uno-matcha');
+  if(btnUnoMatcha){
+    btnUnoMatcha.onclick = ()=>{
+      const u = usuarioActual || 'LunaGamer';
+      if(!$menu.classList.contains('visible')){
+        mostrarMenu(u, getUserPoints(u));
+      }
+      ejecutarTexto('!matcha 1', u);
+    };
+  }
+  const btnDosMatcha = document.getElementById('demo-dos-matcha');
+  if(btnDosMatcha){
+    btnDosMatcha.onclick = ()=>{
+      const u = usuarioActual || 'LunaGamer';
+      if(!$menu.classList.contains('visible')){
+        mostrarMenu(u, getUserPoints(u));
+      }
+      ejecutarTexto('!matcha 2', u);
+    };
+  }
   const btnUnoPlato = document.getElementById('demo-uno-plato');
   if(btnUnoPlato){
     btnUnoPlato.onclick = ()=>{
