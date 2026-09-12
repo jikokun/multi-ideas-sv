@@ -379,7 +379,7 @@
 
   /* Contenedor exacto sobre la superficie de la mesa de madera de mesero.png */
   .mesero-mesa{
-    position:absolute;bottom:4%;left:3%;right:3%;height:52%;
+    position:absolute;bottom:8%;left:3%;right:3%;height:52%;
     pointer-events:none;z-index:2;
   }
 
@@ -390,13 +390,13 @@
     pointer-events:none;
   }
   .mesa-fila-atras{
-    bottom:19%;height:44%;z-index:1;
+    bottom:24%;height:44%;z-index:1;
   }
   .mesa-fila-adelante{
-    bottom:0;height:48%;z-index:3;
+    bottom:2%;height:52%;z-index:3;
   }
 
-  /* Cluster de platos idénticos que se colocan juntos */
+  /* Cluster de platos idénticos que se colocan juntos sin números encima */
   .plato-cluster{
     position:relative;display:inline-flex;align-items:flex-end;justify-content:center;
     flex-shrink:0;height:100%;
@@ -407,21 +407,6 @@
   }
   .mesa-fila-atras .plato-cluster.tiene-multiples .plato-servido:not(:first-child){
     margin-left:calc(var(--plato-w, 135px) * -0.30);
-  }
-
-  /* Distintivo de cantidad para grupos del mismo ítem */
-  .cluster-badge{
-    position:absolute;top:-4px;right:-10px;z-index:15;
-    padding:2px 8px;border-radius:999px;
-    background:linear-gradient(135deg,#120c06,#2c1a08);
-    border:1.5px solid var(--oro);color:var(--oro);
-    font-family:var(--f-display);font-size:11.5px;font-weight:900;letter-spacing:.5px;
-    box-shadow:0 0 12px rgba(255,211,92,.65), 0 3px 6px rgba(0,0,0,.8);
-    animation:popClusterBadge .4s cubic-bezier(.18,.9,.24,1.25) backwards;
-  }
-  @keyframes popClusterBadge{
-    0%{transform:scale(0);opacity:0}
-    100%{transform:scale(1);opacity:1}
   }
 
   /* Cada plato servido sobre la mesa */
@@ -1603,20 +1588,28 @@
   }
 
   /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA (2 FILAS & CLUSTERS) ═══════════ */
-  function calcularAnchoPlato(countTotalFila, esAtras){
-    if(countTotalFila <= 2) return esAtras ? '150px' : '180px';
-    if(countTotalFila === 3) return esAtras ? '135px' : '160px';
-    if(countTotalFila === 4) return esAtras ? '120px' : '140px';
-    return esAtras ? '108px' : '124px'; // 5 platos en fila
+  function calcularAnchoPlato(countTotalFila, esAtras, totalOrden){
+    if(totalOrden <= 4){
+      // 4 o menos items en total: SIEMPRE EN GRANDE sobre la mesa (idéntico a la foto original)
+      if(totalOrden === 1) return '310px';
+      if(totalOrden === 2) return '265px';
+      if(totalOrden === 3) return '235px'; // Idéntico a la foto de muestra
+      return '195px'; // 4 platos grandes
+    }
+    // Más de 4 platillos: reducen su tamaño y se distribuyen en filas para caber perfectamente
+    if(countTotalFila <= 2) return esAtras ? '145px' : '170px';
+    if(countTotalFila === 3) return esAtras ? '130px' : '150px';
+    if(countTotalFila === 4) return esAtras ? '118px' : '135px';
+    return esAtras ? '105px' : '122px'; // 5 platos en fila
   }
 
-  function renderFilaMesa(filaEl, clusters, esAtras, baseDelayFila){
+  function renderFilaMesa(filaEl, clusters, esAtras, baseDelayFila, totalOrden){
     if(!filaEl) return;
     filaEl.innerHTML = '';
     if(!clusters || clusters.length === 0) return;
 
     const countTotal = clusters.reduce((acc, c) => acc + c.count, 0);
-    const platoW = calcularAnchoPlato(countTotal, esAtras);
+    const platoW = calcularAnchoPlato(countTotal, esAtras, totalOrden);
     filaEl.style.setProperty('--plato-w', platoW);
 
     let delayAcumulado = baseDelayFila;
@@ -1629,17 +1622,11 @@
         platoDiv.className = 'plato-servido';
         platoDiv.style.animationDelay = `${(delayAcumulado + (i * 0.08)).toFixed(2)}s`;
         platoDiv.style.zIndex = i + 1;
-        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre} (${c.count})">`;
+        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre}">`;
         clusterDiv.appendChild(platoDiv);
       }
 
-      if(c.count > 1){
-        const badge = document.createElement('span');
-        badge.className = 'cluster-badge';
-        badge.textContent = `x${c.count}`;
-        badge.style.animationDelay = `${(delayAcumulado + (c.count * 0.08)).toFixed(2)}s`;
-        clusterDiv.appendChild(badge);
-      }
+      // Nota: No se coloca número ni badge sobre las fotos en la mesa a petición del usuario
 
       delayAcumulado += 0.12;
       filaEl.appendChild(clusterDiv);
@@ -1719,8 +1706,8 @@
     }
 
     // Renderizar: Fila trasera entra primero (0.08s), fila delantera entra después (0.28s)
-    renderFilaMesa($filaAtras, clustersAtras, true, 0.08);
-    renderFilaMesa($filaAdelante, clustersAdelante, false, clustersAtras.length > 0 ? 0.28 : 0.10);
+    renderFilaMesa($filaAtras, clustersAtras, true, 0.08, totalPlatos);
+    renderFilaMesa($filaAdelante, clustersAdelante, false, clustersAtras.length > 0 ? 0.28 : 0.10, totalPlatos);
 
     // Ocultar zona de pruebas durante la entrega para vista 100% limpia
     if(demoZone) demoZone.style.display = 'none';
