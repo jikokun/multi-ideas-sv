@@ -505,14 +505,20 @@
     display: none !important;
   }
 
-  /* ════════════ ZONA DE PRUEBA ════════════ */
+  /* ════════════ ZONA DE PRUEBA (OCULTA POR DEFECTO, SOLO VISIBLE AL TOCAR LA PANTALLA) ════════════ */
   #demo-zone{
     position:fixed;left:20px;bottom:20px;z-index:60;display:flex;gap:8px;align-items:center;
     padding:10px 14px;border-radius:14px;background:rgba(12,16,9,.94);
     border:1px solid rgba(83,252,24,.4);box-shadow:0 10px 30px rgba(0,0,0,.6);backdrop-filter:blur(8px);
-    transition:transform .55s cubic-bezier(.4,.9,.4,1),opacity .4s;
+    transition:transform .4s cubic-bezier(.4,.9,.4,1), opacity .3s ease;
+    transform:translateY(190%);opacity:0;pointer-events:none;
   }
-  #demo-zone.oculto{transform:translateY(190%);opacity:0;pointer-events:none}
+  #demo-zone.activo{
+    transform:translateY(0);opacity:1;pointer-events:auto;
+  }
+  #demo-zone.oculto{
+    transform:translateY(190%) !important;opacity:0 !important;pointer-events:none !important;
+  }
   .dz-title{font-size:10px;letter-spacing:1.8px;color:var(--apagado);font-weight:700;margin-right:2px}
   #demo-zone button{
     font-family:var(--f-cuerpo);font-weight:700;font-size:11px;letter-spacing:.4px;cursor:pointer;
@@ -871,6 +877,8 @@
   let AUTO_CIERRE_MS = (customDuration > 0 ? customDuration : 40) * 1000;
   const USER_DEFAULT_POINTS = 1000; // 1000 puntos exactos por usuario para pruebas
   let isMuted = urlParams.get('mute') === 'true';
+  const customChannel = urlParams.get('channel') || urlParams.get('canal') || urlParams.get('streamer') || 'jikokun';
+  const STREAMER_CHANNEL = String(customChannel).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/^@/, '').trim();
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
@@ -932,7 +940,7 @@
 
   /* ═══════════ GESTIÓN DE TURNOS Y COOLDOWN GLOBAL ═══════════ */
   const customCooldown = parseInt(urlParams.get('cooldown'), 10);
-  let COOLDOWN_GLOBAL_MS = (!isNaN(customCooldown) && customCooldown >= 0 ? customCooldown : 30) * 1000;
+  let COOLDOWN_GLOBAL_MS = (!isNaN(customCooldown) && customCooldown >= 0 ? customCooldown : 0) * 1000;
   let cooldownGlobalFin = 0;
 
   const $turnAlert = document.getElementById('turn-alert');
@@ -1778,7 +1786,7 @@
     }
 
     // Ocultar zona de pruebas durante la entrega para vista 100% limpia
-    if(demoZone) demoZone.style.display = 'none';
+    if(demoZone) demoZone.classList.remove('activo');
 
     // Activar mesero a pantalla completa (sin fondo, solo mesero.png y platos)
     document.body.classList.add('mesero-activo');
@@ -1796,7 +1804,6 @@
         document.body.classList.remove('mesero-activo');
         if($filaAtras) $filaAtras.innerHTML = '';
         if($filaAdelante) $filaAdelante.innerHTML = '';
-        if(demoZone && !isOverlayMode) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
       }, 600);
     }, 9000);
@@ -1880,13 +1887,17 @@
     const userNorm = norm(user);
     const actualNorm = norm(usuarioActual);
     const tiendaAbierta = $menu.classList.contains('visible');
+    const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer';
 
     const parseado = parsearItemYCantidad(raw);
     const esSeleccionItem = parseado !== null;
 
-    const esComandoAbrir = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
-                           t.startsWith('!tienda ')||t.startsWith('!tiendita ')||
-                           t.startsWith('!menu ')||t.startsWith('!shop ');
+    const esComandoAbrir = t==='!tienda'||t==='tienda'||t==='!tiendita'||t==='tiendita'||
+                           t==='!menu'||t==='menu'||t==='!shop'||t==='shop'||
+                           t.startsWith('!tienda')||t.startsWith('tienda')||
+                           t.startsWith('!tiendita')||t.startsWith('tiendita')||
+                           t.startsWith('!menu')||t.startsWith('menu')||
+                           t.startsWith('!shop')||t.startsWith('shop');
     const esComandoCancelar = t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel';
     const esComandoPagar = t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo';
     const esComandoAnadir = t==='!anadir'||t==='!añadir'||t==='!agregar';
@@ -1902,7 +1913,8 @@
                            t.startsWith('!prev ')||t.startsWith('prev ');
 
     // ── REGLA 1: Si la tienda está ABIERTA y otro usuario intenta usarla, comprar o cancelarle:
-    if(tiendaAbierta && userNorm !== actualNorm){
+    // Excepción: Jikokun / Streamer NUNCA es bloqueado por turno ajeno
+    if(tiendaAbierta && userNorm !== actualNorm && !esAdmin){
       if(esComandoAbrir || esComandoCancelar || esComandoPagar || esComandoAnadir || esComandoRotar || esComandoAtras || esPrefijoRotar || esPrefijoAtras || esSeleccionItem){
         console.log(`[Tiendita] ✋ Intento bloqueado de [@${user}]. La tienda la está usando [@${usuarioActual}].`);
         mostrarAlertaTurno(user);
@@ -1911,7 +1923,8 @@
     }
 
     // ── REGLA 2: Si la tienda está CERRADA y está en COOLDOWN GLOBAL:
-    if(!tiendaAbierta){
+    // Excepción: Jikokun / Streamer NUNCA es bloqueado por cooldown
+    if(!tiendaAbierta && !esAdmin){
       const ahora = Date.now();
       if(ahora < cooldownGlobalFin){
         const segRestantes = Math.ceil((cooldownGlobalFin - ahora) / 1000);
@@ -1923,9 +1936,18 @@
       }
     }
 
-    // 1. Abrir tienda (o renovar tiempo si es el mismo usuario)
+    // 1. Abrir tienda (o renovar tiempo si es el mismo usuario o admin)
     if(esComandoAbrir){
-      if(!tiendaAbierta){
+      // Si el mesero de la orden anterior aún está visible, retirarlo de inmediato para abrir la tienda
+      if($meseroOverlay && ($meseroOverlay.classList.contains('visible') || document.body.classList.contains('mesero-activo'))){
+        $meseroOverlay.classList.remove('visible', 'saliendo');
+        document.body.classList.remove('mesero-activo');
+        if($filaAtras) $filaAtras.innerHTML = '';
+        if($filaAdelante) $filaAdelante.innerHTML = '';
+        if(meseroTimer) clearTimeout(meseroTimer);
+      }
+
+      if(!tiendaAbierta || esAdmin || userNorm !== actualNorm){
         mostrarMenu(user, getUserPoints(user));
         toast(`🛒 <b>@${user}</b> abrió la tiendita!`);
       } else {
@@ -2064,11 +2086,14 @@
         let user = 'anon';
         if(typeof userObj === 'string') user = userObj;
         else if(typeof userObj === 'object' && userObj !== null){
-          user = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || 'anon';
+          user = userObj.username || userObj.slug || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || data.user_slug || 'anon';
         }
 
-        // FILTRO ESTRICTO DE BOTS: Ignorar completamente botrix, lobito_mensajero, kickbot, etc.
+        user = String(user || 'anon').replace(/^@/, '').trim();
         const userNorm = norm(user);
+        const esAdmin = userNorm === 'jikokun' || userNorm === STREAMER_CHANNEL || userNorm === 'broadcaster' || userNorm === 'streamer' || userObj.is_broadcaster === true || userObj.isBroadcaster === true;
+
+        // FILTRO ESTRICTO DE BOTS: Ignorar bots conocidos sin bloquear al streamer ni viewers normales
         const BOTS_IGNORADOS = [
           'botrix',
           'lobito_mensajero',
@@ -2079,12 +2104,13 @@
           'jikobot',
           'creepingbot',
           'streamerbot',
-          'wizebot',
-          'bot'
+          'wizebot'
         ];
-        const isBot = BOTS_IGNORADOS.includes(userNorm) || 
-                      BOTS_IGNORADOS.some(b => userNorm === b || userNorm.startsWith(b + '_') || userNorm.endsWith('_' + b)) ||
-                      Boolean(userObj.is_bot || userObj.isBot || data.is_bot || data.isBot);
+        const isBot = !esAdmin && (
+          BOTS_IGNORADOS.includes(userNorm) || 
+          BOTS_IGNORADOS.some(b => userNorm === b || userNorm.startsWith(b + '_') || userNorm.endsWith('_' + b)) ||
+          userObj.is_bot === true || userObj.isBot === true || data.is_bot === true || data.isBot === true
+        );
 
         if(isBot){
           // Ignorar silenciosamente sin alterar cliente ni abrir tienda
@@ -2095,13 +2121,22 @@
         if(avatarDirecto) avatarCache[norm(user)] = avatarDirecto;
 
         let contenido = '';
-        if(typeof data.messageText === 'string') contenido = data.messageText;
+        if(typeof data.rawInput === 'string' && data.rawInput) contenido = data.rawInput;
+        else if(typeof data.input === 'string' && data.input) contenido = data.input;
+        else if(typeof data.messageText === 'string') contenido = data.messageText;
         else if(typeof data.message === 'string') contenido = data.message;
         else if(typeof data.text === 'string') contenido = data.text;
         else if(typeof data.content === 'string') contenido = data.content;
+        else if(typeof data.body === 'string') contenido = data.body;
         else if(typeof messageObj === 'object' && messageObj !== null){
-          contenido = messageObj.message || messageObj.text || messageObj.content || '';
+          contenido = (typeof messageObj.message === 'string' ? messageObj.message : '') ||
+                      (typeof messageObj.text === 'string' ? messageObj.text : '') ||
+                      (typeof messageObj.content === 'string' ? messageObj.content : '') ||
+                      (typeof messageObj.rawText === 'string' ? messageObj.rawText : '') ||
+                      (typeof messageObj.body === 'string' ? messageObj.body : '') || '';
         }
+        if(!contenido && typeof rawData === 'string') contenido = rawData;
+        contenido = String(contenido || '').trim();
 
         if(!contenido) return;
 
@@ -2109,13 +2144,20 @@
         const t = norm(contenido);
         const itemDetectado = parsearItemYCantidad(contenido);
 
-        // Si la tienda está cerrada y el mensaje no empieza con '!', es conversación ordinaria del chat
+        const esComandoAbrir = t==='!tienda'||t==='tienda'||t==='!tiendita'||t==='tiendita'||
+                               t==='!menu'||t==='menu'||t==='!shop'||t==='shop'||
+                               t.startsWith('!tienda')||t.startsWith('tienda')||
+                               t.startsWith('!tiendita')||t.startsWith('tiendita')||
+                               t.startsWith('!menu')||t.startsWith('menu')||
+                               t.startsWith('!shop')||t.startsWith('shop');
+
+        // Si la tienda está cerrada y el mensaje no es comando de abrir ni empieza con '!', es conversación normal
         const tiendaAbiertaActualmente = $menu && $menu.classList.contains('visible');
-        if(!tiendaAbiertaActualmente && !t.startsWith('!')){
+        if(!tiendaAbiertaActualmente && !esComandoAbrir && !t.startsWith('!')){
           return;
         }
 
-        const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
+        const esComandoTienda = esComandoAbrir ||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
                                 t==='!anadir'||t==='!añadir'||t==='!agregar'||
@@ -2129,7 +2171,7 @@
                                 t.startsWith('!atras ')||t.startsWith('atras ')||
                                 t.startsWith('!anterior ')||t.startsWith('anterior ')||
                                 t.startsWith('!prev ')||t.startsWith('prev ')||
-                                t.startsWith('!comprar ')||
+                                t.startsWith('!comprar ')||t.startsWith('comprar ')||
                                 t.startsWith('!darjikopuntos')||
                                 t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
                                 itemDetectado !== null;
@@ -2221,9 +2263,32 @@
   }
 
   /* ═══════════ PANEL DE PRUEBA: Alternar tocando la pantalla ═══════════ */
+  let demoZoneTimer = null;
+  function alternarDemoZone(forzar = null){
+    if(!demoZone) return;
+    const activar = forzar !== null ? forzar : !demoZone.classList.contains('activo');
+    demoZone.classList.toggle('activo', activar);
+    if(demoZoneTimer) { clearTimeout(demoZoneTimer); demoZoneTimer = null; }
+    if(activar){
+      demoZoneTimer = setTimeout(() => {
+        if(demoZone) demoZone.classList.remove('activo');
+      }, 15000);
+    }
+  }
+
   addEventListener('pointerdown', e => {
-    if (e.target.closest('#demo-zone, #tiendita-menu')) return;
-    demoZone.classList.toggle('oculto');
+    // Si toca dentro de los botones de prueba o dentro del menú de la tienda o card de puntos, no cerrar
+    if (e.target.closest('#demo-zone, #tiendita-menu, #card-jikopuntos')) {
+      // Renovar el temporizador de 15s para que no se cierre mientras el streamer prueba
+      if(demoZone && demoZone.classList.contains('activo')){
+        if(demoZoneTimer) clearTimeout(demoZoneTimer);
+        demoZoneTimer = setTimeout(() => {
+          if(demoZone) demoZone.classList.remove('activo');
+        }, 15000);
+      }
+      return;
+    }
+    alternarDemoZone();
   }, { passive: true });
 
   const nombres=['LunaGamer','elpana_juan','DonChente','MoraPixel','Kafecito_'];
@@ -2369,7 +2434,7 @@
   };
 
   if(isOverlayMode){
-    demoZone.classList.add('oculto');
+    if(demoZone) demoZone.classList.remove('activo');
   }
 
   /* ═══════════ RECEPTOR DE ACCIONES EXTERNAS (PANEL DE PRUEBA) ═══════════ */
