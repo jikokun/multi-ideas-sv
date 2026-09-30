@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Marco de Cámara Gamer - Streamer.bot & Spotify Rhythm Overlay</title>
+  
+  <!-- Tipografías de Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Rajdhani:wght@600;700;800;900&family=Nunito:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Extracción Dinámica de Colores para Portadas de Canciones (Vibrant.js) -->
+  <script src="https://assets.codepen.io/3256958/vibrant.js"></script>
+
+  <style>
+    /* Variables Globales y Paleta Neón Dinámica */
+    :root {
+      --aqua-bright: #00f5d4;
+      --aqua-electric: #00bbf9;
+      --aqua-dark: #03101a;
+      --electric-white: #ffffff;
+      --font-tech: 'Orbitron', sans-serif;
+      --font-main: 'Rajdhani', sans-serif;
+      --font-ui: 'Nunito', sans-serif;
+      --dynamic-color: #00f5d4;
+      --dynamic-rgb: 0, 245, 212;
+      --dynamic-color-sec: #00bbf9;
+      --dynamic-rgb-sec: 0, 187, 249;
+      --beat-duration: 1.5s;
+      --stream-speed: 6.0s;
+      --glow-intensity: 1;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent !important;
+      background-color: transparent !important;
+      font-family: var(--font-tech);
+      color: #ffffff;
+      user-select: none;
+    }
+
+    /* Contenedor Principal Centrado para OBS Browser Source */
+    .overlay-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent !important;
+      overflow: hidden;
+    }
+
+    /* Etapa del Widget */
+    .overlay-stage {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent !important;
+    }
+
+    /* Modo Fullscreen 1920x1080 (Opcional por URL ?fullscreen=true) */
+    .overlay-stage.fullscreen-mode {
+      width: 1920px;
+      height: 1080px;
+      transform-origin: center center;
+    }
+
+    .overlay-stage.fullscreen-mode .cam-wrapper {
+      position: absolute;
+      top: 50px;
+      right: 50px;
+    }
+
+    /* Wrapper Flexible Marco + Etiqueta */
+    .cam-wrapper {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Marco Futurista de Cámara */
+    .ingame-cam-frame {
+      position: relative;
+      background: transparent;
+      clip-path: polygon(
+        25px 0, 
+        100% 0, 
+        100% calc(100% - 25px), 
+        calc(100% - 25px) 100%, 
+        0 100%, 
+        0 25px
+      );
+      box-shadow: 
+        0 0 16px rgba(var(--dynamic-rgb, 0, 245, 212), calc(0.25 * var(--glow-intensity, 1))),
+        inset 0 0 10px rgba(var(--dynamic-rgb, 0, 245, 212), calc(0.12 * var(--glow-intensity, 1)));
+      z-index: 12;
+      transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), height 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+      animation: bpmBeatPulse var(--beat-duration) ease-in-out infinite alternate;
+    }
+
+    /* Formato 16:9 (Panorámico Webcam Estándar) */
+    .ingame-cam-frame.ratio-16-9 {
+      width: 460px;
+      height: 259px;
+    }
+
+    /* Formato 1:1 (Cuadrado Webcam) */
+    .ingame-cam-frame.ratio-1-1 {
+      width: 350px;
+      height: 350px;
+    }
+
+    .cam-border-svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .cam-border-bg {
+      fill: none;
+      stroke: rgba(var(--dynamic-rgb, 0, 245, 212), 0.18);
+      stroke-width: 1.5px;
+      transition: stroke 0.5s ease;
+    }
+
+    .cam-border-stream {
+      fill: none;
+      stroke-linecap: round;
+      stroke-dashoffset: 0;
+      transition: stroke 0.4s ease, filter 0.4s ease;
+    }
+
+    /* Trazo 1: Giro Orbital Neón Sincronizado a Beats */
+    .cam-border-stream.stream-main {
+      stroke: var(--dynamic-color);
+      stroke-width: 3.5px;
+      stroke-dasharray: 280 1158;
+      filter: drop-shadow(0 0 8px var(--dynamic-color, #00f5d4));
+      animation: 
+        camBorderFlowDynamic calc(var(--beat-duration, 1.2s) * 8) cubic-bezier(0.4, 0, 0.2, 1) infinite,
+        bpmBeatPulse var(--beat-duration, 1.2s) cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+    }
+
+    /* Trazo 2: Barrido Oscilatorio en U */
+    .cam-border-stream.stream-u-sweep {
+      stroke: var(--dynamic-color-sec, var(--aqua-electric, #00bbf9));
+      stroke-width: 2.8px;
+      stroke-dasharray: 240 1198;
+      filter: drop-shadow(0 0 7px var(--dynamic-color-sec, #00bbf9));
+      opacity: 0.85;
+      animation: 
+        camBorderUSweep calc(var(--beat-duration, 1.2s) * 4) ease-in-out infinite alternate,
+        bpmBeatPulse var(--beat-duration, 1.2s) ease-in-out infinite alternate;
+    }
+
+    /* Soportes Neón de Esquina Tech */
+    .frame-corner-bracket {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--dynamic-color-sec, var(--aqua-electric, #00bbf9));
+      box-shadow: 0 0 8px var(--dynamic-color-sec, var(--aqua-electric, #00bbf9));
+      transition: all 0.4s ease;
+    }
+
+    .frame-corner-bracket.top-l { top: -1px; left: -1px; border-right: none; border-bottom: none; }
+    .frame-corner-bracket.top-r { top: -1px; right: -1px; border-left: none; border-bottom: none; }
+    .frame-corner-bracket.bot-l { bottom: -1px; left: -1px; border-right: none; border-top: none; }
+    .frame-corner-bracket.bot-r { bottom: -1px; right: -1px; border-left: none; border-top: none; }
+
+    /* Muescas Tech Laterales Decorativas con Resplandor Fino */
+    .frame-tech-notches {
+      position: absolute;
+      top: 50%;
+      right: -2px;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 70px;
+      background: var(--dynamic-color, var(--aqua-bright, #00f5d4));
+      box-shadow: 0 0 8px var(--dynamic-color, var(--aqua-bright, #00f5d4));
+      clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%);
+      transition: all 0.4s ease;
+    }
+
+    /* Etiqueta Inferior Personalizable (Montada Sobre el Borde Inferior) */
+    .ingame-cam-tag-container {
+      position: absolute;
+      bottom: -16px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 30;
+      pointer-events: auto;
+      transition: all 0.3s ease;
+    }
+
+    .ingame-cam-tag-container.hidden {
+      display: none !important;
+    }
+
+    .ingame-cam-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: rgba(3, 16, 26, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1.5px solid var(--dynamic-color, #00f5d4);
+      padding: 6px 26px;
+      clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+      box-shadow: 0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.35);
+      transition: all 0.4s ease;
+      cursor: pointer;
+    }
+
+    .ingame-cam-tag:hover {
+      box-shadow: 0 0 20px rgba(var(--dynamic-rgb, 0, 245, 212), 0.6);
+      border-color: #ffffff;
+    }
+
+    .ingame-cam-tag .cam-tag-icon {
+      font-size: 1.1rem;
+      color: var(--dynamic-color, #00f5d4);
+      filter: drop-shadow(0 0 6px var(--dynamic-color, #00f5d4));
+      transition: all 0.3s ease;
+    }
+
+    .ingame-cam-tag .cam-tag-name {
+      font-family: var(--font-tech);
+      font-size: 1.25rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #ffffff;
+      text-shadow: 
+        0 0 8px var(--dynamic-color, #00f5d4),
+        0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.55);
+      transition: all 0.4s ease;
+      white-space: nowrap;
+    }
+
+    /* Animaciones Keyframes Sincronizadas al Compás Musical */
+    @keyframes camBorderFlowDynamic {
+      0% { stroke-dashoffset: 0; }
+      50% { stroke-dashoffset: -1438px; }
+      75% { stroke-dashoffset: -2150px; }
+      100% { stroke-dashoffset: -2876px; }
+    }
+
+    @keyframes camBorderUSweep {
+      0% { stroke-dashoffset: -320px; }
+      50% { stroke-dashoffset: -820px; }
+      100% { stroke-dashoffset: -1280px; }
+    }
+
+    @keyframes bpmBeatPulse {
+      0% {
+        stroke-width: 2.8px;
+        filter: drop-shadow(0 0 5px var(--dynamic-color, #00f5d4));
+        opacity: 0.85;
+      }
+      100% {
+        stroke-width: 3.9px;
+        filter: drop-shadow(0 0 12px var(--dynamic-color, #00f5d4));
+        opacity: 1;
+      }
+    }
+
+    /* Golpe de Beat Instantáneo (Disparado por Streamer.bot o Manual) */
+    .beat-flash {
+      box-shadow: 0 0 35px var(--dynamic-color, #00f5d4), inset 0 0 20px var(--dynamic-color, #00f5d4) !important;
+      transform: scale(1.025);
+      transition: transform 0.08s ease, box-shadow 0.08s ease;
+    }
+
+    /* -------------------------------------------------------------
+       PANEL DE CONFIGURACIÓN Y CONTROL HUD (Discreto / Flotante)
+       ------------------------------------------------------------- */
+    .hud-toggle-btn {
+      position: fixed;
+      top: 15px;
+      right: 15px;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: rgba(3, 16, 26, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(var(--dynamic-rgb, 0, 245, 212), 0.4);
+      color: var(--dynamic-color, #00f5d4);
+      font-size: 1.15rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      opacity: 0.25;
+      transition: all 0.3s ease;
+    }
+
+    .hud-toggle-btn:hover {
+      opacity: 1;
+      box-shadow: 0 0 15px var(--dynamic-color, #00f5d4);
+      transform: rotate(45deg);
+    }
+
+    body.clean-mode .hud-toggle-btn {
+      display: none !important;
+    }
+
+    .hud-modal {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) scale(0.95);
+      width: 480px;
+      max-width: 92vw;
+      background: rgba(4, 18, 29, 0.95);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1.5px solid var(--dynamic-color, #00f5d4);
+      border-radius: 14px;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(var(--dynamic-rgb, 0, 245, 212), 0.3);
+      padding: 24px;
+      z-index: 999;
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      font-family: var(--font-ui);
+    }
+
+    .hud-modal.active {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(-50%, -50%) scale(1);
+    }
+
+    .hud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(var(--dynamic-rgb, 0, 245, 212), 0.25);
+      padding-bottom: 12px;
+      margin-bottom: 16px;
+    }
+
+    .hud-title {
+      font-family: var(--font-tech);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .hud-title span {
+      color: var(--dynamic-color, #00f5d4);
+    }
+
+    .hud-close-btn {
+      background: transparent;
+      border: none;
+      color: #88a0b0;
+      font-size: 1.3rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: color 0.2s;
+    }
+
+    .hud-close-btn:hover {
+      color: #ff4757;
+    }
+
+    .hud-section {
+      margin-bottom: 16px;
+    }
+
+    .hud-label {
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8eaec4;
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Botones de Selección 16:9 y 1:1 */
+    .hud-btn-group {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .hud-btn {
+      background: rgba(12, 34, 51, 0.8);
+      border: 1px solid rgba(var(--dynamic-rgb, 0, 245, 212), 0.3);
+      color: #ffffff;
+      padding: 10px;
+      border-radius: 8px;
+      font-family: var(--font-tech);
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .hud-btn:hover {
+      border-color: var(--dynamic-color, #00f5d4);
+      background: rgba(var(--dynamic-rgb, 0, 245, 212), 0.15);
+    }
+
+    .hud-btn.active {
+      background: rgba(var(--dynamic-rgb, 0, 245, 212), 0.25);
+      border-color: var(--dynamic-color, #00f5d4);
+      box-shadow: 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.4);
+      color: var(--dynamic-color, #00f5d4);
+    }
+
+    /* Inputs HUD */
+    .hud-input-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .hud-input {
+      flex: 1;
+      background: rgba(7, 24, 38, 0.9);
+      border: 1px solid rgba(var(--dynamic-rgb, 0, 245, 212), 0.3);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #ffffff;
+      font-family: var(--font-ui);
+      font-size: 0.95rem;
+      font-weight: 600;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+
+    .hud-input:focus {
+      border-color: var(--dynamic-color, #00f5d4);
+      box-shadow: 0 0 10px rgba(var(--dynamic-rgb, 0, 245, 212), 0.25);
+    }
+
+    .hud-input-icon {
+      width: 60px;
+      text-align: center;
+      font-size: 1.2rem;
+    }
+
+    /* Estado de Conexiones (Streamer.bot & Spotify) */
+    .hud-status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .hud-status-card {
+      background: rgba(6, 21, 33, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .hud-status-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #7d9cb3;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .hud-status-val {
+      font-size: 0.85rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #747d8c;
+      display: inline-block;
+      transition: background 0.3s;
+    }
+
+    .status-dot.online {
+      background: #2ed573;
+      box-shadow: 0 0 8px #2ed573;
+    }
+
+    .status-dot.offline {
+      background: #ff4757;
+    }
+
+    /* Pista Actual */
+    .track-banner {
+      background: rgba(3, 14, 23, 0.7);
+      border-left: 3px solid var(--dynamic-color, #00f5d4);
+      padding: 8px 12px;
+      border-radius: 0 6px 6px 0;
+      margin-top: 8px;
+      font-size: 0.82rem;
+      color: #c9e3f5;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Acciones Rápidas / Copiar OBS URL */
+    .hud-action-btn {
+      width: 100%;
+      background: linear-gradient(135deg, rgba(var(--dynamic-rgb, 0, 245, 212), 0.25), rgba(var(--dynamic-rgb-sec, 0, 187, 249), 0.2));
+      border: 1px solid var(--dynamic-color, #00f5d4);
+      color: #ffffff;
+      padding: 12px;
+      border-radius: 8px;
+      font-family: var(--font-tech);
+      font-size: 0.95rem;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 12px;
+      transition: all 0.25s ease;
+    }
+
+    .hud-action-btn:hover {
+      background: var(--dynamic-color, #00f5d4);
+      color: #03101a;
+      box-shadow: 0 0 16px var(--dynamic-color, #00f5d4);
+    }
+
+    /* Toast Flotante */
+    .toast-msg {
+      position: fixed;
+      bottom: 25px;
+      left: 50%;
+      transform: translateX(-50%) translateY(50px);
+      background: rgba(4, 20, 32, 0.95);
+      border: 1px solid var(--dynamic-color, #00f5d4);
+      color: #ffffff;
+      padding: 10px 22px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      box-shadow: 0 0 15px rgba(var(--dynamic-rgb, 0, 245, 212), 0.4);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 10000;
+    }
+
+    .toast-msg.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+  </style>
+</head>
+<body class="ingame-body">
+
+  <div class="overlay-wrapper">
+    <div class="overlay-stage" id="overlay-stage">
+      
+      <!-- Contenedor Centrado del Marco + Etiqueta -->
+      <div class="cam-wrapper" id="camWrapper">
+
+        <!-- Marco Futurista de la Cámara (Soporta 16:9 y 1:1) -->
+        <div class="ingame-cam-frame ratio-16-9" id="camFrame">
+          <!-- SVG Border Stream Dinámico -->
+          <svg class="cam-border-svg" id="camSvg" viewBox="0 0 460 259" preserveAspectRatio="none">
+            <polygon id="camBgPoly" points="25,2 458,2 458,234 435,257 2,257 2,25" class="cam-border-bg" />
+            <polygon id="camStreamMain" points="25,2 458,2 458,234 435,257 2,257 2,25" class="cam-border-stream stream-main" />
+            <polygon id="camStreamSweep" points="25,2 458,2 458,234 435,257 2,257 2,25" class="cam-border-stream stream-u-sweep" />
+          </svg>
+
+          <!-- Soportes Neón de Esquina Tech -->
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+
+          <!-- Muescas Tech Laterales Decorativas -->
+          <div class="frame-tech-notches"></div>
+        </div>
+
+        <!-- Etiqueta de Nombre Personalizable -->
+        <div class="ingame-cam-tag-container" id="tagContainer">
+          <div class="ingame-cam-tag" id="camTag" title="Clic para configurar">
+            <span class="cam-tag-icon" id="tagIcon">⚡</span>
+            <span class="cam-tag-name" id="tagName">JIKOKUN</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Botón Discreto para Abrir Configuración -->
+  <button type="button" class="hud-toggle-btn" id="hudToggleBtn" title="Configurar Marco (o pulsa tecla C)">⚙️</button>
+
+  <!-- Panel Modal de Configuración HUD -->
+  <div class="hud-modal" id="hudModal">
+    <div class="hud-header">
+      <div class="hud-title">⚡ CONFIGURACIÓN <span>MARCO DE CÁMARA</span></div>
+      <button type="button" class="hud-close-btn" id="hudCloseBtn">&times;</button>
+    </div>
+
+    <!-- Sección 1: Formato de Tamaño (16:9 vs 1:1) -->
+    <div class="hud-section">
+      <div class="hud-label">
+        <span>Formato del Marco</span>
+        <small style="color: #648299;">Atajo: Tecla [T]</small>
+      </div>
+      <div class="hud-btn-group">
+        <button type="button" class="hud-btn active" id="btnAspect169" onclick="setAspectRatio('16:9')">
+          <span>📐</span> 16:9 (Panorámico)
+        </button>
+        <button type="button" class="hud-btn" id="btnAspect11" onclick="setAspectRatio('1:1')">
+          <span>⬛</span> 1:1 (Cuadrado)
+        </button>
+      </div>
+    </div>
+
+    <!-- Sección 2: Texto e Ícono del Marco -->
+    <div class="hud-section">
+      <div class="hud-label">Texto Inferior (Cam Tag)</div>
+      <div class="hud-input-row">
+        <input type="text" class="hud-input hud-input-icon" id="inputTagIcon" value="⚡" maxlength="4" placeholder="Icono" title="Ícono/Emoji">
+        <input type="text" class="hud-input" id="inputTagName" value="JIKOKUN" placeholder="Escribe tu nombre de canal">
+      </div>
+    </div>
+
+    <!-- Sección 3: Streamer.bot & Spotify Conexión -->
+    <div class="hud-section">
+      <div class="hud-label">
+        <span>Streamer.bot & Spotify</span>
+        <span id="bpmDisplay" style="color: var(--dynamic-color); font-weight: 800;">120 BPM</span>
+      </div>
+      <div class="hud-input-row" style="margin-bottom: 8px;">
+        <input type="text" class="hud-input" id="inputSpotifyUser" value="jikokun2" placeholder="Usuario de Spotify">
+        <input type="number" class="hud-input" id="inputSbPort" value="4445" style="max-width: 90px;" placeholder="Puerto SB" title="Puerto WebSocket de Streamer.bot (def: 4445)">
+      </div>
+
+      <!-- Tarjetas de Estado -->
+      <div class="hud-status-grid">
+        <div class="hud-status-card">
+          <div class="hud-status-header">Streamer.bot WebSocket</div>
+          <div class="hud-status-val">
+            <span class="status-dot" id="sbStatusDot"></span>
+            <span id="sbStatusText" style="color: #a4b0be;">Conectando...</span>
+          </div>
+        </div>
+        <div class="hud-status-card">
+          <div class="hud-status-header">Estado Musical</div>
+          <div class="hud-status-val">
+            <span class="status-dot" id="musicStatusDot"></span>
+            <span id="musicStatusText" style="color: #a4b0be;">Buscando...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="track-banner" id="trackBanner">
+        🎵 Esperando reproducción en Spotify / Streamer.bot...
+      </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div style="display: flex; gap: 8px;">
+      <button type="button" class="hud-btn" style="flex: 1;" onclick="triggerTestBeat()">⚡ Probar Beat</button>
+      <button type="button" class="hud-btn" style="flex: 1;" onclick="toggleTagVisibility()" id="btnToggleTag">👁️ Ocultar Tag</button>
+    </div>
+
+    <!-- Generador y Copiado de URL para OBS -->
+    <button type="button" class="hud-action-btn" onclick="copyObsUrl()">
+      📋 Copiar Enlace para OBS Studio
+    </button>
+  </div>
+
+  <!-- Notificación Toast -->
+  <div class="toast-msg" id="toastMsg">Enlace copiado al portapapeles</div>
+
+  <!-- Motor Autónomo: Streamer.bot WebSocket + Spotify Real-Time + Control Interactivo -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // -------------------------------------------------------------
+      // 1. LECTURA DE PARÁMETROS URL Y CONFIGURACIÓN INICIAL
+      // -------------------------------------------------------------
+      const urlParams = new URLSearchParams(window.location.search);
+      
+      const config = {
+        aspect: urlParams.get('aspect') || urlParams.get('ratio') || '16:9',
+        tag: urlParams.get('tag') || urlParams.get('name') || urlParams.get('title') || 'JIKOKUN',
+        icon: urlParams.get('icon') || '⚡',
+        spotifyUser: urlParams.get('spotify') || urlParams.get('user') || 'jikokun2',
+        sbPort: parseInt(urlParams.get('port') || urlParams.get('sbport') || '4445', 10),
+        refreshToken: urlParams.get('refresh_token') || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM',
+        fullscreen: urlParams.get('fullscreen') === 'true' || urlParams.get('mode') === 'fullscreen',
+        clean: urlParams.get('clean') === 'true' || urlParams.get('obs') === 'true',
+        showTag: urlParams.get('tag') !== 'none' && urlParams.get('notag') !== '1'
+      };
+
+      // Si se define modo limpio para OBS, ocultar el botón de ajustes
+      if (config.clean) {
+        document.body.classList.add('clean-mode');
+      }
+
+      // Elementos Principales del DOM
+      const overlayStage = document.getElementById('overlay-stage');
+      const camFrame = document.getElementById('camFrame');
+      const camSvg = document.getElementById('camSvg');
+      const camBgPoly = document.getElementById('camBgPoly');
+      const camStreamMain = document.getElementById('camStreamMain');
+      const camStreamSweep = document.getElementById('camStreamSweep');
+      const tagContainer = document.getElementById('tagContainer');
+      const tagIcon = document.getElementById('tagIcon');
+      const tagName = document.getElementById('tagName');
+      const camTag = document.getElementById('camTag');
+
+      // Elementos del HUD
+      const hudToggleBtn = document.getElementById('hudToggleBtn');
+      const hudModal = document.getElementById('hudModal');
+      const hudCloseBtn = document.getElementById('hudCloseBtn');
+      const btnAspect169 = document.getElementById('btnAspect169');
+      const btnAspect11 = document.getElementById('btnAspect11');
+      const inputTagIcon = document.getElementById('inputTagIcon');
+      const inputTagName = document.getElementById('inputTagName');
+      const inputSpotifyUser = document.getElementById('inputSpotifyUser');
+      const inputSbPort = document.getElementById('inputSbPort');
+      const sbStatusDot = document.getElementById('sbStatusDot');
+      const sbStatusText = document.getElementById('sbStatusText');
+      const musicStatusDot = document.getElementById('musicStatusDot');
+      const musicStatusText = document.getElementById('musicStatusText');
+      const trackBanner = document.getElementById('trackBanner');
+      const bpmDisplay = document.getElementById('bpmDisplay');
+      const btnToggleTag = document.getElementById('btnToggleTag');
+      const toastMsg = document.getElementById('toastMsg');
+
+      // Asignar valores a inputs del HUD
+      inputTagIcon.value = config.icon;
+      inputTagName.value = config.tag;
+      inputSpotifyUser.value = config.spotifyUser;
+      inputSbPort.value = config.sbPort;
+
+      // -------------------------------------------------------------
+      // 2. MODO FULLSCREEN (Auto-Escalado 1920x1080 opcional)
+      // -------------------------------------------------------------
+      if (config.fullscreen) {
+        overlayStage.classList.add('fullscreen-mode');
+        function resizeStage() {
+          const scaleX = window.innerWidth / 1920;
+          const scaleY = window.innerHeight / 1080;
+          const scale = Math.min(scaleX, scaleY);
+          overlayStage.style.transform = `scale(${scale})`;
+        }
+        window.addEventListener('resize', resizeStage);
+        resizeStage();
+      }
+
+      // -------------------------------------------------------------
+      // 3. CAMBIO DE FORMATO (16:9 vs 1:1)
+      // -------------------------------------------------------------
+      window.setAspectRatio = function(ratio) {
+        const isSquare = ratio === '1:1' || ratio === '11' || ratio === 'square';
+        config.aspect = isSquare ? '1:1' : '16:9';
+
+        if (isSquare) {
+          camFrame.classList.remove('ratio-16-9');
+          camFrame.classList.add('ratio-1-1');
+          camSvg.setAttribute('viewBox', '0 0 350 350');
+          const pts = '25,2 348,2 348,325 325,348 2,348 2,25';
+          camBgPoly.setAttribute('points', pts);
+          camStreamMain.setAttribute('points', pts);
+          camStreamSweep.setAttribute('points', pts);
+
+          btnAspect169.classList.remove('active');
+          btnAspect11.classList.add('active');
+        } else {
+          camFrame.classList.remove('ratio-1-1');
+          camFrame.classList.add('ratio-16-9');
+          camSvg.setAttribute('viewBox', '0 0 460 259');
+          const pts = '25,2 458,2 458,234 435,257 2,257 2,25';
+          camBgPoly.setAttribute('points', pts);
+          camStreamMain.setAttribute('points', pts);
+          camStreamSweep.setAttribute('points', pts);
+
+          btnAspect11.classList.remove('active');
+          btnAspect169.classList.add('active');
+        }
+      };
+
+      // Inicializar el formato
+      setAspectRatio(config.aspect);
+
+      // -------------------------------------------------------------
+      // 4. EDICIÓN DEL TEXTO E ÍCONO DE LA ETIQUETA (CAM TAG)
+      // -------------------------------------------------------------
+      function updateCamTag(name, icon) {
+        if (typeof name !== 'undefined') {
+          config.tag = name;
+          tagName.textContent = name;
+          inputTagName.value = name;
+        }
+        if (typeof icon !== 'undefined') {
+          config.icon = icon;
+          tagIcon.textContent = icon;
+          inputTagIcon.value = icon;
+        }
+      }
+
+      updateCamTag(config.tag, config.icon);
+
+      inputTagName.addEventListener('input', (e) => {
+        updateCamTag(e.target.value, undefined);
+      });
+
+      inputTagIcon.addEventListener('input', (e) => {
+        updateCamTag(undefined, e.target.value);
+      });
+
+      window.toggleTagVisibility = function() {
+        config.showTag = !config.showTag;
+        tagContainer.classList.toggle('hidden', !config.showTag);
+        btnToggleTag.textContent = config.showTag ? '👁️ Ocultar Tag' : '👁️ Mostrar Tag';
+      };
+
+      if (!config.showTag) {
+        tagContainer.classList.add('hidden');
+        btnToggleTag.textContent = '👁️ Mostrar Tag';
+      }
+
+      // Clic en la etiqueta abre el panel HUD
+      camTag.addEventListener('click', () => {
+        toggleHudModal(true);
+      });
+
+      // -------------------------------------------------------------
+      // 5. MOTOR DE COLOR DINÁMICO (Vibrant.js)
+      // -------------------------------------------------------------
+      function hexToRgb(hex) {
+        const r = parseInt(hex.slice(1, 3), 16) || 0;
+        const g = parseInt(hex.slice(3, 5), 16) || 245;
+        const b = parseInt(hex.slice(5, 7), 16) || 212;
+        return `${r}, ${g}, ${b}`;
+      }
+
+      function applyPaletteColors(mainHex, secHex) {
+        document.documentElement.style.setProperty('--dynamic-color', mainHex);
+        document.documentElement.style.setProperty('--dynamic-color-sec', secHex);
+        document.documentElement.style.setProperty('--dynamic-rgb', hexToRgb(mainHex));
+        document.documentElement.style.setProperty('--dynamic-rgb-sec', hexToRgb(secHex));
+      }
+
+      window.applyCoverColors = function(imageUrl) {
+        if (typeof Vibrant === 'undefined' || !imageUrl) return;
+        try {
+          const img = new Image();
+          img.crossOrigin = 'Anonymous';
+          img.src = imageUrl;
+          img.onload = () => {
+            Vibrant.from(img).getPalette().then(palette => {
+              processPalette(palette);
+            }).catch(() => {
+              Vibrant.from(imageUrl).getPalette().then(processPalette).catch(() => {});
+            });
+          };
+          img.onerror = () => {
+            Vibrant.from(imageUrl).getPalette().then(processPalette).catch(() => {});
+          };
+        } catch (e) {
+          Vibrant.from(imageUrl).getPalette().then(processPalette).catch(() => {});
+        }
+      };
+
+      function processPalette(palette) {
+        if (!palette) return;
+        const mainColor = palette.Vibrant ? palette.Vibrant.getHex() : (palette.LightVibrant ? palette.LightVibrant.getHex() : '#00f5d4');
+        const secColor = (palette.LightVibrant && palette.LightVibrant.getHex() !== mainColor)
+          ? palette.LightVibrant.getHex()
+          : (palette.Muted ? palette.Muted.getHex() : (palette.DarkVibrant ? palette.DarkVibrant.getHex() : '#00bbf9'));
+        applyPaletteColors(mainColor, secColor);
+      }
+
+      // -------------------------------------------------------------
+      // 6. MOTOR DE RITMO (BPM & PULSO VISUAL)
+      // -------------------------------------------------------------
+      let currentBpm = 120;
+
+      window.setBpm = function(bpm) {
+        if (!bpm || bpm <= 0) return;
+        currentBpm = Math.round(bpm);
+        bpmDisplay.textContent = `${currentBpm} BPM`;
+
+        const beatSeconds = 60 / currentBpm;
+        let pulseMultiplier = 1.0;
+        if (currentBpm >= 155) {
+          pulseMultiplier = 0.5; // Doble tempo si es demasiado rápido
+        }
+        const beatDuration = (beatSeconds * pulseMultiplier).toFixed(3);
+        document.documentElement.style.setProperty('--beat-duration', `${beatDuration}s`);
+      };
+
+      // Disparador de Beat Único (Flash Neón)
+      window.triggerSingleBeatPulse = function() {
+        camFrame.classList.add('beat-flash');
+        setTimeout(() => {
+          camFrame.classList.remove('beat-flash');
+        }, 120);
+      };
+
+      window.triggerTestBeat = function() {
+        triggerSingleBeatPulse();
+        showToast('⚡ Beat disparado');
+      };
+
+      function estimarBPMAcustico(songName, artistName) {
+        const text = `${songName} ${artistName}`.toLowerCase();
+        if (/(ballad|balada|slow|lenta|acoustic|acustico|chill|lofi|lo-fi|piano|sad|triste|love|soft|unplugged|quiet|sleep|ambient|night)/i.test(text)) {
+          return 74;
+        }
+        if (/(metal|power|speed|thrash|dnb|drum|hard|fast|rapido|solo|heavy|rock|electro|edm|remix|dance|punk|fire|lightning|storm)/i.test(text)) {
+          return 172;
+        }
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) hash = text.charCodeAt(i) + ((hash << 5) - hash);
+        return 82 + (Math.abs(hash) % 65);
+      }
+
+      function handlePause() {
+        musicStatusDot.className = 'status-dot';
+        musicStatusText.textContent = 'Pausado';
+        document.documentElement.style.setProperty('--beat-duration', '1.6s');
+      }
+
+      function handlePlay() {
+        musicStatusDot.className = 'status-dot online';
+        musicStatusText.textContent = 'En Vivo';
+      }
+
+      // -------------------------------------------------------------
+      // 7. INTEGRACIÓN CON STREAMER.BOT (WebSocket ws://127.0.0.1:PORT/)
+      // -------------------------------------------------------------
+      let sbSocket = null;
+      let sbConnected = false;
+      let sbReconnectTimer = null;
+
+      function connectStreamerBot() {
+        if (sbSocket && (sbSocket.readyState === WebSocket.OPEN || sbSocket.readyState === WebSocket.CONNECTING)) {
+          return;
+        }
+
+        const port = parseInt(inputSbPort.value || config.sbPort || '4445', 10);
+        const wsUrl = `ws://127.0.0.1:${port}/`;
+
+        sbStatusDot.className = 'status-dot';
+        sbStatusText.textContent = `Conectando (${port})...`;
+
+        try {
+          sbSocket = new WebSocket(wsUrl);
+
+          sbSocket.onopen = () => {
+            sbConnected = true;
+            sbStatusDot.className = 'status-dot online';
+            sbStatusText.textContent = `Conectado (${port})`;
+            console.log(`[Streamer.bot] 🟢 Conectado exitosamente en ${wsUrl}`);
+
+            // Suscribirse a eventos de Spotify y Eventos Personalizados de Streamer.bot
+            sbSocket.send(JSON.stringify({
+              request: "Subscribe",
+              id: "cam-frame-spotify-rhythm",
+              events: {
+                Spotify: ["TrackChange", "PlaybackSync", "PlaybackStarted", "PlaybackPaused", "*"],
+                StreamerBot: ["Custom", "*"]
+              }
+            }));
+          };
+
+          sbSocket.onmessage = (event) => {
+            try {
+              const msg = JSON.parse(event.data);
+              handleStreamerBotEvent(msg);
+            } catch (err) {
+              console.warn('[Streamer.bot] Error procesando paquete:', err);
+            }
+          };
+
+          sbSocket.onerror = () => {
+            sbConnected = false;
+          };
+
+          sbSocket.onclose = () => {
+            sbConnected = false;
+            sbStatusDot.className = 'status-dot offline';
+            sbStatusText.textContent = 'Desconectado';
+            
+            // Reintentar reconexión automática en 4 segundos
+            clearTimeout(sbReconnectTimer);
+            sbReconnectTimer = setTimeout(connectStreamerBot, 4000);
+          };
+        } catch (e) {
+          sbConnected = false;
+          sbStatusDot.className = 'status-dot offline';
+          sbStatusText.textContent = 'Error puerto';
+          clearTimeout(sbReconnectTimer);
+          sbReconnectTimer = setTimeout(connectStreamerBot, 4000);
+        }
+      }
+
+      function handleStreamerBotEvent(msg) {
+        if (!msg) return;
+
+        const eventSource = (msg.event && msg.event.source) ? msg.event.source : '';
+        const eventType = (msg.event && msg.event.type) ? msg.event.type : '';
+        const data = msg.data || {};
+
+        // A. Eventos de Spotify emitidos por Streamer.bot
+        if (eventSource === 'Spotify' || eventType.toLowerCase().includes('spotify') || data.track) {
+          if (eventType === 'PlaybackPaused') {
+            handlePause();
+            return;
+          }
+          if (eventType === 'PlaybackStarted') {
+            handlePlay();
+          }
+
+          const track = data.track || data;
+          if (track) {
+            handlePlay();
+            const songName = track.name || track.title || 'Desconocido';
+            const artistName = track.artists 
+              ? (Array.isArray(track.artists) ? track.artists.map(a => a.name || a).join(', ') : track.artists) 
+              : (track.artist || 'Artista');
+            const albumCover = (track.album && track.album.images && track.album.images[0]) 
+              ? track.album.images[0].url 
+              : (track.coverUrl || track.album_art || '');
+            const tempo = track.tempo || track.bpm;
+            const songId = track.id || (track.uri ? track.uri.replace('spotify:track:', '') : '');
+
+            trackBanner.textContent = `🎵 ${songName} — ${artistName}`;
+
+            if (albumCover) {
+              window.applyCoverColors(albumCover);
+            }
+            if (tempo && tempo > 0) {
+              setBpm(tempo);
+            } else {
+              syncTrackRhythm(songId, songName, artistName);
+            }
+            triggerSingleBeatPulse();
+          }
+        }
+
+        // B. Eventos Personalizados de Streamer.bot (BPM, Beat Pulse, etc.)
+        if (eventSource === 'StreamerBot' || data.custom || msg.custom) {
+          const payload = data.custom || data;
+          if (payload.bpm) setBpm(payload.bpm);
+          if (payload.beat || payload.pulse) triggerSingleBeatPulse();
+          if (payload.tag || payload.name) updateCamTag(payload.tag || payload.name);
+          if (payload.icon) updateCamTag(undefined, payload.icon);
+          if (payload.aspect) setAspectRatio(payload.aspect);
+          if (payload.color) applyPaletteColors(payload.color, payload.secColor || '#00bbf9');
+        }
+      }
+
+      inputSbPort.addEventListener('change', () => {
+        if (sbSocket) sbSocket.close();
+        connectStreamerBot();
+      });
+
+      // Iniciar conexión con Streamer.bot
+      connectStreamerBot();
+
+      // -------------------------------------------------------------
+      // 8. MOTOR DE RESPALDO: CONSULTA DIRECTA A SPOTIFY WEB API
+      // -------------------------------------------------------------
+      let accessToken = 'BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs';
+      let lastSongId = "";
+
+      async function syncTrackRhythm(songId, songName = "", artistName = "") {
+        let bpm = 120;
+        let apiSuccess = false;
+
+        if (songId && accessToken) {
+          try {
+            const res = await fetch(`https://api.spotify.com/v1/audio-features/${songId}`, {
+              headers: { 'Authorization': `Bearer ${accessToken}` }
+            });
+            if (res.status === 200) {
+              const features = await res.json();
+              if (features && features.tempo && features.tempo > 0) {
+                bpm = Math.round(features.tempo);
+                apiSuccess = true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (!apiSuccess && (songName || artistName)) {
+          bpm = estimarBPMAcustico(songName, artistName);
+        }
+
+        setBpm(bpm);
+      }
+
+      async function checkSpotifyPlayer() {
+        if (!accessToken) return;
+        try {
+          const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
+            headers: { 'Authorization': `Bearer ${accessToken}` }
+          });
+
+          if (res.status === 401) {
+            await refreshSpotifyToken();
+            return;
+          }
+
+          if (res.status === 204) {
+            handlePause();
+            return;
+          }
+
+          if (res.status === 200) {
+            const data = await res.json();
+            if (!data.is_playing) {
+              handlePause();
+            } else {
+              handlePlay();
+              if (data.item && data.item.id !== lastSongId) {
+                lastSongId = data.item.id;
+                const songName = data.item.name || "Desconocido";
+                const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "Artista";
+                const albumCoverUrl = (data.item.album && data.item.album.images && data.item.album.images[0]) 
+                  ? data.item.album.images[0].url 
+                  : "";
+
+                trackBanner.textContent = `🎵 ${songName} — ${artistName}`;
+
+                if (albumCoverUrl) {
+                  window.applyCoverColors(albumCoverUrl);
+                }
+                syncTrackRhythm(data.item.id, songName, artistName);
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      async function refreshSpotifyToken() {
+        const user = inputSpotifyUser.value || config.spotifyUser;
+        try {
+          const res = await fetch('https://mrboostlive.com/spotify/refresh_token.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `user_id=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(config.refreshToken)}`
+          });
+          const newToken = await res.text();
+          if (newToken && !newToken.includes("<")) {
+            accessToken = newToken.trim();
+            checkSpotifyPlayer();
+          }
+        } catch (err) {}
+      }
+
+      // Polling de respaldo cada 3 segundos si Streamer.bot no reporta
+      setInterval(() => {
+        if (!sbConnected) {
+          checkSpotifyPlayer();
+        }
+      }, 3000);
+
+      inputSpotifyUser.addEventListener('change', () => {
+        config.spotifyUser = inputSpotifyUser.value;
+        refreshSpotifyToken();
+      });
+
+      // Receptor de eventos alternos (BroadcastChannel)
+      try {
+        const channel = new BroadcastChannel('spotify_overlay_channel');
+        channel.onmessage = (e) => {
+          if (e.data) {
+            if (e.data.coverUrl) window.applyCoverColors(e.data.coverUrl);
+            if (e.data.bpm) setBpm(e.data.bpm);
+            if (e.data.trackName) trackBanner.textContent = `🎵 ${e.data.trackName}`;
+          }
+        };
+      } catch(err) {}
+
+      // -------------------------------------------------------------
+      // 9. GESTIÓN DEL PANEL HUD & ATAJOS DE TECLADO
+      // -------------------------------------------------------------
+      function toggleHudModal(forceState) {
+        const isActive = typeof forceState === 'boolean' ? forceState : !hudModal.classList.contains('active');
+        hudModal.classList.toggle('active', isActive);
+      }
+
+      hudToggleBtn.addEventListener('click', () => toggleHudModal());
+      hudCloseBtn.addEventListener('click', () => toggleHudModal(false));
+
+      // Atajos de teclado:
+      // [C] -> Abrir/Cerrar Configuración
+      // [T] -> Cambiar entre 16:9 y 1:1
+      // [B] -> Disparar Beat de prueba
+      document.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+        if (e.key === 'c' || e.key === 'C') {
+          toggleHudModal();
+        } else if (e.key === 't' || e.key === 'T') {
+          const nextAspect = config.aspect === '16:9' ? '1:1' : '16:9';
+          setAspectRatio(nextAspect);
+          showToast(`📐 Formato cambiado a ${nextAspect}`);
+        } else if (e.key === 'b' || e.key === 'B') {
+          triggerSingleBeatPulse();
+        }
+      });
+
+      // -------------------------------------------------------------
+      // 10. GENERACIÓN Y COPIADO DE ENLACE OBS
+      // -------------------------------------------------------------
+      window.copyObsUrl = function() {
+        const origin = window.location.origin;
+        const pathname = window.location.pathname;
+        const params = new URLSearchParams();
+
+        params.set('aspect', config.aspect);
+        params.set('tag', inputTagName.value || config.tag);
+        params.set('icon', inputTagIcon.value || config.icon);
+        params.set('spotify', inputSpotifyUser.value || config.spotifyUser);
+        params.set('port', inputSbPort.value || config.sbPort);
+        params.set('obs', 'true'); // Oculta el botón de ajustes en OBS
+
+        if (!config.showTag) params.set('tag', 'none');
+
+        const finalUrl = `${origin}${pathname}?${params.toString()}`;
+        navigator.clipboard.writeText(finalUrl).then(() => {
+          showToast('📋 ¡Enlace OBS copiado con éxito!');
+        }).catch(() => {
+          prompt('Copia este enlace para OBS Studio:', finalUrl);
+        });
+      };
+
+      function showToast(msg) {
+        toastMsg.textContent = msg;
+        toastMsg.classList.add('show');
+        setTimeout(() => {
+          toastMsg.classList.remove('show');
+        }, 2500);
+      }
+    });
+  </script>
+</body>
+</html>

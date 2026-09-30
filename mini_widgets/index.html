@@ -1406,6 +1406,68 @@
         </button>
       </div>
 
+      <!-- Card 10: Marco de Cámara Neón (Webcam 16:9 & 1:1) -->
+      <div class="card" id="card-camframe" style="border-color: rgba(0, 245, 212, 0.45); background: rgba(3, 16, 26, 0.92);">
+        <div class="card-header-row">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h2 style="color: #00f5d4; margin: 0;">📷 10. Marco de Cámara Neón (Webcam)</h2>
+            <span style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(0, 245, 212, 0.15); color: #00f5d4; border: 1px solid rgba(0, 245, 212, 0.35);">
+              ⚡ STREAMER.BOT + RITMO SPOTIFY
+            </span>
+          </div>
+          <button type="button" class="btn-card-fav" id="fav-btn-camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner" style="border-color: rgba(0, 245, 212, 0.35); background: rgba(0, 245, 212, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Marco Cyberpunk Reactivo:</strong> Soporta formato <strong>16:9</strong> (Panorámico) y <strong>1:1</strong> (Cuadrado), absorbe el ritmo y los colores de la música en tiempo real conectándose a <strong>Streamer.bot</strong> y <strong>Spotify</strong>, y monta tu etiqueta sobre el borde inferior.
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 380px; background: radial-gradient(circle at center, #061e30 0%, #020b12 100%);">
+          <iframe id="preview-camframe" src="marcocamara1.html?preview=true&obs=true"></iframe>
+        </div>
+
+        <!-- Opciones de Configuración -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-aspect-select">📐 Formato del Marco:</label>
+            <select id="camframe-aspect-select" class="input-field" onchange="updateCamFrameWidget()">
+              <option value="16:9" selected>16:9 Panorámico (Webcam)</option>
+              <option value="1:1">1:1 Cuadrado (Webcam)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-tag-input">🏷️ Nombre / Etiqueta:</label>
+            <input type="text" id="camframe-tag-input" class="input-field" value="JIKOKUN" placeholder="Ej: JIKOKUN" oninput="updateCamFrameWidget()">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 80px 1.4fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-icon-input">⚡ Icono:</label>
+            <input type="text" id="camframe-icon-input" class="input-field" value="⚡" maxlength="4" style="text-align: center;" oninput="updateCamFrameWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-spotify-input">🎧 Usuario Spotify:</label>
+            <input type="text" id="camframe-spotify-input" class="input-field" value="jikokun2" placeholder="Usuario Spotify" oninput="updateCamFrameWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-port-input">🔌 Puerto SB:</label>
+            <input type="text" id="camframe-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateCamFrameWidget()">
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-camframe', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Marco de Cámara para OBS
+        </button>
+      </div>
+
     </div>
   </div>
 
@@ -1630,6 +1692,18 @@
         if (ea.mute !== undefined) document.getElementById('electric-mute').checked = !!ea.mute;
         updateFavoriteButtonState('widget_alerts_electric', !!ea.is_favorite);
         updateElectricAlertsWidget(false);
+      }
+
+      // 10. Marco de Cámara Neón
+      if (config.widget_camframe) {
+        const cf = config.widget_camframe;
+        if (cf.aspect) document.getElementById('camframe-aspect-select').value = cf.aspect;
+        if (cf.tag) document.getElementById('camframe-tag-input').value = cf.tag;
+        if (cf.icon) document.getElementById('camframe-icon-input').value = cf.icon;
+        if (cf.spotify) document.getElementById('camframe-spotify-input').value = cf.spotify;
+        if (cf.port) document.getElementById('camframe-port-input').value = cf.port;
+        updateFavoriteButtonState('widget_camframe', !!cf.is_favorite);
+        updateCamFrameWidget(false);
       }
     }
 
@@ -2299,6 +2373,56 @@
       }
     };
 
+    // 10. Marco de Cámara Neón (Webcam 16:9 & 1:1)
+    function updateCamFrameWidget(shouldSync = true) {
+      const aspectSelect = document.getElementById('camframe-aspect-select');
+      const aspect = aspectSelect ? aspectSelect.value : '16:9';
+      const tagInput = document.getElementById('camframe-tag-input');
+      const tag = tagInput ? (tagInput.value.trim() || 'JIKOKUN') : 'JIKOKUN';
+      const iconInput = document.getElementById('camframe-icon-input');
+      const icon = iconInput ? (iconInput.value.trim() || '⚡') : '⚡';
+      const spotifyInput = document.getElementById('camframe-spotify-input');
+      const spotify = spotifyInput ? (spotifyInput.value.trim() || 'jikokun2') : 'jikokun2';
+      const portInput = document.getElementById('camframe-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+
+      const obsParams = new URLSearchParams();
+      obsParams.set('aspect', aspect);
+      obsParams.set('tag', tag);
+      obsParams.set('icon', icon);
+      if (spotify && spotify !== 'jikokun2') obsParams.set('spotify', spotify);
+      if (port && port !== '4445') obsParams.set('port', port);
+      obsParams.set('obs', 'true');
+
+      const obsPath = `marcocamara1.html?${obsParams.toString()}`;
+      generatedUrls['url-camframe'] = getAbsoluteUrl(obsPath);
+
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+
+      const previewPath = `marcocamara1.html?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-camframe');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        }
+      }
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_camframe', () => ({
+          title: 'Marco de Cámara Neón',
+          aspect,
+          tag,
+          icon,
+          spotify,
+          port,
+          obs_url: generatedUrls['url-camframe']
+        }));
+      }
+    }
+    window.updateCamFrameWidget = updateCamFrameWidget;
+
     // Copy URL function with Toast and Button Animation
     window.copyWidgetUrl = function(urlKey, btn) {
       const urlText = generatedUrls[urlKey];
@@ -2334,6 +2458,7 @@
       updateAlertsWidget(false);
       updateJikokunCardWidget();
       updateElectricAlertsWidget(false);
+      updateCamFrameWidget(false);
     });
   </script>
 
