@@ -667,37 +667,40 @@
       </div>
     </div>
 
-    <!-- Sección 3: Streamer.bot & Spotify Conexión -->
+    <!-- Sección 3: Conexión Local Spotify (Tuna OBS & Streamer.bot) -->
     <div class="hud-section">
       <div class="hud-label">
-        <span>Streamer.bot & Spotify</span>
+        <span>Spotify Local (Tuna OBS / Streamer.bot)</span>
         <span id="bpmDisplay" style="color: var(--dynamic-color); font-weight: 800;">120 BPM</span>
       </div>
       <div class="hud-input-row" style="margin-bottom: 8px;">
-        <input type="text" class="hud-input" id="inputSpotifyUser" value="jikokun2" placeholder="Usuario de Spotify">
-        <input type="number" class="hud-input" id="inputSbPort" value="4445" style="max-width: 90px;" placeholder="Puerto SB" title="Puerto WebSocket de Streamer.bot (def: 4445)">
+        <input type="number" class="hud-input" id="inputTunaPort" value="1608" placeholder="Puerto Tuna (1608)" title="Puerto Web Server de Tuna en OBS (def: 1608)">
+        <input type="number" class="hud-input" id="inputSbPort" value="4445" style="max-width: 100px;" placeholder="Puerto SB" title="Puerto WebSocket de Streamer.bot (def: 4445)">
       </div>
 
       <!-- Tarjetas de Estado -->
       <div class="hud-status-grid">
         <div class="hud-status-card">
-          <div class="hud-status-header">Streamer.bot WebSocket</div>
+          <div class="hud-status-header">Tuna OBS (Local)</div>
+          <div class="hud-status-val">
+            <span class="status-dot" id="tunaStatusDot"></span>
+            <span id="tunaStatusText" style="color: #a4b0be;">Buscando...</span>
+          </div>
+        </div>
+        <div class="hud-status-card">
+          <div class="hud-status-header">Streamer.bot WS</div>
           <div class="hud-status-val">
             <span class="status-dot" id="sbStatusDot"></span>
             <span id="sbStatusText" style="color: #a4b0be;">Conectando...</span>
           </div>
         </div>
-        <div class="hud-status-card">
-          <div class="hud-status-header">Estado Musical</div>
-          <div class="hud-status-val">
-            <span class="status-dot" id="musicStatusDot"></span>
-            <span id="musicStatusText" style="color: #a4b0be;">Buscando...</span>
-          </div>
-        </div>
       </div>
 
       <div class="track-banner" id="trackBanner">
-        🎵 Esperando reproducción en Spotify / Streamer.bot...
+        🎵 Esperando reproducción en Spotify (Tuna OBS / Streamer.bot)...
+      </div>
+      <div style="font-size: 0.72rem; color: #7f9eb2; margin-top: 6px; line-height: 1.3;">
+        💡 <strong>Recomendado:</strong> Activa el Web Server de Tuna en OBS (<em>Herramientas &gt; Tuna &gt; Web server &gt; Puerto 1608</em>).
       </div>
     </div>
 
@@ -728,9 +731,8 @@
         aspect: urlParams.get('aspect') || urlParams.get('ratio') || '16:9',
         tag: urlParams.get('tag') || urlParams.get('name') || urlParams.get('title') || 'JIKOKUN',
         icon: urlParams.get('icon') || '⚡',
-        spotifyUser: urlParams.get('spotify') || urlParams.get('user') || 'jikokun2',
+        tunaPort: parseInt(urlParams.get('tunaport') || urlParams.get('tuna') || '1608', 10),
         sbPort: parseInt(urlParams.get('port') || urlParams.get('sbport') || '4445', 10),
-        refreshToken: urlParams.get('refresh_token') || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM',
         fullscreen: urlParams.get('fullscreen') === 'true' || urlParams.get('mode') === 'fullscreen',
         clean: urlParams.get('clean') === 'true' || urlParams.get('obs') === 'true',
         showTag: urlParams.get('tag') !== 'none' && urlParams.get('notag') !== '1'
@@ -761,12 +763,12 @@
       const btnAspect11 = document.getElementById('btnAspect11');
       const inputTagIcon = document.getElementById('inputTagIcon');
       const inputTagName = document.getElementById('inputTagName');
-      const inputSpotifyUser = document.getElementById('inputSpotifyUser');
+      const inputTunaPort = document.getElementById('inputTunaPort');
       const inputSbPort = document.getElementById('inputSbPort');
+      const tunaStatusDot = document.getElementById('tunaStatusDot');
+      const tunaStatusText = document.getElementById('tunaStatusText');
       const sbStatusDot = document.getElementById('sbStatusDot');
       const sbStatusText = document.getElementById('sbStatusText');
-      const musicStatusDot = document.getElementById('musicStatusDot');
-      const musicStatusText = document.getElementById('musicStatusText');
       const trackBanner = document.getElementById('trackBanner');
       const bpmDisplay = document.getElementById('bpmDisplay');
       const btnToggleTag = document.getElementById('btnToggleTag');
@@ -775,8 +777,8 @@
       // Asignar valores a inputs del HUD
       inputTagIcon.value = config.icon;
       inputTagName.value = config.tag;
-      inputSpotifyUser.value = config.spotifyUser;
-      inputSbPort.value = config.sbPort;
+      if (inputTunaPort) inputTunaPort.value = config.tunaPort;
+      if (inputSbPort) inputSbPort.value = config.sbPort;
 
       // -------------------------------------------------------------
       // 2. MODO FULLSCREEN (Auto-Escalado 1920x1080 opcional)
@@ -963,14 +965,18 @@
       }
 
       function handlePause() {
-        musicStatusDot.className = 'status-dot';
-        musicStatusText.textContent = 'Pausado';
+        if (tunaStatusDot && tunaConnected) {
+          tunaStatusDot.className = 'status-dot';
+          tunaStatusText.textContent = 'Pausado (Tuna)';
+        }
         document.documentElement.style.setProperty('--beat-duration', '1.6s');
       }
 
       function handlePlay() {
-        musicStatusDot.className = 'status-dot online';
-        musicStatusText.textContent = 'En Vivo';
+        if (tunaStatusDot && tunaConnected) {
+          tunaStatusDot.className = 'status-dot online';
+          tunaStatusText.textContent = `En Línea (${config.tunaPort || 1608})`;
+        }
       }
 
       // -------------------------------------------------------------
@@ -1107,107 +1113,99 @@
       connectStreamerBot();
 
       // -------------------------------------------------------------
-      // 8. MOTOR DE RESPALDO: CONSULTA DIRECTA A SPOTIFY WEB API
+      // 8. MOTOR LOCAL: TUNA OBS PLUGIN (http://127.0.0.1:1608/)
       // -------------------------------------------------------------
-      let accessToken = 'BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs';
-      let lastSongId = "";
+      let tunaConnected = false;
+      let lastTunaSongKey = "";
 
-      async function syncTrackRhythm(songId, songName = "", artistName = "") {
-        let bpm = 120;
-        let apiSuccess = false;
+      async function checkTunaPlayer() {
+        const port = parseInt(inputTunaPort ? inputTunaPort.value : config.tunaPort || '1608', 10);
+        const tunaUrl = `http://127.0.0.1:${port}/`;
 
-        if (songId && accessToken) {
-          try {
-            const res = await fetch(`https://api.spotify.com/v1/audio-features/${songId}`, {
-              headers: { 'Authorization': `Bearer ${accessToken}` }
-            });
-            if (res.status === 200) {
-              const features = await res.json();
-              if (features && features.tempo && features.tempo > 0) {
-                bpm = Math.round(features.tempo);
-                apiSuccess = true;
-              }
-            }
-          } catch (e) {}
-        }
-
-        if (!apiSuccess && (songName || artistName)) {
-          bpm = estimarBPMAcustico(songName, artistName);
-        }
-
-        setBpm(bpm);
-      }
-
-      async function checkSpotifyPlayer() {
-        if (!accessToken) return;
         try {
-          const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
-            headers: { 'Authorization': `Bearer ${accessToken}` }
-          });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1200);
 
-          if (res.status === 401) {
-            await refreshSpotifyToken();
+          const res = await fetch(tunaUrl, { 
+            signal: controller.signal,
+            cache: 'no-store'
+          });
+          clearTimeout(timeoutId);
+
+          if (!res.ok) {
+            markTunaOffline(port);
             return;
           }
 
-          if (res.status === 204) {
+          const data = await res.json();
+          tunaConnected = true;
+          if (tunaStatusDot) tunaStatusDot.className = 'status-dot online';
+          if (tunaStatusText) tunaStatusText.textContent = `En Línea (${port})`;
+
+          // Estado de reproducción Tuna ('playing', 'paused', 'stopped')
+          const status = (data.status || '').toLowerCase();
+          const hasTrack = !!(data.title || data.song);
+          const isPlaying = status === 'playing' || status === 'play' || (status !== 'paused' && status !== 'stopped' && hasTrack);
+
+          if (!isPlaying && hasTrack) {
             handlePause();
             return;
           }
 
-          if (res.status === 200) {
-            const data = await res.json();
-            if (!data.is_playing) {
-              handlePause();
-            } else {
-              handlePlay();
-              if (data.item && data.item.id !== lastSongId) {
-                lastSongId = data.item.id;
-                const songName = data.item.name || "Desconocido";
-                const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "Artista";
-                const albumCoverUrl = (data.item.album && data.item.album.images && data.item.album.images[0]) 
-                  ? data.item.album.images[0].url 
-                  : "";
+          if (hasTrack) {
+            handlePlay();
+            const songName = data.title || data.song || 'Canción Desconocida';
+            let artistName = 'Artista';
+            if (Array.isArray(data.artists) && data.artists.length > 0) {
+              artistName = data.artists.join(', ');
+            } else if (typeof data.artists === 'string' && data.artists.trim()) {
+              artistName = data.artists;
+            } else if (data.artist) {
+              artistName = data.artist;
+            }
 
-                trackBanner.textContent = `🎵 ${songName} — ${artistName}`;
+            const songKey = `${songName}:::${artistName}`;
+            if (songKey !== lastTunaSongKey) {
+              lastTunaSongKey = songKey;
+              trackBanner.textContent = `🎵 ${songName} — ${artistName}`;
 
-                if (albumCoverUrl) {
-                  window.applyCoverColors(albumCoverUrl);
-                }
-                syncTrackRhythm(data.item.id, songName, artistName);
+              // Portada de Tuna (puede ser cover_url, cover o endpoint /cover)
+              let coverUrl = data.cover_url || data.cover || '';
+              if (!coverUrl && (data.has_cover || data.cover_path)) {
+                coverUrl = `http://127.0.0.1:${port}/cover?t=${Date.now()}`;
               }
+
+              if (coverUrl) {
+                window.applyCoverColors(coverUrl);
+              }
+
+              // Estimar ritmo acústico y disparar pulso
+              const bpm = estimarBPMAcustico(songName, artistName);
+              setBpm(bpm);
+              triggerSingleBeatPulse();
             }
           }
-        } catch (e) {}
-      }
-
-      async function refreshSpotifyToken() {
-        const user = inputSpotifyUser.value || config.spotifyUser;
-        try {
-          const res = await fetch('https://mrboostlive.com/spotify/refresh_token.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: `user_id=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(config.refreshToken)}`
-          });
-          const newToken = await res.text();
-          if (newToken && !newToken.includes("<")) {
-            accessToken = newToken.trim();
-            checkSpotifyPlayer();
-          }
-        } catch (err) {}
-      }
-
-      // Polling de respaldo cada 3 segundos si Streamer.bot no reporta
-      setInterval(() => {
-        if (!sbConnected) {
-          checkSpotifyPlayer();
+        } catch (err) {
+          markTunaOffline(port);
         }
-      }, 3000);
+      }
 
-      inputSpotifyUser.addEventListener('change', () => {
-        config.spotifyUser = inputSpotifyUser.value;
-        refreshSpotifyToken();
-      });
+      function markTunaOffline(port) {
+        tunaConnected = false;
+        if (tunaStatusDot) tunaStatusDot.className = 'status-dot offline';
+        if (tunaStatusText) tunaStatusText.textContent = `Sin señal (${port || 1608})`;
+      }
+
+      // Intervalo de consulta a Tuna cada 1.5s
+      setInterval(checkTunaPlayer, 1500);
+      checkTunaPlayer();
+
+      if (inputTunaPort) {
+        inputTunaPort.addEventListener('change', () => {
+          config.tunaPort = parseInt(inputTunaPort.value || '1608', 10);
+          checkTunaPlayer();
+        });
+      }
 
       // Receptor de eventos alternos (BroadcastChannel)
       try {
@@ -1261,8 +1259,14 @@
         params.set('aspect', config.aspect);
         params.set('tag', inputTagName.value || config.tag);
         params.set('icon', inputTagIcon.value || config.icon);
-        params.set('spotify', inputSpotifyUser.value || config.spotifyUser);
-        params.set('port', inputSbPort.value || config.sbPort);
+        const currentTunaPort = inputTunaPort ? inputTunaPort.value : config.tunaPort;
+        if (currentTunaPort && currentTunaPort.toString() !== '1608') {
+          params.set('tunaport', currentTunaPort);
+        }
+        const currentSbPort = inputSbPort ? inputSbPort.value : config.sbPort;
+        if (currentSbPort && currentSbPort.toString() !== '4445') {
+          params.set('port', currentSbPort);
+        }
         params.set('obs', 'true'); // Oculta el botón de ajustes en OBS
 
         if (!config.showTag) params.set('tag', 'none');

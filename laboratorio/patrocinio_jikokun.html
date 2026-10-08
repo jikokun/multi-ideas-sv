@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jikokun - Widget Mini Banner de Patrocinio (Aqua Electric)</title>
+
+  <!-- Tipografías de Google: Orbitron (Tech/Cyber) y Rajdhani (Cyberpunk/Legible) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;800;900&family=Rajdhani:wght@600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ==========================================================================
+       JIKOKUN - WIDGET DE PATROCINIO POLIGONAL INDEPENDIENTE (AQUA ELECTRIC)
+       Silueta Poligonal Stepped con Esquinas Recortadas Hacia Adentro a 90°
+       Contorno Perimetral Neón con Resplandor Exterior en Todo el Contenedor
+       Tipografía con Efectos de Brillo / Resplandor Neón de Alto Impacto
+       Diseñado para OBS Studio Browser Source (Resolución Sugerida: 500x120 px)
+       Fondo 100% Transparente con Todo el CSS y JS en Este Mismo Archivo
+       ========================================================================== */
+
+    :root {
+      --aqua-electric: #00f5d4;
+      --aqua-cyan: #00e5ff;
+      --aqua-blue: #0077b6;
+      --aqua-glow: rgba(0, 245, 212, 0.85);
+      --aqua-glow-soft: rgba(0, 229, 255, 0.45);
+      
+      --kick-green: #53fc18;
+      --kick-glow: rgba(83, 252, 24, 0.85);
+
+      --bg-dark-1: rgba(2, 11, 20, 0.96);
+      --bg-dark-2: rgba(4, 25, 44, 0.92);
+      --bg-dark-3: rgba(1, 7, 14, 0.98);
+
+      --font-tech: 'Orbitron', sans-serif;
+      --font-body: 'Rajdhani', sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: var(--font-body);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* --------------------------------------------------
+       ESCENARIO Y CONTENEDOR PRINCIPAL
+       Con Transición Épica de Aparición y Desaparición Completa del Banner
+       -------------------------------------------------- */
+    .widget-container {
+      position: relative;
+      width: 500px;
+      height: 106px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 1000px;
+      opacity: 0;
+      transform: translateY(28px) scale(0.94);
+      transition: 
+        opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+      pointer-events: none;
+    }
+
+    /* Estado Visible: El Banner Completo Aparece en Pantalla */
+    .widget-container.is-visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    /* Estado Oculto: El Banner Completo Desaparece (100% Transparente en OBS) */
+    .widget-container.is-hidden {
+      opacity: 0;
+      transform: translateY(28px) scale(0.94);
+      pointer-events: none;
+    }
+
+    /* Resplandor Atmosférico Exterior Suavizado */
+    .ambient-glow {
+      position: absolute;
+      inset: -12px;
+      border-radius: 24px;
+      background: radial-gradient(ellipse at center, rgba(0, 245, 212, 0.28) 0%, transparent 72%);
+      filter: blur(18px);
+      z-index: 1;
+      opacity: 0.85;
+      animation: ambientBreath 4s ease-in-out infinite alternate;
+      pointer-events: none;
+      transition: background 0.4s ease;
+    }
+
+    /* --------------------------------------------------
+       BORDE NEÓN VECTORIAL SVG DE PRECISIÓN (12 PUNTOS)
+       Contorno que brilla intensamente alrededor de todo el contenedor
+       3 capas de trazo: halo perimetral amplio + resplandor neón medio + línea núcleo
+       -------------------------------------------------- */
+    .polygon-svg-frame {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 6;
+      pointer-events: none;
+      overflow: visible;
+      filter: drop-shadow(0 0 10px rgba(0, 245, 212, 0.85)) drop-shadow(0 0 24px rgba(0, 245, 212, 0.5));
+      transition: filter 0.4s ease;
+    }
+
+    /* Capa 1: Halo Neón Perimetral Amplio (Contorno exterior que brilla alrededor) */
+    .polygon-border-ambient {
+      fill: none;
+      stroke: var(--aqua-electric);
+      stroke-width: 10px;
+      opacity: 0.75;
+      filter: blur(6px);
+      stroke-linejoin: miter;
+      stroke-linecap: square;
+      transition: stroke 0.4s ease;
+    }
+
+    /* Capa 2: Resplandor Neón Medio */
+    .polygon-border-glow {
+      fill: none;
+      stroke: var(--aqua-cyan);
+      stroke-width: 5px;
+      opacity: 0.95;
+      filter: blur(2.5px);
+      stroke-linejoin: miter;
+      stroke-linecap: square;
+      transition: stroke 0.4s ease;
+    }
+
+    /* Capa 3: Línea Núcleo Nítida y Brillante */
+    .polygon-border-path {
+      fill: none;
+      stroke: #ffffff;
+      stroke-width: 2.2px;
+      stroke-linejoin: miter;
+      stroke-linecap: square;
+      filter: drop-shadow(0 0 5px var(--aqua-electric));
+      transition: stroke 0.4s ease;
+    }
+
+    /* --------------------------------------------------
+       TARJETA BANNER CYBERPUNK (SILUETA POLIGONAL 90°)
+       4 Esquinas Recortadas Hacia Adentro en Ángulo Recto
+       -------------------------------------------------- */
+    .sponsor-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 9px 18px 9px 14px;
+      background: linear-gradient(135deg, var(--bg-dark-1) 0%, var(--bg-dark-2) 50%, var(--bg-dark-3) 100%);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      
+      /* Silueta 12-Puntos con 4 esquinas rectilíneas recortadas hacia adentro (Muescas Simétricas 10px x 10px) */
+      clip-path: polygon(
+        10px 0,
+        calc(100% - 10px) 0,
+        calc(100% - 10px) 10px,
+        100% 10px,
+        100% calc(100% - 10px),
+        calc(100% - 10px) calc(100% - 10px),
+        calc(100% - 10px) 100%,
+        10px 100%,
+        10px calc(100% - 10px),
+        0 calc(100% - 10px),
+        0 10px,
+        10px 10px
+      );
+
+      box-shadow: 
+        0 14px 40px rgba(0, 0, 0, 0.95),
+        inset 0 0 24px rgba(0, 229, 255, 0.18);
+      z-index: 2;
+      overflow: hidden;
+      transition: box-shadow 0.4s ease;
+    }
+
+    /* Rayo Láser que Recorre la Sección Superior */
+    .laser-line-top {
+      position: absolute;
+      top: 0;
+      left: 10px;
+      right: 10px;
+      height: 2px;
+      overflow: hidden;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .laser-line-top::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 60%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, var(--aqua-electric), #ffffff, var(--aqua-cyan), transparent);
+      box-shadow: 0 0 10px var(--aqua-electric);
+      animation: laserSweep 4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    /* Cuadrícula Cibernética de Fondo */
+    .cyber-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(0, 245, 212, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 245, 212, 0.035) 1px, transparent 1px);
+      background-size: 16px 16px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Muescas Tech en los Vértices Interiores a 90° con brillo sincronizado */
+    .step-notch {
+      position: absolute;
+      width: 4px;
+      height: 4px;
+      background: var(--aqua-electric);
+      border-radius: 1px;
+      box-shadow: 0 0 8px var(--aqua-electric), 0 0 14px var(--aqua-electric);
+      z-index: 8;
+      pointer-events: none;
+      transition: background 0.4s ease, box-shadow 0.4s ease;
+    }
+    .step-notch.tl { top: 10px; left: 10px; transform: translate(-50%, -50%); }
+    .step-notch.tr { top: 10px; right: 10px; transform: translate(50%, -50%); }
+    .step-notch.bl { bottom: 10px; left: 10px; transform: translate(-50%, 50%); }
+    .step-notch.br { bottom: 10px; right: 10px; transform: translate(50%, 50%); }
+
+    /* Espaciador en la tarjeta para reservar la zona del logo */
+    .logo-spacer {
+      width: 78px;
+      height: 78px;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+
+    /* --------------------------------------------------
+       CAPA SUPERIOR 3D: BADGE Y LOGO ANIMADO DE JIKOKUN
+       Al estar libre del clip-path, sobrepasa el marco exterior
+       -------------------------------------------------- */
+    .logo-container {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 78px;
+      height: 78px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 15;
+      pointer-events: none;
+    }
+
+    /* Marco Tech para el Emblema (Recuadro Contenedor Encuadrado) */
+    .logo-frame {
+      position: relative;
+      width: 76px;
+      height: 76px;
+      border-radius: 14px;
+      background: radial-gradient(circle at center, rgba(0, 119, 182, 0.45) 0%, rgba(2, 14, 26, 0.95) 75%);
+      border: 1.5px solid var(--aqua-electric);
+      box-shadow: 
+        0 0 14px rgba(0, 245, 212, 0.55),
+        inset 0 0 12px rgba(0, 119, 182, 0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: visible; /* Permite desborde 3D del logo durante el zoom */
+      animation: logoFramePulse 3s ease-in-out infinite alternate;
+      transition: border-color 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    /* Video Animado WebM Oficial del Lobo de Jikokun Encuadrado y Centrado */
+    .jikokun-logo-media {
+      position: absolute;
+      inset: 0;
+      margin: auto;
+      margin-top: 3px; /* Compensación óptica para centrar perfectamente el cuerpo y orejas del lobo */
+      width: 78px;
+      height: 78px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 7px rgba(0, 245, 212, 0.55)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95));
+      animation: wolfRoarPop 10.1s ease-in-out infinite;
+      transform-origin: center center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    /* --------------------------------------------------
+       LADO DERECHO: TEXTOS CON RESPLANDOR NEÓN Y DISEÑO LIMPIO
+       Centrado en el espacio entre el logo y el borde lateral derecho
+       Layout adaptable: 2 líneas con gran protagonismo o 3 líneas cortas
+       -------------------------------------------------- */
+    .content-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      z-index: 25;
+      padding-right: 4px;
+      padding-left: 2px;
+      transition: all 0.3s ease;
+    }
+
+    /* Fila 1: Línea Superior de Categoría / Sponsor con Resplandor Neón */
+    .header-pill-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      gap: 8px;
+      margin-bottom: 2px;
+      transition: margin-bottom 0.3s ease;
+    }
+
+    .content-container.mode-2lines .header-pill-row {
+      margin-bottom: 4px;
+    }
+
+    .status-pulse-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--aqua-electric);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--aqua-electric), 0 0 14px var(--aqua-electric);
+      animation: pulseDot 1.6s ease-in-out infinite alternate;
+      flex-shrink: 0;
+      transition: background 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    .badge-category {
+      font-family: var(--font-tech);
+      font-size: 12.5px;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      color: var(--aqua-cyan);
+      text-transform: uppercase;
+      text-align: center;
+      /* Resplandor Neón Nítido en Letras */
+      text-shadow: 
+        0 0 8px rgba(0, 229, 255, 0.9),
+        0 0 18px rgba(0, 229, 255, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.95);
+      transition: color 0.4s ease, text-shadow 0.4s ease, font-size 0.3s ease;
+    }
+
+    .content-container.mode-2lines .badge-category {
+      font-size: 13px;
+      letter-spacing: 2px;
+    }
+
+    /* Contenedor de Textos */
+    .message-rotator {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+    }
+
+    .message-slide {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      width: 100%;
+    }
+
+    /* Fila 2: Título Principal con Resplandor Neón Intenso en las Letras */
+    .main-title {
+      font-family: var(--font-tech);
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      line-height: 1.1;
+      text-transform: uppercase;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      text-align: center;
+      width: 100%;
+      /* Efecto de Brillo / Resplandor Neón Multicapa en las Letras */
+      text-shadow: 
+        0 0 5px #ffffff,
+        0 0 10px var(--aqua-electric),
+        0 0 22px var(--aqua-electric),
+        0 0 38px rgba(0, 245, 212, 0.75),
+        0 2px 4px rgba(0, 0, 0, 0.95);
+      transition: color 0.4s ease, text-shadow 0.4s ease, font-size 0.3s ease;
+    }
+
+    /* Cuando solo hay 2 líneas (ej: CANAL APOYADO POR / JIKOKUN), ampliamos a 29px para máximo impacto */
+    .content-container.mode-2lines .main-title {
+      font-size: 29px;
+      letter-spacing: 2.5px;
+    }
+
+    /* Fila 3 (Opcional): Subtítulo / Detalle Corto con Resplandor */
+    .sub-detail {
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      color: #eaf8ff;
+      line-height: 1.2;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      width: 100%;
+      gap: 6px;
+      text-shadow: 
+        0 0 8px rgba(0, 245, 212, 0.65),
+        0 1px 3px rgba(0, 0, 0, 0.95);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: color 0.4s ease, text-shadow 0.4s ease;
+    }
+
+    /* Si no hay tercera línea (ej. Mensaje 1 de solo 2 líneas), se oculta automáticamente */
+    .sub-detail:empty,
+    .sub-detail.is-empty {
+      display: none;
+    }
+
+    .sub-icon {
+      font-size: 13px;
+      display: inline-block;
+      vertical-align: middle;
+    }
+
+    /* --------------------------------------------------
+       BARRA DE CARGA DE ENERGÍA (ALINEADA AL BORDE INFERIOR)
+       -------------------------------------------------- */
+    .energy-bar-track {
+      position: absolute;
+      bottom: 0;
+      left: 10px;
+      right: 10px;
+      height: 3px;
+      background: rgba(0, 50, 80, 0.45);
+      overflow: hidden;
+      z-index: 10;
+    }
+
+    .energy-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--aqua-blue), var(--aqua-cyan), var(--aqua-electric));
+      box-shadow: 0 0 8px var(--aqua-electric);
+      transition: width 0.1s linear, background 0.4s ease, box-shadow 0.4s ease;
+    }
+
+    /* Chispas de Rayo Eléctrico Instantáneo al Cambiar */
+    .flash-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 245, 212, 0.22);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 20;
+      transition: opacity 0.3s ease;
+    }
+    .flash-overlay.active {
+      opacity: 1;
+      transition: opacity 0.05s ease;
+    }
+
+    /* --------------------------------------------------
+       KEYFRAMES Y EFECTOS ANIMADOS
+       -------------------------------------------------- */
+    @keyframes ambientBreath {
+      0% { opacity: 0.65; transform: scale(0.97); }
+      100% { opacity: 0.95; transform: scale(1.03); }
+    }
+
+    @keyframes laserSweep {
+      0% { left: -100%; }
+      40% { left: 140%; }
+      100% { left: 140%; }
+    }
+
+    @keyframes logoFramePulse {
+      0% {
+        border-color: rgba(0, 245, 212, 0.5);
+        box-shadow: 0 0 10px rgba(0, 245, 212, 0.35), inset 0 0 8px rgba(0, 119, 182, 0.25);
+      }
+      100% {
+        border-color: rgba(0, 245, 212, 0.95);
+        box-shadow: 0 0 22px rgba(0, 245, 212, 0.75), inset 0 0 16px rgba(0, 229, 255, 0.5);
+      }
+    }
+
+    /* Animación de Amplificación Sostenida Centrada (De 4.0s a 8.0s en ciclo de 10.1s)
+       Sin efecto de pulso: una sola amplificación sostenida que sale del contenedor desde el centro */
+    @keyframes wolfRoarPop {
+      0%, 36.5% {
+        /* Tamaño original en reposo perfectamente encuadrado (0.0s a 3.7s) */
+        transform: scale(1.0);
+        filter: drop-shadow(0 0 7px rgba(0, 245, 212, 0.55)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95));
+      }
+      39.6% {
+        /* Se activa en el segundo 4.0s alcanzando la amplificación completa que desborda el marco */
+        transform: scale(1.42);
+        filter: drop-shadow(0 0 12px rgba(0, 245, 212, 0.75)) drop-shadow(0 0 18px rgba(0, 229, 255, 0.3)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95));
+      }
+      79.2% {
+        /* Se mantiene amplificado hasta el segundo 8.0s (sostenido sin pulso) */
+        transform: scale(1.42);
+        filter: drop-shadow(0 0 12px rgba(0, 245, 212, 0.75)) drop-shadow(0 0 18px rgba(0, 229, 255, 0.3)) drop-shadow(0 4px 10px rgba(0, 0, 0, 0.95));
+      }
+      83.5% {
+        /* Regresa suavemente al tamaño original (8.4s) */
+        transform: scale(1.0);
+        filter: drop-shadow(0 0 7px rgba(0, 245, 212, 0.55)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95));
+      }
+      100% {
+        /* Se mantiene en tamaño original hasta terminar el ciclo (10.1s) */
+        transform: scale(1.0);
+        filter: drop-shadow(0 0 7px rgba(0, 245, 212, 0.55)) drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95));
+      }
+    }
+
+    @keyframes pulseDot {
+      0% { transform: scale(0.85); opacity: 0.65; }
+      100% { transform: scale(1.3); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Contenedor Maestro para OBS (Aparición y Desaparición Completa) -->
+  <div class="widget-container" id="widget-container">
+    
+    <!-- Resplandor Atmosférico Neón Perimetral -->
+    <div class="ambient-glow" id="ambient-glow"></div>
+
+    <!-- Contorno Vectorial SVG con Esquinas Recortadas Hacia Adentro a 90° (Muescas Simétricas 10px x 10px) -->
+    <!-- Contorno completo que brilla alrededor de todo el contenedor con 3 capas de resplandor neón -->
+    <svg class="polygon-svg-frame" id="polygon-svg-frame" viewBox="0 0 500 106" preserveAspectRatio="none">
+      <!-- Capa 1: Halo Ambiental Exterior Amplio -->
+      <path 
+        id="border-ambient-path"
+        class="polygon-border-ambient" 
+        d="M 11,1 L 489,1 L 489,11 L 499,11 L 499,95 L 489,95 L 489,105 L 11,105 L 11,95 L 1,95 L 1,11 L 11,11 Z" 
+      />
+      <!-- Capa 2: Resplandor Neón Medio Difuso -->
+      <path 
+        id="border-glow-path"
+        class="polygon-border-glow" 
+        d="M 11,1 L 489,1 L 489,11 L 499,11 L 499,95 L 489,95 L 489,105 L 11,105 L 11,95 L 1,95 L 1,11 L 11,11 Z" 
+      />
+      <!-- Capa 3: Trazo Principal Nítido Láser -->
+      <path 
+        id="border-main-path"
+        class="polygon-border-path" 
+        d="M 11,1 L 489,1 L 489,11 L 499,11 L 499,95 L 489,95 L 489,105 L 11,105 L 11,95 L 1,95 L 1,11 L 11,11 Z" 
+      />
+    </svg>
+
+    <!-- Muescas Tech en los Vértices Interiores a 90° con resplandor sincronizado -->
+    <div class="step-notch tl"></div>
+    <div class="step-notch tr"></div>
+    <div class="step-notch bl"></div>
+    <div class="step-notch br"></div>
+
+    <!-- Tarjeta Principal con Clip-Path Poligonal a 90° -->
+    <div class="sponsor-card" id="sponsor-card">
+      
+      <!-- Efecto de Línea Láser Recorriendo el Borde Superior -->
+      <div class="laser-line-top"></div>
+
+      <!-- Cuadrícula Cibernética de Fondo -->
+      <div class="cyber-grid-overlay"></div>
+
+      <!-- Espaciador que reserva el espacio para el logo -->
+      <div class="logo-spacer"></div>
+
+      <!-- Lado Derecho: Contenido Dinámico con Brillo en Letras -->
+      <div class="content-container mode-2lines" id="content-container">
+        
+        <!-- Fila 1: Estado y Categoría / Sponsor con Resplandor Neón -->
+        <div class="header-pill-row">
+          <span class="status-pulse-dot" id="status-dot"></span>
+          <span class="badge-category" id="badge-category">CANAL APOYADO POR</span>
+        </div>
+
+        <!-- Fila 2 y 3: Área de Mensajes Rotativos -->
+        <div class="message-rotator">
+          <div class="message-slide" id="message-slide">
+            <!-- Fila 2: Título Principal con Resplandor Neón en las Letras -->
+            <div class="main-title" id="main-title">
+              JIKOKUN
+            </div>
+            <!-- Fila 3 (Opcional): Detalle / Subtítulo Corto -->
+            <div class="sub-detail" id="sub-detail">
+              <span class="sub-icon" id="sub-icon">🐺</span>
+              <span id="sub-text"></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Barra de Carga de Energía que marca el cambio de mensaje -->
+      <div class="energy-bar-track">
+        <div class="energy-bar-fill" id="energy-bar-fill"></div>
+      </div>
+
+      <!-- Destello Eléctrico en Transiciones -->
+      <div class="flash-overlay" id="flash-overlay"></div>
+
+    </div>
+
+    <!-- CAPA SUPERIOR 3D: BADGE Y LOGO ANIMADO DE JIKOKUN -->
+    <!-- Al estar fuera de .sponsor-card, el zoom puede sobrepasar el contenedor superior sin recorte alguno -->
+    <div class="logo-container" id="logo-container">
+      <div class="logo-frame" id="logo-frame">
+        <video 
+          id="wolf-video"
+          class="jikokun-logo-media" 
+          src="https://res.cloudinary.com/dn6fmqae9/video/upload/v1784993956/logoanimado_scqpxo.webm" 
+          autoplay 
+          loop 
+          muted 
+          playsinline>
+          <!-- Fallback imagen en caso de navegadores con soporte restringido de video WebM -->
+          <img src="https://res.cloudinary.com/dn6fmqae9/video/upload/v1784993956/logoanimado_scqpxo.png" alt="Jikokun Logo" class="jikokun-logo-media">
+        </video>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ==========================================================================
+       LÓGICA JAVASCRIPT: MOTOR DE ROTACIÓN Y TRANSICIÓN DE MENSAJES
+       ========================================================================== -->
+  <script>
+    (function initSponsorBanner() {
+      // Configuración de tiempos finales de producción:
+      // 1 minuto visible en pantalla (60s) y 5 minutos oculto (300s) entre cada mensaje
+      const BANNER_CONFIG = {
+        displayTimeSec: 60,
+        hiddenTimeSec: 300,
+        animDurationMs: 650
+      };
+
+      // Parámetros URL opcionales de prueba (ej: ?show=10&hide=5)
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.has('show')) BANNER_CONFIG.displayTimeSec = Math.max(3, parseInt(urlParams.get('show')));
+      if (urlParams.has('hide')) BANNER_CONFIG.hiddenTimeSec = Math.max(0, parseInt(urlParams.get('hide')));
+
+      /* Mensajes cortos y optimizados:
+         - Mensaje 1: Exactamente 2 líneas ("CANAL APOYADO POR" y "JIKOKUN")
+         - Mensajes 2 y 3: Máximo 2 a 3 filas con poco texto para hacer sponsor de que sigan a Jikokun
+         - Cada uno con su resplandor de letras y contorno perimetral sincronizado
+      */
+      const sponsorMessages = [
+        {
+          badge: "CANAL APOYADO POR",
+          badgeIcon: "⚡",
+          titleText: "JIKOKUN",
+          subText: "", // 2 líneas directas
+          subIcon: "",
+          accent: "#00f5d4",
+          badgeColor: "#00f5d4",
+          borderMain: "#ffffff"
+        },
+        {
+          badge: "SÍGUELO EN KICK",
+          badgeIcon: "🎮",
+          titleText: "JIKOKUN",
+          subText: "Apoyando para crecer Todos",
+          subIcon: "🟢",
+          accent: "#53fc18",
+          badgeColor: "#53fc18",
+          borderMain: "#ffffff"
+        },
+        {
+          badge: "SÉ PARTE DE LA MANADA",
+          badgeIcon: "🐺",
+          titleText: "JIKOKUN EN KICK",
+          subText: "Este canal es parte de la Manada",
+          subIcon: "🐾",
+          accent: "#00e5ff",
+          badgeColor: "#00e5ff",
+          borderMain: "#ffffff"
+        }
+      ];
+
+      const widgetContainer = document.getElementById('widget-container');
+      const contentContainer = document.getElementById('content-container');
+      const badgeCategory = document.getElementById('badge-category');
+      const mainTitle = document.getElementById('main-title');
+      const subDetail = document.getElementById('sub-detail');
+      const subTextElem = document.getElementById('sub-text');
+      const subIconElem = document.getElementById('sub-icon');
+      const energyBarFill = document.getElementById('energy-bar-fill');
+      const flashOverlay = document.getElementById('flash-overlay');
+      const statusDot = document.getElementById('status-dot');
+      const ambientGlow = document.getElementById('ambient-glow');
+      const svgFrame = document.getElementById('polygon-svg-frame');
+      const borderAmbientPath = document.getElementById('border-ambient-path');
+      const borderGlowPath = document.getElementById('border-glow-path');
+      const borderMainPath = document.getElementById('border-main-path');
+      const logoFrame = document.getElementById('logo-frame');
+      const videoLogo = document.getElementById('wolf-video');
+      const notches = document.querySelectorAll('.step-notch');
+
+      const STATE_VISIBLE = 'VISIBLE';
+      const STATE_HIDING = 'HIDING';
+      const STATE_HIDDEN = 'HIDDEN';
+      const STATE_SHOWING = 'SHOWING';
+
+      let currentState = STATE_HIDDEN;
+      let currentIndex = 0;
+      let stateStartTime = performance.now();
+
+      function updateBannerDOM(msg) {
+        const hasSubtext = Boolean(msg.subText && msg.subText.trim() !== '');
+
+        // Adaptar layout entre modo 2 líneas y modo 3 líneas
+        if (hasSubtext) {
+          contentContainer.classList.remove('mode-2lines');
+          contentContainer.classList.add('mode-3lines');
+        } else {
+          contentContainer.classList.remove('mode-3lines');
+          contentContainer.classList.add('mode-2lines');
+        }
+
+        // Fila 1: Categoría con resplandor neón
+        badgeCategory.textContent = `${msg.badgeIcon} ${msg.badge}`;
+        badgeCategory.style.color = msg.badgeColor;
+        badgeCategory.style.textShadow = `0 0 8px ${msg.badgeColor}, 0 0 16px ${msg.badgeColor}99, 0 0 28px ${msg.badgeColor}55, 0 2px 4px rgba(0, 0, 0, 0.95)`;
+
+        // Fila 2: Título Principal con resplandor neón intenso en las letras
+        mainTitle.textContent = msg.titleText;
+        mainTitle.style.textShadow = `0 0 6px #ffffff, 0 0 12px ${msg.accent}, 0 0 24px ${msg.accent}, 0 0 42px ${msg.accent}aa, 0 2px 4px rgba(0, 0, 0, 0.95)`;
+
+        // Fila 3 (Opcional): Si no tiene texto, se oculta para dejar exactamente 2 líneas
+        if (hasSubtext) {
+          subDetail.classList.remove('is-empty');
+          subIconElem.textContent = msg.subIcon || '•';
+          subTextElem.textContent = msg.subText;
+          subDetail.style.textShadow = `0 0 8px ${msg.accent}88, 0 0 18px ${msg.accent}44, 0 1px 3px rgba(0, 0, 0, 0.95)`;
+        } else {
+          subDetail.classList.add('is-empty');
+          subTextElem.textContent = '';
+          subIconElem.textContent = '';
+        }
+
+        // Dot pulsante
+        if (statusDot) {
+          statusDot.style.background = msg.accent;
+          statusDot.style.boxShadow = `0 0 8px ${msg.accent}, 0 0 16px ${msg.accent}`;
+        }
+
+        // Contorno completo que brilla alrededor de todo el contenedor
+        if (borderAmbientPath) {
+          borderAmbientPath.style.stroke = msg.accent;
+        }
+        if (borderGlowPath) {
+          borderGlowPath.style.stroke = msg.accent;
+        }
+        if (borderMainPath) {
+          borderMainPath.style.stroke = msg.borderMain || '#ffffff';
+          borderMainPath.style.filter = `drop-shadow(0 0 6px ${msg.accent})`;
+        }
+        if (svgFrame) {
+          svgFrame.style.filter = `drop-shadow(0 0 10px ${msg.accent}) drop-shadow(0 0 26px ${msg.accent}aa)`;
+        }
+
+        // Resplandor ambiental general
+        if (ambientGlow) {
+          ambientGlow.style.background = `radial-gradient(ellipse at center, ${msg.accent}3d 0%, transparent 72%)`;
+        }
+
+        // Muescas interiores a 90°
+        notches.forEach(notch => {
+          notch.style.background = msg.accent;
+          notch.style.boxShadow = `0 0 8px ${msg.accent}, 0 0 16px ${msg.accent}`;
+        });
+
+        // Marco del logo
+        if (logoFrame) {
+          logoFrame.style.borderColor = msg.accent;
+          logoFrame.style.boxShadow = `0 0 16px ${msg.accent}77, inset 0 0 12px ${msg.accent}44`;
+        }
+
+        // Barra de energía
+        if (energyBarFill) {
+          energyBarFill.style.background = `linear-gradient(90deg, #0077b6, ${msg.accent}, #ffffff)`;
+          energyBarFill.style.boxShadow = `0 0 10px ${msg.accent}`;
+        }
+      }
+
+      function syncAnimationWithVideo() {
+        if (!videoLogo) return;
+        const currentTime = (videoLogo.currentTime || 0) % 10.1;
+        const anims = typeof videoLogo.getAnimations === 'function' ? videoLogo.getAnimations() : [];
+        let synced = false;
+        for (const anim of anims) {
+          if (anim.animationName === 'wolfRoarPop') {
+            anim.currentTime = currentTime * 1000;
+            synced = true;
+          }
+        }
+        if (!synced) videoLogo.style.animationDelay = `-${currentTime}s`;
+      }
+
+      if (videoLogo) {
+        videoLogo.addEventListener('play', syncAnimationWithVideo);
+        videoLogo.addEventListener('timeupdate', syncAnimationWithVideo);
+      }
+
+      function showBanner() {
+        currentState = STATE_SHOWING;
+        stateStartTime = performance.now();
+        if (flashOverlay) {
+          flashOverlay.classList.add('active');
+          setTimeout(() => flashOverlay.classList.remove('active'), 200);
+        }
+        energyBarFill.style.width = '0%';
+        widgetContainer.classList.remove('is-hidden');
+        widgetContainer.classList.add('is-visible');
+        if (videoLogo) {
+          videoLogo.currentTime = 0;
+          videoLogo.play().catch(() => {});
+        }
+        setTimeout(() => {
+          currentState = STATE_VISIBLE;
+          stateStartTime = performance.now();
+        }, BANNER_CONFIG.animDurationMs);
+      }
+
+      function hideBanner() {
+        currentState = STATE_HIDING;
+        stateStartTime = performance.now();
+        widgetContainer.classList.remove('is-visible');
+        widgetContainer.classList.add('is-hidden');
+        setTimeout(() => {
+          currentState = STATE_HIDDEN;
+          stateStartTime = performance.now();
+          energyBarFill.style.width = '0%';
+          currentIndex = (currentIndex + 1) % sponsorMessages.length;
+          updateBannerDOM(sponsorMessages[currentIndex]);
+        }, BANNER_CONFIG.animDurationMs);
+      }
+
+      function bannerLoop(now) {
+        if (currentState === STATE_VISIBLE) {
+          const elapsed = now - stateStartTime;
+          const displayDurationMs = BANNER_CONFIG.displayTimeSec * 1000;
+          energyBarFill.style.width = `${Math.min(100, (elapsed / displayDurationMs) * 100)}%`;
+          if (elapsed >= displayDurationMs) hideBanner();
+        } else if (currentState === STATE_HIDDEN) {
+          if (now - stateStartTime >= BANNER_CONFIG.hiddenTimeSec * 1000) showBanner();
+        }
+        requestAnimationFrame(bannerLoop);
+      }
+
+      // Escuchar eventos interactivos desde el Panel de Pruebas (iframe postMessage)
+      window.addEventListener('message', (event) => {
+        if (!event.data) return;
+        const data = event.data;
+        if (data.type === 'SHOW_BANNER') {
+          showBanner();
+        } else if (data.type === 'HIDE_BANNER') {
+          hideBanner();
+        } else if (data.type === 'NEXT_MESSAGE') {
+          hideBanner();
+        } else if (data.type === 'SELECT_MESSAGE') {
+          const idx = typeof data.index === 'number' ? data.index : 0;
+          currentIndex = (idx % sponsorMessages.length + sponsorMessages.length) % sponsorMessages.length;
+          updateBannerDOM(sponsorMessages[currentIndex]);
+          showBanner();
+        } else if (data.type === 'SET_CONFIG') {
+          if (data.displayTimeSec) BANNER_CONFIG.displayTimeSec = Math.max(2, parseInt(data.displayTimeSec));
+          if (typeof data.hiddenTimeSec !== 'undefined') BANNER_CONFIG.hiddenTimeSec = Math.max(0, parseInt(data.hiddenTimeSec));
+        }
+      });
+
+      // Inicialización con el primer mensaje (2 líneas exactas)
+      updateBannerDOM(sponsorMessages[0]);
+      setTimeout(() => {
+        showBanner();
+        requestAnimationFrame(bannerLoop);
+      }, 400);
+    })();
+  </script>
+</body>
+</html>
