@@ -92,18 +92,21 @@ stateDiagram-v2
 ## 🍽️ 5. ARQUITECTURA DE LA BANDEJA Y ESCENA DEL MESERO
 
 ### Bandeja de Pedidos (`#order-tray` & `#confirm-box`)
-- Permite almacenar hasta **10 platos** en la misma mesa (`MAX_ORDEN_ITEMS = 10`).
-- Agrupa productos idénticos en fichas con contador (`x2`, `x3`), precio acumulado y botón de eliminar (`✕`).
-- Admite cantidades por comando de chat: `!pupusas 3`, `!tamal x2`, `!comprar cafe 2`.
+- Permite almacenar hasta **20 platos** en la misma mesa (`MAX_ORDEN_ITEMS = 20`).
+- Agrupa productos idénticos en fichas con contador (`x2`, `x3`, ..., `x20`), precio acumulado y botón de eliminar (`✕`).
+- Admite cantidades por comando de chat: `!pupusas 3`, `!tamal x5`, `!comprar cafe 2`.
 - El total se actualiza en vivo y valida si el saldo del usuario alcanza antes de permitir el cobro.
 
 ### Escena de Entrega del Mesero (`mostrarMeseroEntrega`)
 - Se activa al pagar exitosamente (`!comprar` o botón "Pagar Todo").
 - Suena la campana de servicio (`playSfx('serve')`).
 - La tienda se oculta y entra la escena limpia del mesero (`mesero.png`) con la mesa servida.
-- **Distribución Dinámica de Platos:**
-  - **1 a 4 platos:** Platos en tamaño grande (de 195px a 310px de ancho) en la fila delantera para máxima apreciación visual.
-  - **5 a 10 platos:** Se dividen automáticamente en **2 filas** (fila trasera a escala reducida y fila delantera escalonada), entrando con animación secuencial.
+- **Escalado Proporcional y Adaptativo (1 a 20 Platillos):**
+  - **1 solo ítem (`.modo-solo`):** Ocupa una posición central imponente y apetitosa (hasta 245px de alto y 370px de ancho con sombra 3D profunda), evitando que quede pequeño o perdido en la mesa.
+  - **2 ítems (`.modo-duo`):** Distribución amplia en primer plano (hasta 210px de alto y 295px de ancho).
+  - **3 ítems (`.modo-trio`):** Trío armónico que llena la superficie de la mesa (hasta 190px de alto y 250px de ancho).
+  - **4 ítems (`.modo-cuarteto`):** Cuarteto equilibrado en fila delantera (hasta 170px de alto y 205px de ancho).
+  - **5 a 20 ítems (`.modo-banquete`):** Se distribuyen equitativamente en **2 filas** (fila trasera con perspectiva lejana escalada y fila delantera en primer plano), reduciendo el tamaño de forma gradual desde 175px hasta 82px según la densidad de platos para encajar perfectamente sin desbordar la mesa de madera.
 - Tras **9 segundos**, el mesero se retira suavemente (`.saliendo`) y activa el cooldown global.
 
 ---

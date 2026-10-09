@@ -379,21 +379,85 @@
 
   /* Contenedor exacto sobre la superficie de la mesa de madera de mesero.png */
   .mesero-mesa{
-    position:absolute;bottom:8%;left:3%;right:3%;height:52%;
+    position:absolute;bottom:6%;left:2%;right:2%;height:58%;
     pointer-events:none;z-index:2;
   }
 
   /* Filas de la mesa: Atrás (perspectiva profunda) y Adelante (primer plano) */
   .mesa-fila{
     position:absolute;left:0;right:0;width:100%;
-    display:flex;align-items:flex-end;justify-content:space-evenly;
+    display:flex;align-items:flex-end;
     pointer-events:none;
+    box-sizing:border-box;
+    padding:0 12px;
   }
   .mesa-fila-atras{
-    bottom:24%;height:44%;z-index:1;
+    bottom:27%;height:46%;z-index:1;justify-content:space-evenly;
   }
   .mesa-fila-adelante{
-    bottom:2%;height:52%;z-index:3;
+    bottom:2%;height:54%;z-index:3;justify-content:space-evenly;
+  }
+
+  /* MODO 1 ITEM (SOLO): Máxima presencia y tamaño en el centro de la mesa */
+  .mesero-mesa.modo-solo .mesa-fila-adelante{
+    bottom:3%;
+    height:82%;
+    justify-content:center;
+  }
+  .mesero-mesa.modo-solo .plato-servido img{
+    max-height:245px;
+    max-width:370px;
+    filter:drop-shadow(0 22px 26px rgba(0,0,0,.78)) drop-shadow(0 6px 10px rgba(0,0,0,.52));
+  }
+
+  /* MODO 2 ITEMS (DÚO): Bien espaciados y amplios */
+  .mesero-mesa.modo-duo .mesa-fila-adelante{
+    bottom:3%;
+    height:74%;
+    justify-content:space-evenly;
+  }
+  .mesero-mesa.modo-duo .plato-servido img{
+    max-height:210px;
+    max-width:295px;
+    filter:drop-shadow(0 18px 22px rgba(0,0,0,.74)) drop-shadow(0 5px 8px rgba(0,0,0,.48));
+  }
+
+  /* MODO 3 ITEMS (TRÍO): Llena la mesa uniformemente */
+  .mesero-mesa.modo-trio .mesa-fila-adelante{
+    bottom:2.5%;
+    height:68%;
+    justify-content:space-evenly;
+  }
+  .mesero-mesa.modo-trio .plato-servido img{
+    max-height:190px;
+    max-width:250px;
+    filter:drop-shadow(0 16px 18px rgba(0,0,0,.70)) drop-shadow(0 4px 7px rgba(0,0,0,.45));
+  }
+
+  /* MODO 4 ITEMS (CUARTETO): 4 platos elegantes en fila delantera */
+  .mesero-mesa.modo-cuarteto .mesa-fila-adelante{
+    bottom:2%;
+    height:60%;
+    justify-content:space-evenly;
+  }
+  .mesero-mesa.modo-cuarteto .plato-servido img{
+    max-height:170px;
+    max-width:205px;
+    filter:drop-shadow(0 15px 16px rgba(0,0,0,.68)) drop-shadow(0 4px 6px rgba(0,0,0,.45));
+  }
+
+  /* MODO BANQUETE (5 A 20 ITEMS): Distribuido en 2 filas escalonadas */
+  .mesero-mesa.modo-banquete .mesa-fila-atras{
+    bottom:27%;
+    height:46%;
+    z-index:1;
+    justify-content:space-evenly;
+  }
+  .mesero-mesa.modo-banquete .mesa-fila-adelante{
+    bottom:2%;
+    height:54%;
+    z-index:3;
+    justify-content:space-evenly;
   }
 
   /* Cluster de platos idénticos que se colocan juntos sin números encima */
@@ -418,13 +482,17 @@
     animation:servirPlatoAtras .55s cubic-bezier(.18,.9,.24,1.25) backwards;
   }
   .plato-servido img{
-    width:auto;height:auto;max-height:100%;max-width:var(--plato-w, 160px);object-fit:contain;
+    width:auto;height:auto;
+    max-height:var(--plato-h, 100%);
+    max-width:var(--plato-w, 160px);
+    object-fit:contain;
     filter:drop-shadow(0 14px 14px rgba(0,0,0,.68)) drop-shadow(0 4px 6px rgba(0,0,0,.45));
     transition:transform .3s ease;
   }
   .mesa-fila-atras .plato-servido img{
+    max-height:var(--plato-h, 100%);
     max-width:var(--plato-w, 135px);
-    transform:scale(0.85);
+    transform:scale(0.86);
     transform-origin:bottom center;
     filter:drop-shadow(0 10px 12px rgba(0,0,0,.62)) drop-shadow(0 3px 5px rgba(0,0,0,.4)) brightness(0.94);
   }
@@ -1157,7 +1225,9 @@
     <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
     <button id="demo-select">➕ Añadir Ítem</button>
     <button id="demo-bloque-pupusas" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">🫓 !pupusas 2</button>
+    <button id="demo-un-plato" style="color:var(--kick);border-color:rgba(83,252,24,.8);font-weight:800;">☕ 1 Plato (Solo)</button>
     <button id="demo-diez-platos" style="color:var(--oro);border-color:rgba(255,211,92,.7);font-weight:800;">🍱 Fiesta 10 (2 Filas)</button>
+    <button id="demo-veinte-platos" style="color:var(--oro);border-color:rgba(255,211,92,.9);font-weight:800;">👑 Banquete 20</button>
     <button id="demo-orden-foto" style="color:var(--oro);border-color:rgba(255,211,92,.6);font-weight:800;">📸 Orden Triple</button>
     <button id="demo-compra" style="color:var(--kick);border-color:rgba(83,252,24,.5);font-weight:800;">💳 Pagar Todo</button>
     <button id="demo-cancelar">Vaciar / !cancelar</button>
@@ -1909,7 +1979,7 @@
 
   /* ═══════════ CARRITO / ORDEN ACTUAL & DECISIÓN ("AÑADIR O PAGAR") ═══════════ */
   let ordenActual = []; // Array de platos seleccionados por el cliente
-  const MAX_ORDEN_ITEMS = 10; // Máximo 10 platos en la mesa (organizados en 2 filas con clusters)
+  const MAX_ORDEN_ITEMS = 20; // Máximo 20 platos en la mesa (organizados en 2 filas con clusters)
   let meseroTimer = null;
 
   function agregarItemAOrden(itemKey, user=null, cantidad=1){
@@ -2178,20 +2248,49 @@
     return null;
   }
 
-  /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA (2 FILAS & CLUSTERS) ═══════════ */
-  function calcularAnchoPlato(countTotalFila, esAtras, totalOrden){
-    if(totalOrden <= 4){
-      // 4 o menos items en total: SIEMPRE EN GRANDE sobre la mesa (idéntico a la foto original)
-      if(totalOrden === 1) return '310px';
-      if(totalOrden === 2) return '265px';
-      if(totalOrden === 3) return '235px'; // Idéntico a la foto de muestra
-      return '195px'; // 4 platos grandes
+  /* ═══════════ ESCENA DEL MESERO CON PLATOS SOBRE LA MESA (PROPORCIONAL 1 A 20 ÍTEMS) ═══════════ */
+  function calcularDimensionesPlato(countTotalFila, esAtras, totalOrden){
+    if(totalOrden === 1){
+      // 1 solo ítem: Se muestra grande y apetitoso en el centro sin exceder la mesa
+      return { w: '370px', h: '245px' };
     }
-    // Más de 4 platillos: reducen su tamaño y se distribuyen en filas para caber perfectamente
-    if(countTotalFila <= 2) return esAtras ? '145px' : '170px';
-    if(countTotalFila === 3) return esAtras ? '130px' : '150px';
-    if(countTotalFila === 4) return esAtras ? '118px' : '135px';
-    return esAtras ? '105px' : '122px'; // 5 platos en fila
+    if(totalOrden === 2){
+      // 2 ítems: Muy amplios y bien distribuidos
+      return { w: '295px', h: '210px' };
+    }
+    if(totalOrden === 3){
+      // 3 ítems: Ocupan armónicamente la mesa
+      return { w: '250px', h: '190px' };
+    }
+    if(totalOrden === 4){
+      // 4 ítems en fila delantera
+      return { w: '205px', h: '170px' };
+    }
+
+    // De 5 a 20 platillos: Se distribuyen en 2 filas y se reducen paulatinamente
+    if(countTotalFila <= 2){
+      return { w: esAtras ? '150px' : '175px', h: esAtras ? '135px' : '155px' };
+    }
+    if(countTotalFila === 3){
+      return { w: esAtras ? '135px' : '155px', h: esAtras ? '120px' : '140px' };
+    }
+    if(countTotalFila === 4){
+      return { w: esAtras ? '120px' : '140px', h: esAtras ? '110px' : '128px' };
+    }
+    if(countTotalFila === 5){
+      return { w: esAtras ? '108px' : '125px', h: esAtras ? '100px' : '118px' };
+    }
+    if(countTotalFila <= 6){
+      return { w: esAtras ? '96px' : '112px', h: esAtras ? '90px' : '108px' };
+    }
+    if(countTotalFila <= 7){
+      return { w: esAtras ? '86px' : '100px', h: esAtras ? '82px' : '98px' };
+    }
+    if(countTotalFila <= 8){
+      return { w: esAtras ? '78px' : '90px', h: esAtras ? '74px' : '88px' };
+    }
+    // 9 a 10 platos por fila (total 18 a 20 platos)
+    return { w: esAtras ? '70px' : '82px', h: esAtras ? '68px' : '80px' };
   }
 
   function renderFilaMesa(filaEl, clusters, esAtras, baseDelayFila, totalOrden){
@@ -2200,8 +2299,9 @@
     if(!clusters || clusters.length === 0) return;
 
     const countTotal = clusters.reduce((acc, c) => acc + c.count, 0);
-    const platoW = calcularAnchoPlato(countTotal, esAtras, totalOrden);
-    filaEl.style.setProperty('--plato-w', platoW);
+    const dim = calcularDimensionesPlato(countTotal, esAtras, totalOrden);
+    filaEl.style.setProperty('--plato-w', dim.w);
+    filaEl.style.setProperty('--plato-h', dim.h);
 
     let delayAcumulado = baseDelayFila;
     clusters.forEach((c) => {
@@ -2217,9 +2317,7 @@
         clusterDiv.appendChild(platoDiv);
       }
 
-      // Nota: No se coloca número ni badge sobre las fotos en la mesa a petición del usuario
-
-      delayAcumulado += 0.12;
+      delayAcumulado += 0.10;
       filaEl.appendChild(clusterDiv);
     });
   }
@@ -2229,6 +2327,21 @@
 
     // Sonido de servicio en restaurante
     playSfx('serve');
+
+    // Asignar modo CSS proporcional según la cantidad total de platos
+    const totalPlatos = platos.length;
+    $meseroMesa.classList.remove('modo-solo', 'modo-duo', 'modo-trio', 'modo-cuarteto', 'modo-banquete');
+    if(totalPlatos === 1){
+      $meseroMesa.classList.add('modo-solo');
+    } else if(totalPlatos === 2){
+      $meseroMesa.classList.add('modo-duo');
+    } else if(totalPlatos === 3){
+      $meseroMesa.classList.add('modo-trio');
+    } else if(totalPlatos === 4){
+      $meseroMesa.classList.add('modo-cuarteto');
+    } else {
+      $meseroMesa.classList.add('modo-banquete');
+    }
 
     // Asegurar estructura de 2 filas
     let $filaAtras = document.getElementById('mesa-fila-atras');
@@ -2251,7 +2364,6 @@
     });
     const grupos = Array.from(gruposMap.values());
 
-    const totalPlatos = platos.length;
     let clustersAtras = [];
     let clustersAdelante = [];
 
@@ -2259,16 +2371,16 @@
       // 1 a 4 platos: Todos en la fila delantera con amplio espacio
       clustersAdelante = grupos;
     } else {
-      // 5 a 10 platos: Distribuir en 2 filas (fila trasera y fila delantera)
+      // 5 a 20 platos: Distribuir equilibradamente en 2 filas (fila trasera y fila delantera)
       const targetAtras = Math.floor(totalPlatos / 2);
       const targetAdelante = totalPlatos - targetAtras;
       let cantAtras = 0;
       let cantAdelante = 0;
 
       grupos.forEach(g => {
-        if(g.count > 5){
-          // Si un solo grupo supera 5 unidades, se divide entre ambas filas
-          const nAtras = Math.ceil(g.count / 2);
+        if(g.count >= 4){
+          // Si un grupo tiene 4 o más unidades, se reparte entre ambas filas
+          const nAtras = Math.floor(g.count / 2);
           const nAdelante = g.count - nAtras;
           clustersAtras.push({ item: g.item, count: nAtras });
           clustersAdelante.push({ item: g.item, count: nAdelante });
@@ -2847,6 +2959,18 @@
       ejecutarTexto('!pupusas 2', u);
     };
   }
+  const btnUnPlato = document.getElementById('demo-un-plato');
+  if(btnUnPlato){
+    btnUnPlato.onclick = ()=>{
+      const user = usuarioActual || 'LunaGamer';
+      mostrarMenu(user, getUserPoints(user));
+      ordenActual = [];
+      const itemCafe = ITEMS.find(i => i.key === 'cafe') || ITEMS[0];
+      ordenActual.push(itemCafe);
+      actualizarPanelOrden();
+      procesarPagoOrden();
+    };
+  }
   const btnDiezPlatos = document.getElementById('demo-diez-platos');
   if(btnDiezPlatos){
     btnDiezPlatos.onclick = ()=>{
@@ -2864,6 +2988,33 @@
       const costo = ordenActual.reduce((acc, it) => acc + it.precio, 0);
       if(saldoActual < costo){
         saldoActual = costo + 500;
+        setUserPoints(user, saldoActual);
+        animarPuntos(saldoActual);
+      }
+      procesarPagoOrden();
+    };
+  }
+  const btnVeintePlatos = document.getElementById('demo-veinte-platos');
+  if(btnVeintePlatos){
+    btnVeintePlatos.onclick = ()=>{
+      // Simula banquete completo de 20 platillos en la mesa
+      const user = usuarioActual || 'LunaGamer';
+      mostrarMenu(user, getUserPoints(user));
+      ordenActual = [];
+      const keys = [
+        'pupusas', 'pupusas', 'pupusas', 'tamal', 'tamal',
+        'pollofrito', 'pollofrito', 'salchipapa', 'salchipapa', 'hamburguesa',
+        'taco', 'taco', 'burrito', 'yucafrita', 'pabellon',
+        'tequeyoyo', 'tequeyoyo', 'cafe', 'horchata', 'vinito'
+      ];
+      keys.forEach(k => {
+        const it = ITEMS.find(i => i.key === k);
+        if(it) ordenActual.push(it);
+      });
+      actualizarPanelOrden();
+      const costo = ordenActual.reduce((acc, it) => acc + it.precio, 0);
+      if(saldoActual < costo){
+        saldoActual = costo + 1000;
         setUserPoints(user, saldoActual);
         animarPuntos(saldoActual);
       }
@@ -3024,6 +3175,45 @@
             setUserPoints(targetUser, saldoActual);
             animarPuntos(saldoActual);
           }
+          procesarPagoOrden();
+        }
+        break;
+      case 'FEAST_20':
+      case 'VEINTE_ITEMS':
+        {
+          const targetUser = user || usuarioActual || 'LunaGamer';
+          mostrarMenu(targetUser, getUserPoints(targetUser));
+          ordenActual = [];
+          const keys = [
+            'pupusas', 'pupusas', 'pupusas', 'tamal', 'tamal',
+            'pollofrito', 'pollofrito', 'salchipapa', 'salchipapa', 'hamburguesa',
+            'taco', 'taco', 'burrito', 'yucafrita', 'pabellon',
+            'tequeyoyo', 'tequeyoyo', 'cafe', 'horchata', 'vinito'
+          ];
+          keys.forEach(k => {
+            const it = ITEMS.find(i => i.key === k);
+            if(it) ordenActual.push(it);
+          });
+          actualizarPanelOrden();
+          const costo = ordenActual.reduce((acc, it) => acc + it.precio, 0);
+          if(saldoActual < costo){
+            saldoActual = costo + 1000;
+            setUserPoints(targetUser, saldoActual);
+            animarPuntos(saldoActual);
+          }
+          procesarPagoOrden();
+        }
+        break;
+      case 'SINGLE_ORDER':
+      case 'UN_PLATO':
+        {
+          const targetUser = user || usuarioActual || 'LunaGamer';
+          mostrarMenu(targetUser, getUserPoints(targetUser));
+          ordenActual = [];
+          const itemKeyTarget = itemKey || 'cafe';
+          const itemSolo = ITEMS.find(i => i.key === itemKeyTarget) || ITEMS[0];
+          ordenActual.push(itemSolo);
+          actualizarPanelOrden();
           procesarPagoOrden();
         }
         break;
