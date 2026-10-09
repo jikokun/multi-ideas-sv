@@ -125,7 +125,7 @@ stateDiagram-v2
 - **Sincronización con Streamer.bot:** Envía una acción `DoAction` con nombre `Tiendita_AsistenciaRegistrada`.
 
 ### Tarjeta de Asistencia (`!pasarlista`)
-- **Comando:** `!pasarlista`, `!lista`, `!asistencia` (Exclusivo para `@Jikokun` o `broadcaster`).
+- **Comando:** `!pasarlista` (Único y exclusivo para `@Jikokun` o `broadcaster`; `!lista` se mantiene independiente para OBS/música).
 - **Duración:** Permanece visible en pantalla durante exactamente **1 minuto (60 segundos)** con barra de progreso regresiva (`#pl-timer-bar`).
 - **Límite Visual:** Diseñado para mostrar un **máximo de 3 usuarios visibles a la vez** (`height: 156px`). La alerta completa mide solo ~285px de altura total y ocupa menos del **6% del área de pantalla en 1080p** (cumpliendo con la regla de no ocupar más de un cuarto de pantalla).
 - **Carrusel Vertical Infinito:** Si hay **más de 3 asistentes**, se activa automáticamente el carrusel vertical continuo (`.is-carousel` y `.pl-carousel-group.animating`), rotando a todos los espectadores de forma suave con máscara de difuminado superior e inferior y pausa al pasar el cursor.
