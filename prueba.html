@@ -289,34 +289,22 @@
     <header id="global-header"></header>
 
     <section class="test-container">
-        <div class="test-card">
-            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-                <span class="badge">FIREBASE DIAGNOSTIC</span>
-                <button id="btn-lock-zone" class="test-btn" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(220, 53, 69, 0.5); color: #dc3545;">🔒 Bloquear Zona</button>
+        <!-- Barra de Control de Seguridad de la Zona de Pruebas -->
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; padding: 14px 20px; background: rgba(3, 16, 26, 0.95); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 14px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 10px; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.3); font-size: 1.25rem;">🛡️</span>
+                <div>
+                    <div style="font-weight: 800; font-size: 1.05rem; color: #ffffff; letter-spacing: 0.3px;">Zona de Pruebas Privada ✦ <span class="gradient-text">Jikokun</span></div>
+                    <div style="font-size: 0.8rem; color: #94a3b8;">Herramientas exclusivas y generadores de widgets para OBS Live</div>
+                </div>
             </div>
-            <h1 style="margin: 10px 0 15px 0; font-size: 2rem;">Panel de Pruebas <span class="gradient-text">Firebase</span></h1>
-            <p>Usa este panel interactivo para corroborar el estado de la conexión a tu base de datos y autenticación en tiempo real (Realtime Database y Authentication habilitados).</p>
-            
-            <div id="connection-status" class="status-badge checking">Verificando inicialización de SDK...</div>
-            
-            <div class="action-group">
-                <button id="btn-test-google" class="test-btn google-btn">Probar Login Google</button>
-                <button id="btn-test-rtdb" class="test-btn">Probar Realtime DB</button>
-                <button id="btn-migrate-catalog" class="test-btn migration-btn">Migrar Catálogo de Negocios</button>
-            </div>
-
-            <h3 style="margin-bottom: 10px; font-size: 1.1rem;">Consola de Diagnóstico:</h3>
-            <div class="console-log" id="console-output">
-                <div class="log-entry info">[LOG] Consola lista para pruebas...</div>
-            </div>
-
-            <div class="security-warning">
-                <strong>⚠️ Nota de Origen Seguro:</strong> Para que el inicio de sesión de Google funcione, <strong>no abras este archivo directamente haciendo doble clic (protocolo file://)</strong>. Firebase Auth requiere un servidor local seguro (ej. <code>http://localhost:5500</code> con Live Server de VS Code o subiendo tu proyecto a un hosting).
-            </div>
+            <button id="btn-lock-zone" class="test-btn" style="padding: 8px 16px; font-size: 0.85rem; border-color: rgba(220, 53, 69, 0.55); color: #ff5c6c; background: rgba(220, 53, 69, 0.14); font-weight: 800; border-radius: 8px; cursor: pointer; transition: all 0.2s ease;">
+                🔒 Bloquear Zona
+            </button>
         </div>
 
         <!-- Tarjeta de Gestión Exclusiva: Baraja de Alertas Jikokun -->
-        <div class="test-card" style="margin-top: 30px; border-color: rgba(0, 242, 254, 0.35); background: rgba(3, 16, 26, 0.95);">
+        <div class="test-card" style="border-color: rgba(0, 242, 254, 0.35); background: rgba(3, 16, 26, 0.95);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <span class="badge" style="background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35);">
                     EXCLUSIVO JIKOKUN STREAMER
@@ -621,164 +609,10 @@
 
     <script src="script.js"></script>
     <script>
-        const logContainer = document.getElementById("console-output");
         window.log = function(msg, type = "info") {
-            if (!logContainer) return;
-            const entry = document.createElement("div");
-            entry.className = `log-entry ${type}`;
-            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            logContainer.appendChild(entry);
-            logContainer.scrollTop = logContainer.scrollHeight;
+            console.log(`[Seguridad ${type.toUpperCase()}] ${msg}`);
         };
         const log = window.log;
-    </script>
-    <script type="module">
-        import { auth, rtdb } from "./firebase-config.js?v=3";
-        import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { ref, set, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
-
-        const statusBadge = document.getElementById("connection-status");
-
-        // 1. Corroborar Inicialización
-        try {
-            if (auth && rtdb) {
-                statusBadge.className = "status-badge success";
-                statusBadge.textContent = "Conexión exitosa a Firebase SDK";
-                log("Firebase SDK inicializado correctamente (Auth y Realtime Database).", "success");
-            } else {
-                throw new Error("Servicios no disponibles.");
-            }
-        } catch (e) {
-            statusBadge.className = "status-badge error";
-            statusBadge.textContent = "Error al inicializar Firebase";
-            log(`Error al inicializar: ${e.message}`, "error");
-        }
-
-        // Detectar si se está cargando localmente con file://
-        if (window.location.protocol === "file:") {
-            log("ADVERTENCIA: Estás cargando la web mediante el protocolo file://. El inicio de sesión de Google fallará obligatoriamente. Usa un servidor local.", "error");
-        }
-
-        // Procesar el resultado de la redirección al cargar la página (para dispositivos móviles)
-        getRedirectResult(auth)
-            .then((result) => {
-                if (result) {
-                    log(`¡Autenticación Exitosa (Redirección)! Usuario: ${result.user.displayName} (${result.user.email})`, "success");
-                }
-            })
-            .catch((e) => {
-                log(`Error en resultado de redirección: ${e.message}`, "error");
-            });
-
-        // 2. Probar Google Login
-        document.getElementById("btn-test-google").addEventListener("click", async () => {
-            const provider = new GoogleAuthProvider();
-            // Detectar si es dispositivo móvil para elegir el flujo adecuado
-            const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-
-            if (isMobile) {
-                log("Dispositivo móvil detectado. Iniciando inicio de sesión por redirección (signInWithRedirect) en la misma pestaña...", "info");
-                try {
-                    await signInWithRedirect(auth, provider);
-                } catch (e) {
-                    log(`Error de Autenticación por Redirección: ${e.message}`, "error");
-                }
-            } else {
-                log("Dispositivo de escritorio detectado. Iniciando ventana emergente (signInWithPopup)...", "info");
-                try {
-                    const result = await signInWithPopup(auth, provider);
-                    log(`¡Autenticación Exitosa! Usuario: ${result.user.displayName} (${result.user.email})`, "success");
-                } catch (e) {
-                    log(`Error de Autenticación: ${e.message}`, "error");
-                    log("Verifica: 1. Que no estés usando file://. 2. Que el dominio actual esté en 'Dominios autorizados' en la consola de Firebase -> Authentication -> Configuración.", "info");
-                }
-            }
-        });
-
-        // 3. Probar Realtime Database
-        document.getElementById("btn-test-rtdb").addEventListener("click", async () => {
-            log("Intentando escribir en Realtime Database (nodo 'test_conexion')...", "info");
-            try {
-                const testRef = ref(rtdb, "test_conexion");
-                await set(testRef, {
-                    mensaje: "Realtime Database enlazada con éxito",
-                    fecha: new Date().toISOString()
-                });
-                log("Escritura en Realtime DB: EXITOSA", "success");
-
-                log("Intentando leer de Realtime Database...", "info");
-                const snapshot = await get(testRef);
-                if (snapshot.exists()) {
-                    log(`Lectura exitosa. Datos: ${JSON.stringify(snapshot.val())}`, "success");
-                } else {
-                    log("No se encontraron datos en Realtime DB.", "error");
-                }
-            } catch (e) {
-                log(`Error en Realtime DB: ${e.message}`, "error");
-                log("Consejo: Revisa que tus Reglas de Seguridad en Realtime Database estén en modo de prueba (.write: true, .read: true).", "info");
-            }
-        });
-
-        // 4. Migrar Catálogo de Negocios
-        document.getElementById("btn-migrate-catalog").addEventListener("click", async () => {
-            log("Iniciando extracción y migración del catálogo de negocios...", "info");
-            try {
-                const response = await fetch('sensunshop/negocioslocales.html');
-                if (!response.ok) throw new Error("No se pudo obtener negocioslocales.html para la extracción.");
-                const html = await response.text();
-                
-                const parser = new DOMParser();
-                const docParser = parser.parseFromString(html, 'text/html');
-                const cards = docParser.querySelectorAll('#negocios-container .negocio-card');
-                
-                if (cards.length === 0) {
-                    throw new Error("No se encontraron tarjetas de negocio con la clase '.negocio-card' dentro de '#negocios-container'.");
-                }
-
-                const businesses = Array.from(cards)
-                    .filter(card => !card.classList.contains('disponible')) // Evitar la de espacio disponible
-                    .map(card => {
-                        const imgEl = card.querySelector('.producto-img img');
-                        const tags = Array.from(card.querySelectorAll('.negocio-tags .tag')).map(t => t.textContent.trim());
-                        
-                        let linksHtml = card.querySelector('.negocio-links').innerHTML;
-                        // Normalizar rutas relativas a la raíz
-                        linksHtml = linksHtml.replace(/href="negocioslocales\//g, 'href="sensunshop/negocioslocales/');
-                        linksHtml = linksHtml.replace(/href="\.\.\//g, 'href="');
-                        
-                        const borderLeftColor = card.style.borderLeftColor || 'var(--ss-orange)';
-                        const imgFit = imgEl ? imgEl.style.objectFit : 'cover';
-                        const imgMaxHeight = imgEl ? imgEl.style.maxHeight : '90%';
-                        const imgMaxWidth = imgEl ? imgEl.style.maxWidth : '90%';
-                        const imgWidth = imgEl ? imgEl.style.width : 'auto';
-                        const imgHeight = imgEl ? imgEl.style.height : 'auto';
-                        const imgBorderRadius = imgEl ? imgEl.style.borderRadius : '8px';
-                        
-                        return {
-                            id: card.id || `NEG-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-                            category: card.getAttribute('data-category') || '',
-                            tags: tags,
-                            title: card.querySelector('h3').textContent.trim(),
-                            description: card.querySelector('p').textContent.trim(),
-                            imgSrc: imgEl ? imgEl.getAttribute('src') : '',
-                            imgAlt: imgEl ? imgEl.getAttribute('alt') : '',
-                            imgFit, imgMaxHeight, imgMaxWidth, imgWidth, imgHeight, imgBorderRadius,
-                            borderLeftColor,
-                            linksHtml: linksHtml
-                        };
-                    });
-
-                log(`Se extrajeron exitosamente ${businesses.length} negocios del HTML.`, "success");
-                log("Subiendo datos a Realtime Database (nodo 'sensun_shop/negocios')...", "info");
-
-                const dbRef = ref(rtdb, 'sensun_shop/negocios');
-                await set(dbRef, businesses);
-
-                log("¡Migración Completada con Éxito! Los negocios ya están en la base de datos.", "success");
-            } catch (e) {
-                log(`Error durante la migración: ${e.message}`, "error");
-            }
-        });
     </script>
 
     <script>
