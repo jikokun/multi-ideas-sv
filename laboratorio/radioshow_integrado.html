@@ -2183,6 +2183,7 @@ body.clean-mode * {
             <div class="event-big-title">ÚLTIMO SUB</div>
             <div class="event-big-value" id="stat-last-sub">
               <iframe 
+                id="botrix-iframe-sub"
                 src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Rajdhani&type=ultimoSub&platform=kick&style=&align=center&fontSize=34&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
                 class="botrix-carousel-iframe"
                 frameborder="0"
@@ -2207,6 +2208,7 @@ body.clean-mode * {
             <div class="event-big-title">ÚLTIMO SEGUIDOR</div>
             <div class="event-big-value" id="stat-last-follower">
               <iframe 
+                id="botrix-iframe-follow"
                 src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Rajdhani&type=ultimoFollow&platform=kick&style=&align=center&fontSize=34&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
                 class="botrix-carousel-iframe"
                 frameborder="0"
@@ -2231,6 +2233,7 @@ body.clean-mode * {
             <div class="event-big-title">ÚLTIMAS SUBS REGALADAS</div>
             <div class="event-big-value" id="stat-last-donation">
               <iframe 
+                id="botrix-iframe-gift"
                 src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Rajdhani&type=ultimoGift&platform=kick&style=&align=center&fontSize=34&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
                 class="botrix-carousel-iframe"
                 frameborder="0"
@@ -2255,6 +2258,7 @@ body.clean-mode * {
             <div class="event-big-title">ÚLTIMOS KICKS</div>
             <div class="event-big-value" id="stat-last-kicks">
               <iframe 
+                id="botrix-iframe-kicks"
                 src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bname%7D+-+%7Bamount%7D&font=Rajdhani&type=ultimoKicks&platform=kick&style=&align=center&fontSize=34&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
                 class="botrix-carousel-iframe"
                 frameborder="0"
@@ -2499,7 +2503,17 @@ const config = {
   channel: urlParams.get('channel') || urlParams.get('canal') || 'jikokun',
   sbPort: urlParams.get('port') || urlParams.get('sbport') || '4445',
   sbHost: urlParams.get('host') || urlParams.get('sbhost') || '127.0.0.1',
+  // Spotify / MrBoost
   spotifyUser: urlParams.get('spotify') || urlParams.get('spotify_user') || urlParams.get('user') || 'jikokun2',
+  spotifyRefreshToken: urlParams.get('spotify_refresh') || urlParams.get('refresh_token') || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM',
+  spotifyQueueUrl: urlParams.get('spotify_queue') || urlParams.get('queue_url') || '',
+  spotifyRefreshUrl: urlParams.get('spotify_refresh_url') || urlParams.get('refresh_url') || '',
+  // Botrix
+  botrixId: urlParams.get('bid') || urlParams.get('botrix_id') || urlParams.get('botrix') || '',
+  botrixSub: urlParams.get('b_sub') || urlParams.get('botrix_sub') || '',
+  botrixFollow: urlParams.get('b_follow') || urlParams.get('botrix_follow') || '',
+  botrixGift: urlParams.get('b_gift') || urlParams.get('botrix_gift') || '',
+  botrixKicks: urlParams.get('b_kicks') || urlParams.get('botrix_kicks') || '',
   clean: urlParams.get('clean') === 'true' || urlParams.get('obs') === 'true',
   preview: urlParams.get('preview') === 'true',
   mute: urlParams.get('mute') === 'true'
@@ -2514,6 +2528,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('clean-mode');
   }
   initAutoScaling();
+  initBotrixFrames();
   initMascotController();
   initWaveformVisualizer();
   initSpotifyPlayer();
@@ -2525,6 +2540,45 @@ document.addEventListener('DOMContentLoaded', () => {
   initOnAirSign();
   initIframeMessageReceiver();
 });
+
+/* --------------------------------------------------------------------------
+   Configuración Dinámica de Iframes de Botrix (Sub, Follow, Gift, Kicks)
+   -------------------------------------------------------------------------- */
+function initBotrixFrames() {
+  const frameSub = document.getElementById('botrix-iframe-sub');
+  const frameFollower = document.getElementById('botrix-iframe-follow');
+  const frameGift = document.getElementById('botrix-iframe-gift');
+  const frameKicks = document.getElementById('botrix-iframe-kicks');
+
+  function buildBotrixUrl(bid, type, textFormat) {
+    let clean = bid ? bid.trim() : '';
+    if (clean.includes('bid=')) {
+      try {
+        const u = new URL(clean);
+        clean = u.searchParams.get('bid') || clean;
+      } catch(e) {
+        const match = clean.match(/bid=([^&]+)/);
+        if (match) clean = decodeURIComponent(match[1]);
+      }
+    }
+    const encodedBid = encodeURIComponent(clean);
+    return `https://botrix.live/widgets/labels?bid=${encodedBid}&text=${encodeURIComponent(textFormat)}&font=Rajdhani&type=${type}&platform=kick&style=&align=center&fontSize=34&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite`;
+  }
+
+  // 1. Si se configuró un BID general de Botrix
+  if (config.botrixId) {
+    if (frameSub) frameSub.src = buildBotrixUrl(config.botrixId, 'ultimoSub', '{value}');
+    if (frameFollower) frameFollower.src = buildBotrixUrl(config.botrixId, 'ultimoFollow', '{value}');
+    if (frameGift) frameGift.src = buildBotrixUrl(config.botrixId, 'ultimoGift', '{value}');
+    if (frameKicks) frameKicks.src = buildBotrixUrl(config.botrixId, 'ultimoKicks', '{name} - {amount}');
+  }
+
+  // 2. Si se configuraron URLs individuales específicas (tienen prioridad)
+  if (config.botrixSub && frameSub) frameSub.src = config.botrixSub;
+  if (config.botrixFollow && frameFollower) frameFollower.src = config.botrixFollow;
+  if (config.botrixGift && frameGift) frameGift.src = config.botrixGift;
+  if (config.botrixKicks && frameKicks) frameKicks.src = config.botrixKicks;
+}
 
 /* ==========================================================================
    0. AUTO-ESCALADO RESPONSIVO PROPORCIONAL (1920x1080 NATIVO)
@@ -2715,9 +2769,9 @@ function updateMascotSongPhase() {
 /* ==========================================================================
    2. REPRODUCTOR SPOTIFY LIVE (API SPOTIFY + MRBOOST REFRESH TOKEN)
    ========================================================================== */
-const SPOTIFY_USER = config.spotifyUser || 'jikokun2';
-let spotifyAccessToken = 'BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs';
-const SPOTIFY_REFRESH_TOKEN = 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM';
+let SPOTIFY_USER = config.spotifyUser || 'jikokun2';
+let spotifyAccessToken = '';
+let SPOTIFY_REFRESH_TOKEN = config.spotifyRefreshToken || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM';
 
 let lastTrackId = '';
 let currentTrackProgress = 0;
@@ -2725,7 +2779,12 @@ let currentTrackDuration = 0;
 let progressLocalInterval = null;
 
 function initSpotifyPlayer() {
-  checkSpotifyPlayer();
+  if (config.spotifyRefreshToken && config.spotifyRefreshToken !== 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM') {
+    refreshSpotifyToken();
+  } else {
+    spotifyAccessToken = 'BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs';
+    checkSpotifyPlayer();
+  }
   // Consulta de estado de Spotify cada 3 segundos
   setInterval(checkSpotifyPlayer, 3000);
 
@@ -2812,7 +2871,8 @@ async function checkSpotifyPlayer() {
 
 async function refreshSpotifyToken() {
   try {
-    const res = await fetch('https://mrboostlive.com/spotify/refresh_token.php', {
+    const refreshUrl = config.spotifyRefreshUrl || 'https://mrboostlive.com/spotify/refresh_token.php';
+    const res = await fetch(refreshUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: `user_id=${encodeURIComponent(SPOTIFY_USER)}&refresh_token=${encodeURIComponent(SPOTIFY_REFRESH_TOKEN)}`
@@ -2887,7 +2947,10 @@ function initSpotifyQueue() {
 
 async function fetchSpotifyQueue() {
   const timestamp = Date.now();
-  const endpoint = `https://mrboostlive.com/spotify/displayQueue.php?user=${SPOTIFY_USER}&t=${timestamp}`;
+  const queueUrl = config.spotifyQueueUrl || 'https://mrboostlive.com/spotify/displayQueue.php';
+  const endpoint = queueUrl.includes('?')
+    ? `${queueUrl}&user=${encodeURIComponent(SPOTIFY_USER)}&t=${timestamp}`
+    : `${queueUrl}?user=${encodeURIComponent(SPOTIFY_USER)}&t=${timestamp}`;
 
   try {
     const res = await fetch(endpoint, { cache: 'no-store' });
@@ -3849,6 +3912,20 @@ function initIframeMessageReceiver() {
       if (typeof showNextEventSlide === 'function') showNextEventSlide();
     } else if (type === 'TOGGLE_ON_AIR' || type === 'on_air') {
       if (typeof window.testToggleOnAir === 'function') window.testToggleOnAir();
+    } else if (type === 'SET_BOTRIX' || type === 'UPDATE_BOTRIX') {
+      if (e.data.bid) config.botrixId = e.data.bid;
+      if (e.data.sub) config.botrixSub = e.data.sub;
+      if (e.data.follow) config.botrixFollow = e.data.follow;
+      if (e.data.gift) config.botrixGift = e.data.gift;
+      if (e.data.kicks) config.botrixKicks = e.data.kicks;
+      initBotrixFrames();
+    } else if (type === 'SET_SPOTIFY' || type === 'UPDATE_SPOTIFY') {
+      if (e.data.user) SPOTIFY_USER = e.data.user;
+      if (e.data.refresh) SPOTIFY_REFRESH_TOKEN = e.data.refresh;
+      if (e.data.queueUrl) config.spotifyQueueUrl = e.data.queueUrl;
+      if (e.data.refreshUrl) config.spotifyRefreshUrl = e.data.refreshUrl;
+      refreshSpotifyToken();
+      setTimeout(fetchSpotifyQueue, 1500);
     }
   });
 }
