@@ -774,7 +774,7 @@
     transition:width .1s linear;
   }
 
-  /* ── Viewport vertical limitado a 5 tarjetas exactas (5 * 48px + 4 * 6px = 264px) ── */
+  /* ── Viewport vertical limitado a 3 tarjetas exactas (3 * 48px + 2 * 6px = 156px) ── */
   .pl-users-viewport{
     position:relative;
     width:100%;
@@ -782,13 +782,13 @@
     border-radius:12px;
   }
   .pl-users-viewport.is-carousel{
-    height:264px;
+    height:156px;
     mask-image:linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%);
     -webkit-mask-image:linear-gradient(to bottom, transparent 0%, black 8px, black calc(100% - 8px), transparent 100%);
   }
   .pl-users-viewport:not(.is-carousel){
     height:auto;
-    max-height:264px;
+    max-height:156px;
     mask-image:none;
     -webkit-mask-image:none;
   }
@@ -1134,7 +1134,7 @@
         <div class="pl-timer-bar" id="pl-timer-bar"></div>
       </div>
 
-      <!-- Viewport de usuarios (máximo 5 visibles a la vez, carrusel vertical automático si > 5) -->
+      <!-- Viewport de usuarios (máximo 3 visibles a la vez, carrusel vertical automático si > 3) -->
       <div class="pl-users-viewport" id="pl-users-viewport">
         <div class="pl-carousel-track" id="pl-carousel-track">
           <!-- Renderizado dinámico de usuarios con sus Jikopuntos -->
@@ -1596,15 +1596,15 @@
       `;
     }).join('');
 
-    if(total <= 5){
-      // 5 o menos usuarios: se muestran de manera estática ajustada al contenido (máximo 5)
+    if(total <= 3){
+      // 3 o menos usuarios: se muestran de manera estática ajustada al contenido (máximo 3)
       if(viewport) viewport.classList.remove('is-carousel');
       track.style.removeProperty('--scroll-dur');
       track.innerHTML = `<div class="pl-carousel-group">${cardsHtml}</div>`;
     } else {
-      // Más de 5 usuarios: se activa el carrusel vertical continuo sin cortar ni rebasar la pantalla
+      // Más de 3 usuarios: se activa el carrusel vertical continuo durante todo el tiempo de visualización
       if(viewport) viewport.classList.add('is-carousel');
-      const durSec = Math.max(14, Math.min(45, Math.round(total * 2.2)));
+      const durSec = Math.max(10, Math.min(45, Math.round(total * 2.5)));
       track.style.setProperty('--scroll-dur', `${durSec}s`);
       track.innerHTML = `
         <div class="pl-carousel-group animating">${cardsHtml}</div>
