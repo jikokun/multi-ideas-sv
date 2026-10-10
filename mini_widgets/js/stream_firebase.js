@@ -180,21 +180,29 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
     }
   }
 
-  const tituloFinal = esPersonalizado ? String(tituloPersonalizado).trim() : rango.titulo;
+  const siguienteNivel = (nivel < 50) ? (nivel + 1) : 50;
+  const siguienteInfo = (nivel < 50) ? (TABLA_50_NIVELES[siguienteNivel - 1] || null) : null;
+  const siguienteRango = siguienteInfo ? siguienteInfo.rangoTitulo : '¡Rango Máximo!';
 
   return {
     nivel,
+    experiencia: xp,
     xpTotal: xp,
     xpEnNivel,
+    xpEnNivelActual: xpEnNivel,
     xpParaSubir,
+    xpRequeridaParaSubir: xpParaSubir,
     xpFaltante: faltantes,
     faltantesParaSiguienteNivel: faltantes,
     porcentajeProgreso: porcentaje,
+    siguienteNivel,
+    siguienteRango,
     rangoTitulo: tituloFinal,
     tituloAutomatico: rango.titulo,
     tituloPersonalizado: esPersonalizado ? tituloFinal : null,
     esTituloPersonalizado: esPersonalizado,
     insigniaEmoji: emojiFinal,
+    color: rango.color,
     bonoExtra: bonoFinal,
     puntosPorAsistencia: 500 + bonoFinal,
     asistenciasCount: asistencias,

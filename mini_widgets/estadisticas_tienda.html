@@ -1009,7 +1009,7 @@
 
     .modal-stats-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
       gap: 12px;
       margin-bottom: 20px;
     }
@@ -2289,8 +2289,16 @@
           <div class="modal-stat-lbl">Puntos Gastados</div>
         </div>
         <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-earned" style="color:var(--oro);">0 pts</div>
+          <div class="modal-stat-lbl">Puntos Ganados</div>
+        </div>
+        <div class="modal-stat-box">
           <div class="modal-stat-val" id="m-upc-orders">0</div>
           <div class="modal-stat-lbl">Pedidos Hechos</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-dishes" style="color:var(--kick);">0</div>
+          <div class="modal-stat-lbl">Platillos Servidos</div>
         </div>
       </div>
 
@@ -3152,130 +3160,138 @@
     // ═══════════ FUNCIONES DEL MODAL DE FICHA DE USUARIO ═══════════
     window.abrirModalFicha = async function(username) {
       if (!username) return;
-      const u = await StreamDB.getUser(username);
-      if (!u) {
-        showToast(`❌ Usuario <b>@${username}</b> no encontrado`);
-        return;
-      }
-      usuarioEncontradoActual = u;
+      try {
+        const u = await StreamDB.getUser(username);
+        if (!u) {
+          showToast(`❌ Usuario <b>@${username}</b> no encontrado`);
+          return;
+        }
+        usuarioEncontradoActual = u;
 
-      const modal = document.getElementById('modal-user-profile');
-      if (!modal) return;
+        const modal = document.getElementById('modal-user-profile');
+        if (!modal) {
+          console.error('[Dashboard] No se encontró el elemento #modal-user-profile');
+          return;
+        }
 
-      const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
-      const avatarEl = document.getElementById('m-upc-avatar');
-      if (u.avatar && u.avatar.startsWith('http')) {
-        avatarEl.innerHTML = `<img src="${u.avatar}" alt="${u.displayName}">`;
-      } else {
-        avatarEl.textContent = u.insigniaEmoji || inicial;
-      }
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = (val !== undefined && val !== null) ? val : '';
+        };
+        const setHtml = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.innerHTML = (val !== undefined && val !== null) ? val : '';
+        };
 
-      document.getElementById('m-upc-name').textContent = '@' + (u.displayName || u.username);
-      document.getElementById('m-upc-role').textContent = (u.rol || 'espectador').toUpperCase();
-      document.getElementById('m-upc-balance').textContent = (u.jikopuntos || 0).toLocaleString() + ' pts';
+        const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
+        const avatarEl = document.getElementById('m-upc-avatar');
+        if (avatarEl) {
+          if (u.avatar && u.avatar.startsWith('http')) {
+            avatarEl.innerHTML = `<img src="${u.avatar}" alt="${u.displayName}">`;
+          } else {
+            avatarEl.textContent = u.insigniaEmoji || inicial;
+          }
+        }
 
-      const nivelInfo = calcularNivelUsuario(u);
-      document.getElementById('m-upc-level').innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`;
+        setTxt('m-upc-name', '@' + (u.displayName || u.username));
+        setTxt('m-upc-role', (u.rol || 'espectador').toUpperCase());
+        setTxt('m-upc-balance', (u.jikopuntos || 0).toLocaleString() + ' pts');
 
-      // Badge de título otorgado a criterio personal
-      const customBadge = document.getElementById('m-upc-custom-badge');
-      if (customBadge) {
-        if (u.tituloPersonalizado) {
-          customBadge.style.display = 'inline-flex';
-          customBadge.innerHTML = `⭐ Otorgado: "${u.tituloPersonalizado}"`;
-        } else {
-          customBadge.style.display = 'none';
+        const nivelInfo = calcularNivelUsuario(u);
+        setHtml('m-upc-level', `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`);
+
+        // Badge de título otorgado a criterio personal
+        const customBadge = document.getElementById('m-upc-custom-badge');
+        if (customBadge) {
+          if (u.tituloPersonalizado) {
+            customBadge.style.display = 'inline-flex';
+            customBadge.innerHTML = `⭐ Otorgado: "${u.tituloPersonalizado}"`;
+          } else {
+            customBadge.style.display = 'none';
+          }
+        }
+
+        // Tiempo visto y XP total en cabecera
+        setHtml('m-upc-time-pill', `⏱️ ${formatearTiempoVisto(u.tiempoVistoMinutos || 0)}`);
+        setTxt('m-upc-xp-header', `⚡ ${(u.experiencia || 0).toLocaleString()} XP Total`);
+
+        // Barra de Progreso de Nivel (1 a 50)
+        setTxt('m-upc-prog-level-txt', `Nivel ${nivelInfo.nivel} • ${nivelInfo.rangoTitulo}`);
+        setTxt('m-upc-prog-next-txt', nivelInfo.nivel >= 50 
+          ? '🏆 Nivel Máximo Alcanzado' 
+          : `Siguiente: Nivel ${nivelInfo.nivel + 1} (${nivelInfo.siguienteRango || ''})`);
+
+        const progBar = document.getElementById('m-upc-prog-bar');
+        if (progBar) progBar.style.width = `${Math.min(100, Math.max(0, nivelInfo.porcentajeProgreso || 0))}%`;
+
+        setTxt('m-upc-prog-pts-txt', `${(nivelInfo.xpEnNivelActual || 0).toLocaleString()} / ${(nivelInfo.xpRequeridaParaSubir || 0).toLocaleString()} XP (${nivelInfo.porcentajeProgreso || 0}%)`);
+        setTxt('m-upc-prog-faltan-txt', (nivelInfo.nivel >= 50) 
+          ? '¡Rango Máximo!' 
+          : `Faltan ${(nivelInfo.faltantesParaSiguienteNivel || 0).toLocaleString()} XP`);
+
+        // Métricas numéricas
+        setTxt('m-upc-xp', `${(u.experiencia || 0).toLocaleString()} XP`);
+        setTxt('m-upc-watchtime', `${formatearTiempoVisto(u.tiempoVistoMinutos || 0)} (${formatearHorasDecimal(u.tiempoVistoMinutos || 0)})`);
+        setTxt('m-upc-attend', u.asistenciasCount || 0);
+        setTxt('m-upc-bonus', `+${nivelInfo.puntosPorAsistencia} pts`);
+        setTxt('m-upc-spent', (u.totalGastado || 0).toLocaleString() + ' pts');
+        setTxt('m-upc-earned', (u.totalGanado || (u.jikopuntos || 0)).toLocaleString() + ' pts');
+        setTxt('m-upc-orders', u.totalCompras || u.widgets?.tiendita?.pedidosCount || 0);
+        setTxt('m-upc-dishes', u.widgets?.tiendita?.platillosTotales || 0);
+
+        // Detalles y título automático de nivel
+        setHtml('m-upc-autotitle', `${nivelInfo.insigniaEmoji} ${nivelInfo.tituloAutomatico} (Nvl ${nivelInfo.nivel})`);
+
+        const favDish = u.widgets?.tiendita?.platoFavorito;
+        setTxt('m-upc-fav', favDish ? `${EMOJIS[favDish] || '🍽️'} ${favDish.toUpperCase()}` : 'Ninguno aún');
+
+        const primerReg = u.primerRegistro ? new Date(u.primerRegistro).toLocaleDateString('es-SV', { dateStyle: 'medium' }) : '--';
+        const ultAct = u.ultimaActividad ? new Date(u.ultimaActividad).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' }) : '--';
+        setTxt('m-upc-first', primerReg);
+        setTxt('m-upc-last', ultAct);
+
+        // Resetear inputs de administración en el modal
+        const xpInput = document.getElementById('m-xp-delta-input');
+        if (xpInput) xpInput.value = 200;
+
+        const suggestSelect = document.getElementById('m-title-suggest-select');
+        if (suggestSelect) suggestSelect.value = '';
+        const customTitleInput = document.getElementById('m-custom-title-input');
+        if (customTitleInput) customTitleInput.value = u.tituloPersonalizado || '';
+
+        const totalMins = u.tiempoVistoMinutos || 0;
+        const hoursInput = document.getElementById('m-time-hours-input');
+        if (hoursInput) hoursInput.value = Math.floor(totalMins / 60);
+        const minsInput = document.getElementById('m-time-mins-input');
+        if (minsInput) minsInput.value = totalMins % 60;
+
+        const ptsInput = document.getElementById('m-pts-delta-input');
+        if (ptsInput) ptsInput.value = 500;
+
+        const btnDel = document.getElementById('btn-eliminar-usuario-modal');
+        if (btnDel) {
+          btnDel.style.display = (u.username === 'jikokun') ? 'none' : 'inline-flex';
+        }
+
+        // Abrir modal y actualizar ficha inline de respaldo
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+        renderizarFichaUsuario(u);
+      } catch (err) {
+        console.error('[Dashboard] Error abriendo ficha de usuario:', err);
+        showToast(`⚠️ Error al cargar ficha: ${err.message}`);
+        const modal = document.getElementById('modal-user-profile');
+        if (modal) {
+          modal.classList.add('active');
+          document.body.style.overflow = 'hidden';
         }
       }
-
-      // Tiempo visto y XP total en cabecera
-      const timePill = document.getElementById('m-upc-time-pill');
-      if (timePill) {
-        timePill.innerHTML = `⏱️ ${formatearTiempoVisto(u.tiempoVistoMinutos || 0)}`;
-      }
-      const xpHeader = document.getElementById('m-upc-xp-header');
-      if (xpHeader) {
-        xpHeader.textContent = `⚡ ${(u.experiencia || 0).toLocaleString()} XP Total`;
-      }
-
-      // Barra de Progreso de Nivel (1 a 50)
-      const progLevelTxt = document.getElementById('m-upc-prog-level-txt');
-      if (progLevelTxt) progLevelTxt.textContent = `Nivel ${nivelInfo.nivel} • ${nivelInfo.rangoTitulo}`;
-
-      const progNextTxt = document.getElementById('m-upc-prog-next-txt');
-      if (progNextTxt) {
-        progNextTxt.textContent = nivelInfo.nivel >= 50 
-          ? '🏆 Nivel Máximo Alcanzado' 
-          : `Siguiente: Nivel ${nivelInfo.nivel + 1} (${nivelInfo.siguienteRango || ''})`;
-      }
-
-      const progBar = document.getElementById('m-upc-prog-bar');
-      if (progBar) progBar.style.width = `${Math.min(100, Math.max(0, nivelInfo.porcentajeProgreso || 0))}%`;
-
-      const progPtsTxt = document.getElementById('m-upc-prog-pts-txt');
-      if (progPtsTxt) {
-        progPtsTxt.textContent = `${(nivelInfo.xpEnNivelActual || 0).toLocaleString()} / ${(nivelInfo.xpRequeridaParaSubir || 0).toLocaleString()} XP (${nivelInfo.porcentajeProgreso || 0}%)`;
-      }
-
-      const progFaltanTxt = document.getElementById('m-upc-prog-faltan-txt');
-      if (progFaltanTxt) {
-        progFaltanTxt.textContent = nivelInfo.nivel >= 50 
-          ? '¡Rango Máximo!' 
-          : `Faltan ${(nivelInfo.faltantesParaSiguienteNivel || 0).toLocaleString()} XP`;
-      }
-
-      // Métricas numéricas
-      document.getElementById('m-upc-xp').textContent = `${(u.experiencia || 0).toLocaleString()} XP`;
-      document.getElementById('m-upc-watchtime').textContent = `${formatearTiempoVisto(u.tiempoVistoMinutos || 0)} (${formatearHorasDecimal(u.tiempoVistoMinutos || 0)})`;
-      document.getElementById('m-upc-attend').textContent = u.asistenciasCount || 0;
-      document.getElementById('m-upc-bonus').textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
-      document.getElementById('m-upc-spent').textContent = (u.totalGastado || 0).toLocaleString() + ' pts';
-      document.getElementById('m-upc-earned').textContent = (u.totalGanado || (u.jikopuntos || 0)).toLocaleString() + ' pts';
-      document.getElementById('m-upc-orders').textContent = u.totalCompras || u.widgets?.tiendita?.pedidosCount || 0;
-      document.getElementById('m-upc-dishes').textContent = u.widgets?.tiendita?.platillosTotales || 0;
-
-      // Detalles y título automático de nivel
-      const autoTitleEl = document.getElementById('m-upc-autotitle');
-      if (autoTitleEl) autoTitleEl.innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.tituloAutomatico} (Nvl ${nivelInfo.nivel})`;
-
-      const favDish = u.widgets?.tiendita?.platoFavorito;
-      document.getElementById('m-upc-fav').textContent = favDish ? `${EMOJIS[favDish] || '🍽️'} ${favDish.toUpperCase()}` : 'Ninguno aún';
-
-      const primerReg = u.primerRegistro ? new Date(u.primerRegistro).toLocaleDateString('es-SV', { dateStyle: 'medium' }) : '--';
-      const ultAct = u.ultimaActividad ? new Date(u.ultimaActividad).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' }) : '--';
-      document.getElementById('m-upc-first').textContent = primerReg;
-      document.getElementById('m-upc-last').textContent = ultAct;
-
-      // Resetear inputs de administración en el modal
-      const xpInput = document.getElementById('m-xp-delta-input');
-      if (xpInput) xpInput.value = 200;
-
-      const suggestSelect = document.getElementById('m-title-suggest-select');
-      if (suggestSelect) suggestSelect.value = '';
-      const customTitleInput = document.getElementById('m-custom-title-input');
-      if (customTitleInput) customTitleInput.value = u.tituloPersonalizado || '';
-
-      const totalMins = u.tiempoVistoMinutos || 0;
-      const hoursInput = document.getElementById('m-time-hours-input');
-      if (hoursInput) hoursInput.value = Math.floor(totalMins / 60);
-      const minsInput = document.getElementById('m-time-mins-input');
-      if (minsInput) minsInput.value = totalMins % 60;
-
-      const ptsInput = document.getElementById('m-pts-delta-input');
-      if (ptsInput) ptsInput.value = 500;
-
-      const btnDel = document.getElementById('btn-eliminar-usuario-modal');
-      if (btnDel) {
-        btnDel.style.display = (u.username === 'jikokun') ? 'none' : 'inline-flex';
-      }
-
-      modal.classList.add('active');
-      renderizarFichaUsuario(u);
     };
 
     window.cerrarModalFicha = function() {
       const modal = document.getElementById('modal-user-profile');
       if (modal) modal.classList.remove('active');
+      document.body.style.overflow = '';
     };
 
     // ── 1. Administrar Experiencia (XP) desde Modal ──
@@ -3728,6 +3744,15 @@
         if (btn) btn.disabled = false;
       }
     };
+
+    // Cerrar modales con tecla Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        window.cerrarModalFicha();
+        window.cerrarModalCrearUsuario();
+        window.cerrarModalEditarUsuario();
+      }
+    });
   </script>
 </body>
 </html>
