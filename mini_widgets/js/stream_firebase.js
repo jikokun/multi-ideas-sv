@@ -55,56 +55,150 @@ export const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
 export const KICK_PUSHER_CLUSTER = 'us2';
 
 // ==========================================================================
-// 🐺 ESCALAFÓN Y SISTEMA DE NIVELES DE ASISTENCIA (RANGOS DE LA MANADA)
+// 🐺 ESCALAFÓN Y SISTEMA DE 50 NIVELES DE EXPERIENCIA (XP) Y RANGOS
 // ==========================================================================
-export const NIVELES_ASISTENCIA = [
-  { nivel: 1, min: 1,  max: 2,    titulo: 'Cachorro',              emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada' },
-  { nivel: 2, min: 3,  max: 5,    titulo: 'Explorador del Stream', emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia' },
-  { nivel: 3, min: 6,  max: 9,    titulo: 'Cazador Fiel',          emoji: '🏹', bonoExtra: 100, descripcion: 'Casi nunca falta a un stream' },
-  { nivel: 4, min: 10, max: 19,   titulo: 'Guardián de la Manada', emoji: '🛡️', bonoExtra: 150, descripcion: 'Pilar veterano de la comunidad' },
-  { nivel: 5, min: 20, max: 34,   titulo: 'Lobo Beta (VIP)',       emoji: '⚡', bonoExtra: 200, descripcion: 'Rango élite con presencia constante' },
-  { nivel: 6, min: 35, max: 99999, titulo: 'Lobo Alfa Legendario', emoji: '👑', bonoExtra: 250, descripcion: 'Leyenda con máxima lealtad en el canal' }
+export const RANGOS_BASE_TITULOS = [
+  { minNivel: 1,  maxNivel: 5,  titulo: 'Cachorro',              emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada (Niveles 1 a 5)' },
+  { minNivel: 6,  maxNivel: 11, titulo: 'Explorador del Stream', emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia (Niveles 6 a 11)' },
+  { minNivel: 12, maxNivel: 18, titulo: 'Cazador Fiel',          emoji: '🏹', bonoExtra: 100, descripcion: 'Casi nunca falta a un stream (Niveles 12 a 18)' },
+  { minNivel: 19, maxNivel: 25, titulo: 'Guardián de la Manada', emoji: '🛡️', bonoExtra: 150, descripcion: 'Pilar veterano de la comunidad (Niveles 19 a 25)' },
+  { minNivel: 26, maxNivel: 33, titulo: 'Lobo Beta (VIP)',       emoji: '⚡', bonoExtra: 200, descripcion: 'Rango élite con presencia constante (Niveles 26 a 33)' },
+  { minNivel: 34, maxNivel: 42, titulo: 'Lobo Alfa',             emoji: '🐺', bonoExtra: 250, descripcion: 'Lobo Alfa dominante en la manada (Niveles 34 a 42)' },
+  { minNivel: 43, maxNivel: 50, titulo: 'Manada VIP',            emoji: '👑', bonoExtra: 300, descripcion: 'Máximo rango legendario alcanzado (Niveles 43 a 50)' }
 ];
 
-export function calcularNivelUsuario(asistenciasCount = 0) {
-  const count = Math.max(0, parseInt(asistenciasCount, 10) || 0);
-  let rangoActual = NIVELES_ASISTENCIA[0];
+export function getXpParaSubirNivel(nivel) {
+  if (nivel >= 50) return 0;
+  if (nivel <= 5) return 1000;
+  return 1000 + (nivel - 5) * 150;
+}
 
-  for (let i = 0; i < NIVELES_ASISTENCIA.length; i++) {
-    if (count >= NIVELES_ASISTENCIA[i].min) {
-      rangoActual = NIVELES_ASISTENCIA[i];
+export const TABLA_50_NIVELES = [];
+let _acumuladoXp = 0;
+for (let n = 1; n <= 50; n++) {
+  const req = getXpParaSubirNivel(n);
+  TABLA_50_NIVELES.push({
+    nivel: n,
+    xpMinima: _acumuladoXp,
+    xpParaSubir: req
+  });
+  _acumuladoXp += req;
+}
+
+// Compatibilidad con código previo que usaba NIVELES_ASISTENCIA
+export const NIVELES_ASISTENCIA = RANGOS_BASE_TITULOS.map((r, idx) => ({
+  nivel: idx + 1,
+  min: r.minNivel,
+  max: r.maxNivel,
+  titulo: r.titulo,
+  emoji: r.emoji,
+  bonoExtra: r.bonoExtra,
+  descripcion: r.descripcion
+}));
+
+export function formatearTiempoVisto(minutos = 0) {
+  const totalMin = Math.max(0, parseInt(minutos, 10) || 0);
+  const horas = Math.floor(totalMin / 60);
+  const mins = totalMin % 60;
+  if (horas === 0) return `${mins}m`;
+  if (mins === 0) return `${horas}h`;
+  return `${horas}h ${mins}m`;
+}
+
+export function formatearHorasDecimal(minutos = 0) {
+  const totalMin = Math.max(0, parseInt(minutos, 10) || 0);
+  return (totalMin / 60).toFixed(1) + ' hrs';
+}
+
+export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
+  let xp = 0;
+  let asistencias = 0;
+  let tituloPersonalizado = null;
+
+  if (typeof arg1 === 'object' && arg1 !== null) {
+    asistencias = Math.max(0, parseInt(arg1.asistenciasCount, 10) || 0);
+    if (arg1.experiencia !== undefined && arg1.experiencia !== null) {
+      xp = Math.max(0, parseInt(arg1.experiencia, 10) || 0);
+    } else {
+      xp = asistencias * 200;
+    }
+    tituloPersonalizado = arg1.tituloPersonalizado || null;
+  } else {
+    const num = Math.max(0, parseInt(arg1, 10) || 0);
+    if (arg2 !== undefined && arg2 !== null && arg2 !== 0) {
+      xp = num;
+      asistencias = Math.max(0, parseInt(arg2, 10) || 0);
+      tituloPersonalizado = arg3 || null;
+    } else {
+      if (num < 200) {
+        asistencias = num;
+        xp = num * 200;
+      } else {
+        xp = num;
+        asistencias = Math.max(0, parseInt(arg2, 10) || 0);
+      }
+      tituloPersonalizado = arg3 || null;
+    }
+  }
+
+  let nivelInfo = TABLA_50_NIVELES[0];
+  for (let i = 0; i < TABLA_50_NIVELES.length; i++) {
+    if (xp >= TABLA_50_NIVELES[i].xpMinima) {
+      nivelInfo = TABLA_50_NIVELES[i];
     } else {
       break;
     }
   }
 
-  // Si aún no tiene asistencias, está en Nivel 1 preliminar
-  const nivelNum = rangoActual.nivel;
-  const esMaximo = nivelNum >= NIVELES_ASISTENCIA.length;
-  const sigRango = esMaximo ? null : NIVELES_ASISTENCIA[nivelNum];
+  const nivel = nivelInfo.nivel;
+  const esMaximo = nivel >= 50;
+  const xpEnNivel = xp - nivelInfo.xpMinima;
+  const xpParaSubir = nivelInfo.xpParaSubir;
+  const faltantes = esMaximo ? 0 : Math.max(0, xpParaSubir - xpEnNivel);
+  const porcentaje = esMaximo ? 100 : Math.min(100, Math.max(0, Math.round((xpEnNivel / Math.max(1, xpParaSubir)) * 100)));
 
-  const minActual = rangoActual.min;
-  const minSig = sigRango ? sigRango.min : rangoActual.min;
-  const faltantes = sigRango ? Math.max(0, minSig - count) : 0;
-
-  let porcentaje = 100;
-  if (!esMaximo && sigRango) {
-    const rangoSpan = minSig - minActual;
-    const progressInSpan = count - minActual;
-    porcentaje = Math.min(100, Math.max(0, Math.round((progressInSpan / Math.max(1, rangoSpan)) * 100)));
+  let rango = RANGOS_BASE_TITULOS[0];
+  for (const r of RANGOS_BASE_TITULOS) {
+    if (nivel >= r.minNivel && nivel <= r.maxNivel) {
+      rango = r;
+      break;
+    }
   }
 
+  let emojiFinal = rango.emoji;
+  let bonoFinal = rango.bonoExtra;
+  let esPersonalizado = false;
+
+  if (tituloPersonalizado && String(tituloPersonalizado).trim()) {
+    esPersonalizado = true;
+    const match = RANGOS_BASE_TITULOS.find(r => r.titulo.toLowerCase() === String(tituloPersonalizado).trim().toLowerCase());
+    if (match) {
+      emojiFinal = match.emoji;
+      bonoFinal = match.bonoExtra;
+    } else {
+      emojiFinal = '⭐';
+    }
+  }
+
+  const tituloFinal = esPersonalizado ? String(tituloPersonalizado).trim() : rango.titulo;
+
   return {
-    nivel: nivelNum,
-    rangoTitulo: rangoActual.titulo,
-    insigniaEmoji: rangoActual.emoji,
-    bonoExtra: rangoActual.bonoExtra,
-    puntosPorAsistencia: 500 + rangoActual.bonoExtra,
-    asistenciasCount: count,
+    nivel,
+    xpTotal: xp,
+    xpEnNivel,
+    xpParaSubir,
+    xpFaltante: faltantes,
     faltantesParaSiguienteNivel: faltantes,
-    siguienteNivelTitulo: sigRango ? sigRango.titulo : 'Nivel Máximo',
     porcentajeProgreso: porcentaje,
-    descripcion: rangoActual.descripcion
+    rangoTitulo: tituloFinal,
+    tituloAutomatico: rango.titulo,
+    tituloPersonalizado: esPersonalizado ? tituloFinal : null,
+    esTituloPersonalizado: esPersonalizado,
+    insigniaEmoji: emojiFinal,
+    bonoExtra: bonoFinal,
+    puntosPorAsistencia: 500 + bonoFinal,
+    asistenciasCount: asistencias,
+    descripcion: rango.descripcion
   };
 }
 
@@ -184,13 +278,35 @@ class StreamFirebaseService {
 
       if (snap.exists()) {
         const data = snap.val();
-        // Asegurar que el nivel esté calculado
-        const nivelInfo = calcularNivelUsuario(data.asistenciasCount || 0);
+        const asistencias = data.asistenciasCount || 0;
+        const xp = (data.experiencia !== undefined && data.experiencia !== null)
+          ? (parseInt(data.experiencia, 10) || 0)
+          : (asistencias * 200);
+        const tiempoMin = parseInt(data.tiempoVistoMinutos, 10) || 0;
+        const customTitle = data.tituloPersonalizado || null;
+
+        const nivelInfo = calcularNivelUsuario({
+          experiencia: xp,
+          asistenciasCount: asistencias,
+          tituloPersonalizado: customTitle
+        });
+
+        data.experiencia = xp;
+        data.tiempoVistoMinutos = tiempoMin;
+        data.tiempoVistoLegible = formatearTiempoVisto(tiempoMin);
+        data.tiempoVistoHoras = formatearHorasDecimal(tiempoMin);
+        data.tituloPersonalizado = customTitle;
+        data.esTituloPersonalizado = nivelInfo.esTituloPersonalizado;
+        data.tituloAutomatico = nivelInfo.tituloAutomatico;
         data.nivel = nivelInfo.nivel;
         data.rangoTitulo = nivelInfo.rangoTitulo;
         data.insigniaEmoji = nivelInfo.insigniaEmoji;
         data.bonoAsistencia = nivelInfo.puntosPorAsistencia;
         data.porcentajeProgreso = nivelInfo.porcentajeProgreso;
+        data.xpEnNivel = nivelInfo.xpEnNivel;
+        data.xpParaSubir = nivelInfo.xpParaSubir;
+        data.xpFaltante = nivelInfo.xpFaltante;
+        data.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
 
         this.usersCache.set(key, data);
         this._updateLocalCache(key, data.jikopuntos);
@@ -200,7 +316,7 @@ class StreamFirebaseService {
       // Crear usuario nuevo con saldo inicial y nivel 1
       const localPts = this._getLocalCache(key);
       const initialPts = localPts !== null ? localPts : USER_DEFAULT_POINTS;
-      const nivelInfo = calcularNivelUsuario(0);
+      const nivelInfo = calcularNivelUsuario({ experiencia: 0, asistenciasCount: 0 });
 
       const newUser = {
         username: key,
@@ -212,8 +328,12 @@ class StreamFirebaseService {
         totalGastado: 0,
         totalCompras: 0,
         asistenciasCount: 0,
+        experiencia: 0,
+        tiempoVistoMinutos: 0,
+        tituloPersonalizado: null,
         nivel: nivelInfo.nivel,
         rangoTitulo: nivelInfo.rangoTitulo,
+        tituloAutomatico: nivelInfo.tituloAutomatico,
         insigniaEmoji: nivelInfo.insigniaEmoji,
         bonoAsistencia: nivelInfo.puntosPorAsistencia,
         primerRegistro: Date.now(),
@@ -252,6 +372,8 @@ class StreamFirebaseService {
         displayName: String(username).replace(/^@/, '').trim(),
         jikopuntos: fallbackPts,
         totalGastado: 0,
+        experiencia: 0,
+        tiempoVistoMinutos: 0,
         nivel: 1,
         insigniaEmoji: '🐾',
         rangoTitulo: 'Cachorro'
@@ -260,7 +382,7 @@ class StreamFirebaseService {
   }
 
   // Crear usuario manualmente
-  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, avatar = '' }) {
+  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, experiencia = null, tiempoVistoMinutos = 0, tituloPersonalizado = null, avatar = '' }) {
     await this.init();
     const key = norm(username);
     if (!key) throw new Error('Nombre de usuario no válido');
@@ -273,7 +395,17 @@ class StreamFirebaseService {
 
     const pts = Math.max(0, parseInt(jikopuntos, 10) || USER_DEFAULT_POINTS);
     const asistencias = Math.max(0, parseInt(asistenciasCount, 10) || 0);
-    const nivelInfo = calcularNivelUsuario(asistencias);
+    const xp = (experiencia !== null && experiencia !== undefined)
+      ? Math.max(0, parseInt(experiencia, 10) || 0)
+      : (asistencias * 200);
+    const tiempoMin = Math.max(0, parseInt(tiempoVistoMinutos, 10) || 0);
+    const customTitle = tituloPersonalizado && String(tituloPersonalizado).trim() ? String(tituloPersonalizado).trim() : null;
+
+    const nivelInfo = calcularNivelUsuario({
+      experiencia: xp,
+      asistenciasCount: asistencias,
+      tituloPersonalizado: customTitle
+    });
     const ahora = Date.now();
 
     const newUser = {
@@ -286,8 +418,12 @@ class StreamFirebaseService {
       totalGastado: 0,
       totalCompras: 0,
       asistenciasCount: asistencias,
+      experiencia: xp,
+      tiempoVistoMinutos: tiempoMin,
+      tituloPersonalizado: customTitle,
       nivel: nivelInfo.nivel,
       rangoTitulo: nivelInfo.rangoTitulo,
+      tituloAutomatico: nivelInfo.tituloAutomatico,
       insigniaEmoji: nivelInfo.insigniaEmoji,
       bonoAsistencia: nivelInfo.puntosPorAsistencia,
       primerRegistro: ahora,
@@ -320,7 +456,7 @@ class StreamFirebaseService {
     return newUser;
   }
 
-  // Actualizar datos de usuario (nombre, rol, puntos, asistencias, avatar)
+  // Actualizar datos de usuario (nombre, rol, puntos, asistencias, experiencia, tiempoVisto, avatar)
   async actualizarUsuario(username, updates = {}) {
     await this.init();
     const key = norm(username);
@@ -351,12 +487,48 @@ class StreamFirebaseService {
       cleanUpdates.jikopuntos = pts;
       this._updateLocalCache(key, pts);
     }
+    if (updates.tiempoVistoMinutos !== undefined) {
+      cleanUpdates.tiempoVistoMinutos = Math.max(0, parseInt(updates.tiempoVistoMinutos, 10) || 0);
+    }
+    if (updates.tituloPersonalizado !== undefined) {
+      cleanUpdates.tituloPersonalizado = updates.tituloPersonalizado && String(updates.tituloPersonalizado).trim()
+        ? String(updates.tituloPersonalizado).trim()
+        : null;
+    }
+
+    let recalculateLevel = false;
+    let nextAsist = current.asistenciasCount || 0;
+    let nextXp = (current.experiencia !== undefined && current.experiencia !== null)
+      ? current.experiencia
+      : (nextAsist * 200);
+    let nextTitle = cleanUpdates.tituloPersonalizado !== undefined
+      ? cleanUpdates.tituloPersonalizado
+      : (current.tituloPersonalizado || null);
+
     if (updates.asistenciasCount !== undefined) {
-      const asist = Math.max(0, parseInt(updates.asistenciasCount, 10) || 0);
-      cleanUpdates.asistenciasCount = asist;
-      const nivelInfo = calcularNivelUsuario(asist);
+      nextAsist = Math.max(0, parseInt(updates.asistenciasCount, 10) || 0);
+      cleanUpdates.asistenciasCount = nextAsist;
+      recalculateLevel = true;
+    }
+    if (updates.experiencia !== undefined) {
+      nextXp = Math.max(0, parseInt(updates.experiencia, 10) || 0);
+      cleanUpdates.experiencia = nextXp;
+      recalculateLevel = true;
+    }
+    if (updates.tituloPersonalizado !== undefined) {
+      recalculateLevel = true;
+    }
+
+    if (recalculateLevel) {
+      const nivelInfo = calcularNivelUsuario({
+        experiencia: nextXp,
+        asistenciasCount: nextAsist,
+        tituloPersonalizado: nextTitle
+      });
+      cleanUpdates.experiencia = nextXp;
       cleanUpdates.nivel = nivelInfo.nivel;
       cleanUpdates.rangoTitulo = nivelInfo.rangoTitulo;
+      cleanUpdates.tituloAutomatico = nivelInfo.tituloAutomatico;
       cleanUpdates.insigniaEmoji = nivelInfo.insigniaEmoji;
       cleanUpdates.bonoAsistencia = nivelInfo.puntosPorAsistencia;
     }
@@ -366,6 +538,48 @@ class StreamFirebaseService {
     this.usersCache.set(key, merged);
 
     return merged;
+  }
+
+  // Métodos de Experiencia (XP), Título Personalizado y Tiempo Visto
+  async addExperiencia(username, deltaXp, motivo = 'premio_xp') {
+    const key = norm(username);
+    if (!key) return null;
+    const delta = parseInt(deltaXp, 10) || 0;
+    const user = await this.getUser(username);
+    const prevXp = user?.experiencia !== undefined ? user.experiencia : ((user?.asistenciasCount || 0) * 200);
+    const nuevoXp = Math.max(0, prevXp + delta);
+    return this.actualizarUsuario(key, { experiencia: nuevoXp });
+  }
+
+  async setExperiencia(username, totalXp, motivo = 'ajuste_xp') {
+    const key = norm(username);
+    if (!key) return null;
+    const xp = Math.max(0, parseInt(totalXp, 10) || 0);
+    return this.actualizarUsuario(key, { experiencia: xp });
+  }
+
+  async setTituloPersonalizado(username, titulo) {
+    const key = norm(username);
+    if (!key) return null;
+    const cleanTitle = (titulo && String(titulo).trim()) ? String(titulo).trim() : null;
+    return this.actualizarUsuario(key, { tituloPersonalizado: cleanTitle });
+  }
+
+  async addTiempoVisto(username, minutosDelta) {
+    const key = norm(username);
+    if (!key) return null;
+    const delta = parseInt(minutosDelta, 10) || 0;
+    const user = await this.getUser(username);
+    const prevMin = user?.tiempoVistoMinutos || 0;
+    const nuevoMin = Math.max(0, prevMin + delta);
+    return this.actualizarUsuario(key, { tiempoVistoMinutos: nuevoMin });
+  }
+
+  async setTiempoVisto(username, totalMinutos) {
+    const key = norm(username);
+    if (!key) return null;
+    const totalMin = Math.max(0, parseInt(totalMinutos, 10) || 0);
+    return this.actualizarUsuario(key, { tiempoVistoMinutos: totalMin });
   }
 
   // Eliminar usuario permanentemente
@@ -473,12 +687,35 @@ class StreamFirebaseService {
     return onValue(userRef, (snap) => {
       if (snap.exists()) {
         const data = snap.val();
-        const nivelInfo = calcularNivelUsuario(data.asistenciasCount || 0);
+        const asistencias = data.asistenciasCount || 0;
+        const xp = (data.experiencia !== undefined && data.experiencia !== null)
+          ? (parseInt(data.experiencia, 10) || 0)
+          : (asistencias * 200);
+        const tiempoMin = parseInt(data.tiempoVistoMinutos, 10) || 0;
+        const customTitle = data.tituloPersonalizado || null;
+
+        const nivelInfo = calcularNivelUsuario({
+          experiencia: xp,
+          asistenciasCount: asistencias,
+          tituloPersonalizado: customTitle
+        });
+
+        data.experiencia = xp;
+        data.tiempoVistoMinutos = tiempoMin;
+        data.tiempoVistoLegible = formatearTiempoVisto(tiempoMin);
+        data.tiempoVistoHoras = formatearHorasDecimal(tiempoMin);
+        data.tituloPersonalizado = customTitle;
+        data.esTituloPersonalizado = nivelInfo.esTituloPersonalizado;
+        data.tituloAutomatico = nivelInfo.tituloAutomatico;
         data.nivel = nivelInfo.nivel;
         data.rangoTitulo = nivelInfo.rangoTitulo;
         data.insigniaEmoji = nivelInfo.insigniaEmoji;
         data.bonoAsistencia = nivelInfo.puntosPorAsistencia;
         data.porcentajeProgreso = nivelInfo.porcentajeProgreso;
+        data.xpEnNivel = nivelInfo.xpEnNivel;
+        data.xpParaSubir = nivelInfo.xpParaSubir;
+        data.xpFaltante = nivelInfo.xpFaltante;
+        data.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
 
         this.usersCache.set(key, data);
         this._updateLocalCache(key, data.jikopuntos);
@@ -502,12 +739,35 @@ class StreamFirebaseService {
           }
           const u = child.val();
           if (!u || !u.username || u.username === 'undefined' || u.username === 'null') return;
-          const nivelInfo = calcularNivelUsuario(u.asistenciasCount || 0);
+          const asistencias = u.asistenciasCount || 0;
+          const xp = (u.experiencia !== undefined && u.experiencia !== null)
+            ? (parseInt(u.experiencia, 10) || 0)
+            : (asistencias * 200);
+          const tiempoMin = parseInt(u.tiempoVistoMinutos, 10) || 0;
+          const customTitle = u.tituloPersonalizado || null;
+
+          const nivelInfo = calcularNivelUsuario({
+            experiencia: xp,
+            asistenciasCount: asistencias,
+            tituloPersonalizado: customTitle
+          });
+
+          u.experiencia = xp;
+          u.tiempoVistoMinutos = tiempoMin;
+          u.tiempoVistoLegible = formatearTiempoVisto(tiempoMin);
+          u.tiempoVistoHoras = formatearHorasDecimal(tiempoMin);
+          u.tituloPersonalizado = customTitle;
+          u.esTituloPersonalizado = nivelInfo.esTituloPersonalizado;
+          u.tituloAutomatico = nivelInfo.tituloAutomatico;
           u.nivel = nivelInfo.nivel;
           u.rangoTitulo = nivelInfo.rangoTitulo;
           u.insigniaEmoji = nivelInfo.insigniaEmoji;
           u.bonoAsistencia = nivelInfo.puntosPorAsistencia;
           u.porcentajeProgreso = nivelInfo.porcentajeProgreso;
+          u.xpEnNivel = nivelInfo.xpEnNivel;
+          u.xpParaSubir = nivelInfo.xpParaSubir;
+          u.xpFaltante = nivelInfo.xpFaltante;
+          u.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
           usersList.push(u);
         });
       }
@@ -783,8 +1043,19 @@ class StreamFirebaseService {
       const prevAsistencias = user ? (user.asistenciasCount || 0) : 0;
       const nuevoTotalAsistencias = prevAsistencias + 1;
 
-      // Calcular nuevo nivel del usuario tras esta asistencia
-      const nivelInfo = calcularNivelUsuario(nuevoTotalAsistencias);
+      // Calcular XP: +200 XP por cada transmisión
+      const prevXp = (user && user.experiencia !== undefined && user.experiencia !== null)
+        ? user.experiencia
+        : (prevAsistencias * 200);
+      const nuevoTotalXp = prevXp + 200;
+
+      // Calcular nuevo nivel del usuario tras ganar 200 XP en esta transmisión
+      const nivelInfo = calcularNivelUsuario({
+        experiencia: nuevoTotalXp,
+        asistenciasCount: nuevoTotalAsistencias,
+        tituloPersonalizado: user?.tituloPersonalizado
+      });
+
       const puntosOtorgados = nivelInfo.puntosPorAsistencia; // 500 base + bono de lealtad
       const nuevoSaldo = (user ? user.jikopuntos : USER_DEFAULT_POINTS) + puntosOtorgados;
 
@@ -810,8 +1081,12 @@ class StreamFirebaseService {
         usuarioNorm: key,
         puntosOtorgados: puntosOtorgados,
         bonoExtraNivel: nivelInfo.bonoExtra,
+        experienciaGanada: 200,
+        experienciaTotal: nuevoTotalXp,
         nivelUsuario: nivelInfo.nivel,
         rangoTitulo: nivelInfo.rangoTitulo,
+        tituloAutomatico: nivelInfo.tituloAutomatico,
+        tituloPersonalizado: nivelInfo.tituloPersonalizado,
         insigniaEmoji: nivelInfo.insigniaEmoji,
         nuevoSaldo: nuevoSaldo,
         botEmisor: botEmisor,
@@ -830,6 +1105,7 @@ class StreamFirebaseService {
           usuarioNorm: key,
           hora: new Date(ahora).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
           timestamp: ahora,
+          experiencia: nuevoTotalXp,
           nivel: nivelInfo.nivel,
           rangoTitulo: nivelInfo.rangoTitulo,
           insigniaEmoji: nivelInfo.insigniaEmoji,
@@ -857,8 +1133,12 @@ class StreamFirebaseService {
             jikopuntos: nuevoSaldo,
             totalGanado: nuevoSaldo,
             asistenciasCount: nuevoTotalAsistencias,
+            experiencia: nuevoTotalXp,
+            tiempoVistoMinutos: 0,
+            tituloPersonalizado: null,
             nivel: nivelInfo.nivel,
             rangoTitulo: nivelInfo.rangoTitulo,
+            tituloAutomatico: nivelInfo.tituloAutomatico,
             insigniaEmoji: nivelInfo.insigniaEmoji,
             bonoAsistencia: nivelInfo.puntosPorAsistencia,
             ultimaActividad: ahora
@@ -867,8 +1147,10 @@ class StreamFirebaseService {
           u.jikopuntos = (u.jikopuntos || 0) + puntosOtorgados;
           u.totalGanado = (u.totalGanado || 0) + puntosOtorgados;
           u.asistenciasCount = nuevoTotalAsistencias;
+          u.experiencia = nuevoTotalXp;
           u.nivel = nivelInfo.nivel;
           u.rangoTitulo = nivelInfo.rangoTitulo;
+          u.tituloAutomatico = nivelInfo.tituloAutomatico;
           u.insigniaEmoji = nivelInfo.insigniaEmoji;
           u.bonoAsistencia = nivelInfo.puntosPorAsistencia;
           u.ultimaActividad = ahora;
@@ -893,7 +1175,7 @@ class StreamFirebaseService {
         return res;
       });
 
-      console.log(`[StreamDB] 🐺 Asistencia @${usuario}: ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nivel ${nivelInfo.nivel}) +${puntosOtorgados} pts`);
+      console.log(`[StreamDB] 🐺 Asistencia @${usuario}: ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nivel ${nivelInfo.nivel} • ${nuevoTotalXp} XP) +${puntosOtorgados} pts`);
       return record;
     } catch (err) {
       console.warn(`[StreamDB] Error al registrar asistencia @${usuario}:`, err);
@@ -1634,7 +1916,11 @@ export const StreamDB = new StreamFirebaseService();
 
 if (typeof window !== 'undefined') {
   window.StreamDB = StreamDB;
+  window.RANGOS_BASE_TITULOS = RANGOS_BASE_TITULOS;
+  window.TABLA_50_NIVELES = TABLA_50_NIVELES;
   window.NIVELES_ASISTENCIA = NIVELES_ASISTENCIA;
+  window.formatearTiempoVisto = formatearTiempoVisto;
+  window.formatearHorasDecimal = formatearHorasDecimal;
   window.calcularNivelUsuario = calcularNivelUsuario;
 }
 
