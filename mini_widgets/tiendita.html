@@ -1144,19 +1144,21 @@
      ══════════════════════════════════════════════════════════ */
   #overlay-card-perfil {
     position: fixed;
-    right: -550px;
+    right: 35px;
     bottom: 35px;
     z-index: 90;
     pointer-events: none;
+    display: none;
     opacity: 0;
+    perspective: 1400px;
+    transform-style: preserve-3d;
     filter: drop-shadow(0 25px 60px rgba(0,0,0,.9)) drop-shadow(0 0 25px rgba(0,234,255,.25));
-    transition: right .55s cubic-bezier(.16, 1, .3, 1), bottom .35s ease, opacity .35s ease;
   }
   #overlay-card-perfil.visible {
-    right: 35px;
-    left: auto;
+    display: block;
     opacity: 1;
     pointer-events: auto;
+    animation: epicCardEntrance 0.85s cubic-bezier(.16, 1, .3, 1) forwards;
   }
   #overlay-card-perfil.visible.arriba {
     right: auto !important;
@@ -1164,17 +1166,16 @@
     bottom: 35px !important;
   }
   #overlay-card-perfil.saliendo {
-    right: -550px;
-    opacity: 0;
+    display: block;
+    pointer-events: none;
+    animation: epicCardExitVertical 0.75s cubic-bezier(.4, 0, .2, 1) forwards !important;
   }
   @media (max-width: 880px) {
     #overlay-card-perfil {
       transform: scale(0.85);
       transform-origin: bottom right;
       bottom: 15px;
-    }
-    #overlay-card-perfil.visible {
-      right: 10px;
+      right: 15px;
     }
   }
 
@@ -1183,6 +1184,69 @@
     width: 380px;
     height: 580px;
     font-family: 'Rajdhani', Arial, sans-serif;
+    transform-style: preserve-3d;
+    will-change: transform;
+  }
+
+  /* Movimiento leve de giro de un lado a otro (Oscilación Idle 3D Continua) */
+  #overlay-card-perfil.visible:not(.saliendo) .perfil-card-wrap {
+    animation: epicCardWobble 4.2s ease-in-out infinite alternate;
+  }
+
+  /* 1. Entrada Épica: Aparece girando la tarjeta en 3D conservando su tamaño */
+  @keyframes epicCardEntrance {
+    0% {
+      opacity: 0;
+      transform: perspective(1400px) rotateY(-180deg) rotateX(15deg) scale(0.35) translateZ(-260px);
+      filter: brightness(2.4) drop-shadow(0 0 35px var(--glow-1, #00eaff)) blur(4px);
+    }
+    55% {
+      opacity: 1;
+      filter: brightness(1.4) drop-shadow(0 0 45px var(--glow-2, #00eaff)) blur(0px);
+    }
+    75% {
+      transform: perspective(1400px) rotateY(16deg) rotateX(-5deg) scale(1.04) translateZ(20px);
+    }
+    90% {
+      transform: perspective(1400px) rotateY(-5deg) rotateX(2deg) scale(0.99) translateZ(0);
+    }
+    100% {
+      opacity: 1;
+      transform: perspective(1400px) rotateY(0deg) rotateX(0deg) scale(1) translateZ(0);
+      filter: brightness(1) blur(0px);
+    }
+  }
+
+  /* 2. Idle: Movimientos leves de giro de un lado a otro con suave levitación */
+  @keyframes epicCardWobble {
+    0% {
+      transform: perspective(1400px) rotateY(-5deg) rotateX(2.5deg) translateY(0px);
+    }
+    50% {
+      transform: perspective(1400px) rotateY(5deg) rotateX(-2deg) translateY(-8px);
+    }
+    100% {
+      transform: perspective(1400px) rotateY(-5deg) rotateX(2.5deg) translateY(0px);
+    }
+  }
+
+  /* 3. Salida Épica: Rotando sobre el eje vertical hacia el hiperespacio */
+  @keyframes epicCardExitVertical {
+    0% {
+      opacity: 1;
+      transform: perspective(1400px) rotateY(0deg) scale(1) translateZ(0);
+      filter: brightness(1);
+    }
+    20% {
+      opacity: 1;
+      transform: perspective(1400px) rotateY(-35deg) scale(1.05) translateZ(30px);
+      filter: brightness(1.5) drop-shadow(0 0 25px var(--glow-2, #00eaff));
+    }
+    100% {
+      opacity: 0;
+      transform: perspective(1400px) rotateY(720deg) scale(0.1) translateZ(-500px);
+      filter: brightness(2.6) blur(6px) drop-shadow(0 0 50px var(--glow-1, #00eaff));
+    }
   }
 
   /* Temas de Color Cyberpunk por Nivel y Rol */
@@ -2219,6 +2283,8 @@
   const $cardPerfil = document.getElementById('overlay-card-perfil');
   let cardPerfilTimer = null;
   const PERFIL_DURATION_SEC = 10;
+  const perfilCooldowns = new Map();
+  const COOLDOWN_PERFIL_MS = 60000; // 1 minuto (60 segundos) exacto por usuario
 
   function playSciFiPerfilSound() {
     if (isMuted) return;
@@ -2561,6 +2627,7 @@
     const xpFillEl = document.getElementById('ti-card-xp-fill');
     if (xpFillEl) xpFillEl.style.width = d.xpPct + '%';
 
+    $cardPerfil.style.display = 'block';
     $cardPerfil.classList.remove('saliendo');
     $cardPerfil.classList.add('visible');
 
@@ -2584,7 +2651,8 @@
     $cardPerfil.classList.add('saliendo');
     setTimeout(() => {
       $cardPerfil.classList.remove('visible', 'saliendo');
-    }, 450);
+      $cardPerfil.style.display = 'none';
+    }, 750); // Sincronizado con rotación vertical de 750ms
   }
 
   window.mostrarCardPerfilTiendita = mostrarCardPerfilTiendita;
@@ -2698,6 +2766,7 @@
       asistenciaStream.push({
         user: cleanUser,
         puntosGanados: ptsGanados,
+        xpGanada: 200,
         nivel: nivelInfo.nivel,
         insignia: nivelInfo.insigniaEmoji,
         rango: nivelInfo.rangoTitulo,
@@ -2712,8 +2781,8 @@
         animarPuntos(saldoActual);
       }
 
-      console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts [Nivel ${nivelInfo.nivel} ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo}]. Saldo: ${nuevoSaldo} pts.`);
-      toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${nivelInfo.insigniaEmoji} <b>${nivelInfo.rangoTitulo}</b> • Nvl ${nivelInfo.nivel}] Recibiste <b>+${ptsGanados} pts</b> 🎁 (Total: <b>${nuevoSaldo} pts</b>)`);
+      console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts y +200 XP [Nivel ${nivelInfo.nivel} ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo}]. Saldo: ${nuevoSaldo} pts.`);
+      toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${nivelInfo.insigniaEmoji} <b>${nivelInfo.rangoTitulo}</b> • Nvl ${nivelInfo.nivel}] Recibiste <b>+${ptsGanados} pts</b> y <b>+200 XP</b> 🌟 (Total: <b>${nuevoSaldo} pts</b>)`);
       playSfx('buy');
 
       // Precargar su avatar para mostrarlo en !pasarlista
@@ -2727,6 +2796,7 @@
           args: {
             usuario: cleanUser,
             puntosSumados: ptsGanados,
+            xpSumada: 200,
             nivel: nivelInfo.nivel,
             rango: nivelInfo.rangoTitulo,
             nuevoSaldo: nuevoSaldo,
@@ -2736,11 +2806,15 @@
         }));
       }
 
-      // Persistir asistencia en Firebase RTDB (asocia al stream activo de Kick automáticamente)
+      // Persistir asistencia en Firebase RTDB (asocia al stream activo de Kick automáticamente y otorga +200 XP)
       if (window.StreamDB) {
         window.StreamDB.registrarAsistencia({
           usuario: cleanUser,
           botEmisor: 'Lobito_Mensajero'
+        }).then(() => {
+          if (typeof StreamDB.registrarInteraccionStream === 'function') {
+            StreamDB.registrarInteraccionStream({ usuario: cleanUser, tipo: 'bienvenida_lobito' }).catch(()=>{});
+          }
         }).catch(err => console.warn('[Tiendita] Error registrando asistencia en Firebase:', err));
       }
     } else {
@@ -3632,8 +3706,22 @@
       return;
     }
 
-    // 0.0 Comando de Perfil Flotante: !perfil / !perfill (o !perfil @usuario / !perfill @usuario)
+    // 0.0 Comando de Perfil Flotante: !perfil / !perfill (o !perfil @usuario / !perfill @usuario) con Cooldown de 1 minuto
     if(t === '!perfil' || t === '!perfill' || t.startsWith('!perfil ') || t.startsWith('!perfill ')){
+      const normSender = norm(user);
+      const ahora = Date.now();
+
+      // Cooldown de 1 minuto (60 segundos) por usuario (Jikokun tiene bypass de dueño)
+      if (perfilCooldowns.has(normSender) && ahora < perfilCooldowns.get(normSender) && normSender !== 'jikokun') {
+        const segsRestantes = Math.ceil((perfilCooldowns.get(normSender) - ahora) / 1000);
+        console.warn(`[Tiendita] ⏳ Cooldown activo para @${user} (${segsRestantes}s restantes para !perfil)`);
+        toast(`⏳ <b>@${user}</b>, debes esperar <b>${segsRestantes}s</b> para volver a mostrar tu tarjeta de <b>!perfil</b>.`, 'warn');
+        playSfx('error');
+        return;
+      }
+
+      perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
+
       const partes = raw.trim().split(/\s+/);
       let targetUser = user;
       if(partes.length > 1 && partes[1].replace(/^@/, '').trim()){
@@ -4013,6 +4101,11 @@
           }
         } else {
           obtenerAvatarDeKick(user);
+        }
+
+        // Registrar interacción activa en el directo (XP proporcional por tiempo de stream)
+        if(window.StreamDB && typeof StreamDB.registrarInteraccionStream === 'function'){
+          StreamDB.registrarInteraccionStream({ usuario: user, tipo: 'chat' }).catch(()=>{});
         }
 
         // Comprobar si el contenido es un comando o ítem de la tiendita (con soporte de cantidades / bloques)

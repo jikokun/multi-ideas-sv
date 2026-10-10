@@ -227,6 +227,10 @@ class StreamFirebaseService {
     this.kickPusherWs = null;
     this.kickPollTimer = null;
     this.kickStateListeners = new Set();
+
+    // Tracking de Duración del Directo e Interacciones con XP Progresiva
+    this.interaccionesUsuarios = new Map();
+    this._streamLocalInicioTimestamp = Date.now();
   }
 
   // Inicialización y autenticación anónima para permisos de escritura limpios
@@ -1120,8 +1124,135 @@ class StreamFirebaseService {
     });
   }
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // 3. TIEMPO, DURACIÓN DEL DIRECTO & MULTIPLICADOR JUSTO DE EXPERIENCIA (XP)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Obtener estado y duración activa del stream actual (en minutos y horas)
+  getStreamDuracionActual() {
+    const ahora = Date.now();
+    let isLive = this.kickIsLive;
+    let inicioTimestamp = null;
+    let titulo = 'Transmisión en Vivo';
+
+    // 1. Kick livestream data oficial
+    if (this.kickLivestreamData) {
+      isLive = true;
+      if (this.kickLivestreamData.created_at) {
+        inicioTimestamp = new Date(this.kickLivestreamData.created_at).getTime();
+      }
+      titulo = this.kickLivestreamData.session_title || titulo;
+    }
+
+    // 2. Sesión activa local como fallback si Kick monitor está offline o en pruebas de OBS
+    if (!inicioTimestamp) {
+      if (!this._streamLocalInicioTimestamp) {
+        this._streamLocalInicioTimestamp = ahora;
+      }
+      inicioTimestamp = this._streamLocalInicioTimestamp;
+    }
+
+    const duracionMs = Math.max(0, ahora - inicioTimestamp);
+    const duracionMinutos = Math.max(1, Math.floor(duracionMs / 60000));
+
+    return {
+      isLive: isLive || true,
+      inicioTimestamp: inicioTimestamp,
+      duracionMinutos: duracionMinutos,
+      duracionHoras: (duracionMinutos / 60).toFixed(1),
+      titulo: titulo
+    };
+  }
+
+  // Multiplicador justo de XP según la duración del directo:
+  // A mayor tiempo transcurrido en el directo, más se multiplica la XP por fidelidad:
+  // - 0 a 29 min:  1.00x (Inicio del stream)
+  // - 30 a 59 min: 1.25x (Comunidad activa)
+  // - 60 a 89 min: 1.50x (1 hora de stream cumplida)
+  // - 90 a 119 min: 1.75x (Transmisión sólida)
+  // - 120+ min:    2.00x (Maratón / Gran directo de Jikokun)
+  calcularMultiplicadorDuracionStream(duracionMinutos = 1) {
+    const bloques = Math.floor(Math.max(0, duracionMinutos) / 30);
+    const factor = 1.0 + Math.min(1.0, bloques * 0.25);
+    return Number(factor.toFixed(2));
+  }
+
+  // Registrar interacción de un usuario en el directo y acumular XP por tiempo activo de forma justa
+  async registrarInteraccionStream({ usuario, tipo = 'chat', mensaje = '' }) {
+    const key = norm(usuario);
+    if (!key) return null;
+
+    const BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'];
+    if (BOTS_IGNORADOS.includes(key)) return null;
+
+    const ahora = Date.now();
+    if (!this.interaccionesUsuarios) {
+      this.interaccionesUsuarios = new Map();
+    }
+
+    let userTrack = this.interaccionesUsuarios.get(key);
+    if (!userTrack) {
+      userTrack = {
+        usuario: key,
+        primeraInteraccion: ahora,
+        ultimaInteraccion: ahora,
+        ultimaXpAsignada: ahora,
+        minutosInteractuados: 0,
+        xpGanadaEnDirecto: 0
+      };
+      this.interaccionesUsuarios.set(key, userTrack);
+      return {
+        usuario: key,
+        primeraVez: true,
+        xpGanada: 0,
+        minutosDelta: 0,
+        factor: 1.0
+      };
+    }
+
+    userTrack.ultimaInteraccion = ahora;
+    const deltaMs = ahora - userTrack.ultimaXpAsignada;
+
+    // Acumulación justa poco a poco: cada 60 segundos (1 minuto) de permanencia activa
+    if (deltaMs >= 60000) {
+      const minutosDelta = Math.min(5, Math.max(1, Math.floor(deltaMs / 60000)));
+      const streamInfo = this.getStreamDuracionActual();
+      const factor = this.calcularMultiplicadorDuracionStream(streamInfo.duracionMinutos);
+
+      // 10 XP base por minuto activo * factor multiplicador de la duración del directo
+      const xpBase = 10 * minutosDelta;
+      const xpGanada = Math.round(xpBase * factor);
+
+      // Persistir XP y tiempo visto en Firebase
+      await this.addExperiencia(key, xpGanada, 'interaccion_tiempo_stream');
+      await this.addTiempoVisto(key, minutosDelta);
+
+      userTrack.ultimaXpAsignada = ahora;
+      userTrack.minutosInteractuados += minutosDelta;
+      userTrack.xpGanadaEnDirecto += xpGanada;
+
+      console.log(`[StreamXP] ⚡ @${key} ganó +${xpGanada} XP (+${minutosDelta}m activo | Directo: ${streamInfo.duracionMinutos}m | Factor: x${factor})`);
+
+      return {
+        usuario: key,
+        xpGanada: xpGanada,
+        minutosDelta: minutosDelta,
+        minutosInteractuados: userTrack.minutosInteractuados,
+        totalXpDirecto: userTrack.xpGanadaEnDirecto,
+        factor: factor,
+        duracionStreamMinutos: streamInfo.duracionMinutos
+      };
+    }
+
+    return {
+      usuario: key,
+      xpGanada: 0,
+      cooldownMinuto: true
+    };
+  }
+
   // ==========================================================================
-  // 3. ASISTENCIA CON BONO POR NIVEL & CONTRASTE POR TRANSMISIÓN
+  // 4. ASISTENCIA CON BONO POR NIVEL & CONTRASTE POR TRANSMISIÓN
   // ==========================================================================
 
   // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
@@ -1129,6 +1260,24 @@ class StreamFirebaseService {
     const key = norm(usuario);
     const ahora = Date.now();
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
+
+    if (!this._streamLocalInicioTimestamp) {
+      this._streamLocalInicioTimestamp = ahora;
+    }
+    if (!this.interaccionesUsuarios) {
+      this.interaccionesUsuarios = new Map();
+    }
+    if (!this.interaccionesUsuarios.has(key)) {
+      this.interaccionesUsuarios.set(key, {
+        usuario: key,
+        primeraInteraccion: ahora,
+        ultimaInteraccion: ahora,
+        ultimaXpAsignada: ahora,
+        minutosInteractuados: 0,
+        xpGanadaEnDirecto: 200,
+        asistio: true
+      });
+    }
 
     try {
       // 1. Obtener perfil del usuario y calcular nivel
