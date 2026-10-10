@@ -729,6 +729,448 @@
       text-align: center;
     }
 
+    /* ═══════════ BARRA DE HERRAMIENTAS Y GESTIÓN DE USUARIOS ═══════════ */
+    .users-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+    .toolbar-search-wrap {
+      position: relative;
+      flex: 1;
+      min-width: 240px;
+    }
+    .toolbar-search-wrap .search-icon {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .toolbar-search-input {
+      width: 100%;
+      padding: 10px 14px 10px 38px;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(83, 252, 24, 0.25);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: var(--f-tech);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .toolbar-search-input:focus {
+      border-color: var(--kick);
+      box-shadow: 0 0 15px var(--kick-glow);
+    }
+    .toolbar-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .toolbar-select {
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: var(--f-tech);
+      font-size: 0.85rem;
+      outline: none;
+      cursor: pointer;
+    }
+    .toolbar-select:focus {
+      border-color: var(--kick);
+    }
+    .btn-add-user {
+      background: linear-gradient(135deg, #53fc18 0%, #22c55e 100%) !important;
+      color: #041207 !important;
+      font-weight: 800 !important;
+      border: none !important;
+      box-shadow: 0 4px 15px rgba(83, 252, 24, 0.35) !important;
+      padding: 10px 18px !important;
+      border-radius: 10px !important;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn-add-user:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(83, 252, 24, 0.6) !important;
+    }
+
+    .btn-action-icon {
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      cursor: pointer;
+      font-family: var(--f-tech);
+      font-weight: 700;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-action-view {
+      background: rgba(83, 252, 24, 0.14);
+      border-color: rgba(83, 252, 24, 0.4);
+      color: var(--kick);
+    }
+    .btn-action-view:hover {
+      background: rgba(83, 252, 24, 0.28);
+      box-shadow: 0 0 10px var(--kick-glow);
+    }
+    .btn-action-edit {
+      background: rgba(255, 211, 92, 0.14);
+      border-color: rgba(255, 211, 92, 0.4);
+      color: var(--oro);
+    }
+    .btn-action-edit:hover {
+      background: rgba(255, 211, 92, 0.28);
+      box-shadow: 0 0 10px var(--oro-glow);
+    }
+    .btn-action-del {
+      background: rgba(255, 92, 108, 0.14);
+      border-color: rgba(255, 92, 108, 0.4);
+      color: var(--rojo);
+    }
+    .btn-action-del:hover {
+      background: rgba(255, 92, 108, 0.28);
+      box-shadow: 0 0 10px rgba(255, 92, 108, 0.4);
+    }
+    .user-clickable-cell {
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: opacity 0.2s;
+    }
+    .user-clickable-cell:hover {
+      opacity: 0.85;
+    }
+    .user-clickable-cell:hover .user-clickable-name {
+      color: var(--kick) !important;
+      text-decoration: underline;
+    }
+
+    /* ═══════════ SISTEMA DE VENTANAS EMERGENTES (MODALS) ═══════════ */
+    .app-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(3, 7, 5, 0.82);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.25s ease, visibility 0.25s ease;
+    }
+    .app-modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+    .app-modal-card {
+      position: relative;
+      background: linear-gradient(180deg, #0d1712 0%, #060c09 100%);
+      border: 1.5px solid rgba(83, 252, 24, 0.35);
+      border-radius: 20px;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(83, 252, 24, 0.15);
+      width: 100%;
+      max-width: 640px;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px 28px;
+      color: var(--text-main);
+      font-family: var(--f-body);
+      transform: translateY(20px) scale(0.97);
+      transition: transform 0.25s cubic-bezier(0.18, 0.9, 0.24, 1.15);
+    }
+    .app-modal-overlay.active .app-modal-card {
+      transform: translateY(0) scale(1);
+    }
+    .app-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(83, 252, 24, 0.2);
+      padding-bottom: 16px;
+      margin-bottom: 20px;
+    }
+    .app-modal-title {
+      font-family: var(--f-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .app-modal-close-btn {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 1rem;
+      transition: all 0.2s ease;
+    }
+    .app-modal-close-btn:hover {
+      background: rgba(255, 92, 108, 0.2);
+      border-color: var(--rojo);
+      color: var(--rojo);
+    }
+
+    .modal-profile-hero {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 20px;
+      border-radius: 14px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(83, 252, 24, 0.25);
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .modal-hero-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .modal-hero-avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--kick-soft), var(--kick));
+      color: #041207;
+      font-family: var(--f-display);
+      font-weight: 800;
+      font-size: 1.6rem;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 0 20px rgba(83, 252, 24, 0.35);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .modal-hero-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .modal-hero-names h2 {
+      font-family: var(--f-display);
+      font-size: 1.25rem;
+      color: #ffffff;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-hero-badges {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .modal-hero-balance {
+      text-align: right;
+    }
+    .modal-hero-balance-lbl {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+      text-transform: uppercase;
+    }
+    .modal-hero-balance-val {
+      font-family: var(--f-display);
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: var(--oro);
+      text-shadow: 0 0 14px rgba(255, 211, 92, 0.5);
+    }
+
+    .modal-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 600px) {
+      .modal-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    .modal-stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .modal-stat-val {
+      font-family: var(--f-tech);
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--kick);
+    }
+    .modal-stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 3px;
+    }
+
+    .modal-info-list {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 20px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    @media (max-width: 500px) {
+      .modal-info-list { grid-template-columns: 1fr; }
+    }
+    .modal-info-item {
+      font-size: 0.82rem;
+      font-family: var(--f-tech);
+      color: var(--text-muted);
+    }
+    .modal-info-item b {
+      color: #ffffff;
+    }
+
+    .modal-admin-section {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(83, 252, 24, 0.2);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .modal-admin-title {
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--kick);
+      text-transform: uppercase;
+      font-family: var(--f-tech);
+      margin-bottom: 10px;
+    }
+    .modal-pts-action-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .modal-pts-input {
+      width: 110px;
+      padding: 8px 12px;
+      background: rgba(0, 0, 0, 0.6);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      border-radius: 8px;
+      color: var(--oro);
+      font-family: var(--f-tech);
+      font-size: 1rem;
+      font-weight: 700;
+      text-align: center;
+      outline: none;
+    }
+    .modal-footer-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+      padding-top: 14px;
+    }
+
+    .modal-form-group {
+      margin-bottom: 16px;
+    }
+    .modal-form-lbl {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .modal-form-input, .modal-form-select {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(83, 252, 24, 0.25);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: var(--f-tech);
+      font-size: 0.92rem;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+    .modal-form-input:focus, .modal-form-select:focus {
+      border-color: var(--kick);
+      box-shadow: 0 0 15px var(--kick-glow);
+    }
+    .modal-form-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 500px) {
+      .modal-form-grid-2 { grid-template-columns: 1fr; }
+    }
+    .modal-btn-submit {
+      background: linear-gradient(135deg, var(--kick), #34c710);
+      color: #041207;
+      font-weight: 800;
+      font-family: var(--f-tech);
+      font-size: 0.95rem;
+      padding: 11px 24px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(83, 252, 24, 0.4);
+      transition: transform 0.2s, filter 0.2s;
+    }
+    .modal-btn-submit:hover {
+      filter: brightness(1.15);
+      transform: translateY(-1px);
+    }
+    .modal-btn-cancel {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: var(--text-main);
+      font-family: var(--f-tech);
+      font-size: 0.9rem;
+      padding: 11px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .modal-btn-cancel:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
     /* Modal / Toast emergente */
     .toast-popup {
       position: fixed;
@@ -1239,6 +1681,9 @@
         <button class="action-btn" onclick="sincronizarDatosLocalesConFirebase()" id="btn-sync-local" style="background: linear-gradient(135deg, #00f2fe 0%, #00adb5 100%); color: #02090f; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s, box-shadow 0.2s;" title="Sincronizar todos los usuarios y Jikopuntos guardados localmente con Firebase">
           <span>🔄</span> Sincronizar Jikopuntos Locales
         </button>
+        <button class="action-btn" onclick="abrirModalCrearUsuario()" id="btn-header-add-user" style="background: linear-gradient(135deg, #53fc18 0%, #22c55e 100%); color: #041207; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(83, 252, 24, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Registrar nuevo usuario manualmente en Firebase">
+          <span>➕</span> Añadir Usuario
+        </button>
         <a href="tiendita.html" target="_blank" class="action-btn btn-secondary" title="Abrir Tiendita en pestaña independiente">
           🏪 Ver Tiendita
         </a>
@@ -1506,6 +1951,26 @@
         </div>
       </div>
 
+      <!-- Barra de herramientas y gestión de usuarios -->
+      <div class="users-toolbar">
+        <div class="toolbar-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="filter-user-input" class="toolbar-search-input" placeholder="Filtrar espectadores por nombre o usuario..." oninput="filtrarTablaUsuarios()">
+        </div>
+        <div class="toolbar-filters">
+          <select id="filter-role-select" class="toolbar-select" onchange="filtrarTablaUsuarios()">
+            <option value="todos" selected>Todos los roles</option>
+            <option value="espectador">Espectadores</option>
+            <option value="vip">VIPs</option>
+            <option value="moderador">Moderadores</option>
+            <option value="broadcaster">Broadcaster</option>
+          </select>
+          <button class="action-btn btn-add-user" onclick="abrirModalCrearUsuario()" id="btn-open-add-user" title="Registrar nuevo usuario en Firebase">
+            <span>➕</span> Añadir Usuario
+          </button>
+        </div>
+      </div>
+
       <!-- Tabla de posiciones por nivel -->
       <div class="levels-table-wrap">
         <table class="levels-table">
@@ -1513,16 +1978,17 @@
             <tr>
               <th style="width: 50px;">Pos</th>
               <th>Espectador</th>
-              <th>Rango &amp; Nivel</th>
+              <th>Rol &amp; Nivel</th>
+              <th>Jikopuntos</th>
               <th>Asistencias</th>
-              <th>Bono por Stream</th>
+              <th>Bono Stream</th>
               <th>Progreso al Sig. Rango</th>
               <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="levels-table-body">
             <tr>
-              <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 30px;">
+              <td colspan="8" style="text-align:center; color: var(--text-muted); padding: 30px;">
                 ⏳ Cargando escalafón de la manada desde stream/usuarios...
               </td>
             </tr>
@@ -1674,6 +2140,197 @@
 
     </div>
 
+  </div>
+
+  <!-- ═══════════ 1. MODAL: FICHA & ESTADÍSTICAS PERSONALES ═══════════ -->
+  <div class="app-modal-overlay" id="modal-user-profile" onclick="if(event.target===this) cerrarModalFicha()">
+    <div class="app-modal-card">
+      <div class="app-modal-header">
+        <div class="app-modal-title">
+          <span>🐺</span> FICHA DE ESPECTADOR
+        </div>
+        <button type="button" class="app-modal-close-btn" onclick="cerrarModalFicha()">✕</button>
+      </div>
+
+      <div class="modal-profile-hero">
+        <div class="modal-hero-left">
+          <div class="modal-hero-avatar" id="m-upc-avatar">?</div>
+          <div class="modal-hero-names">
+            <h2 id="m-upc-name">@usuario</h2>
+            <div class="modal-hero-badges">
+              <span class="upc-badge-role" id="m-upc-role">Espectador</span>
+              <span class="level-badge-pill" id="m-upc-level">🐾 Nvl 1</span>
+            </div>
+          </div>
+        </div>
+        <div class="modal-hero-balance">
+          <div class="modal-hero-balance-lbl">Saldo Jikopuntos</div>
+          <div class="modal-hero-balance-val" id="m-upc-balance">0 pts</div>
+        </div>
+      </div>
+
+      <!-- Métricas del usuario -->
+      <div class="modal-stats-grid">
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-spent" style="color:var(--oro);">0 pts</div>
+          <div class="modal-stat-lbl">Puntos Gastados</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-earned" style="color:var(--cyan);">0 pts</div>
+          <div class="modal-stat-lbl">Puntos Ganados</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-orders">0</div>
+          <div class="modal-stat-lbl">Pedidos Hechos</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-dishes">0</div>
+          <div class="modal-stat-lbl">Platos Consumidos</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-attend" style="color:var(--kick);">0</div>
+          <div class="modal-stat-lbl">Asistencias Stream</div>
+        </div>
+        <div class="modal-stat-box">
+          <div class="modal-stat-val" id="m-upc-bonus" style="color:var(--oro);">+500 pts</div>
+          <div class="modal-stat-lbl">Bono por Stream</div>
+        </div>
+      </div>
+
+      <!-- Detalles adicionales -->
+      <div class="modal-info-list">
+        <div class="modal-info-item">Platillo Favorito: <b id="m-upc-fav">--</b></div>
+        <div class="modal-info-item">Progreso Rango: <b id="m-upc-progress">0%</b></div>
+        <div class="modal-info-item">Primer Registro: <b id="m-upc-first">--</b></div>
+        <div class="modal-info-item">Última Actividad: <b id="m-upc-last">--</b></div>
+      </div>
+
+      <!-- Administración de Puntos -->
+      <div class="modal-admin-section">
+        <div class="modal-admin-title">⚡ Administrar Jikopuntos</div>
+        <div class="modal-pts-action-row">
+          <input type="number" id="m-pts-delta-input" class="modal-pts-input" value="500" step="50" min="10">
+          <button class="action-btn btn-primary" onclick="ajustarPuntosModal(true)" style="padding: 8px 14px;">➕ Sumar</button>
+          <button class="action-btn btn-secondary" onclick="ajustarPuntosModal(false)" style="padding: 8px 14px; color:var(--rojo); border-color:rgba(255,92,108,0.4);">➖ Restar</button>
+          <button class="action-btn btn-primary" onclick="marcarAsistenciaModal()" style="padding: 8px 14px; background:linear-gradient(135deg, #a855f7, #6366f1); color:#fff;">🐺 Pasar Lista (+Bono)</button>
+        </div>
+      </div>
+
+      <!-- Acciones de Gestión -->
+      <div class="modal-footer-actions">
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="action-btn btn-secondary" onclick="migrarLocalStorageModal()" title="Sincronizar puntos con cache local">🔄 Sincronizar Local</button>
+          <button class="action-btn btn-secondary" onclick="abrirModalEditarDesdeFicha()" style="color:var(--oro); border-color:rgba(255,211,92,0.4);">✏️ Editar Datos</button>
+        </div>
+        <div>
+          <button class="action-btn btn-secondary" id="btn-eliminar-usuario-modal" onclick="eliminarUsuarioModal()" style="color:var(--rojo); border-color:rgba(255,92,108,0.5);">🗑️ Eliminar Usuario</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ 2. MODAL: AÑADIR NUEVO USUARIO ═══════════ -->
+  <div class="app-modal-overlay" id="modal-add-user" onclick="if(event.target===this) cerrarModalCrearUsuario()">
+    <div class="app-modal-card" style="max-width: 500px;">
+      <div class="app-modal-header">
+        <div class="app-modal-title">
+          <span>➕</span> REGISTRAR NUEVO ESPECTADOR
+        </div>
+        <button type="button" class="app-modal-close-btn" onclick="cerrarModalCrearUsuario()">✕</button>
+      </div>
+
+      <form id="form-add-user" onsubmit="event.preventDefault(); guardarNuevoUsuario();">
+        <div class="modal-form-group">
+          <label class="modal-form-lbl">Usuario / Nick de Kick *</label>
+          <input type="text" id="add-u-username" class="modal-form-input" placeholder="ej: elpana_juan" required pattern="[A-Za-z0-9_]{2,30}">
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-form-lbl">Nombre para Mostrar (DisplayName)</label>
+          <input type="text" id="add-u-display" class="modal-form-input" placeholder="ej: El Pana Juan (opcional)">
+        </div>
+
+        <div class="modal-form-grid-2">
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Rol</label>
+            <select id="add-u-rol" class="modal-form-select">
+              <option value="espectador" selected>Espectador</option>
+              <option value="vip">VIP</option>
+              <option value="moderador">Moderador</option>
+              <option value="suscriptor">Suscriptor</option>
+            </select>
+          </div>
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Jikopuntos Iniciales</label>
+            <input type="number" id="add-u-pts" class="modal-form-input" value="1000" min="0" step="50">
+          </div>
+        </div>
+
+        <div class="modal-form-group">
+          <label class="modal-form-lbl">Asistencias Previas (Streams)</label>
+          <input type="number" id="add-u-attend" class="modal-form-input" value="0" min="0" step="1">
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+          <button type="button" class="modal-btn-cancel" onclick="cerrarModalCrearUsuario()">Cancelar</button>
+          <button type="submit" class="modal-btn-submit">Guardar en Firebase</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══════════ 3. MODAL: EDITAR USUARIO ═══════════ -->
+  <div class="app-modal-overlay" id="modal-edit-user" onclick="if(event.target===this) cerrarModalEditarUsuario()">
+    <div class="app-modal-card" style="max-width: 520px;">
+      <div class="app-modal-header">
+        <div class="app-modal-title">
+          <span>✏️</span> EDITAR ESPECTADOR: <span id="edit-modal-target-nick" style="color:var(--kick);">@user</span>
+        </div>
+        <button type="button" class="app-modal-close-btn" onclick="cerrarModalEditarUsuario()">✕</button>
+      </div>
+
+      <form id="form-edit-user" onsubmit="event.preventDefault(); guardarEdicionUsuario();">
+        <input type="hidden" id="edit-u-username">
+
+        <div class="modal-form-group">
+          <label class="modal-form-lbl">Nombre para Mostrar (DisplayName)</label>
+          <input type="text" id="edit-u-display" class="modal-form-input" required>
+        </div>
+
+        <div class="modal-form-grid-2">
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Rol</label>
+            <select id="edit-u-rol" class="modal-form-select">
+              <option value="espectador">Espectador</option>
+              <option value="vip">VIP</option>
+              <option value="moderador">Moderador</option>
+              <option value="suscriptor">Suscriptor</option>
+              <option value="broadcaster">Broadcaster</option>
+            </select>
+          </div>
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Jikopuntos (Saldo Directo)</label>
+            <input type="number" id="edit-u-pts" class="modal-form-input" min="0" step="10">
+          </div>
+        </div>
+
+        <div class="modal-form-grid-2">
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Asistencias a Streams</label>
+            <input type="number" id="edit-u-attend" class="modal-form-input" min="0" step="1">
+          </div>
+          <div class="modal-form-group">
+            <label class="modal-form-lbl">Avatar URL (Opcional)</label>
+            <input type="text" id="edit-u-avatar" class="modal-form-input" placeholder="https://...">
+          </div>
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:20px;">
+          <button type="button" class="modal-btn-cancel" onclick="cerrarModalEditarUsuario()">Cancelar</button>
+          <button type="submit" class="modal-btn-submit">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <div class="toast-popup" id="toast-popup"></div>
@@ -1929,14 +2586,47 @@
       const tbody = document.getElementById('levels-table-body');
       if (!tbody) return;
 
-      const espectadores = users.filter(u => u.username !== 'jikokun')
-        .sort((a, b) => (b.asistenciasCount || 0) - (a.asistenciasCount || 0));
+      const qInput = document.getElementById('filter-user-input');
+      const q = (qInput ? qInput.value : '').toLowerCase().trim();
+      const rSelect = document.getElementById('filter-role-select');
+      const rFilter = rSelect ? rSelect.value : 'todos';
 
-      if (espectadores.length === 0) {
+      let list = users.slice();
+
+      // Aplicar filtro de rol
+      if (rFilter !== 'todos') {
+        list = list.filter(u => {
+          const uRol = (u.rol || 'espectador').toLowerCase();
+          return uRol === rFilter.toLowerCase();
+        });
+      }
+
+      // Aplicar filtro de búsqueda
+      if (q) {
+        list = list.filter(u => {
+          const uName = (u.username || '').toLowerCase();
+          const dName = (u.displayName || '').toLowerCase();
+          return uName.includes(q) || dName.includes(q);
+        });
+      }
+
+      // Ordenar: primero broadcaster (si está), luego por asistencias desc, luego por jikopuntos desc
+      list.sort((a, b) => {
+        if (a.rol === 'broadcaster') return -1;
+        if (b.rol === 'broadcaster') return 1;
+        const asisDiff = (b.asistenciasCount || 0) - (a.asistenciasCount || 0);
+        if (asisDiff !== 0) return asisDiff;
+        return (b.jikopuntos || 0) - (a.jikopuntos || 0);
+      });
+
+      if (list.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 30px;">
-              No hay miembros registrados aún. Haz clic en <b>🌱 Sembrar Datos</b> para cargar la muestra.
+            <td colspan="8" style="text-align:center; color: var(--text-muted); padding: 35px 20px;">
+              No se encontraron usuarios ${q ? `con el término "<b>${q}</b>"` : 'registrados aún'}.<br>
+              <button class="action-btn btn-primary" onclick="abrirModalCrearUsuario()" style="margin-top:12px; font-size:0.85rem;">
+                ➕ Añadir Usuario Manualmente
+              </button>
             </td>
           </tr>
         `;
@@ -1945,31 +2635,40 @@
 
       const medallas = ['🥇', '🥈', '🥉'];
 
-      tbody.innerHTML = espectadores.map((u, idx) => {
-        const posText = medallas[idx] || `#${idx + 1}`;
+      tbody.innerHTML = list.map((u, idx) => {
+        const isJiko = u.username === 'jikokun';
+        const posText = isJiko ? '👑' : (medallas[idx] || `#${idx + 1}`);
         const count = u.asistenciasCount || 0;
         const bono = u.bonoAsistencia || 500;
         const pct = u.porcentajeProgreso || 0;
         const faltantes = u.faltantesParaSiguienteNivel || 0;
+        const pts = (u.jikopuntos || 0).toLocaleString();
+
+        const badgeClass = isJiko ? 'color:var(--oro);' : (idx < 3 ? 'color:var(--oro);' : 'color:var(--text-dim);');
 
         return `
           <tr>
-            <td style="font-family:var(--f-display); font-weight:800; font-size:1.1rem; color:${idx < 3 ? 'var(--oro)' : 'var(--text-dim)'};">${posText}</td>
+            <td style="font-family:var(--f-display); font-weight:800; font-size:1.1rem; ${badgeClass}">${posText}</td>
             <td>
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="contrast-avatar" style="width:36px; height:36px; font-size:1.2rem;">${u.insigniaEmoji}</div>
+              <div class="user-clickable-cell" onclick="abrirModalFicha('${u.username}')" title="Ver ficha y estadísticas de @${u.displayName || u.username}">
+                <div class="contrast-avatar" style="width:36px; height:36px; font-size:1.2rem; ${isJiko ? 'background:linear-gradient(135deg,var(--oro),#f59e0b); color:#041207;' : ''}">${u.insigniaEmoji || '🐾'}</div>
                 <div>
-                  <div style="font-weight:800; color:#fff; font-size:0.95rem;">@${u.displayName || u.username}</div>
-                  <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech);">${u.rol || 'Espectador'}</div>
+                  <div class="user-clickable-name" style="font-weight:800; color:#fff; font-size:0.95rem;">@${u.displayName || u.username}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech);">${(u.rol || 'Espectador').toUpperCase()}</div>
                 </div>
               </div>
             </td>
             <td>
               <div class="level-badge-pill">
-                <span>${u.insigniaEmoji}</span>
-                <span>${u.rangoTitulo}</span>
-                <span style="color:var(--text-dim); font-size:0.75rem;">(Nvl ${u.nivel})</span>
+                <span>${u.insigniaEmoji || '🐾'}</span>
+                <span>${u.rangoTitulo || 'Cachorro'}</span>
+                <span style="color:var(--text-dim); font-size:0.75rem;">(Nvl ${u.nivel || 1})</span>
               </div>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:800; font-size:1.05rem; color:var(--oro); display:inline-flex; align-items:center; gap:4px;">
+                🪙 ${pts} <small style="font-size:0.72rem; color:var(--text-muted);">pts</small>
+              </span>
             </td>
             <td>
               <span style="font-family:var(--f-tech); font-weight:800; font-size:1.1rem; color:var(--kick);">${count}</span>
@@ -1982,17 +2681,25 @@
               <div class="level-progress-wrap">
                 <div class="level-progress-txt">
                   <span>${pct}%</span>
-                  <span>${faltantes > 0 ? `Faltan ${faltantes}` : 'Máximo'}</span>
+                  <span>${faltantes > 0 ? `Faltan ${faltantes}` : (isJiko ? 'Creador' : 'Máximo')}</span>
                 </div>
                 <div class="progress-bar-bg">
                   <div class="progress-bar-fill" style="width: ${pct}%"></div>
                 </div>
               </div>
             </td>
-            <td style="text-align: right;">
-              <button class="action-btn btn-secondary" onclick="cargarUsuarioEnBuscador('${u.username}')" style="padding: 5px 12px; font-size:0.78rem;">
-                🔍 Ficha
+            <td style="text-align: right; white-space:nowrap;">
+              <button class="btn-action-icon btn-action-view" onclick="abrirModalFicha('${u.username}')" title="Ver ficha y estadísticas">
+                👁️ Ficha
               </button>
+              <button class="btn-action-icon btn-action-edit" onclick="abrirModalEditar('${u.username}')" title="Editar usuario">
+                ✏️
+              </button>
+              ${!isJiko ? `
+                <button class="btn-action-icon btn-action-del" onclick="eliminarUsuarioUI('${u.username}')" title="Eliminar usuario">
+                  🗑️
+                </button>
+              ` : ''}
             </td>
           </tr>
         `;
@@ -2164,7 +2871,7 @@
       }).join('');
     }
 
-    // Buscar usuario en vivo
+    // Buscar usuario en vivo y abrir modal
     window.buscarUsuario = async function() {
       const input = document.getElementById('search-username');
       const val = (input ? input.value : '').trim();
@@ -2176,36 +2883,277 @@
         return;
       }
 
-      renderizarFichaUsuario(user);
+      window.abrirModalFicha(user.username);
     };
 
     window.cargarUsuarioEnBuscador = function(username) {
-      const input = document.getElementById('search-username');
-      if (input) input.value = username;
-      window.buscarUsuario();
+      window.abrirModalFicha(username);
     };
 
     let usuarioEncontradoActual = null;
 
+    // Ficha inline de respaldo
     function renderizarFichaUsuario(u) {
       usuarioEncontradoActual = u;
-      document.getElementById('user-profile-box').classList.add('active');
-      document.getElementById('search-empty-hint').style.display = 'none';
+      const box = document.getElementById('user-profile-box');
+      if (box) box.classList.add('active');
+      const hint = document.getElementById('search-empty-hint');
+      if (hint) hint.style.display = 'none';
 
-      const inicial = (u.displayName[0] || '?').toUpperCase();
-      document.getElementById('upc-avatar').textContent = u.insigniaEmoji || inicial;
-      document.getElementById('upc-name').textContent = '@' + u.displayName;
-      document.getElementById('upc-role').textContent = u.rol || 'Espectador';
-      document.getElementById('upc-balance').textContent = (u.jikopuntos || 0) + ' pts';
+      const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
+      const av = document.getElementById('upc-avatar');
+      if (av) av.textContent = u.insigniaEmoji || inicial;
+      const nm = document.getElementById('upc-name');
+      if (nm) nm.textContent = '@' + (u.displayName || u.username);
+      const rl = document.getElementById('upc-role');
+      if (rl) rl.textContent = (u.rol || 'espectador').toUpperCase();
+      const bal = document.getElementById('upc-balance');
+      if (bal) bal.textContent = (u.jikopuntos || 0).toLocaleString() + ' pts';
 
       const nivelInfo = calcularNivelUsuario(u.asistenciasCount || 0);
-      document.getElementById('upc-level-badge').innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`;
+      const lvl = document.getElementById('upc-level-badge');
+      if (lvl) lvl.innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`;
 
-      document.getElementById('upc-spent').textContent = (u.totalGastado || 0) + ' pts';
-      document.getElementById('upc-orders').textContent = u.totalCompras || 0;
-      document.getElementById('upc-attend').textContent = u.asistenciasCount || 0;
-      document.getElementById('upc-bonus').textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
+      const sp = document.getElementById('upc-spent');
+      if (sp) sp.textContent = (u.totalGastado || 0).toLocaleString() + ' pts';
+      const ord = document.getElementById('upc-orders');
+      if (ord) ord.textContent = u.totalCompras || 0;
+      const att = document.getElementById('upc-attend');
+      if (att) att.textContent = u.asistenciasCount || 0;
+      const bon = document.getElementById('upc-bonus');
+      if (bon) bon.textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
     }
+
+    // ═══════════ FUNCIONES DEL MODAL DE FICHA DE USUARIO ═══════════
+    window.abrirModalFicha = async function(username) {
+      if (!username) return;
+      const u = await StreamDB.getUser(username);
+      if (!u) {
+        showToast(`❌ Usuario <b>@${username}</b> no encontrado`);
+        return;
+      }
+      usuarioEncontradoActual = u;
+
+      const modal = document.getElementById('modal-user-profile');
+      if (!modal) return;
+
+      const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
+      const avatarEl = document.getElementById('m-upc-avatar');
+      if (u.avatar && u.avatar.startsWith('http')) {
+        avatarEl.innerHTML = `<img src="${u.avatar}" alt="${u.displayName}">`;
+      } else {
+        avatarEl.textContent = u.insigniaEmoji || inicial;
+      }
+
+      document.getElementById('m-upc-name').textContent = '@' + (u.displayName || u.username);
+      document.getElementById('m-upc-role').textContent = (u.rol || 'espectador').toUpperCase();
+      document.getElementById('m-upc-balance').textContent = (u.jikopuntos || 0).toLocaleString() + ' pts';
+
+      const nivelInfo = calcularNivelUsuario(u.asistenciasCount || 0);
+      document.getElementById('m-upc-level').innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`;
+
+      document.getElementById('m-upc-spent').textContent = (u.totalGastado || 0).toLocaleString() + ' pts';
+      document.getElementById('m-upc-earned').textContent = (u.totalGanado || (u.jikopuntos || 0)).toLocaleString() + ' pts';
+      document.getElementById('m-upc-orders').textContent = u.totalCompras || u.widgets?.tiendita?.pedidosCount || 0;
+      document.getElementById('m-upc-dishes').textContent = u.widgets?.tiendita?.platillosTotales || 0;
+      document.getElementById('m-upc-attend').textContent = u.asistenciasCount || 0;
+      document.getElementById('m-upc-bonus').textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
+
+      const favDish = u.widgets?.tiendita?.platoFavorito;
+      document.getElementById('m-upc-fav').textContent = favDish ? `${EMOJIS[favDish] || '🍽️'} ${favDish.toUpperCase()}` : 'Ninguno aún';
+      document.getElementById('m-upc-progress').textContent = `${nivelInfo.porcentajeProgreso || 0}% (${nivelInfo.faltantesParaSiguienteNivel > 0 ? `Faltan ${nivelInfo.faltantesParaSiguienteNivel} streams` : 'Nivel Máximo'})`;
+
+      const primerReg = u.primerRegistro ? new Date(u.primerRegistro).toLocaleDateString('es-SV', { dateStyle: 'medium' }) : '--';
+      const ultAct = u.ultimaActividad ? new Date(u.ultimaActividad).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' }) : '--';
+      document.getElementById('m-upc-first').textContent = primerReg;
+      document.getElementById('m-upc-last').textContent = ultAct;
+
+      const btnDel = document.getElementById('btn-eliminar-usuario-modal');
+      if (btnDel) {
+        btnDel.style.display = (u.username === 'jikokun') ? 'none' : 'inline-flex';
+      }
+
+      modal.classList.add('active');
+      renderizarFichaUsuario(u);
+    };
+
+    window.cerrarModalFicha = function() {
+      const modal = document.getElementById('modal-user-profile');
+      if (modal) modal.classList.remove('active');
+    };
+
+    window.ajustarPuntosModal = async function(esSuma) {
+      if (!usuarioEncontradoActual) return;
+      const deltaInput = document.getElementById('m-pts-delta-input');
+      const cant = parseInt(deltaInput.value, 10) || 500;
+      const factor = esSuma ? cant : -cant;
+
+      const nuevoSaldo = await StreamDB.addJikopuntos(usuarioEncontradoActual.username, factor, 'Ajuste manual desde modal');
+      usuarioEncontradoActual.jikopuntos = nuevoSaldo;
+      document.getElementById('m-upc-balance').textContent = nuevoSaldo.toLocaleString() + ' pts';
+      const upcBal = document.getElementById('upc-balance');
+      if (upcBal) upcBal.textContent = nuevoSaldo.toLocaleString() + ' pts';
+      showToast(`⚡ Saldo de <b>@${usuarioEncontradoActual.displayName || usuarioEncontradoActual.username}</b> actualizado a <b>${nuevoSaldo.toLocaleString()} pts</b>`);
+    };
+
+    window.marcarAsistenciaModal = async function() {
+      if (!usuarioEncontradoActual) return;
+      await window.pasarListaManual(usuarioEncontradoActual.username);
+      const u = await StreamDB.getUser(usuarioEncontradoActual.username);
+      if (u) window.abrirModalFicha(u.username);
+    };
+
+    window.migrarLocalStorageModal = async function() {
+      if (!usuarioEncontradoActual) return;
+      const key = norm(usuarioEncontradoActual.username);
+      const val = localStorage.getItem('tiendita_pts_' + key);
+      if (val !== null) {
+        const pts = parseInt(val, 10);
+        await StreamDB.setJikopuntos(key, pts, 'Sincronizado desde localStorage modal');
+        usuarioEncontradoActual.jikopuntos = pts;
+        document.getElementById('m-upc-balance').textContent = pts.toLocaleString() + ' pts';
+        const upcBal = document.getElementById('upc-balance');
+        if (upcBal) upcBal.textContent = pts.toLocaleString() + ' pts';
+        showToast(`🔄 Puntos locales (<b>${pts.toLocaleString()} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName || key}`);
+      } else {
+        showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName || key}`);
+      }
+    };
+
+    // ═══════════ MODAL CREAR USUARIO ═══════════
+    window.abrirModalCrearUsuario = function() {
+      document.getElementById('form-add-user').reset();
+      document.getElementById('add-u-pts').value = 1000;
+      document.getElementById('add-u-attend').value = 0;
+      const modal = document.getElementById('modal-add-user');
+      if (modal) modal.classList.add('active');
+    };
+
+    window.cerrarModalCrearUsuario = function() {
+      const modal = document.getElementById('modal-add-user');
+      if (modal) modal.classList.remove('active');
+    };
+
+    window.guardarNuevoUsuario = async function() {
+      const username = (document.getElementById('add-u-username').value || '').trim();
+      const displayName = (document.getElementById('add-u-display').value || '').trim();
+      const rol = document.getElementById('add-u-rol').value;
+      const jikopuntos = parseInt(document.getElementById('add-u-pts').value, 10) || 1000;
+      const asistenciasCount = parseInt(document.getElementById('add-u-attend').value, 10) || 0;
+
+      if (!username) {
+        showToast('⚠️ Ingresa un nombre de usuario válido.');
+        return;
+      }
+
+      try {
+        const created = await StreamDB.crearUsuario({
+          username,
+          displayName: displayName || username,
+          rol,
+          jikopuntos,
+          asistenciasCount
+        });
+        showToast(`🎉 ¡Usuario <b>@${created.displayName}</b> creado y guardado en Firebase!`);
+        cerrarModalCrearUsuario();
+        window.abrirModalFicha(created.username);
+      } catch (err) {
+        showToast(`❌ Error al crear usuario: ${err.message}`);
+      }
+    };
+
+    // ═══════════ MODAL EDITAR USUARIO ═══════════
+    window.abrirModalEditar = async function(username) {
+      if (!username) return;
+      const u = await StreamDB.getUser(username);
+      if (!u) {
+        showToast(`❌ Usuario @${username} no encontrado.`);
+        return;
+      }
+      usuarioEncontradoActual = u;
+
+      document.getElementById('edit-u-username').value = u.username;
+      document.getElementById('edit-modal-target-nick').textContent = '@' + (u.displayName || u.username);
+      document.getElementById('edit-u-display').value = u.displayName || u.username;
+      
+      const rolSelect = document.getElementById('edit-u-rol');
+      rolSelect.value = u.rol || 'espectador';
+      rolSelect.disabled = (u.username === 'jikokun');
+
+      document.getElementById('edit-u-pts').value = u.jikopuntos || 0;
+      document.getElementById('edit-u-attend').value = u.asistenciasCount || 0;
+      document.getElementById('edit-u-avatar').value = u.avatar || '';
+
+      const modal = document.getElementById('modal-edit-user');
+      if (modal) modal.classList.add('active');
+    };
+
+    window.abrirModalEditarDesdeFicha = function() {
+      if (usuarioEncontradoActual) {
+        window.abrirModalEditar(usuarioEncontradoActual.username);
+      }
+    };
+
+    window.cerrarModalEditarUsuario = function() {
+      const modal = document.getElementById('modal-edit-user');
+      if (modal) modal.classList.remove('active');
+    };
+
+    window.guardarEdicionUsuario = async function() {
+      const username = document.getElementById('edit-u-username').value;
+      const displayName = document.getElementById('edit-u-display').value;
+      const rol = document.getElementById('edit-u-rol').value;
+      const jikopuntos = parseInt(document.getElementById('edit-u-pts').value, 10);
+      const asistenciasCount = parseInt(document.getElementById('edit-u-attend').value, 10);
+      const avatar = document.getElementById('edit-u-avatar').value;
+
+      try {
+        const updated = await StreamDB.actualizarUsuario(username, {
+          displayName,
+          rol,
+          jikopuntos,
+          asistenciasCount,
+          avatar
+        });
+        showToast(`✅ Datos de <b>@${updated.displayName}</b> actualizados correctamente.`);
+        cerrarModalEditarUsuario();
+        window.abrirModalFicha(username);
+      } catch (err) {
+        showToast(`❌ Error al actualizar: ${err.message}`);
+      }
+    };
+
+    // ═══════════ ELIMINAR USUARIO ═══════════
+    window.eliminarUsuarioUI = async function(username) {
+      if (!username) return;
+      if (username === 'jikokun') {
+        showToast('⚠️ No se puede eliminar al broadcaster oficial @jikokun.');
+        return;
+      }
+
+      if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente a @${username} de Firebase RTDB?\n\nEsta acción borrará sus puntos, nivel y registro.`)) {
+        return;
+      }
+
+      try {
+        await StreamDB.eliminarUsuario(username);
+        showToast(`🗑️ Usuario <b>@${username}</b> eliminado de Firebase.`);
+        cerrarModalFicha();
+      } catch (err) {
+        showToast(`❌ Error al eliminar usuario: ${err.message}`);
+      }
+    };
+
+    window.eliminarUsuarioModal = function() {
+      if (usuarioEncontradoActual) {
+        window.eliminarUsuarioUI(usuarioEncontradoActual.username);
+      }
+    };
+
+    // Filtrar tabla de usuarios en vivo
+    window.filtrarTablaUsuarios = function() {
+      renderizarEscalafonNiveles(usuariosCacheGlobal);
+    };
 
     window.ajustarPuntosEncontrado = async function(esSuma) {
       if (!usuarioEncontradoActual) return;
@@ -2215,8 +3163,8 @@
 
       const nuevoSaldo = await StreamDB.addJikopuntos(usuarioEncontradoActual.username, factor, 'Ajuste manual desde panel');
       usuarioEncontradoActual.jikopuntos = nuevoSaldo;
-      document.getElementById('upc-balance').textContent = nuevoSaldo + ' pts';
-      showToast(`⚡ Saldo de <b>@${usuarioEncontradoActual.displayName}</b> actualizado a <b>${nuevoSaldo} pts</b>`);
+      document.getElementById('upc-balance').textContent = nuevoSaldo.toLocaleString() + ' pts';
+      showToast(`⚡ Saldo de <b>@${usuarioEncontradoActual.displayName}</b> actualizado a <b>${nuevoSaldo.toLocaleString()} pts</b>`);
     };
 
     window.migrarLocalStorageAUsuario = async function() {
@@ -2227,8 +3175,8 @@
         const pts = parseInt(val, 10);
         await StreamDB.setJikopuntos(key, pts, 'Sincronizado desde localStorage');
         usuarioEncontradoActual.jikopuntos = pts;
-        document.getElementById('upc-balance').textContent = pts + ' pts';
-        showToast(`🔄 Puntos locales (<b>${pts} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName}`);
+        document.getElementById('upc-balance').textContent = pts.toLocaleString() + ' pts';
+        showToast(`🔄 Puntos locales (<b>${pts.toLocaleString()} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName}`);
       } else {
         showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName}`);
       }

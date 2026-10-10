@@ -259,6 +259,136 @@ class StreamFirebaseService {
     }
   }
 
+  // Crear usuario manualmente
+  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, avatar = '' }) {
+    await this.init();
+    const key = norm(username);
+    if (!key) throw new Error('Nombre de usuario no válido');
+
+    const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
+    const snap = await get(userRef);
+    if (snap.exists()) {
+      throw new Error(`El usuario @${key} ya existe en la base de datos.`);
+    }
+
+    const pts = Math.max(0, parseInt(jikopuntos, 10) || USER_DEFAULT_POINTS);
+    const asistencias = Math.max(0, parseInt(asistenciasCount, 10) || 0);
+    const nivelInfo = calcularNivelUsuario(asistencias);
+    const ahora = Date.now();
+
+    const newUser = {
+      username: key,
+      displayName: displayName && String(displayName).trim() ? String(displayName).trim() : key,
+      avatar: avatar || '',
+      rol: key === 'jikokun' ? 'broadcaster' : rol,
+      jikopuntos: pts,
+      totalGanado: pts,
+      totalGastado: 0,
+      totalCompras: 0,
+      asistenciasCount: asistencias,
+      nivel: nivelInfo.nivel,
+      rangoTitulo: nivelInfo.rangoTitulo,
+      insigniaEmoji: nivelInfo.insigniaEmoji,
+      bonoAsistencia: nivelInfo.puntosPorAsistencia,
+      primerRegistro: ahora,
+      ultimaActividad: ahora,
+      vinculacion: {
+        authUid: null,
+        email: null,
+        vinculado: false,
+        vinculadoEn: null
+      },
+      widgets: {
+        tiendita: {
+          platoFavorito: null,
+          pedidosCount: 0,
+          platillosTotales: 0,
+          ultimoPedido: null
+        }
+      },
+      stats: {
+        platosConsumidos: {},
+        nivelLealtad: nivelInfo.rangoTitulo
+      }
+    };
+
+    await set(userRef, newUser);
+    this.usersCache.set(key, newUser);
+    this._updateLocalCache(key, pts);
+    await this._incrementarEstadistica('totalUsuariosRegistrados', 1);
+
+    return newUser;
+  }
+
+  // Actualizar datos de usuario (nombre, rol, puntos, asistencias, avatar)
+  async actualizarUsuario(username, updates = {}) {
+    await this.init();
+    const key = norm(username);
+    if (!key) throw new Error('Nombre de usuario no válido');
+
+    const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
+    const snap = await get(userRef);
+    if (!snap.exists()) {
+      throw new Error(`El usuario @${key} no existe en Firebase.`);
+    }
+
+    const current = snap.val();
+    const cleanUpdates = {
+      ultimaActividad: Date.now()
+    };
+
+    if (updates.displayName !== undefined) {
+      cleanUpdates.displayName = String(updates.displayName).trim() || current.displayName || key;
+    }
+    if (updates.avatar !== undefined) {
+      cleanUpdates.avatar = String(updates.avatar).trim();
+    }
+    if (updates.rol !== undefined && key !== 'jikokun') {
+      cleanUpdates.rol = updates.rol;
+    }
+    if (updates.jikopuntos !== undefined) {
+      const pts = Math.max(0, parseInt(updates.jikopuntos, 10) || 0);
+      cleanUpdates.jikopuntos = pts;
+      this._updateLocalCache(key, pts);
+    }
+    if (updates.asistenciasCount !== undefined) {
+      const asist = Math.max(0, parseInt(updates.asistenciasCount, 10) || 0);
+      cleanUpdates.asistenciasCount = asist;
+      const nivelInfo = calcularNivelUsuario(asist);
+      cleanUpdates.nivel = nivelInfo.nivel;
+      cleanUpdates.rangoTitulo = nivelInfo.rangoTitulo;
+      cleanUpdates.insigniaEmoji = nivelInfo.insigniaEmoji;
+      cleanUpdates.bonoAsistencia = nivelInfo.puntosPorAsistencia;
+    }
+
+    await update(userRef, cleanUpdates);
+    const merged = { ...current, ...cleanUpdates };
+    this.usersCache.set(key, merged);
+
+    return merged;
+  }
+
+  // Eliminar usuario permanentemente
+  async eliminarUsuario(username) {
+    await this.init();
+    const key = norm(username);
+    if (!key) throw new Error('Nombre de usuario no válido');
+    if (key === 'jikokun') {
+      throw new Error('No se puede eliminar la cuenta del broadcaster oficial (@jikokun).');
+    }
+
+    const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
+    await set(userRef, null);
+
+    this.usersCache.delete(key);
+    try {
+      localStorage.removeItem('tiendita_pts_' + key);
+    } catch(e) {}
+
+    await this._incrementarEstadistica('totalUsuariosRegistrados', -1);
+    return true;
+  }
+
   getCachedPoints(username) {
     const key = norm(username);
     if (!key) return USER_DEFAULT_POINTS;
