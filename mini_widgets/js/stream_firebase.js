@@ -180,6 +180,7 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
     }
   }
 
+  const tituloFinal = esPersonalizado ? String(tituloPersonalizado).trim() : rango.titulo;
   const siguienteNivel = (nivel < 50) ? (nivel + 1) : 50;
   const siguienteInfo = (nivel < 50) ? (TABLA_50_NIVELES[siguienteNivel - 1] || null) : null;
   const siguienteRango = siguienteInfo ? siguienteInfo.rangoTitulo : '¡Rango Máximo!';
