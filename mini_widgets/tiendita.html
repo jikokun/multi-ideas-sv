@@ -1473,6 +1473,57 @@
   /* ═══════════ ABSORCIÓN Y CACHÉ DE AVATARS KICK ═══════════ */
   const avatarCache = {};
 
+  async function obtenerAvatarDeKick(cleanUser){
+    const userKey = norm(cleanUser);
+    if(!userKey) return null;
+    if(avatarCache[userKey]) return avatarCache[userKey];
+
+    // 0. Si ya tenemos avatar en Firebase RTDB
+    if(window.StreamDB && typeof StreamDB.getUser === 'function'){
+      try {
+        const fbUser = await StreamDB.getUser(userKey);
+        if(fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')){
+          avatarCache[userKey] = fbUser.avatar;
+          return fbUser.avatar;
+        }
+      } catch(_){}
+    }
+
+    // 1. API v1 de Usuarios de Kick (Directo a perfiles de espectadores y creadores)
+    try {
+      const res1 = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(cleanUser)}`);
+      if(res1.ok){
+        const d1 = await res1.json();
+        const pic1 = d1.profilepic || d1.profile_pic || d1.profile_image || d1.avatar;
+        if(pic1 && typeof pic1 === 'string' && pic1.startsWith('http')){
+          avatarCache[userKey] = pic1;
+          if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
+            StreamDB.actualizarUsuario(userKey, { avatar: pic1 }).catch(()=>{});
+          }
+          return pic1;
+        }
+      }
+    } catch(err1){}
+
+    // 2. API v2 de Canales de Kick (Fallback para canales de streamers)
+    try {
+      const res2 = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`);
+      if(res2.ok){
+        const d2 = await res2.json();
+        const pic2 = d2.user?.profilepic || d2.user?.profile_pic || d2.user?.profile_image || d2.user?.avatar;
+        if(pic2 && typeof pic2 === 'string' && pic2.startsWith('http')){
+          avatarCache[userKey] = pic2;
+          if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
+            StreamDB.actualizarUsuario(userKey, { avatar: pic2 }).catch(()=>{});
+          }
+          return pic2;
+        }
+      }
+    } catch(err2){}
+
+    return null;
+  }
+
   async function cargarAvatarUsuario(user, urlDirecto = null){
     const cleanUser = String(user || '').replace(/^@/, '').trim();
     if(!cleanUser) return;
@@ -1482,10 +1533,13 @@
     if(!imgEl || !txtEl) return;
 
     txtEl.textContent = (cleanUser[0] || '?').toUpperCase();
-
     const userKey = norm(cleanUser);
-    if(urlDirecto){
+
+    if(urlDirecto && typeof urlDirecto === 'string' && urlDirecto.startsWith('http')){
       avatarCache[userKey] = urlDirecto;
+      if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
+        StreamDB.actualizarUsuario(userKey, { avatar: urlDirecto }).catch(()=>{});
+      }
     }
 
     if(avatarCache[userKey]){
@@ -1495,28 +1549,19 @@
       return;
     }
 
-    // Fallback visible mientras busca la foto
+    // Fallback visible mientras absorbe la foto de Kick
     imgEl.style.display = 'none';
     txtEl.style.display = 'grid';
 
-    try {
-      const res = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`);
-      if(res.ok){
-        const data = await res.json();
-        const pic = data.user?.profile_pic || data.user?.profile_image || data.user?.avatar;
-        if(pic){
-          avatarCache[userKey] = pic;
-          if(norm(usuarioActual) === userKey){
-            imgEl.src = pic;
-            imgEl.onload = ()=>{
-              imgEl.style.display = 'block';
-              txtEl.style.display = 'none';
-            };
-          }
-        }
+    const pic = await obtenerAvatarDeKick(cleanUser);
+    if(pic){
+      if(norm(usuarioActual) === userKey){
+        imgEl.src = pic;
+        imgEl.onload = ()=>{
+          imgEl.style.display = 'block';
+          txtEl.style.display = 'none';
+        };
       }
-    } catch(err){
-      console.warn(`[Tiendita] No se pudo absorber avatar de @${cleanUser}:`, err);
     }
   }
 
@@ -1531,7 +1576,9 @@
     txtEl.textContent = (cleanUser[0] || '?').toUpperCase();
     const userKey = norm(cleanUser);
 
-    if(urlDirecto) avatarCache[userKey] = urlDirecto;
+    if(urlDirecto && typeof urlDirecto === 'string' && urlDirecto.startsWith('http')){
+      avatarCache[userKey] = urlDirecto;
+    }
 
     if(avatarCache[userKey]){
       imgEl.src = avatarCache[userKey];
@@ -1543,22 +1590,13 @@
     imgEl.style.display = 'none';
     txtEl.style.display = 'grid';
 
-    try {
-      const res = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`);
-      if(res.ok){
-        const data = await res.json();
-        const pic = data.user?.profile_pic || data.user?.profile_image || data.user?.avatar;
-        if(pic){
-          avatarCache[userKey] = pic;
-          imgEl.src = pic;
-          imgEl.onload = ()=>{
-            imgEl.style.display = 'block';
-            txtEl.style.display = 'none';
-          };
-        }
-      }
-    } catch(err){
-      console.warn(`[Tiendita] No se pudo absorber avatar para jikopuntos de @${cleanUser}:`, err);
+    const pic = await obtenerAvatarDeKick(cleanUser);
+    if(pic){
+      imgEl.src = pic;
+      imgEl.onload = ()=>{
+        imgEl.style.display = 'block';
+        txtEl.style.display = 'none';
+      };
     }
   }
 
@@ -2969,8 +3007,27 @@
           return;
         }
 
-        const avatarDirecto = userObj.profile_pic || userObj.profile_image || userObj.avatar || userObj.profilePictureUrl || null;
-        if(avatarDirecto) avatarCache[norm(user)] = avatarDirecto;
+        const avatarDirecto = userObj.profilepic || 
+                              userObj.profile_pic || 
+                              userObj.profile_image || 
+                              userObj.avatar || 
+                              userObj.profilePictureUrl || 
+                              userObj.identity?.profile_pic ||
+                              data.sender?.profilepic ||
+                              data.sender?.profile_pic ||
+                              data.user?.profilepic ||
+                              data.user?.profile_pic ||
+                              data.profilepic ||
+                              data.profile_pic ||
+                              null;
+        if(avatarDirecto && typeof avatarDirecto === 'string' && avatarDirecto.startsWith('http')){
+          avatarCache[norm(user)] = avatarDirecto;
+          if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
+            StreamDB.actualizarUsuario(user, { avatar: avatarDirecto }).catch(()=>{});
+          }
+        } else {
+          obtenerAvatarDeKick(user);
+        }
 
         // Comprobar si el contenido es un comando o ítem de la tiendita (con soporte de cantidades / bloques)
         const t = norm(contenido);

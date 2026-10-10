@@ -807,6 +807,26 @@
       transform: translateY(-2px);
       box-shadow: 0 6px 20px rgba(83, 252, 24, 0.6) !important;
     }
+    .btn-sync-kick {
+      background: rgba(83, 252, 24, 0.12);
+      border: 1px solid var(--kick);
+      color: var(--kick);
+      padding: 9px 16px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      font-family: var(--f-tech);
+      transition: transform 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+    .btn-sync-kick:hover {
+      transform: translateY(-2px);
+      background: rgba(83, 252, 24, 0.22);
+      box-shadow: 0 6px 20px rgba(83, 252, 24, 0.4) !important;
+    }
 
     .btn-action-icon {
       padding: 6px 10px;
@@ -2043,6 +2063,9 @@
           <button class="action-btn btn-add-user" onclick="abrirModalCrearUsuario()" id="btn-open-add-user" title="Registrar nuevo usuario en Firebase">
             <span>➕</span> Añadir Usuario
           </button>
+          <button class="action-btn btn-sync-kick" onclick="absorberAvataresKickUI()" id="btn-sync-avatars-kick" title="Absorber automáticamente fotos de perfil de Kick para toda la manada">
+            <span>📸</span> Absorber Fotos Kick
+          </button>
         </div>
       </div>
 
@@ -2750,10 +2773,17 @@
         `;
       } else {
         presListEl.innerHTML = res.presentes.map(p => {
+          const hasAv = p.avatar && p.avatar.startsWith('http');
           return `
             <div class="contrast-item">
               <div class="contrast-user-info">
-                <div class="contrast-avatar">${p.insigniaEmoji}</div>
+                <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid var(--kick); display:flex; align-items:center; justify-content:center; background:#07120a;">
+                  ${hasAv ? `
+                    <img src="${p.avatar}" alt="${p.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" onerror="this.parentElement.innerHTML='${p.insigniaEmoji || '🐾'}';">
+                  ` : `
+                    <span style="font-size:1.1rem;">${p.insigniaEmoji || '🐾'}</span>
+                  `}
+                </div>
                 <div>
                   <div class="contrast-name">@${p.username}</div>
                   <div class="contrast-meta">${p.rangoTitulo} (Nvl ${p.nivel}) • Llegó: ${p.hora}</div>
@@ -2775,10 +2805,17 @@
         `;
       } else {
         ausListEl.innerHTML = res.ausentes.map(a => {
+          const hasAv = a.avatar && a.avatar.startsWith('http');
           return `
             <div class="contrast-item">
               <div class="contrast-user-info">
-                <div class="contrast-avatar" style="opacity:0.7;">${a.insigniaEmoji}</div>
+                <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; opacity:0.85; background:#07120a;">
+                  ${hasAv ? `
+                    <img src="${a.avatar}" alt="${a.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" onerror="this.parentElement.innerHTML='${a.insigniaEmoji || '🐾'}';">
+                  ` : `
+                    <span style="font-size:1.1rem;">${a.insigniaEmoji || '🐾'}</span>
+                  `}
+                </div>
                 <div>
                   <div class="contrast-name" style="color:#d1d5db;">@${a.username}</div>
                   <div class="contrast-meta">${a.rangoTitulo} (Nvl ${a.nivel}) • ${a.asistenciasCount} asistencias previas</div>
@@ -2873,7 +2910,13 @@
             <td style="font-family:var(--f-display); font-weight:800; font-size:1.1rem; ${badgeClass}">${posText}</td>
             <td>
               <div class="user-clickable-cell" onclick="abrirModalFicha('${u.username}')" title="Ver ficha y estadísticas de @${u.displayName || u.username}">
-                <div class="contrast-avatar" style="width:36px; height:36px; font-size:1.2rem; ${isJiko ? 'background:linear-gradient(135deg,var(--oro),#f59e0b); color:#041207;' : ''}">${u.insigniaEmoji || '🐾'}</div>
+                <div class="contrast-avatar" style="width:38px; height:38px; padding:0; overflow:hidden; border-radius:50%; border:1.5px solid ${isJiko ? 'var(--oro)' : 'var(--kick)'}; display:flex; align-items:center; justify-content:center; background:#07120a; ${isJiko && (!u.avatar || !u.avatar.startsWith('http')) ? 'background:linear-gradient(135deg,var(--oro),#f59e0b); color:#041207;' : ''}">
+                  ${u.avatar && u.avatar.startsWith('http') ? `
+                    <img src="${u.avatar}" alt="${u.displayName || u.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" onerror="this.parentElement.innerHTML='<span style=\\'font-size:1.2rem;\\'>${u.insigniaEmoji || '🐾'}</span>';">
+                  ` : `
+                    <span style="font-size:1.2rem; line-height:1;">${u.insigniaEmoji || '🐾'}</span>
+                  `}
+                </div>
                 <div>
                   <div class="user-clickable-name" style="font-weight:800; color:#fff; font-size:0.95rem;">@${u.displayName || u.username}</div>
                   <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech);">${(u.rol || 'Espectador').toUpperCase()}</div>
@@ -2983,6 +3026,27 @@
       }
     };
 
+    // Absorber Avatares de Kick para toda la manada
+    window.absorberAvataresKickUI = async function() {
+      const btn = document.getElementById('btn-sync-avatars-kick');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Absorbiendo...';
+      }
+      showToast('🔍 Consultando avatares oficiales en la API de Kick...');
+      try {
+        const res = await StreamDB.absorberAvataresKickTodos();
+        showToast(`✅ Se procesaron ${res.procesados} usuarios. ${res.actualizados} fotos de perfil actualizadas.`);
+      } catch (e) {
+        showToast('⚠️ Error al absorber avatares: ' + e.message);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>📸</span> Absorber Fotos Kick';
+        }
+      }
+    };
+
     // Renderizar métricas KPI y Rankings de Tienda
     function renderizarEstadisticas(stats = {}) {
       const resumen = stats.resumen || {};
@@ -3035,13 +3099,17 @@
 
       // Ranking de Usuarios / Top Compradores
       const rankingUsers = stats.rankingUsuarios || {};
-      const usersArray = Object.entries(rankingUsers).map(([key, val]) => ({
-        key,
-        displayName: val.displayName || key,
-        totalGastado: val.totalGastado || 0,
-        comprasCount: val.comprasCount || 0,
-        saldoActual: val.saldoActual || 0
-      })).sort((a, b) => b.totalGastado - a.totalGastado);
+      const usersArray = Object.entries(rankingUsers).map(([key, val]) => {
+        const uObj = (window.StreamDB && window.StreamDB.usersCache) ? (window.StreamDB.usersCache.get(key) || window.StreamDB.usersCache.get(String(val.displayName || '').toLowerCase())) : null;
+        return {
+          key,
+          displayName: val.displayName || key,
+          totalGastado: val.totalGastado || 0,
+          comprasCount: val.comprasCount || 0,
+          saldoActual: val.saldoActual || 0,
+          avatar: val.avatar || uObj?.avatar || ''
+        };
+      }).sort((a, b) => b.totalGastado - a.totalGastado);
 
       document.getElementById('badge-users-count').textContent = `${usersArray.length} clientes`;
       const usersListEl = document.getElementById('users-ranking-list');
@@ -3055,10 +3123,13 @@
       } else {
         usersListEl.innerHTML = usersArray.map((u, idx) => {
           const inicial = (u.displayName[0] || '?').toUpperCase();
+          const hasAvatar = u.avatar && u.avatar.startsWith('http');
           return `
             <div class="user-rank-row" onclick="cargarUsuarioEnBuscador('${u.displayName}')">
               <div class="user-rank-left">
-                <div class="user-avatar-badge">${inicial}</div>
+                <div class="user-avatar-badge" style="${hasAvatar ? 'padding:0; overflow:hidden; border:1px solid var(--oro); display:flex; align-items:center; justify-content:center;' : ''}">
+                  ${hasAvatar ? `<img src="${u.avatar}" alt="${u.displayName}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" onerror="this.parentElement.textContent='${inicial}';">` : inicial}
+                </div>
                 <div class="user-info-text">
                   <span class="user-handle">@${u.displayName}</span>
                   <span class="user-meta-small">#${idx + 1} • ${u.comprasCount} ${u.comprasCount === 1 ? 'pedido' : 'pedidos'}</span>
@@ -3135,7 +3206,16 @@
 
       const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
       const av = document.getElementById('upc-avatar');
-      if (av) av.textContent = u.insigniaEmoji || inicial;
+      if (av) {
+        if (u.avatar && u.avatar.startsWith('http')) {
+          av.innerHTML = `<img src="${u.avatar}" alt="${u.displayName || u.username}" style="width:100%; height:100%; object-fit:cover; border-radius:14px; display:block;" onerror="this.parentElement.textContent='${u.insigniaEmoji || inicial}';">`;
+          av.style.padding = '0';
+          av.style.overflow = 'hidden';
+        } else {
+          av.textContent = u.insigniaEmoji || inicial;
+          av.style.padding = '';
+        }
+      }
       const nm = document.getElementById('upc-name');
       if (nm) nm.textContent = '@' + (u.displayName || u.username);
       const rl = document.getElementById('upc-role');

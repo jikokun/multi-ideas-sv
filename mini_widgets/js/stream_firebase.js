@@ -462,6 +462,10 @@ class StreamFirebaseService {
     this._updateLocalCache(key, pts);
     await this._incrementarEstadistica('totalUsuariosRegistrados', 1);
 
+    if (!avatar || !String(avatar).startsWith('http')) {
+      this.absorberAvatarKick(key).catch(() => {});
+    }
+
     return newUser;
   }
 
@@ -589,6 +593,65 @@ class StreamFirebaseService {
     if (!key) return null;
     const totalMin = Math.max(0, parseInt(totalMinutos, 10) || 0);
     return this.actualizarUsuario(key, { tiempoVistoMinutos: totalMin });
+  }
+
+  // Absorbe automáticamente la foto de perfil del usuario de Kick
+  async absorberAvatarKick(username) {
+    const key = norm(username);
+    if (!key) return null;
+
+    try {
+      // 1. API v1 de Usuarios de Kick (Directo para espectadores y streamers)
+      const res = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(username)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const pic = data.profilepic || data.profile_pic || data.profile_image || data.avatar;
+        if (pic && typeof pic === 'string' && pic.startsWith('http')) {
+          await this.actualizarUsuario(key, { avatar: pic });
+          return pic;
+        }
+      }
+    } catch (e) {}
+
+    try {
+      // 2. API v2 de Canales de Kick (Fallback para creadores de contenido)
+      const res2 = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(username)}`);
+      if (res2.ok) {
+        const data2 = await res2.json();
+        const pic2 = data2.user?.profilepic || data2.user?.profile_pic || data2.user?.profile_image || data2.user?.avatar;
+        if (pic2 && typeof pic2 === 'string' && pic2.startsWith('http')) {
+          await this.actualizarUsuario(key, { avatar: pic2 });
+          return pic2;
+        }
+      }
+    } catch (e2) {}
+
+    return null;
+  }
+
+  // Absorbe en lote los avatars de todos los usuarios de Kick registrados
+  async absorberAvataresKickTodos() {
+    await this.init();
+    const usersSnap = await get(ref(this.rtdb, NODE_USERS));
+    if (!usersSnap.exists()) return { procesados: 0, actualizados: 0 };
+
+    let procesados = 0;
+    let actualizados = 0;
+    const users = usersSnap.val();
+
+    for (const [key, u] of Object.entries(users)) {
+      if (!u || !u.username) continue;
+      procesados++;
+      if (!u.avatar || !String(u.avatar).startsWith('http')) {
+        try {
+          const pic = await this.absorberAvatarKick(u.username);
+          if (pic) actualizados++;
+          await new Promise(r => setTimeout(r, 120));
+        } catch (e) {}
+      }
+    }
+
+    return { procesados, actualizados };
   }
 
   // Eliminar usuario permanentemente
@@ -1185,6 +1248,9 @@ class StreamFirebaseService {
       });
 
       console.log(`[StreamDB] 🐺 Asistencia @${usuario}: ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nivel ${nivelInfo.nivel} • ${nuevoTotalXp} XP) +${puntosOtorgados} pts`);
+      if (!user?.avatar || !String(user.avatar).startsWith('http')) {
+        this.absorberAvatarKick(usuario).catch(() => {});
+      }
       return record;
     } catch (err) {
       console.warn(`[StreamDB] Error al registrar asistencia @${usuario}:`, err);
@@ -1225,6 +1291,7 @@ class StreamFirebaseService {
             presentes.push({
               username: u.displayName || u.username,
               userKey: uKey,
+              avatar: u.avatar || '',
               nivel: u.nivel || 1,
               rangoTitulo: u.rangoTitulo || 'Cachorro',
               insigniaEmoji: u.insigniaEmoji || '🐾',
@@ -1234,6 +1301,7 @@ class StreamFirebaseService {
             ausentes.push({
               username: u.displayName || u.username,
               userKey: uKey,
+              avatar: u.avatar || '',
               nivel: u.nivel || 1,
               rangoTitulo: u.rangoTitulo || 'Cachorro',
               insigniaEmoji: u.insigniaEmoji || '🐾',
