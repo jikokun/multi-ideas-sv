@@ -1,6 +1,16 @@
 // ==========================================================================
-// STREAM FIREBASE REALTIME SERVICE (ROOT EXPORT) - MULTI IDEAS SV
+// STREAM FIREBASE REALTIME SERVICE - MULTI IDEAS SV & STREAM WIDGETS
 // ==========================================================================
+// Estructura bajo el nodo raíz 'stream/':
+// - stream/usuarios:             Perfiles, Jikopuntos, Sistema de Niveles de Asistencia y Vinculación
+// - stream/transmisiones:        Historial y registro por transmisión de Kick (número de stream, fecha, asistentes)
+// - stream/transmisiones_stats:  Contador total de veces que prendió live, estado en vivo actual
+// - stream/widgets:              Configuración y estado en vivo de los widgets (tiendita, etc.)
+// - stream/overlays:             Configuración y estado de overlays (radioshow, etc.)
+// - stream/tienda:               Transacciones, asistencias, transferencias y estadísticas
+// - stream/vinculaciones:        Índice Auth UID -> username para vinculación de cuentas web
+// ==========================================================================
+
 import { rtdb, auth, signInAnonymously } from "./firebase-config.js";
 import { 
   ref, 
@@ -15,8 +25,15 @@ import {
   limitToLast
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-export const norm = s => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
+// Normalizador estándar de nombres de usuario (minúsculas, sin acentos ni @)
+export const norm = s => {
+  if (!s || s === 'undefined' || s === 'null') return '';
+  const clean = String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
+  if (clean === 'undefined' || clean === 'null') return '';
+  return clean;
+};
 
+// Constantes de Nodos
 export const USER_DEFAULT_POINTS = 1000;
 export const NODE_STREAM = 'stream';
 export const NODE_USERS = 'stream/usuarios';
@@ -31,11 +48,15 @@ export const NODE_TRANSFERS = 'stream/tienda/transferencias';
 export const NODE_STATS = 'stream/tienda/estadisticas';
 export const NODE_BINDINGS = 'stream/vinculaciones';
 
+// Constantes de Kick
 export const KICK_CHANNEL = 'jikokun';
 export const KICK_CHANNEL_ID = 1874362;
 export const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
 export const KICK_PUSHER_CLUSTER = 'us2';
 
+// ==========================================================================
+// 🐺 ESCALAFÓN Y SISTEMA DE NIVELES DE ASISTENCIA (RANGOS DE LA MANADA)
+// ==========================================================================
 export const NIVELES_ASISTENCIA = [
   { nivel: 1, min: 1,  max: 2,    titulo: 'Cachorro',              emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada' },
   { nivel: 2, min: 3,  max: 5,    titulo: 'Explorador del Stream', emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia' },
@@ -57,6 +78,7 @@ export function calcularNivelUsuario(asistenciasCount = 0) {
     }
   }
 
+  // Si aún no tiene asistencias, está en Nivel 1 preliminar
   const nivelNum = rangoActual.nivel;
   const esMaximo = nivelNum >= NIVELES_ASISTENCIA.length;
   const sigRango = esMaximo ? null : NIVELES_ASISTENCIA[nivelNum];
@@ -93,7 +115,9 @@ class StreamFirebaseService {
     this.isInitialized = false;
     this.isConnected = false;
     this.usersCache = new Map();
+    this.listeners = new Map();
 
+    // Estado del Detector Interno de Kick
     this.kickMonitorActive = false;
     this.kickIsLive = false;
     this.kickLivestreamData = null;
@@ -102,8 +126,10 @@ class StreamFirebaseService {
     this.kickStateListeners = new Set();
   }
 
+  // Inicialización y autenticación anónima para permisos de escritura limpios
   async init() {
     if (this.isInitialized) return true;
+
     try {
       if (!this.auth.currentUser) {
         try {
@@ -120,6 +146,18 @@ class StreamFirebaseService {
         console.log(`[StreamDB] 🌐 Conexión Firebase RTDB: ${this.isConnected ? 'ONLINE' : 'OFFLINE'}`);
       });
 
+      // Escuchar y cachear usuarios de forma reactiva para que cualquier consulta de saldo sea instantánea
+      this.onUsers((users) => {
+        if (Array.isArray(users)) {
+          users.forEach(u => {
+            if (u && u.username) {
+              this.usersCache.set(u.username, u);
+              this._updateLocalCache(u.username, u.jikopuntos);
+            }
+          });
+        }
+      });
+
       this.isInitialized = true;
       return true;
     } catch (err) {
@@ -127,6 +165,10 @@ class StreamFirebaseService {
       return false;
     }
   }
+
+  // ==========================================================================
+  // 1. GESTIÓN DE USUARIOS, JIKOPUNTOS Y NIVELES DE ASISTENCIA
+  // ==========================================================================
 
   async getUser(username) {
     const key = norm(username);
@@ -142,6 +184,7 @@ class StreamFirebaseService {
 
       if (snap.exists()) {
         const data = snap.val();
+        // Asegurar que el nivel esté calculado
         const nivelInfo = calcularNivelUsuario(data.asistenciasCount || 0);
         data.nivel = nivelInfo.nivel;
         data.rangoTitulo = nivelInfo.rangoTitulo;
@@ -154,6 +197,7 @@ class StreamFirebaseService {
         return data;
       }
 
+      // Crear usuario nuevo con saldo inicial y nivel 1
       const localPts = this._getLocalCache(key);
       const initialPts = localPts !== null ? localPts : USER_DEFAULT_POINTS;
       const nivelInfo = calcularNivelUsuario(0);
@@ -201,7 +245,7 @@ class StreamFirebaseService {
 
       return newUser;
     } catch (err) {
-      console.warn(`[StreamDB] Error al consultar usuario @${key}:`, err);
+      console.warn(`[StreamDB] Error al consultar usuario @${key}, usando fallback local:`, err);
       const fallbackPts = this._getLocalCache(key) || USER_DEFAULT_POINTS;
       return {
         username: key,
@@ -321,7 +365,13 @@ class StreamFirebaseService {
       const usersList = [];
       if (snap.exists()) {
         snap.forEach(child => {
+          const uKey = child.key;
+          if (!uKey || uKey === 'undefined' || uKey === 'null') {
+            try { set(ref(this.rtdb, `${NODE_USERS}/${uKey}`), null); } catch(e){}
+            return;
+          }
           const u = child.val();
+          if (!u || !u.username || u.username === 'undefined' || u.username === 'null') return;
           const nivelInfo = calcularNivelUsuario(u.asistenciasCount || 0);
           u.nivel = nivelInfo.nivel;
           u.rangoTitulo = nivelInfo.rangoTitulo;
@@ -339,14 +389,19 @@ class StreamFirebaseService {
   // 2. DETECTOR INTERNO DE KICK (SIN STREAMER.BOT) & HISTORIAL DE TRANSMISIONES
   // ==========================================================================
 
+  // Iniciar monitoreo interno continuo de Kick (Pusher WebSocket + HTTP Polling)
   startKickStreamMonitor(channel = KICK_CHANNEL, pollIntervalMs = 25000) {
     if (this.kickMonitorActive) return;
     this.kickMonitorActive = true;
     console.log(`[StreamDB] 📡 Iniciando detector interno de Kick para canal: @${channel} (ID: ${KICK_CHANNEL_ID})`);
 
+    // 1. Chequeo inicial inmediato vía API
     this.checkKickLiveStatusViaApi(channel);
+
+    // 2. Conexión nativa a Pusher WebSocket de Kick
     this._connectKickPusher(KICK_CHANNEL_ID);
 
+    // 3. Polling de respaldo periódico
     if (this.kickPollTimer) clearInterval(this.kickPollTimer);
     this.kickPollTimer = setInterval(() => {
       this.checkKickLiveStatusViaApi(channel);
@@ -362,6 +417,7 @@ class StreamFirebaseService {
     }
   }
 
+  // Consultar estado de Kick directamente mediante su API v2 pública
   async checkKickLiveStatusViaApi(channel = KICK_CHANNEL) {
     try {
       const res = await fetch(`https://kick.com/api/v2/channels/${channel}`);
@@ -372,19 +428,25 @@ class StreamFirebaseService {
         this.kickLivestreamData = data.livestream || null;
 
         if (!wasLive && isNowLive) {
+          // 🚀 Transición: El canal acaba de encender DIRECTO en Kick
           await this._handleStreamStarted(data);
         } else if (wasLive && !isNowLive) {
+          // 🛑 Transición: El canal acaba de apagar DIRECTO en Kick
           await this._handleStreamStopped();
         } else if (isNowLive) {
+          // Actualizar métricas del stream activo (pico de viewers, título)
           await this._updateLiveStreamMetrics(data.livestream);
         }
 
         this.kickIsLive = isNowLive;
         this._notifyKickStateListeners();
       }
-    } catch (err) {}
+    } catch (err) {
+      // Fallback silencioso por posibles bloqueos CORS o de red temporales
+    }
   }
 
+  // Conexión directa a Pusher WebSocket oficial de Kick (sin dependencias externas)
   _connectKickPusher(channelId = KICK_CHANNEL_ID) {
     try {
       const wsUrl = `wss://ws-${KICK_PUSHER_CLUSTER}.pusher.com/app/${KICK_PUSHER_KEY}?protocol=7&client=js&version=7.6.0&flash=false`;
@@ -392,7 +454,7 @@ class StreamFirebaseService {
       this.kickPusherWs = ws;
 
       ws.onopen = () => {
-        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a channel.' + channelId);
+        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a eventos en vivo de channel.' + channelId);
         ws.send(JSON.stringify({
           event: 'pusher:subscribe',
           data: { channel: `channel.${channelId}` }
@@ -403,11 +465,12 @@ class StreamFirebaseService {
         try {
           const msg = JSON.parse(event.data);
           const ev = msg.event;
+
           if (ev === 'App\\Events\\StreamerIsLive') {
-            console.log('[StreamDB] 🔴 [KICK PUSHER] StreamerIsLive detectado!');
+            console.log('[StreamDB] 🔴 [KICK PUSHER] ¡EVENTO DETECTADO: StreamerIsLive!');
             await this.checkKickLiveStatusViaApi(KICK_CHANNEL);
           } else if (ev === 'App\\Events\\StopStreamBroadcast') {
-            console.log('[StreamDB] ⚪ [KICK PUSHER] StopStreamBroadcast detectado!');
+            console.log('[StreamDB] ⚪ [KICK PUSHER] ¡EVENTO DETECTADO: StopStreamBroadcast!');
             await this._handleStreamStopped();
           }
         } catch (e) {}
@@ -418,18 +481,22 @@ class StreamFirebaseService {
           setTimeout(() => this._connectKickPusher(channelId), 8000);
         }
       };
+
+      ws.onerror = () => {};
     } catch (e) {}
   }
 
+  // Manejar inicio de transmisión detectado internamente
   async _handleStreamStarted(channelData) {
     const ahora = Date.now();
     const live = channelData.livestream || {};
     const streamId = live.id ? `stream_${live.id}` : `stream_${ahora}`;
     const fechaLegible = new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
-    console.log(`[StreamDB] 🚀 Directo iniciado en Kick: ${streamId}`);
+    console.log(`[StreamDB] 🚀 ¡DIRECTO INICIADO EN KICK! Registrando sesión en Firebase: ${streamId}`);
 
     try {
+      // 1. Obtener y actualizar número total correlativo de streams
       const statsRef = ref(this.rtdb, NODE_TRANS_STATS);
       let numeroStream = 1;
 
@@ -452,6 +519,7 @@ class StreamFirebaseService {
         return stats;
       });
 
+      // 2. Crear documento de la transmisión en stream/transmisiones/{streamId}
       const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
       await set(transRef, {
         id: streamId,
@@ -474,13 +542,18 @@ class StreamFirebaseService {
 
       return streamId;
     } catch (err) {
+      console.error('[StreamDB] Error al registrar inicio de stream en Firebase:', err);
       return streamId;
     }
   }
 
+  // Manejar fin de transmisión detectado internamente
   async _handleStreamStopped() {
     const ahora = Date.now();
+    console.log('[StreamDB] 🛑 Directo de Kick finalizado. Cerrando sesión en Firebase RTDB...');
+
     try {
+      // 1. Obtener ID del stream activo
       const statsSnap = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/streamActivoId`));
       const streamId = statsSnap.exists() ? statsSnap.val() : null;
 
@@ -502,6 +575,7 @@ class StreamFirebaseService {
         }
       }
 
+      // 2. Actualizar estadísticas globales
       await update(ref(this.rtdb, NODE_TRANS_STATS), {
         streamActivoId: null,
         isLive: false,
@@ -511,7 +585,9 @@ class StreamFirebaseService {
       this.kickIsLive = false;
       this.kickLivestreamData = null;
       this._notifyKickStateListeners();
-    } catch (err) {}
+    } catch (err) {
+      console.warn('[StreamDB] Error al cerrar sesión de transmisión:', err);
+    }
   }
 
   async _updateLiveStreamMetrics(live) {
@@ -527,6 +603,7 @@ class StreamFirebaseService {
         titulo: live.session_title || 'Transmisión en Vivo'
       });
 
+      // Actualizar pico de viewers en el stream
       const streamRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
       await runTransaction(streamRef, (s) => {
         if (s) {
@@ -541,6 +618,7 @@ class StreamFirebaseService {
   onKickLiveStateChange(callback) {
     if (typeof callback !== 'function') return () => {};
     this.kickStateListeners.add(callback);
+    // Disparar estado actual inmediatamente
     callback({
       isLive: this.kickIsLive,
       livestream: this.kickLivestreamData
@@ -563,20 +641,24 @@ class StreamFirebaseService {
   // 3. ASISTENCIA CON BONO POR NIVEL & CONTRASTE POR TRANSMISIÓN
   // ==========================================================================
 
+  // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
   async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero' }) {
     const key = norm(usuario);
     const ahora = Date.now();
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
     try {
+      // 1. Obtener perfil del usuario y calcular nivel
       const user = await this.getUser(usuario);
       const prevAsistencias = user ? (user.asistenciasCount || 0) : 0;
       const nuevoTotalAsistencias = prevAsistencias + 1;
 
+      // Calcular nuevo nivel del usuario tras esta asistencia
       const nivelInfo = calcularNivelUsuario(nuevoTotalAsistencias);
-      const puntosOtorgados = nivelInfo.puntosPorAsistencia;
+      const puntosOtorgados = nivelInfo.puntosPorAsistencia; // 500 base + bono de lealtad
       const nuevoSaldo = (user ? user.jikopuntos : USER_DEFAULT_POINTS) + puntosOtorgados;
 
+      // 2. Obtener stream activo si existe
       let streamActivoId = null;
       let numeroStream = null;
       try {
@@ -590,6 +672,7 @@ class StreamFirebaseService {
         }
       } catch (e) {}
 
+      // 3. Guardar registro en stream/tienda/asistencias
       const asisRef = push(ref(this.rtdb, NODE_ATTENDANCE));
       const record = {
         id: asisRef.key,
@@ -609,6 +692,7 @@ class StreamFirebaseService {
       };
       await set(asisRef, record);
 
+      // 4. Si hay un stream activo, vincular la asistencia en stream/transmisiones/{streamId}/asistentes/{user}
       if (streamActivoId) {
         const streamUserRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`);
         await set(streamUserRef, {
@@ -622,6 +706,7 @@ class StreamFirebaseService {
           puntosOtorgados: puntosOtorgados
         });
 
+        // Actualizar contadores del stream
         const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}`);
         await runTransaction(transRef, (s) => {
           if (s) {
@@ -632,6 +717,7 @@ class StreamFirebaseService {
         });
       }
 
+      // 5. Actualizar usuario con su nuevo nivel e historial de stream
       const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
       await runTransaction(userRef, (u) => {
         if (!u) {
@@ -667,6 +753,7 @@ class StreamFirebaseService {
 
       this._updateLocalCache(key, nuevoSaldo);
 
+      // 6. Actualizar métricas agregadas globales
       const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
       await runTransaction(resumenRef, (res) => {
         if (!res) res = {};
@@ -676,6 +763,7 @@ class StreamFirebaseService {
         return res;
       });
 
+      console.log(`[StreamDB] 🐺 Asistencia @${usuario}: ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nivel ${nivelInfo.nivel}) +${puntosOtorgados} pts`);
       return record;
     } catch (err) {
       console.warn(`[StreamDB] Error al registrar asistencia @${usuario}:`, err);
@@ -683,6 +771,7 @@ class StreamFirebaseService {
     }
   }
 
+  // Contrastar quiénes asistieron vs quiénes estuvieron ausentes en una transmisión
   async contrastarAsistenciasTransmision(streamId) {
     try {
       if (!streamId) {
@@ -709,7 +798,7 @@ class StreamFirebaseService {
         usersSnap.forEach(child => {
           const u = child.val();
           const uKey = child.key;
-          if (uKey === 'jikokun') return;
+          if (uKey === 'jikokun') return; // Excluir broadcaster
 
           if (asistentesKeys.has(uKey)) {
             presentes.push({
@@ -750,10 +839,12 @@ class StreamFirebaseService {
         tasaAsistencia
       };
     } catch (err) {
+      console.warn('[StreamDB] Error al contrastar asistencias:', err);
       return null;
     }
   }
 
+  // Obtener historial de transmisiones realizadas
   async getTransmisionesHistorial(limit = 20) {
     try {
       const q = query(ref(this.rtdb, NODE_TRANSMISSIONS), limitToLast(limit));
@@ -761,7 +852,7 @@ class StreamFirebaseService {
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
-          lista.unshift(child.val());
+          lista.unshift(child.val()); // Más recientes primero
         });
       }
       return lista;
@@ -782,6 +873,7 @@ class StreamFirebaseService {
     });
   }
 
+  // Escuchar estado en vivo de transmisiones (contador de prendidos y si está live)
   onTransmisionesStats(callback) {
     if (typeof callback !== 'function') return () => {};
     return onValue(ref(this.rtdb, NODE_TRANS_STATS), (snap) => {
@@ -789,6 +881,7 @@ class StreamFirebaseService {
     });
   }
 
+  // Simular manualmente inicio o fin de stream (para pruebas en panel de desarrollo)
   async simularLiveStreamToggle(forzarLive = null) {
     const statsSnap = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/isLive`));
     const estaLiveActualmente = statsSnap.exists() ? statsSnap.val() : false;
@@ -1077,6 +1170,311 @@ class StreamFirebaseService {
       return true;
     } catch (e) {
       return false;
+    }
+  }
+
+  // ==========================================================================
+  // 7. SINCRONIZACIÓN MAESTRA DE DATOS LOCALES CON FIREBASE RTDB
+  // ==========================================================================
+  async syncAllFromLocalStorage() {
+    await this.init();
+
+    const localUsersMap = new Map();
+    const statsResult = {
+      totalEncontrados: 0,
+      actualizadosEnFirebase: 0,
+      nuevosEnFirebase: 0,
+      usuarios: []
+    };
+
+    // 1. Escanear todo el localStorage en busca de usuarios y puntos guardados ('tiendita_pts_*')
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('tiendita_pts_')) {
+          const rawName = k.replace('tiendita_pts_', '');
+          const uKey = norm(rawName);
+          if (uKey) {
+            const rawVal = localStorage.getItem(k);
+            const pts = parseInt(rawVal, 10);
+            if (!isNaN(pts)) {
+              localUsersMap.set(uKey, {
+                username: uKey,
+                displayName: rawName,
+                jikopuntos: pts,
+                source: 'localStorage'
+              });
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[StreamDB] Error al leer claves de localStorage:', e);
+    }
+
+    // 2. Extraer usuarios de la lista de asistencia local ('tiendita_asistencia_stream_v1')
+    try {
+      const rawAsis = localStorage.getItem('tiendita_asistencia_stream_v1');
+      if (rawAsis) {
+        const parsed = JSON.parse(rawAsis);
+        if (parsed && Array.isArray(parsed.lista)) {
+          parsed.lista.forEach(uName => {
+            const uKey = norm(uName);
+            if (uKey && !localUsersMap.has(uKey)) {
+              const currentPts = this._getLocalCache(uKey) || USER_DEFAULT_POINTS;
+              localUsersMap.set(uKey, {
+                username: uKey,
+                displayName: uName,
+                jikopuntos: currentPts,
+                asistenciasCount: 1,
+                source: 'asistencia_local'
+              });
+            }
+          });
+        }
+      }
+    } catch (e) {}
+
+    // 3. Únicamente sincronizar usuarios reales de localStorage (sin inyectar semillas simuladas)
+    // Asegurar únicamente la ficha del broadcaster oficial (@jikokun)
+    if (!localUsersMap.has('jikokun')) {
+      const broadcasterPts = this._getLocalCache('jikokun') || 99999;
+      localUsersMap.set('jikokun', {
+        username: 'jikokun',
+        displayName: 'Jikokun',
+        rol: 'broadcaster',
+        jikopuntos: broadcasterPts,
+        asistenciasCount: 0,
+        source: 'broadcaster'
+      });
+    } else {
+      localUsersMap.get('jikokun').rol = 'broadcaster';
+    }
+
+    // 4. Consultar el estado actual de Firebase RTDB (stream/usuarios)
+    let firebaseUsers = {};
+    try {
+      const snap = await get(ref(this.rtdb, NODE_USERS));
+      if (snap.exists()) {
+        firebaseUsers = snap.val() || {};
+      }
+      // Limpiar nodo huérfano 'undefined' si existe en Firebase
+      if (firebaseUsers['undefined']) {
+        await set(ref(this.rtdb, `${NODE_USERS}/undefined`), null);
+        delete firebaseUsers['undefined'];
+      }
+    } catch (err) {
+      console.warn('[StreamDB] Error al obtener usuarios de Firebase:', err);
+    }
+
+    statsResult.totalEncontrados = localUsersMap.size;
+
+    // 5. Sincronizar cada usuario hacia Firebase RTDB
+    for (const [uKey, localData] of localUsersMap.entries()) {
+      try {
+        const localPts = Math.max(0, parseInt(localData.jikopuntos, 10) || 0);
+        const fbUser = firebaseUsers[uKey];
+
+        if (fbUser) {
+          // El usuario ya existe en Firebase: sincronizar puntos locales prioritarios
+          const asistencias = Math.max(fbUser.asistenciasCount || 0, localData.asistenciasCount || 0);
+          const nivelInfo = calcularNivelUsuario(asistencias);
+          const totalGanado = Math.max(fbUser.totalGanado || 0, localPts + (fbUser.totalGastado || 0));
+
+          const userUpdates = {
+            jikopuntos: localPts,
+            totalGanado: totalGanado,
+            asistenciasCount: asistencias,
+            nivel: nivelInfo.nivel,
+            rangoTitulo: nivelInfo.rangoTitulo,
+            insigniaEmoji: nivelInfo.insigniaEmoji,
+            bonoAsistencia: nivelInfo.puntosPorAsistencia,
+            ultimaActividad: Date.now()
+          };
+
+          if (!fbUser.displayName || fbUser.displayName === uKey) {
+            userUpdates.displayName = localData.displayName || uKey;
+          }
+
+          await update(ref(this.rtdb, `${NODE_USERS}/${uKey}`), userUpdates);
+
+          // Actualizar memoria y cache local
+          this._updateLocalCache(uKey, localPts);
+          const merged = { ...fbUser, ...userUpdates };
+          this.usersCache.set(uKey, merged);
+
+          statsResult.actualizadosEnFirebase++;
+          statsResult.usuarios.push({
+            username: uKey,
+            displayName: merged.displayName,
+            puntos: localPts,
+            accion: 'actualizado',
+            nivel: nivelInfo.rangoTitulo
+          });
+        } else {
+          // El usuario es nuevo en Firebase: crear su registro completo
+          const asistencias = localData.asistenciasCount || 0;
+          const nivelInfo = calcularNivelUsuario(asistencias);
+          const newUser = {
+            username: uKey,
+            displayName: localData.displayName || uKey,
+            avatar: '',
+            rol: uKey === 'jikokun' ? 'broadcaster' : (localData.rol || 'espectador'),
+            jikopuntos: localPts,
+            totalGanado: localPts,
+            totalGastado: localData.totalGastado || 0,
+            totalCompras: localData.totalCompras || 0,
+            asistenciasCount: asistencias,
+            nivel: nivelInfo.nivel,
+            rangoTitulo: nivelInfo.rangoTitulo,
+            insigniaEmoji: nivelInfo.insigniaEmoji,
+            bonoAsistencia: nivelInfo.puntosPorAsistencia,
+            primerRegistro: Date.now(),
+            ultimaActividad: Date.now(),
+            vinculacion: {
+              authUid: null,
+              email: null,
+              vinculado: false,
+              vinculadoEn: null
+            },
+            widgets: {
+              tiendita: {
+                platoFavorito: localData.platoFavorito || null,
+                pedidosCount: 0,
+                platillosTotales: 0,
+                ultimoPedido: null
+              }
+            },
+            stats: {
+              platosConsumidos: {},
+              nivelLealtad: nivelInfo.rangoTitulo
+            }
+          };
+
+          await set(ref(this.rtdb, `${NODE_USERS}/${uKey}`), newUser);
+
+          this._updateLocalCache(uKey, localPts);
+          this.usersCache.set(uKey, newUser);
+
+          statsResult.nuevosEnFirebase++;
+          statsResult.usuarios.push({
+            username: uKey,
+            displayName: newUser.displayName,
+            puntos: localPts,
+            accion: 'creado',
+            nivel: nivelInfo.rangoTitulo
+          });
+        }
+
+        // 6. Actualizar ranking individual de clientes en estadísticas
+        const rankingUserRef = ref(this.rtdb, `${NODE_STATS}/rankingUsuarios/${uKey}`);
+        await update(rankingUserRef, {
+          username: localData.displayName || uKey,
+          usuarioNorm: uKey,
+          saldoActual: localPts,
+          ultimaActividad: Date.now()
+        });
+
+      } catch (errUser) {
+        console.warn(`[StreamDB] Error al sincronizar usuario @${uKey}:`, errUser);
+      }
+    }
+
+    // 7. Asegurar que usuarios existentes en Firebase que no estaban en localStorage se guarden localmente
+    for (const [fbKey, fbUser] of Object.entries(firebaseUsers)) {
+      if (fbKey && fbKey !== 'undefined' && !localUsersMap.has(fbKey)) {
+        this._updateLocalCache(fbKey, fbUser.jikopuntos || USER_DEFAULT_POINTS);
+      }
+    }
+
+    // 8. Actualizar resumen global en stream/tienda/estadisticas/resumen
+    try {
+      const snapUsers = await get(ref(this.rtdb, NODE_USERS));
+      const totalUsersCount = snapUsers.exists() ? snapUsers.size : localUsersMap.size;
+      const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
+      await update(resumenRef, {
+        totalUsuariosRegistrados: totalUsersCount,
+        ultimaSincronizacionLocal: Date.now()
+      });
+    } catch (e) {}
+
+    console.log('[StreamDB] ✅ Sincronización maestra de Jikopuntos completada:', statsResult);
+    return statsResult;
+  }
+
+  // ==========================================================================
+  // 8. LIMPIEZA TOTAL DE REGISTROS DE PRUEBA EN FIREBASE RTDB
+  // ==========================================================================
+  async limpiarRegistrosDePrueba() {
+    await this.init();
+
+    try {
+      const ahora = Date.now();
+      const broadcasterUser = {
+        username: 'jikokun',
+        displayName: 'Jikokun',
+        avatar: '',
+        rol: 'broadcaster',
+        jikopuntos: 99999,
+        totalGanado: 99999,
+        totalGastado: 0,
+        totalCompras: 0,
+        asistenciasCount: 0,
+        nivel: 1,
+        rangoTitulo: 'Cachorro',
+        insigniaEmoji: '🐾',
+        bonoAsistencia: 500,
+        primerRegistro: ahora,
+        ultimaActividad: ahora,
+        vinculacion: { authUid: null, email: null, vinculado: false, vinculadoEn: null },
+        widgets: { tiendita: { platoFavorito: 'pupusas', pedidosCount: 0, platillosTotales: 0, ultimoPedido: null } },
+        stats: { platosConsumidos: {}, nivelLealtad: 'Creador' }
+      };
+
+      // 1. Resetear stream/usuarios dejando únicamente al broadcaster oficial
+      await set(ref(this.rtdb, NODE_USERS), {
+        jikokun: broadcasterUser
+      });
+
+      // 2. Limpiar transacciones, transferencias, asistencias y rankings
+      await set(ref(this.rtdb, NODE_TRANSACTIONS), null);
+      await set(ref(this.rtdb, 'stream/tienda/transferencias'), null);
+      await set(ref(this.rtdb, NODE_ATTENDANCE), null);
+      await set(ref(this.rtdb, `${NODE_STATS}/rankingUsuarios`), null);
+      await set(ref(this.rtdb, `${NODE_STATS}/rankingProductos`), null);
+
+      // 3. Reiniciar resumen global
+      await set(ref(this.rtdb, `${NODE_STATS}/resumen`), {
+        totalUsuariosRegistrados: 1,
+        totalTransacciones: 0,
+        totalPuntosGastados: 0,
+        totalPlatillosConsumidos: 0,
+        totalTransferencias: 0,
+        ultimaActualizacion: ahora
+      });
+
+      // 4. Limpiar cache en memoria
+      this.usersCache.clear();
+      this.usersCache.set('jikokun', broadcasterUser);
+
+      if (limpiarLocalStorageLocal) {
+        try {
+          const keys = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('tiendita_pts_') || k.startsWith('tiendita_asistencia_'))) {
+              keys.push(k);
+            }
+          }
+          keys.forEach(k => localStorage.removeItem(k));
+        } catch(e) {}
+      }
+
+      console.log('[StreamDB] 🧹 Base de datos de Firebase limpiada con éxito. Solo broadcaster jikokun preservado.');
+      return true;
+    } catch (err) {
+      console.error('[StreamDB] Error al limpiar base de datos:', err);
+      throw err;
     }
   }
 

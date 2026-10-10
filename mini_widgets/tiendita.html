@@ -126,6 +126,16 @@
   .chip.ok{color:var(--kick);border-color:rgba(83,252,24,.4)}
   .chip.warn{color:var(--oro);border-color:rgba(255,211,92,.4)}
   .chip.warn i{animation:parpadeo .7s ease-in-out infinite}
+  .chip.chip-sync{
+    background:linear-gradient(135deg,rgba(0,242,254,.18),rgba(83,252,24,.22));
+    border:1px solid #00f2fe;color:#00f2fe;cursor:pointer;font-family:var(--f-cuerpo);
+    font-weight:800;transition:all .2s ease;box-shadow:0 0 12px rgba(0,242,254,.35);
+  }
+  .chip.chip-sync:hover{
+    background:linear-gradient(135deg,rgba(0,242,254,.35),rgba(83,252,24,.4));
+    color:#ffffff;border-color:var(--kick);box-shadow:0 0 18px rgba(83,252,24,.6);transform:scale(1.05);
+  }
+  .chip.chip-sync i{background:#00f2fe;box-shadow:0 0 8px #00f2fe}
 
   /* Barra de usuario (Cliente y Saldo 1000 pts) */
   .user-bar{
@@ -535,21 +545,97 @@
     display: none !important;
   }
 
-  /* ════════════ ZONA DE PRUEBA ════════════ */
+  /* ════════════ ZONA DE PRUEBA / INTERACCIÓN OBS ════════════ */
   #demo-zone{
-    position:fixed;left:20px;bottom:20px;z-index:60;display:flex;gap:8px;align-items:center;
-    padding:10px 14px;border-radius:14px;background:rgba(12,16,9,.94);
-    border:1px solid rgba(83,252,24,.4);box-shadow:0 10px 30px rgba(0,0,0,.6);backdrop-filter:blur(8px);
+    position:fixed;left:20px;bottom:20px;z-index:9000;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    max-width:calc(100vw - 40px);max-height:85vh;overflow-y:auto;
+    padding:12px 16px;border-radius:16px;background:rgba(8,14,9,.96);
+    border:1.5px solid rgba(83,252,24,.45);box-shadow:0 12px 40px rgba(0,0,0,.85);backdrop-filter:blur(10px);
     transition:transform .55s cubic-bezier(.4,.9,.4,1),opacity .4s;
   }
   #demo-zone.oculto{transform:translateY(190%);opacity:0;pointer-events:none}
-  .dz-title{font-size:10px;letter-spacing:1.8px;color:var(--apagado);font-weight:700;margin-right:2px}
+  .dz-title{font-size:10.5px;letter-spacing:1.8px;color:#d9ffb0;font-weight:800;margin-right:2px;font-family:var(--f-display)}
   #demo-zone button{
     font-family:var(--f-cuerpo);font-weight:700;font-size:11px;letter-spacing:.4px;cursor:pointer;
     color:var(--tinta);background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.2);
     padding:7px 12px;border-radius:999px;transition:.25s;
   }
   #demo-zone button:hover{border-color:var(--kick);color:var(--kick);box-shadow:0 0 12px rgba(83,252,24,.35)}
+  .btn-sync-destacado{
+    background:linear-gradient(135deg,rgba(0,242,254,.3),rgba(83,252,24,.35)) !important;
+    border:1.5px solid #00f2fe !important;color:#ffffff !important;font-weight:900 !important;
+    box-shadow:0 0 16px rgba(0,242,254,.5),inset 0 0 10px rgba(0,242,254,.2) !important;
+    padding:8px 16px !important;border-radius:999px !important;font-size:12px !important;
+    cursor:pointer;animation:pulseSyncBtn 2.8s ease-in-out infinite;
+  }
+  .btn-sync-destacado:hover{
+    background:linear-gradient(135deg,#00f2fe,#53fc18) !important;color:#04120a !important;
+    box-shadow:0 0 26px rgba(83,252,24,.9) !important;transform:scale(1.04);
+  }
+  @keyframes pulseSyncBtn{
+    0%,100%{box-shadow:0 0 14px rgba(0,242,254,.45)}
+    50%{box-shadow:0 0 24px rgba(83,252,24,.8),0 0 8px rgba(0,242,254,.9)}
+  }
+
+  /* ════════════ MODAL DE SINCRONIZACIÓN OBS ════════════ */
+  .sync-obs-modal{
+    position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;
+    animation:fadeInSync .25s ease-out;
+  }
+  @keyframes fadeInSync{from{opacity:0}to{opacity:1}}
+  .sync-modal-backdrop{
+    position:absolute;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);
+  }
+  .sync-modal-card{
+    position:relative;z-index:2;width:560px;max-width:92vw;max-height:88vh;overflow-y:auto;
+    background:linear-gradient(180deg,#121810 0%,#080c07 100%);
+    border:2px solid rgba(83,252,24,.6);border-radius:22px;
+    box-shadow:0 20px 60px rgba(0,0,0,.9),0 0 35px rgba(83,252,24,.35);
+    padding:24px;color:var(--tinta);font-family:var(--f-cuerpo);
+  }
+  .sync-modal-header{display:flex;align-items:center;gap:14px;border-bottom:1px solid rgba(83,252,24,.25);padding-bottom:14px}
+  .sync-modal-icon{font-size:32px;filter:drop-shadow(0 0 10px var(--kick))}
+  .sync-modal-titles{flex:1}
+  .sync-modal-titles h3{
+    margin:0 0 4px;font-family:var(--f-display);font-size:16px;letter-spacing:1px;color:#d9ffb0;
+    text-shadow:0 0 10px rgba(83,252,24,.7);
+  }
+  .sync-modal-titles p{margin:0;font-size:12px;color:var(--apagado)}
+  .sync-modal-close{
+    background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);color:#fff;
+    width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;
+    display:grid;place-items:center;transition:.2s;
+  }
+  .sync-modal-close:hover{background:rgba(255,92,108,.3);border-color:var(--rojo);color:var(--rojo)}
+  .sync-modal-body{padding:18px 0;font-size:13.5px;line-height:1.5}
+  .sync-status-loading{display:flex;align-items:center;gap:14px;color:var(--kick-soft);font-weight:700}
+  .sync-spinner{
+    width:28px;height:28px;border:3px solid rgba(83,252,24,.2);border-top-color:var(--kick);
+    border-radius:50%;animation:spinSync .75s linear infinite;flex-shrink:0;
+  }
+  @keyframes spinSync{to{transform:rotate(360deg)}}
+  .sync-stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+  .sync-stat-card{
+    background:rgba(255,255,255,.04);border:1px solid rgba(83,252,24,.25);border-radius:12px;
+    padding:10px 12px;text-align:center;
+  }
+  .sync-stat-num{font-family:var(--f-display);font-size:22px;color:var(--oro);font-weight:800;text-shadow:0 0 10px rgba(255,211,92,.5)}
+  .sync-stat-lbl{font-size:11px;color:var(--apagado);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+  .sync-users-list{
+    max-height:180px;overflow-y:auto;background:rgba(0,0,0,.45);border:1px solid rgba(83,252,24,.2);
+    border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:6px;
+  }
+  .sync-u-item{display:flex;align-items:center;justify-content:space-between;font-size:12.5px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.05)}
+  .sync-u-item:last-child{border-bottom:none}
+  .sync-u-item b{color:#ffffff}
+  .sync-u-item .sync-u-pts{color:var(--oro);font-weight:800}
+  .sync-modal-footer{border-top:1px solid rgba(83,252,24,.2);padding-top:14px;text-align:right}
+  .sync-modal-btn-ok{
+    background:linear-gradient(135deg,var(--kick),#34c710);color:#04120a;font-family:var(--f-cuerpo);
+    font-weight:900;font-size:13px;padding:9px 20px;border-radius:10px;border:none;cursor:pointer;
+    box-shadow:0 0 16px rgba(83,252,24,.5);transition:.2s;
+  }
+  .sync-modal-btn-ok:hover{filter:brightness(1.15);box-shadow:0 0 24px rgba(83,252,24,.8)}
 
   /* ── Alerta flotante encima de la tienda: Espera tu turno ── */
   .turn-alert{
@@ -1076,6 +1162,7 @@
           <span class="chip live"><i></i>EN VIVO</span>
           <span class="chip ok" title="Usa !rotar, !siguiente o !mas para avanzar de 5 en 5"><i></i>!rotar (+5)</span>
           <span class="chip warn" id="ws-chip"><i></i><span id="ws-txt">Conectando…</span></span>
+          <button type="button" class="chip chip-sync" id="btn-sync-panel-tienda" onclick="window.ejecutarSincronizacionDesdeTiendita(this)" title="Sincronizar puntos y usuarios locales de OBS con Firebase RTDB"><i></i>🔄 Sincronizar OBS</button>
         </div>
 
         <div class="user-bar" id="user-bar">
@@ -1218,9 +1305,10 @@
 
   <div id="toast-zone"></div>
 
-  <!-- Panel de prueba -->
+  <!-- Panel de prueba / simulación interactiva OBS -->
   <div id="demo-zone">
-    <span class="dz-title">🧪 PRUEBAS</span>
+    <span class="dz-title">🧪 SIMULACIÓN</span>
+    <button id="demo-sync-firebase" class="btn-sync-destacado" onclick="window.ejecutarSincronizacionDesdeTiendita(this)" title="Sincronizar usuarios y Jikopuntos guardados localmente en este navegador de OBS hacia Firebase RTDB">🔄 Sincronizar Jikopuntos de OBS</button>
     <button id="demo-cliente">Cliente (1000 pts)</button>
     <button id="demo-rotar" style="color:var(--kick-soft);border-color:rgba(180,255,138,.45);font-weight:800;">⏩ !rotar (+5)</button>
     <button id="demo-select">➕ Añadir Ítem</button>
@@ -3218,6 +3306,96 @@
     toast(`🔄 Puntos de <b>@${usuarioActual}</b> reseteados a <b>1000 pts</b>`);
   };
 
+  window.ejecutarSincronizacionDesdeTiendita = async function(btnOrigin) {
+    if (!window.StreamDB) {
+      alert('Firebase StreamDB aún no está inicializado.');
+      return;
+    }
+    const modal = document.getElementById('sync-obs-modal');
+    const modalBody = document.getElementById('sync-modal-body');
+    if (modal) modal.style.display = 'flex';
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div class="sync-status-loading">
+          <div class="sync-spinner"></div>
+          <span>Escaneando almacenamiento local de este navegador OBS y sincronizando hacia Firebase RTDB...</span>
+        </div>
+      `;
+    }
+
+    let origText = '';
+    if (btnOrigin) {
+      origText = btnOrigin.textContent;
+      btnOrigin.disabled = true;
+      btnOrigin.textContent = '⏳ Sincronizando...';
+    }
+
+    try {
+      const res = await window.StreamDB.syncAllFromLocalStorage();
+      const total = res.totalEncontrados || 0;
+      const actualizados = res.actualizadosEnFirebase || 0;
+      const nuevos = res.nuevosEnFirebase || 0;
+      const lista = res.usuarios || [];
+
+      let userRows = '';
+      if (lista.length === 0) {
+        userRows = '<div style="color:var(--apagado);text-align:center;padding:12px;">No se encontraron claves locales (tiendita_pts_*) en este navegador todavía.</div>';
+      } else {
+        userRows = lista.map(u => `
+          <div class="sync-u-item">
+            <span>👤 <b>@${u.displayName || u.username}</b> <small style="color:var(--apagado);">(${u.nivel || 'Espectador'})</small></span>
+            <span class="sync-u-pts">${u.puntos} pts</span>
+          </div>
+        `).join('');
+      }
+
+      if (modalBody) {
+        modalBody.innerHTML = `
+          <div class="sync-stat-grid">
+            <div class="sync-stat-card">
+              <div class="sync-stat-num">${total}</div>
+              <div class="sync-stat-lbl">Detectados en OBS</div>
+            </div>
+            <div class="sync-stat-card">
+              <div class="sync-stat-num" style="color:var(--kick);">${actualizados}</div>
+              <div class="sync-stat-lbl">Actualizados en Firebase</div>
+            </div>
+            <div class="sync-stat-card">
+              <div class="sync-stat-num" style="color:#00f2fe;">${nuevos}</div>
+              <div class="sync-stat-lbl">Nuevos en Firebase</div>
+            </div>
+          </div>
+          <div style="font-size:12px;color:var(--kick-soft);font-weight:700;margin-bottom:8px;">
+            ✅ ¡Sincronización completada! Los usuarios y puntos de este navegador OBS ahora están en Firebase RTDB.
+          </div>
+          <div class="sync-users-list">
+            ${userRows}
+          </div>
+        `;
+      }
+      saldoActual = getUserPoints(usuarioActual || 'LunaGamer');
+      animarPuntos(saldoActual);
+    } catch (err) {
+      if (modalBody) {
+        modalBody.innerHTML = `
+          <div style="color:var(--rojo);font-weight:800;padding:12px;border:1px solid var(--rojo);border-radius:10px;background:rgba(255,92,108,.1);">
+            ❌ Error durante la sincronización: ${err.message}
+          </div>
+        `;
+      }
+    } finally {
+      if (btnOrigin) {
+        btnOrigin.disabled = false;
+        btnOrigin.textContent = origText;
+      }
+    }
+  };
+
+  const btnSyncFb = document.getElementById('demo-sync-firebase');
+  if(btnSyncFb){
+    btnSyncFb.onclick = () => window.ejecutarSincronizacionDesdeTiendita(btnSyncFb);
+  }
+
   if(isOverlayMode){
     demoZone.classList.add('oculto');
   }
@@ -3416,5 +3594,30 @@
 
   conectarWS();
 </script>
+
+  <!-- Modal elegante de Sincronización OBS ➔ Firebase -->
+  <div id="sync-obs-modal" class="sync-obs-modal" style="display:none;">
+    <div class="sync-modal-backdrop" onclick="document.getElementById('sync-obs-modal').style.display='none'"></div>
+    <div class="sync-modal-card">
+      <div class="sync-modal-header">
+        <div class="sync-modal-icon">🔄</div>
+        <div class="sync-modal-titles">
+          <h3>SINCRONIZACIÓN OBS ➔ FIREBASE</h3>
+          <p>Absorbiendo usuarios y puntos de la memoria local de este navegador</p>
+        </div>
+        <button type="button" class="sync-modal-close" onclick="document.getElementById('sync-obs-modal').style.display='none'">✕</button>
+      </div>
+      <div class="sync-modal-body" id="sync-modal-body">
+        <div class="sync-status-loading">
+          <div class="sync-spinner"></div>
+          <span>Leyendo almacenamiento local y sincronizando con Firebase RTDB...</span>
+        </div>
+      </div>
+      <div class="sync-modal-footer">
+        <button type="button" class="sync-modal-btn-ok" onclick="document.getElementById('sync-obs-modal').style.display='none'">Aceptar / Cerrar</button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>

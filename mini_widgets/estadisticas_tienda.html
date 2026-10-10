@@ -1236,11 +1236,14 @@
           <span class="live-dot"></span>
           <span id="firebase-status-txt">FIREBASE RTDB CONECTADO</span>
         </div>
+        <button class="action-btn" onclick="sincronizarDatosLocalesConFirebase()" id="btn-sync-local" style="background: linear-gradient(135deg, #00f2fe 0%, #00adb5 100%); color: #02090f; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s, box-shadow 0.2s;" title="Sincronizar todos los usuarios y Jikopuntos guardados localmente con Firebase">
+          <span>🔄</span> Sincronizar Jikopuntos Locales
+        </button>
         <a href="tiendita.html" target="_blank" class="action-btn btn-secondary" title="Abrir Tiendita en pestaña independiente">
           🏪 Ver Tiendita
         </a>
-        <button class="action-btn btn-primary" onclick="sembrarDatosSiEstaVacia()" id="btn-seed">
-          🌱 Sembrar Datos
+        <button class="action-btn btn-secondary" onclick="limpiarRegistrosPruebaUI()" id="btn-purge" style="color: var(--rojo); border-color: rgba(255,92,108,0.4);" title="Limpiar y purgar datos de prueba de Firebase RTDB">
+          🧹 Limpiar Registros
         </button>
       </div>
     </header>
@@ -1657,7 +1660,8 @@
               <input type="number" id="pts-delta-input" value="500" step="50" min="10">
               <button class="action-btn btn-primary" onclick="ajustarPuntosEncontrado(true)" style="padding: 7px 12px; font-size: 0.82rem;">➕ Sumar</button>
               <button class="action-btn btn-secondary" onclick="ajustarPuntosEncontrado(false)" style="padding: 7px 12px; font-size: 0.82rem; color: var(--rojo); border-color: rgba(255,92,108,0.4);">➖ Restar</button>
-              <button class="action-btn btn-secondary" onclick="migrarLocalStorageAUsuario()" style="padding: 7px 12px; font-size: 0.82rem;">🔄 Sincronizar Local</button>
+              <button class="action-btn btn-secondary" onclick="migrarLocalStorageAUsuario()" style="padding: 7px 12px; font-size: 0.82rem;" title="Sincronizar solo este usuario">🔄 Sincronizar Usuario</button>
+              <button class="action-btn btn-secondary" onclick="sincronizarDatosLocalesConFirebase()" style="padding: 7px 12px; font-size: 0.82rem; border-color: rgba(0,242,254,0.45); color: var(--cyan);" title="Sincronizar todos los usuarios locales con Firebase">🔄 Sincronizar Todo</button>
               <button class="action-btn btn-primary" onclick="marcarAsistenciaDesdeFicha()" style="padding: 7px 12px; font-size: 0.82rem; background:linear-gradient(135deg, #a855f7, #6366f1); color:#fff;">🐺 Pasar Lista</button>
             </div>
           </div>
@@ -2227,6 +2231,65 @@
         showToast(`🔄 Puntos locales (<b>${pts} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName}`);
       } else {
         showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName}`);
+      }
+    };
+
+    // Sincronización global de todos los usuarios y Jikopuntos locales con Firebase RTDB
+    window.sincronizarDatosLocalesConFirebase = async function() {
+      const btn = document.getElementById('btn-sync-local');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span> Sincronizando...';
+      }
+
+      try {
+        const res = await StreamDB.syncAllFromLocalStorage();
+        const total = res.totalEncontrados || 0;
+        const actualizados = res.actualizadosEnFirebase || 0;
+        const creados = res.nuevosEnFirebase || 0;
+
+        showToast(`🎉 <b>¡Sincronización Exitosa!</b><br><b>${total}</b> usuarios locales sincronizados (<b>${actualizados}</b> actualizados, <b>${creados}</b> creados en Firebase).`);
+
+        // Si hay una ficha de usuario abierta actualmente, refrescarla en vivo
+        if (usuarioEncontradoActual && usuarioEncontradoActual.username) {
+          const updatedUser = await StreamDB.getUser(usuarioEncontradoActual.username);
+          if (updatedUser) renderizarFichaUsuario(updatedUser);
+        }
+      } catch (err) {
+        console.error('[Sync Error]:', err);
+        showToast('⚠️ Error al sincronizar datos locales: ' + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<span>🔄</span> Sincronizar Jikopuntos Locales';
+        }
+      }
+    };
+
+    // Limpiar y purgar registros de prueba de Firebase RTDB (deja únicamente al broadcaster @jikokun)
+    window.limpiarRegistrosPruebaUI = async function() {
+      if (!confirm('¿Estás seguro de que deseas purgar la base de datos de Firebase RTDB?\n\nEsto eliminará usuarios de prueba, transacciones simuladas y asistencias, preservando únicamente la ficha oficial de @jikokun.')) {
+        return;
+      }
+      const btn = document.getElementById('btn-purge');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Limpiando...';
+      }
+      try {
+        await StreamDB.limpiarRegistrosDePrueba();
+        showToast('🧹 Base de datos purgada con éxito. Solo broadcaster @jikokun preservado.');
+        if (typeof cargarDatosGenerales === 'function') {
+          await cargarDatosGenerales();
+        }
+      } catch (err) {
+        console.error('[Purge Error]:', err);
+        showToast('⚠️ Error al limpiar base de datos: ' + (err.message || err));
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🧹 Limpiar Registros';
+        }
       }
     };
 

@@ -511,7 +511,7 @@
                 </div>
                 <ul style="margin-left: 24px; font-size: 0.86rem; color: #cbd5e1; line-height: 1.6;">
                     <li><strong>Directo aquí:</strong> En esta misma tarjeta con la vista previa interactiva incrustada en tiempo real.</li>
-                    <li><strong>Desde cualquier página:</strong> En el menú superior &rarr; <em>Proyectos</em> &rarr; <code>📊 Estadísticas Stream &amp; Niveles</code>.</li>
+                    <li><strong>Acceso protegido:</strong> Panel exclusivo y reservado dentro de esta Zona de Pruebas con clave.</li>
                     <li><strong>Pestaña independiente:</strong> Abre el panel a pantalla completa en <a href="mini_widgets/estadisticas_tienda.html" target="_blank" style="color:#53fc18; font-weight:700;">mini_widgets/estadisticas_tienda.html</a>.</li>
                 </ul>
             </div>
@@ -534,6 +534,9 @@
                 </button>
                 <button type="button" class="test-btn" style="border-color: #a855f7; color: #c084fc; font-weight: 700;" onclick="triggerTienditaPrivateTest('PASAR_LISTA')">
                     📋 Simular !pasarlista
+                </button>
+                <button type="button" class="test-btn" style="border-color: #00f2fe; color: #00f2fe; font-weight: 800; background: rgba(0,242,254,0.12);" onclick="sincronizarJikopuntosDesdeZonaPruebas(this)" title="Sincronizar puntos y usuarios locales con Firebase RTDB">
+                    ⚡ Sincronizar Jikopuntos Locales
                 </button>
             </div>
 
@@ -1357,6 +1360,35 @@
                     iframe.contentWindow.postMessage({ type: 'TOGGLE_LIVE' }, '*');
                 }
                 log("[Kick Live] Simulación de Live Stream alternada en el detector interno", "info");
+            }
+        };
+
+        window.sincronizarJikopuntosDesdeZonaPruebas = function(btn) {
+            const iframe = document.getElementById('preview-stats-kick');
+            if (iframe && iframe.contentWindow && typeof iframe.contentWindow.sincronizarDatosLocalesConFirebase === 'function') {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '⏳ Sincronizando...';
+                }
+                iframe.contentWindow.sincronizarDatosLocalesConFirebase().then(() => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '✅ ¡Sincronizado con Firebase!';
+                        setTimeout(() => {
+                            btn.textContent = '⚡ Sincronizar Jikopuntos Locales';
+                        }, 2500);
+                    }
+                    log("[Sincronización] Jikopuntos locales sincronizados con Firebase exitosamente", "success");
+                }).catch(err => {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.textContent = '⚡ Sincronizar Jikopuntos Locales';
+                    }
+                    log(`[Sincronización Error]: ${err.message}`, "error");
+                });
+            } else if (iframe) {
+                iframe.src = iframe.src;
+                log("[Sincronización] Recargando vista previa para sincronizar", "info");
             }
         };
 
