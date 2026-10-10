@@ -1241,6 +1241,23 @@
     <button id="demo-reset">Reset Pts</button>
   </div>
 
+<!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
+<script type="module">
+  import { StreamDB, norm } from './js/stream_firebase.js';
+  window.StreamDB = StreamDB;
+  window.norm = window.norm || norm;
+  StreamDB.init().then(() => {
+    console.log('[Tiendita] 🔥 Firebase RTDB StreamDB inicializado correctamente (nodo: stream)');
+    // Iniciar detector interno e independiente de Kick (sin Streamer.bot)
+    StreamDB.startKickStreamMonitor('jikokun', 25000);
+    if (typeof window.onStreamDBReady === 'function') {
+      window.onStreamDBReady();
+    }
+  }).catch(err => {
+    console.warn('[Tiendita] Aviso al inicializar Firebase StreamDB:', err);
+  });
+</script>
+
 <script>
   /* ═══════════ CONFIGURACIÓN & PARÁMETROS URL ═══════════ */
   const urlParams = new URLSearchParams(window.location.search);
@@ -1487,6 +1504,16 @@
     void $cardJp.offsetWidth;
     $cardJp.classList.add('visible', 'sacudir');
 
+    // Sincronización en segundo plano con Firebase RTDB si hay datos más actualizados
+    if (window.StreamDB) {
+      window.StreamDB.getUser(cleanUser).then(uData => {
+        if (uData && typeof uData.jikopuntos === 'number' && uData.jikopuntos !== pts && $cardJp.classList.contains('visible')) {
+          pts = uData.jikopuntos;
+          $jpMsg.innerHTML = `<b class="u-name">@${cleanUser}</b> tiene <span class="pts-pill">${COIN_MINI}<strong>${pts}</strong> Jikopuntos</span> para la tiendita`;
+        }
+      }).catch(()=>{});
+    }
+
     if(jpTimer) clearTimeout(jpTimer);
     jpTimer = setTimeout(()=>{
       $cardJp.classList.remove('visible', 'sacudir');
@@ -1558,13 +1585,21 @@
     let nuevoSaldo = saldoPrevio;
 
     if(!yaRegistrado){
-      // Otorgar automáticamente 500 Jikopuntos por asistencia
-      nuevoSaldo = saldoPrevio + 500;
-      setUserPoints(cleanUser, nuevoSaldo);
+      // Consultar nivel del usuario para otorgar 500 base + bono de lealtad
+      const uData = window.StreamDB && window.StreamDB.usersCache ? window.StreamDB.usersCache.get(userNorm) : null;
+      const asistPrev = uData ? (uData.asistenciasCount || 0) : 0;
+      const nivelInfo = window.calcularNivelUsuario ? window.calcularNivelUsuario(asistPrev + 1) : { nivel: 1, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', bonoExtra: 0, puntosPorAsistencia: 500 };
+      const ptsGanados = nivelInfo.puntosPorAsistencia;
+
+      nuevoSaldo = saldoPrevio + ptsGanados;
+      setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
 
       asistenciaStream.push({
         user: cleanUser,
-        puntosGanados: 500,
+        puntosGanados: ptsGanados,
+        nivel: nivelInfo.nivel,
+        insignia: nivelInfo.insigniaEmoji,
+        rango: nivelInfo.rangoTitulo,
         hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         timestamp: Date.now()
       });
@@ -1576,8 +1611,8 @@
         animarPuntos(saldoActual);
       }
 
-      console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +500 Jikopuntos otorgados. Saldo total: ${nuevoSaldo} pts.`);
-      toast(`🐺 <b>Lobito Mensajero:</b> ¡Bienvenido <b>@${cleanUser}</b>! Recibiste <b>+500 Jikopuntos</b> de asistencia 🎁 (Total: <b>${nuevoSaldo} pts</b>)`);
+      console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts [Nivel ${nivelInfo.nivel} ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo}]. Saldo: ${nuevoSaldo} pts.`);
+      toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${nivelInfo.insigniaEmoji} <b>${nivelInfo.rangoTitulo}</b> • Nvl ${nivelInfo.nivel}] Recibiste <b>+${ptsGanados} pts</b> 🎁 (Total: <b>${nuevoSaldo} pts</b>)`);
       playSfx('buy');
 
       // Precargar su avatar para mostrarlo en !pasarlista
@@ -1590,12 +1625,22 @@
           action: { name: 'Tiendita_AsistenciaRegistrada' },
           args: {
             usuario: cleanUser,
-            puntosSumados: 500,
+            puntosSumados: ptsGanados,
+            nivel: nivelInfo.nivel,
+            rango: nivelInfo.rangoTitulo,
             nuevoSaldo: nuevoSaldo,
             totalAsistentes: asistenciaStream.length
           },
           id: 'asistencia-lobito-' + Date.now()
         }));
+      }
+
+      // Persistir asistencia en Firebase RTDB (asocia al stream activo de Kick automáticamente)
+      if (window.StreamDB) {
+        window.StreamDB.registrarAsistencia({
+          usuario: cleanUser,
+          botEmisor: 'Lobito_Mensajero'
+        }).catch(err => console.warn('[Tiendita] Error registrando asistencia en Firebase:', err));
       }
     } else {
       console.log(`[Tiendita] ℹ️ @${cleanUser} ya fue registrado en la asistencia de esta transmisión.`);
@@ -1654,12 +1699,12 @@
               ${cachedAvatar ? `<img src="${cachedAvatar}" alt="${item.user}">` : `<span>${inicial}</span>`}
             </div>
             <div class="pl-u-names">
-              <span class="pl-u-handle">@${item.user}</span>
-              <span class="pl-u-time">🕒 Llegó a las ${item.hora || '--:--'}</span>
+              <span class="pl-u-handle">@${item.user} <small style="font-size:0.75rem; color:var(--kick-soft); font-family:var(--f-tech);">${item.insignia || '🐾'} Nvl ${item.nivel || 1}</small></span>
+              <span class="pl-u-time">🕒 Llegó a las ${item.hora || '--:--'} • ${item.rango || 'Cachorro'}</span>
             </div>
           </div>
           <div class="pl-user-right">
-            <span class="pl-u-bonus">+500 pts ✅</span>
+            <span class="pl-u-bonus">+${item.puntosGanados || 500} pts ✅</span>
             <span class="pl-u-points">${COIN_MINI}<strong>${uPts}</strong> pts</span>
           </div>
         </div>
@@ -1737,17 +1782,29 @@
   function getUserPoints(user){
     if(!user) return USER_DEFAULT_POINTS;
     try {
-      const key = 'tiendita_pts_' + norm(user);
-      const val = localStorage.getItem(key);
+      const key = norm(user);
+      if (window.StreamDB) {
+        const cached = window.StreamDB.getCachedPoints(key);
+        if (cached !== null && cached !== undefined) return cached;
+      }
+      const storageKey = 'tiendita_pts_' + key;
+      const val = localStorage.getItem(storageKey);
       if(val !== null) return parseInt(val, 10);
-      localStorage.setItem(key, USER_DEFAULT_POINTS);
+      localStorage.setItem(storageKey, USER_DEFAULT_POINTS);
+      if (window.StreamDB) {
+        window.StreamDB.getUser(key).catch(()=>{});
+      }
     } catch(e){}
     return USER_DEFAULT_POINTS;
   }
-  function setUserPoints(user, pts){
+  function setUserPoints(user, pts, motivo = 'ajuste'){
     try {
-      const key = 'tiendita_pts_' + norm(user);
-      localStorage.setItem(key, pts);
+      const key = norm(user);
+      const puntosNum = Math.max(0, parseInt(pts, 10) || 0);
+      localStorage.setItem('tiendita_pts_' + key, puntosNum);
+      if (window.StreamDB) {
+        window.StreamDB.setJikopuntos(key, puntosNum, motivo);
+      }
     } catch(e){}
   }
 
@@ -2106,6 +2163,7 @@
       actualizarPanelOrden();
     }
   }
+  window.removerItemPorKey = removerItemPorKey;
 
   function removerItemDeOrden(idx){
     if(idx >= 0 && idx < ordenActual.length){
@@ -2189,9 +2247,21 @@
 
     // Pago exitoso
     saldoActual -= total;
-    setUserPoints(user, saldoActual);
+    setUserPoints(user, saldoActual, 'compra_tiendita');
     animarPuntos(saldoActual);
     playSfx('buy');
+
+    // Registrar en Firebase Realtime Database (stream/tienda/transacciones y estadísticas)
+    if (window.StreamDB) {
+      window.StreamDB.registrarCompra({
+        comprador: user,
+        items: ordenActual.map(i => i.nombre),
+        itemsKeys: ordenActual.map(i => i.key),
+        cantidad: ordenActual.length,
+        costoTotal: total,
+        nuevoSaldo: saldoActual
+      }).catch(err => console.warn('[Tiendita] Error al registrar compra en Firebase:', err));
+    }
 
     // Notificar a Streamer.bot
     if(socket && socket.readyState === 1){
@@ -2525,7 +2595,17 @@
 
       const saldoPrevio = getUserPoints(receptor);
       const nuevoSaldo = saldoPrevio + cantidad;
-      setUserPoints(receptor, nuevoSaldo);
+      setUserPoints(receptor, nuevoSaldo, '!darjikopuntos');
+
+      if (window.StreamDB) {
+        window.StreamDB.registrarTransferencia({
+          admin: user,
+          receptor: receptor,
+          cantidad: cantidad,
+          nuevoSaldo: nuevoSaldo,
+          motivo: '!darjikopuntos'
+        }).catch(err => console.warn('[Tiendita] Error registrando transferencia en Firebase:', err));
+      }
 
       if(norm(usuarioActual) === norm(receptor)){
         saldoActual = nuevoSaldo;
@@ -2869,6 +2949,8 @@
     })(t0);
   }
 
+  let unsubscribeLiveUser = null;
+
   function mostrarMenu(user, puntos=null){
     initAudio();
     playSfx('open');
@@ -2888,6 +2970,27 @@
     const bar=document.getElementById('user-bar');
     bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
     iniciarCd(AUTO_CIERRE_MS);
+
+    // Sincronizar estado del widget y escuchar cambios de saldo en vivo en Firebase RTDB
+    if (window.StreamDB) {
+      window.StreamDB.setWidgetState('tiendita', { isOpen: true, usuarioEnTurno: user });
+      window.StreamDB.getUser(user).then(uData => {
+        if (uData && typeof uData.jikopuntos === 'number' && uData.jikopuntos !== saldoActual) {
+          saldoActual = uData.jikopuntos;
+          animarPuntos(saldoActual);
+        }
+      }).catch(()=>{});
+
+      if (typeof unsubscribeLiveUser === 'function') unsubscribeLiveUser();
+      unsubscribeLiveUser = window.StreamDB.onUser(user, (uData) => {
+        if (uData && typeof uData.jikopuntos === 'number' && uData.jikopuntos !== saldoActual) {
+          saldoActual = uData.jikopuntos;
+          animarPuntos(saldoActual);
+          const uBar = document.getElementById('user-bar');
+          if (uBar) { uBar.classList.remove('flash'); void uBar.offsetWidth; uBar.classList.add('flash'); }
+        }
+      });
+    }
   }
   function ocultarMenu(){ 
     const estabaAbierta = $menu.classList.contains('visible');
@@ -2899,6 +3002,13 @@
     if($turnAlert) $turnAlert.classList.remove('activo', 'sacudir');
     if(estabaAbierta){
       iniciarCooldownGlobal();
+    }
+    if (window.StreamDB) {
+      window.StreamDB.setWidgetState('tiendita', { isOpen: false, usuarioEnTurno: null });
+      if (typeof unsubscribeLiveUser === 'function') {
+        unsubscribeLiveUser();
+        unsubscribeLiveUser = null;
+      }
     }
   }
 

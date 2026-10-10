@@ -1,0 +1,2291 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estadísticas de Tiendita & Jikopuntos ✦ Firebase RTDB</title>
+  
+  <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
+  
+  <!-- Tipografías de Alta Fidelidad -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Nunito:wght@400;600;700;800;900&family=Unbounded:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #050a0f;
+      --bg-card: rgba(10, 20, 28, 0.75);
+      --bg-card-hover: rgba(14, 28, 38, 0.85);
+      --border-card: rgba(83, 252, 24, 0.22);
+      --border-card-subtle: rgba(255, 255, 255, 0.08);
+      
+      --kick: #53fc18;
+      --kick-glow: rgba(83, 252, 24, 0.45);
+      --kick-soft: #b4ff8a;
+      --kick-dim: rgba(83, 252, 24, 0.12);
+      
+      --oro: #ffd35c;
+      --oro-glow: rgba(255, 211, 92, 0.4);
+      --cyan: #00f2fe;
+      --cyan-glow: rgba(0, 242, 254, 0.35);
+      --rojo: #ff5c6c;
+      --morado: #a855f7;
+      
+      --text-main: #f1f7f6;
+      --text-muted: #8ca398;
+      --text-dim: #5c7569;
+      
+      --f-display: 'Unbounded', system-ui, sans-serif;
+      --f-tech: 'Chakra Petch', monospace, sans-serif;
+      --f-body: 'Nunito', system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(circle at 10% 15%, rgba(83, 252, 24, 0.07) 0%, transparent 40%),
+        radial-gradient(circle at 90% 85%, rgba(0, 242, 254, 0.06) 0%, transparent 45%),
+        linear-gradient(180deg, #050a0f 0%, #03070a 100%);
+      background-attachment: fixed;
+      font-family: var(--f-body);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* Scrollbar personalizada */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #070e14; }
+    ::-webkit-scrollbar-thumb { background: #1b3326; border-radius: 4px; border: 1px solid rgba(83, 252, 24, 0.2); }
+    ::-webkit-scrollbar-thumb:hover { background: var(--kick); }
+
+    .dashboard-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 30px 24px 80px 24px;
+      width: 100%;
+      flex: 1;
+    }
+
+    /* ═══════════ HEADER DEL DASHBOARD ═══════════ */
+    .dash-header {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card);
+      border-radius: 24px;
+      padding: 26px 32px;
+      margin-bottom: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.6), 0 0 25px rgba(83,252,24,0.08);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+
+    .dash-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent 0%, var(--kick) 50%, transparent 100%);
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .header-icon-box {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(83, 252, 24, 0.2), rgba(0, 0, 0, 0.7));
+      border: 1.5px solid var(--kick);
+      display: grid;
+      place-items: center;
+      font-size: 32px;
+      box-shadow: 0 0 20px var(--kick-glow);
+    }
+
+    .header-title-box h1 {
+      font-family: var(--f-display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .header-title-box h1 .highlight {
+      color: var(--kick);
+      text-shadow: 0 0 14px var(--kick-glow);
+    }
+
+    .header-subtitle {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .header-subtitle code {
+      background: rgba(255, 255, 255, 0.08);
+      padding: 2px 8px;
+      border-radius: 6px;
+      color: var(--kick-soft);
+      font-family: var(--f-tech);
+      font-size: 0.85rem;
+      border: 1px solid rgba(83, 252, 24, 0.2);
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 15px;
+      background: rgba(83, 252, 24, 0.1);
+      border: 1px solid rgba(83, 252, 24, 0.4);
+      border-radius: 999px;
+      font-family: var(--f-tech);
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: var(--kick);
+      letter-spacing: 0.8px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--kick);
+      box-shadow: 0 0 10px var(--kick);
+      animation: pulseLive 1.4s infinite;
+    }
+
+    @keyframes pulseLive {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.75); }
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 18px;
+      border-radius: 12px;
+      font-family: var(--f-tech);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.25s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--kick) 0%, #30b805 100%);
+      color: #041207;
+      box-shadow: 0 4px 15px var(--kick-glow);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(83, 252, 24, 0.6);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border: 1px solid var(--border-card-subtle);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-2px);
+    }
+
+    /* ═══════════ TARJETAS KPI (RESUMEN GLOBAL) ═══════════ */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card-subtle);
+      border-radius: 20px;
+      padding: 22px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--card-accent, var(--kick));
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--card-glow, var(--kick-glow));
+    }
+
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--card-accent, var(--kick));
+    }
+
+    .kpi-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .kpi-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .kpi-icon {
+      font-size: 1.4rem;
+      opacity: 0.9;
+    }
+
+    .kpi-value {
+      font-family: var(--f-display);
+      font-size: 1.75rem;
+      font-weight: 800;
+      color: #ffffff;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      font-family: var(--f-tech);
+    }
+
+    /* Colores por tarjeta */
+    .kpi-card.gold { --card-accent: var(--oro); --card-glow: var(--oro-glow); }
+    .kpi-card.cyan { --card-accent: var(--cyan); --card-glow: var(--cyan-glow); }
+    .kpi-card.purple { --card-accent: var(--morado); --card-glow: rgba(168, 85, 247, 0.35); }
+    .kpi-card.green { --card-accent: var(--kick); --card-glow: var(--kick-glow); }
+
+    /* ═══════════ CONTENEDOR PRINCIPAL: 2 COLUMNAS ═══════════ */
+    .content-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+
+    @media (max-width: 1024px) {
+      .content-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .section-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-card-subtle);
+      border-radius: 22px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-card-subtle);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .section-title {
+      font-family: var(--f-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .section-title span.badge-num {
+      background: rgba(83, 252, 24, 0.15);
+      border: 1px solid var(--border-card);
+      color: var(--kick);
+      font-family: var(--f-tech);
+      font-size: 0.78rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+    }
+
+    /* ═══════════ RANKING DE PRODUCTOS MÁS VENDIDOS ═══════════ */
+    .products-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 440px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .product-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .product-row:hover {
+      background: rgba(83, 252, 24, 0.04);
+      border-color: rgba(83, 252, 24, 0.25);
+      transform: translateX(4px);
+    }
+
+    .product-rank {
+      font-family: var(--f-display);
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--text-dim);
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .product-row:nth-child(1) .product-rank { color: var(--oro); text-shadow: 0 0 10px var(--oro-glow); font-size: 1.3rem; }
+    .product-row:nth-child(2) .product-rank { color: #e2e8f0; }
+    .product-row:nth-child(3) .product-rank { color: #d97706; }
+
+    .product-icon {
+      font-size: 1.8rem;
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 10px;
+      flex-shrink: 0;
+    }
+
+    .product-details {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .product-name-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+
+    .product-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .product-sold-tag {
+      font-family: var(--f-tech);
+      font-size: 0.88rem;
+      font-weight: 700;
+      color: var(--kick);
+    }
+
+    .progress-bar-bg {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #30b805, var(--kick));
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+
+    /* ═══════════ RANKING DE TOP COMPRADORES ═══════════ */
+    .users-ranking-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 440px;
+      overflow-y: auto;
+      padding-right: 6px;
+    }
+
+    .user-rank-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    .user-rank-row:hover {
+      background: rgba(255, 211, 92, 0.05);
+      border-color: rgba(255, 211, 92, 0.3);
+      transform: translateX(4px);
+    }
+
+    .user-rank-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .user-avatar-badge {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(83, 252, 24, 0.25), rgba(4, 20, 10, 0.8));
+      border: 1px solid var(--kick);
+      display: grid;
+      place-items: center;
+      font-family: var(--f-display);
+      font-weight: 800;
+      font-size: 1rem;
+      color: var(--kick);
+      flex-shrink: 0;
+    }
+
+    .user-info-text {
+      min-width: 0;
+    }
+
+    .user-handle {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #ffffff;
+      display: block;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-meta-small {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+    }
+
+    .user-rank-right {
+      text-align: right;
+      flex-shrink: 0;
+    }
+
+    .user-spent-pts {
+      font-family: var(--f-tech);
+      font-size: 1rem;
+      font-weight: 800;
+      color: var(--oro);
+      display: block;
+    }
+
+    .user-balance-small {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      font-family: var(--f-tech);
+    }
+
+    /* ═══════════ HISTORIAL DE TRANSACCIONES EN TIEMPO REAL ═══════════ */
+    .transactions-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      max-height: 400px;
+    }
+
+    .tx-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.88rem;
+    }
+
+    .tx-table th {
+      padding: 12px 14px;
+      background: rgba(0, 0, 0, 0.25);
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid var(--border-card-subtle);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    .tx-table td {
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .tx-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .tx-user {
+      font-weight: 700;
+      color: #ffffff;
+      font-family: var(--f-tech);
+    }
+
+    .tx-cost {
+      font-family: var(--f-tech);
+      font-weight: 700;
+      color: var(--oro);
+    }
+
+    .tx-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(83, 252, 24, 0.1);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      color: var(--kick);
+      font-size: 0.75rem;
+      font-family: var(--f-tech);
+    }
+
+    /* ═══════════ BUSCADOR DE ESPECTADOR / FICHA DE USUARIO ═══════════ */
+    .search-box-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .search-input {
+      flex: 1;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: var(--f-tech);
+      font-size: 0.95rem;
+      outline: none;
+      transition: all 0.25s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--kick);
+      box-shadow: 0 0 15px var(--kick-glow);
+    }
+
+    .user-profile-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(83, 252, 24, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      display: none;
+    }
+    .user-profile-card.active { display: block; }
+
+    .upc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .upc-user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .upc-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(135deg, var(--kick-soft), var(--kick));
+      color: #041207;
+      font-family: var(--f-display);
+      font-weight: 800;
+      font-size: 1.2rem;
+      display: grid;
+      place-items: center;
+    }
+
+    .upc-details h3 {
+      font-family: var(--f-display);
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #ffffff;
+    }
+
+    .upc-badge-role {
+      font-size: 0.75rem;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(255, 211, 92, 0.15);
+      border: 1px solid rgba(255, 211, 92, 0.4);
+      color: var(--oro);
+      font-family: var(--f-tech);
+    }
+
+    .upc-stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .upc-stat-box {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 10px;
+      text-align: center;
+    }
+
+    .upc-stat-val {
+      font-family: var(--f-tech);
+      font-weight: 800;
+      font-size: 1.15rem;
+      color: var(--kick);
+    }
+
+    .upc-stat-lbl {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .upc-action-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .upc-action-row input {
+      width: 90px;
+      padding: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      color: #fff;
+      font-family: var(--f-tech);
+      text-align: center;
+    }
+
+    /* Modal / Toast emergente */
+    .toast-popup {
+      position: fixed;
+      bottom: 25px;
+      right: 25px;
+      padding: 14px 22px;
+      background: #0e1d13;
+      border: 1.5px solid var(--kick);
+      color: #ffffff;
+      border-radius: 12px;
+      font-family: var(--f-tech);
+      font-size: 0.92rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px var(--kick-glow);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s ease;
+      pointer-events: none;
+    }
+    .toast-popup.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    /* ═══════════ MONITOR KICK EN VIVO (SIN STREAMER.BOT) ═══════════ */
+    .kick-monitor-bar {
+      background: linear-gradient(135deg, rgba(14, 28, 20, 0.85) 0%, rgba(6, 14, 10, 0.95) 100%);
+      border: 1px solid var(--border-card);
+      border-radius: 20px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.5), 0 0 20px rgba(83, 252, 24, 0.08);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .kick-monitor-bar::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; width: 4px; height: 100%;
+      background: var(--kick);
+      box-shadow: 0 0 15px var(--kick);
+    }
+
+    .kmb-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .kmb-channel-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: #000;
+      border: 1.5px solid var(--kick);
+      display: grid;
+      place-items: center;
+      font-family: var(--f-display);
+      font-weight: 900;
+      color: var(--kick);
+      font-size: 1.3rem;
+      box-shadow: 0 0 15px var(--kick-glow);
+      flex-shrink: 0;
+    }
+
+    .kmb-info { min-width: 0; }
+
+    .kmb-title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .kmb-channel-name {
+      font-family: var(--f-display);
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .kmb-status-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-family: var(--f-tech);
+      font-size: 0.78rem;
+      font-weight: 700;
+      transition: all 0.3s ease;
+    }
+    .kmb-status-tag.live {
+      background: rgba(83, 252, 24, 0.15);
+      border: 1px solid var(--kick);
+      color: var(--kick);
+      box-shadow: 0 0 10px var(--kick-glow);
+    }
+    .kmb-status-tag.offline {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: var(--text-muted);
+    }
+
+    .kmb-stream-title {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 600px;
+    }
+
+    .kmb-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .kmb-stat-pill {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-card-subtle);
+      border-radius: 12px;
+      padding: 8px 14px;
+      text-align: center;
+    }
+
+    .kmb-stat-pill .val {
+      font-family: var(--f-display);
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--kick);
+    }
+
+    .kmb-stat-pill .lbl {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: var(--f-tech);
+      text-transform: uppercase;
+    }
+
+    /* ═══════════ SESIONES DE STREAM Y CONTRASTE DE ASISTENCIAS ═══════════ */
+    .stream-session-selector-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .select-session-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .select-session-wrap select {
+      flex: 1;
+      padding: 11px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      border-radius: 12px;
+      color: #fff;
+      font-family: var(--f-tech);
+      font-size: 0.92rem;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .select-session-wrap select:focus {
+      border-color: var(--kick);
+      box-shadow: 0 0 15px var(--kick-glow);
+    }
+
+    .stream-summary-banner {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 18px 22px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .ssb-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .ssb-title {
+      font-family: var(--f-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .ssb-dates {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+    }
+
+    .ssb-rate-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .ssb-rate-circle {
+      text-align: right;
+    }
+
+    .ssb-rate-val {
+      font-family: var(--f-display);
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: var(--kick);
+    }
+
+    .ssb-rate-lbl {
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      font-family: var(--f-tech);
+      text-transform: uppercase;
+    }
+
+    .contrast-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 900px) {
+      .contrast-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .contrast-col {
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: 16px;
+      border: 1px solid var(--border-card-subtle);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .contrast-col.presentes {
+      border-color: rgba(83, 252, 24, 0.25);
+    }
+
+    .contrast-col.ausentes {
+      border-color: rgba(255, 92, 108, 0.2);
+    }
+
+    .contrast-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .contrast-title {
+      font-family: var(--f-tech);
+      font-size: 0.95rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .contrast-col.presentes .contrast-title { color: var(--kick); }
+    .contrast-col.ausentes .contrast-title { color: var(--rojo); }
+
+    .contrast-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 380px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .contrast-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      transition: all 0.2s ease;
+      gap: 10px;
+    }
+    .contrast-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      transform: translateX(3px);
+    }
+
+    .contrast-user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .contrast-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: grid;
+      place-items: center;
+      font-size: 1.1rem;
+      flex-shrink: 0;
+    }
+
+    .contrast-name {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .contrast-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+    }
+
+    .contrast-tag {
+      font-family: var(--f-tech);
+      font-size: 0.8rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .contrast-tag.present {
+      background: rgba(83, 252, 24, 0.12);
+      color: var(--kick);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+    }
+    .contrast-tag.absent {
+      background: rgba(255, 92, 108, 0.1);
+      color: var(--rojo);
+      border: 1px solid rgba(255, 92, 108, 0.3);
+    }
+
+    /* ═══════════ ESCALAFÓN Y NIVELES DE LA MANADA ═══════════ */
+    .tiers-legend-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+
+    .tier-chip {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s ease;
+    }
+    .tier-chip:hover {
+      border-color: var(--kick);
+      background: rgba(83, 252, 24, 0.04);
+    }
+
+    .tier-chip-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+    }
+
+    .tier-chip-info {
+      line-height: 1.2;
+    }
+
+    .tier-chip-name {
+      font-weight: 800;
+      font-size: 0.82rem;
+      color: #fff;
+    }
+
+    .tier-chip-detail {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+    }
+
+    .tier-chip-pts {
+      color: var(--oro);
+      font-weight: 700;
+    }
+
+    .levels-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    .levels-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .levels-table th {
+      padding: 12px 14px;
+      background: rgba(0, 0, 0, 0.3);
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-bottom: 1px solid var(--border-card-subtle);
+    }
+
+    .levels-table td {
+      padding: 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    .levels-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .level-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-family: var(--f-tech);
+      font-size: 0.8rem;
+      font-weight: 800;
+      background: rgba(83, 252, 24, 0.1);
+      border: 1px solid rgba(83, 252, 24, 0.3);
+      color: var(--kick);
+    }
+
+    .level-progress-wrap {
+      min-width: 140px;
+    }
+
+    .level-progress-txt {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-family: var(--f-tech);
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-container">
+
+    <!-- ═══════════ HEADER ═══════════ -->
+    <header class="dash-header">
+      <div class="header-left">
+        <div class="header-icon-box">📊</div>
+        <div class="header-title-box">
+          <h1>TIENDITA DE JIKO ✦ <span class="highlight">ESTADÍSTICAS &amp; NIVELES</span></h1>
+          <div class="header-subtitle">
+            Base de Datos: <code>Firebase Realtime (stream/)</code>
+            <span>•</span>
+            <span>Detección Kick en Vivo</span>
+            <span>•</span>
+            <span>Rangos de la Manada</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <div class="live-badge" id="firebase-status-badge">
+          <span class="live-dot"></span>
+          <span id="firebase-status-txt">FIREBASE RTDB CONECTADO</span>
+        </div>
+        <a href="tiendita.html" target="_blank" class="action-btn btn-secondary" title="Abrir Tiendita en pestaña independiente">
+          🏪 Ver Tiendita
+        </a>
+        <button class="action-btn btn-primary" onclick="sembrarDatosSiEstaVacia()" id="btn-seed">
+          🌱 Sembrar Datos
+        </button>
+      </div>
+    </header>
+
+    <!-- ═══════════ MONITOR KICK EN VIVO (DETECTOR INTERNO SIN STREAMER.BOT) ═══════════ -->
+    <section class="kick-monitor-bar">
+      <div class="kmb-left">
+        <div class="kmb-channel-icon">K</div>
+        <div class="kmb-info">
+          <div class="kmb-title-row">
+            <span class="kmb-channel-name">kick.com/jikokun</span>
+            <div class="kmb-status-tag offline" id="kick-status-tag">
+              <span class="live-dot" id="kick-live-dot" style="background:#8ca398; box-shadow:none;"></span>
+              <span id="kick-status-label">KICK: OFFLINE</span>
+            </div>
+            <span style="font-size: 0.78rem; color: var(--text-dim); font-family: var(--f-tech);">Detector Interno (Pusher WebSocket + API)</span>
+          </div>
+          <div class="kmb-stream-title" id="kick-stream-title">
+            Esperando transmisión de Kick... (Se detecta automáticamente al iniciar directo)
+          </div>
+        </div>
+      </div>
+
+      <div class="kmb-right">
+        <div class="kmb-stat-pill">
+          <div class="val" id="kick-streams-count-val">0</div>
+          <div class="lbl">Streams Prendidos</div>
+        </div>
+        <div class="kmb-stat-pill">
+          <div class="val" id="kick-viewers-val">0</div>
+          <div class="lbl">Viewers en Vivo</div>
+        </div>
+        <button class="action-btn btn-secondary" onclick="toggleSimulacionLive()" id="btn-toggle-live" title="Simular que el canal prende o apaga stream para pruebas">
+          🎬 Simular Live Kick
+        </button>
+        <button class="action-btn btn-secondary" onclick="verificarKickAhora()" title="Chequeo manual inmediato de API de Kick">
+          🔄 Check API
+        </button>
+      </div>
+    </section>
+
+    <!-- ═══════════ TARJETAS KPI (RESUMEN EN VIVO) ═══════════ -->
+    <section class="kpi-grid">
+      <div class="kpi-card green">
+        <div class="kpi-head">
+          <span class="kpi-title">Streams Prendidos</span>
+          <span class="kpi-icon">📡</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-streams">0</div>
+        <div class="kpi-sub">Total de directos detectados en Kick</div>
+      </div>
+
+      <div class="kpi-card purple">
+        <div class="kpi-head">
+          <span class="kpi-title">Asistencias Lobito</span>
+          <span class="kpi-icon">🐺</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-asistencias">0</div>
+        <div class="kpi-sub">+500 pts base + bono de lealtad</div>
+      </div>
+
+      <div class="kpi-card gold">
+        <div class="kpi-head">
+          <span class="kpi-title">Puntos Otorgados</span>
+          <span class="kpi-icon">🎁</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-otorgados">0</div>
+        <div class="kpi-sub">Por asistencias y recompensas</div>
+      </div>
+
+      <div class="kpi-card gold">
+        <div class="kpi-head">
+          <span class="kpi-title">Puntos Gastados</span>
+          <span class="kpi-icon">🛒</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-gastado">0</div>
+        <div class="kpi-sub">Total invertido en compras</div>
+      </div>
+
+      <div class="kpi-card green">
+        <div class="kpi-head">
+          <span class="kpi-title">Platillos Servidos</span>
+          <span class="kpi-icon">🍱</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-platillos">0</div>
+        <div class="kpi-sub">Entregados en mesa por mesero</div>
+      </div>
+
+      <div class="kpi-card cyan">
+        <div class="kpi-head">
+          <span class="kpi-title">Órdenes Pagadas</span>
+          <span class="kpi-icon">💳</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-ordenes">0</div>
+        <div class="kpi-sub">Transacciones completadas</div>
+      </div>
+
+      <div class="kpi-card purple">
+        <div class="kpi-head">
+          <span class="kpi-title">Miembros de la Manada</span>
+          <span class="kpi-icon">👥</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-usuarios">0</div>
+        <div class="kpi-sub">Cuentas con niveles en stream/</div>
+      </div>
+
+      <div class="kpi-card cyan">
+        <div class="kpi-head">
+          <span class="kpi-title">Tasa Asistencia Media</span>
+          <span class="kpi-icon">📊</span>
+        </div>
+        <div class="kpi-value" id="kpi-tasa-asistencia">0%</div>
+        <div class="kpi-sub">% de la comunidad presente</div>
+      </div>
+    </section>
+
+    <!-- ═══════════ SECCIÓN: SESIONES DE STREAM Y CONTRASTE DE ASISTENCIAS ═══════════ -->
+    <section class="section-card" style="margin-bottom: 28px;">
+      <div class="section-header">
+        <h2 class="section-title">
+          📡 Sesiones de Transmisión &amp; Contraste de Asistencias
+          <span class="badge-num" id="badge-streams-count">0 streams</span>
+        </h2>
+        <span style="font-size: 0.8rem; color: var(--kick); font-family: var(--f-tech);">stream/transmisiones/{id}</span>
+      </div>
+
+      <!-- Barra de selección de stream -->
+      <div class="stream-session-selector-bar">
+        <div class="select-session-wrap">
+          <label style="font-size:0.85rem; font-weight:700; color:var(--text-muted); font-family:var(--f-tech); white-space:nowrap;">Transmisión:</label>
+          <select id="select-stream-session" onchange="cambiarStreamSeleccionado()">
+            <option value="">⏳ Cargando sesiones de transmisiones...</option>
+          </select>
+        </div>
+        <button class="action-btn btn-secondary" onclick="refrescarContrasteActual()" style="padding: 9px 14px; font-size:0.85rem;">
+          🔄 Actualizar Contraste
+        </button>
+      </div>
+
+      <!-- Resumen de la sesión seleccionada -->
+      <div class="stream-summary-banner" id="stream-summary-banner">
+        <div class="ssb-meta">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span class="kmb-status-tag offline" id="ssb-badge-estado">OFFLINE</span>
+            <span class="ssb-title" id="ssb-stream-titulo">Selecciona una transmisión para ver detalles</span>
+          </div>
+          <div class="ssb-dates" id="ssb-stream-fechas">--</div>
+        </div>
+
+        <div class="ssb-rate-box">
+          <div class="ssb-rate-circle">
+            <div class="ssb-rate-val" id="ssb-rate-val">0%</div>
+            <div class="ssb-rate-lbl">Tasa de Asistencia</div>
+          </div>
+          <div style="width: 110px;">
+            <div class="progress-bar-bg" style="height: 10px;">
+              <div class="progress-bar-fill" id="ssb-rate-bar" style="width: 0%"></div>
+            </div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--f-tech); margin-top: 4px; text-align: center;" id="ssb-rate-counts">
+              0 presentes / 0 total
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Cuadrícula de Contraste: Presentes vs Ausentes -->
+      <div class="contrast-grid">
+
+        <!-- Columna 1: Presentes en la sesión -->
+        <div class="contrast-col presentes">
+          <div class="contrast-header">
+            <span class="contrast-title">
+              ✅ Espectadores que Asistieron (Activos)
+            </span>
+            <span class="badge-num" id="badge-presentes-count" style="background:rgba(83,252,24,0.15); color:var(--kick); border-color:var(--kick);">0</span>
+          </div>
+          <div class="contrast-list" id="contrast-presentes-list">
+            <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+              Selecciona una transmisión para ver la lista de asistentes.
+            </div>
+          </div>
+        </div>
+
+        <!-- Columna 2: Ausentes en la sesión -->
+        <div class="contrast-col ausentes">
+          <div class="contrast-header">
+            <span class="contrast-title">
+              💤 Espectadores Ausentes de la Manada
+            </span>
+            <span class="badge-num" id="badge-ausentes-count" style="background:rgba(255,92,108,0.15); color:var(--rojo); border-color:var(--rojo);">0</span>
+          </div>
+          <div class="contrast-list" id="contrast-ausentes-list">
+            <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+              Selecciona una transmisión para ver los espectadores que no asistieron.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════ SECCIÓN: ESCALAFÓN Y NIVELES DE LA MANADA ═══════════ -->
+    <section class="section-card" style="margin-bottom: 28px;">
+      <div class="section-header">
+        <h2 class="section-title">
+          🐺 Escalafón de la Manada (Niveles por Asistencia)
+          <span class="badge-num" id="badge-levels-count">0 miembros</span>
+        </h2>
+        <span style="font-size: 0.8rem; color: var(--oro); font-family: var(--f-tech);">+500 pts base + Bono de Rango</span>
+      </div>
+
+      <!-- Barra de leyenda de los 6 rangos -->
+      <div class="tiers-legend-bar">
+        <div class="tier-chip">
+          <span class="tier-chip-icon">🐾</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nivel 1: Cachorro</div>
+            <div class="tier-chip-detail">1-2 streams • <span class="tier-chip-pts">500 pts</span></div>
+          </div>
+        </div>
+
+        <div class="tier-chip">
+          <span class="tier-chip-icon">🧭</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nvl 2: Explorador</div>
+            <div class="tier-chip-detail">3-5 streams • <span class="tier-chip-pts">+50 pts</span> (550)</div>
+          </div>
+        </div>
+
+        <div class="tier-chip">
+          <span class="tier-chip-icon">🏹</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nvl 3: Cazador Fiel</div>
+            <div class="tier-chip-detail">6-9 streams • <span class="tier-chip-pts">+100 pts</span> (600)</div>
+          </div>
+        </div>
+
+        <div class="tier-chip">
+          <span class="tier-chip-icon">🛡️</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nvl 4: Guardián</div>
+            <div class="tier-chip-detail">10-19 streams • <span class="tier-chip-pts">+150 pts</span> (650)</div>
+          </div>
+        </div>
+
+        <div class="tier-chip">
+          <span class="tier-chip-icon">⚡</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nvl 5: Lobo Beta (VIP)</div>
+            <div class="tier-chip-detail">20-34 streams • <span class="tier-chip-pts">+200 pts</span> (700)</div>
+          </div>
+        </div>
+
+        <div class="tier-chip">
+          <span class="tier-chip-icon">👑</span>
+          <div class="tier-chip-info">
+            <div class="tier-chip-name">Nvl 6: Lobo Alfa</div>
+            <div class="tier-chip-detail">35+ streams • <span class="tier-chip-pts">+250 pts</span> (750)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de posiciones por nivel -->
+      <div class="levels-table-wrap">
+        <table class="levels-table">
+          <thead>
+            <tr>
+              <th style="width: 50px;">Pos</th>
+              <th>Espectador</th>
+              <th>Rango &amp; Nivel</th>
+              <th>Asistencias</th>
+              <th>Bono por Stream</th>
+              <th>Progreso al Sig. Rango</th>
+              <th style="text-align: right;">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="levels-table-body">
+            <tr>
+              <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 30px;">
+                ⏳ Cargando escalafón de la manada desde stream/usuarios...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ═══════════ CONTENIDO EN 2 COLUMNAS: PLATILLOS & TOP COMPRADORES ═══════════ -->
+    <div class="content-layout">
+
+      <!-- COLUMNA 1: PLATILLOS MÁS VENDIDOS -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            🏆 Platillos Más Vendidos
+            <span class="badge-num" id="badge-prods-count">0 items</span>
+          </h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--f-tech);">En Vivo</span>
+        </div>
+
+        <div class="products-list" id="products-ranking-list">
+          <div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-family: var(--f-tech);">
+            ⏳ Cargando métricas de productos desde stream/tienda/estadisticas...
+          </div>
+        </div>
+      </div>
+
+      <!-- COLUMNA 2: RANKING DE TOP COMPRADORES -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            👑 Top Compradores
+            <span class="badge-num" id="badge-users-count">0 clientes</span>
+          </h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--f-tech);">Mayor Gasto</span>
+        </div>
+
+        <div class="users-ranking-list" id="users-ranking-list">
+          <div style="text-align: center; color: var(--text-muted); padding: 40px 0; font-family: var(--f-tech);">
+            ⏳ Cargando ranking de clientes desde stream/tienda/estadisticas...
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ CONTENIDO INFERIOR: HISTORIAL DE COMPRAS & BUSCADOR ═══════════ -->
+    <div class="content-layout">
+
+      <!-- COLUMNA INFERIOR 1: HISTORIAL DE COMPRAS EN VIVO -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            ⚡ Transacciones en Vivo
+            <span class="badge-num" id="badge-tx-count">0</span>
+          </h2>
+          <span style="font-size: 0.8rem; color: var(--kick); font-family: var(--f-tech);">stream/tienda/transacciones</span>
+        </div>
+
+        <div class="transactions-table-wrap">
+          <table class="tx-table">
+            <thead>
+              <tr>
+                <th>Hora</th>
+                <th>Usuario</th>
+                <th>Platillos</th>
+                <th>Costo</th>
+                <th>Saldo</th>
+              </tr>
+            </thead>
+            <tbody id="tx-table-body">
+              <tr>
+                <td colspan="5" style="text-align:center; color: var(--text-muted); padding: 25px;">
+                  No hay transacciones registradas aún.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- COLUMNA INFERIOR 2: BUSCADOR & FICHA DE ESPECTADOR -->
+      <div class="section-card">
+        <div class="section-header">
+          <h2 class="section-title">
+            🔍 Ficha de Espectador
+          </h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--f-tech);">stream/usuarios/{id}</span>
+        </div>
+
+        <div class="search-box-row">
+          <input type="text" class="search-input" id="search-username" placeholder="Escribe un usuario (ej: LunaGamer, elpana_juan)..." onkeydown="if(event.key==='Enter') buscarUsuario()">
+          <button class="action-btn btn-primary" onclick="buscarUsuario()">Buscar</button>
+        </div>
+
+        <div class="user-profile-card" id="user-profile-box">
+          <div class="upc-header">
+            <div class="upc-user-info">
+              <div class="upc-avatar" id="upc-avatar">?</div>
+              <div class="upc-details">
+                <h3 id="upc-name">@usuario</h3>
+                <span class="upc-badge-role" id="upc-role">Espectador</span>
+                <span class="level-badge-pill" id="upc-level-badge" style="margin-left: 6px;">🐾 Nvl 1</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Saldo Actual:</span>
+              <span style="font-family: var(--f-tech); font-weight: 800; font-size: 1.25rem; color: var(--oro);" id="upc-balance">0 pts</span>
+            </div>
+          </div>
+
+          <div class="upc-stats-grid">
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-spent">0</div>
+              <div class="upc-stat-lbl">Puntos Gastados</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-orders">0</div>
+              <div class="upc-stat-lbl">Pedidos Hechos</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-attend">0</div>
+              <div class="upc-stat-lbl">Asistencias Stream</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-bonus">500 pts</div>
+              <div class="tier-chip-detail" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Bono Asistencia</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">ADMINISTRAR JIKOPUNTOS:</div>
+            <div class="upc-action-row">
+              <input type="number" id="pts-delta-input" value="500" step="50" min="10">
+              <button class="action-btn btn-primary" onclick="ajustarPuntosEncontrado(true)" style="padding: 7px 12px; font-size: 0.82rem;">➕ Sumar</button>
+              <button class="action-btn btn-secondary" onclick="ajustarPuntosEncontrado(false)" style="padding: 7px 12px; font-size: 0.82rem; color: var(--rojo); border-color: rgba(255,92,108,0.4);">➖ Restar</button>
+              <button class="action-btn btn-secondary" onclick="migrarLocalStorageAUsuario()" style="padding: 7px 12px; font-size: 0.82rem;">🔄 Sincronizar Local</button>
+              <button class="action-btn btn-primary" onclick="marcarAsistenciaDesdeFicha()" style="padding: 7px 12px; font-size: 0.82rem; background:linear-gradient(135deg, #a855f7, #6366f1); color:#fff;">🐺 Pasar Lista</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="search-empty-hint" style="text-align: center; color: var(--text-dim); padding: 30px 10px; font-family: var(--f-tech);">
+          💡 Ingresa el nombre de cualquier espectador para ver su balance, platillos favoritos y estadísticas detalladas.
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="toast-popup" id="toast-popup"></div>
+
+  <!-- Controlador Modular Firebase RTDB (StreamDB) -->
+  <script type="module">
+    import { StreamDB, norm, NIVELES_ASISTENCIA, calcularNivelUsuario } from './js/stream_firebase.js';
+
+    window.StreamDB = StreamDB;
+    window.norm = norm;
+    window.NIVELES_ASISTENCIA = NIVELES_ASISTENCIA;
+    window.calcularNivelUsuario = calcularNivelUsuario;
+
+    let transmisionesHistorialCache = [];
+    let streamSeleccionadoId = null;
+    let usuariosCacheGlobal = [];
+
+    // Toast flotante
+    function showToast(msg) {
+      const t = document.getElementById('toast-popup');
+      if (!t) return;
+      t.innerHTML = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 3500);
+    }
+    window.showToast = showToast;
+
+    // Catálogo de iconos de platillos de la tiendita
+    const EMOJIS = {
+      pupusas: '🫓', tamal: '🫔', pollofrito: '🍗', salchipapa: '🍟', hamburguesa: '🍔',
+      hotdog: '🌭', taco: '🌮', burrito: '🌯', yucafrita: '🥔', pastelitos: '🥟',
+      papitas: '🍟', anillitos: '🧅', sopita: '🥣', arrozenleche: '🍚', chocopastel: '🍰',
+      helado: '🍦', galleta: '🍪', arepita: '🫓', empanadamechada: '🥟', pabellon: '🍛',
+      tequeyoyo: '🧀', cafe: '☕', chocolatito: '🍫', matcha: '🍵', horchata: '🥛',
+      limonada: '🍋', juguito: '🧃', frozen: '🍧', coca: '🥤', cerveza: '🍺',
+      guarito: '🍶', vinito: '🍷', vasoagua: '🥛', aguabotella: '💧', aguacoco: '🥥',
+      cafenegro: '☕', capuchino: '☕', juguitocaja: '🧃', juguitofresa: '🍓', techai: '🫖', tesito: '🍵'
+    };
+
+    // Inicializar StreamDB
+    StreamDB.init().then(async () => {
+      document.getElementById('firebase-status-txt').textContent = 'FIREBASE RTDB CONECTADO';
+
+      // 1. Iniciar detector interno de Kick (Pusher WebSocket + API polling)
+      StreamDB.startKickStreamMonitor('jikokun');
+
+      // 2. Escuchar cambios de estado en vivo de Kick
+      StreamDB.onKickLiveStateChange((state) => {
+        renderizarEstadoKick(state);
+      });
+
+      // 3. Escuchar métricas globales de transmisiones
+      StreamDB.onTransmisionesStats((stats) => {
+        renderizarTransmisionesStats(stats);
+      });
+
+      // 4. Escuchar historial de transmisiones para el contraste
+      StreamDB.onTransmisionesHistorial((streams) => {
+        actualizarListaTransmisiones(streams);
+      });
+
+      // 5. Escuchar usuarios en tiempo real para el Escalafón de la Manada
+      StreamDB.onUsers((users) => {
+        usuariosCacheGlobal = users;
+        renderizarEscalafonNiveles(users);
+        document.getElementById('kpi-total-usuarios').textContent = users.length;
+        document.getElementById('badge-levels-count').textContent = `${users.length} miembros`;
+      });
+
+      // 6. Escuchar estadísticas de compras y tienda
+      StreamDB.onEstadisticas((stats) => {
+        renderizarEstadisticas(stats);
+      });
+
+      // 7. Escuchar transacciones en vivo
+      StreamDB.onTransacciones((txList) => {
+        renderizarTransacciones(txList);
+      });
+
+      showToast('🔥 Conectado con éxito a <b>Firebase RTDB (stream/)</b> con <b>Detector Kick Interno</b>');
+    }).catch(err => {
+      document.getElementById('firebase-status-txt').textContent = 'ERROR CONEXIÓN';
+      document.getElementById('firebase-status-badge').style.borderColor = '#ff5c6c';
+      console.error('[Dashboard] Error inicializando Firebase:', err);
+    });
+
+    // Renderizar estado de Kick (Banner y badges)
+    function renderizarEstadoKick(state = {}) {
+      const isLive = state.isLive === true;
+      const live = state.livestream;
+
+      const tag = document.getElementById('kick-status-tag');
+      const dot = document.getElementById('kick-live-dot');
+      const label = document.getElementById('kick-status-label');
+      const titleEl = document.getElementById('kick-stream-title');
+      const viewersEl = document.getElementById('kick-viewers-val');
+
+      if (isLive) {
+        tag.className = 'kmb-status-tag live';
+        dot.style.background = '#53fc18';
+        dot.style.boxShadow = '0 0 10px #53fc18';
+        label.textContent = 'KICK: 🔴 EN VIVO';
+        const viewers = live?.viewer_count || 0;
+        viewersEl.textContent = viewers;
+        const categoria = live?.categories?.[0]?.name || 'Just Chatting';
+        const sessionTitle = live?.session_title || 'Transmisión en Vivo';
+        titleEl.innerHTML = `🔥 <b>${sessionTitle}</b> <span style="color:var(--kick-soft);">[${categoria}]</span>`;
+      } else {
+        tag.className = 'kmb-status-tag offline';
+        dot.style.background = '#8ca398';
+        dot.style.boxShadow = 'none';
+        label.textContent = 'KICK: ⚫ OFFLINE';
+        viewersEl.textContent = '0';
+        titleEl.textContent = 'Canal offline en Kick. (El detector registrará automáticamente cuando prendas directo)';
+      }
+    }
+
+    // Renderizar contadores de transmisiones stats
+    function renderizarTransmisionesStats(stats = {}) {
+      const total = stats.totalStreamsPrendidos || 0;
+      document.getElementById('kick-streams-count-val').textContent = total;
+      document.getElementById('kpi-total-streams').textContent = total;
+    }
+
+    // Actualizar selector desplegable de transmisiones
+    function actualizarListaTransmisiones(streams = []) {
+      transmisionesHistorialCache = streams;
+      const select = document.getElementById('select-stream-session');
+      document.getElementById('badge-streams-count').textContent = `${streams.length} streams`;
+
+      if (!streams || streams.length === 0) {
+        select.innerHTML = '<option value="">No hay transmisiones registradas aún</option>';
+        return;
+      }
+
+      const prevSelected = streamSeleccionadoId;
+      select.innerHTML = streams.map((s, idx) => {
+        const num = s.numeroStream || (streams.length - idx);
+        const fecha = s.inicioFechaLegible || new Date(s.inicioTimestamp || Date.now()).toLocaleDateString();
+        const estadoTag = s.estado === 'en_vivo' ? '🔴 EN VIVO' : '⏹️ Finalizado';
+        return `<option value="${s.id}">Stream #${num} • ${fecha} [${estadoTag}]</option>`;
+      }).join('');
+
+      // Mantener selección o elegir la primera (más reciente)
+      if (prevSelected && streams.some(s => s.id === prevSelected)) {
+        select.value = prevSelected;
+      } else {
+        select.value = streams[0].id;
+        streamSeleccionadoId = streams[0].id;
+      }
+
+      cargarContrasteStream(select.value);
+    }
+
+    window.cambiarStreamSeleccionado = function() {
+      const select = document.getElementById('select-stream-session');
+      streamSeleccionadoId = select.value;
+      cargarContrasteStream(streamSeleccionadoId);
+    };
+
+    window.refrescarContrasteActual = function() {
+      if (streamSeleccionadoId) {
+        cargarContrasteStream(streamSeleccionadoId);
+        showToast('🔄 Contraste de transmisiones actualizado');
+      }
+    };
+
+    // Cargar y mostrar contraste de la sesión seleccionada
+    async function cargarContrasteStream(streamId) {
+      if (!streamId) return;
+      const res = await StreamDB.contrastarAsistenciasTransmision(streamId);
+      if (!res) return;
+
+      // Banner resumen del stream
+      const estadoBadge = document.getElementById('ssb-badge-estado');
+      if (res.estado === 'en_vivo') {
+        estadoBadge.className = 'kmb-status-tag live';
+        estadoBadge.textContent = '🔴 EN VIVO';
+      } else {
+        estadoBadge.className = 'kmb-status-tag offline';
+        estadoBadge.textContent = '⏹️ FINALIZADO';
+      }
+
+      document.getElementById('ssb-stream-titulo').textContent = `Stream #${res.streamNumero || '1'} ✦ ${res.streamTitulo || 'Transmisión de Kick'}`;
+      document.getElementById('ssb-stream-fechas').textContent = `Inicio: ${res.inicioFechaLegible || '--'}`;
+
+      document.getElementById('ssb-rate-val').textContent = `${res.tasaAsistencia}%`;
+      document.getElementById('ssb-rate-bar').style.width = `${res.tasaAsistencia}%`;
+      document.getElementById('ssb-rate-counts').textContent = `${res.totalPresentes} presentes / ${res.totalEspectadores} total`;
+
+      document.getElementById('badge-presentes-count').textContent = res.totalPresentes;
+      document.getElementById('badge-ausentes-count').textContent = res.totalAusentes;
+      document.getElementById('kpi-tasa-asistencia').textContent = `${res.tasaAsistencia}%`;
+
+      // Renderizar columna Presentes
+      const presListEl = document.getElementById('contrast-presentes-list');
+      if (res.presentes.length === 0) {
+        presListEl.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+            Sin asistentes registrados en esta transmisión todavía.
+          </div>
+        `;
+      } else {
+        presListEl.innerHTML = res.presentes.map(p => {
+          return `
+            <div class="contrast-item">
+              <div class="contrast-user-info">
+                <div class="contrast-avatar">${p.insigniaEmoji}</div>
+                <div>
+                  <div class="contrast-name">@${p.username}</div>
+                  <div class="contrast-meta">${p.rangoTitulo} (Nvl ${p.nivel}) • Llegó: ${p.hora}</div>
+                </div>
+              </div>
+              <span class="contrast-tag present">Presente</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Renderizar columna Ausentes
+      const ausListEl = document.getElementById('contrast-ausentes-list');
+      if (res.ausentes.length === 0) {
+        ausListEl.innerHTML = `
+          <div style="text-align: center; color: var(--kick); padding: 30px 10px; font-family: var(--f-tech);">
+            🎉 ¡Asistencia perfecta! Toda la manada estuvo presente en este stream.
+          </div>
+        `;
+      } else {
+        ausListEl.innerHTML = res.ausentes.map(a => {
+          return `
+            <div class="contrast-item">
+              <div class="contrast-user-info">
+                <div class="contrast-avatar" style="opacity:0.7;">${a.insigniaEmoji}</div>
+                <div>
+                  <div class="contrast-name" style="color:#d1d5db;">@${a.username}</div>
+                  <div class="contrast-meta">${a.rangoTitulo} (Nvl ${a.nivel}) • ${a.asistenciasCount} asistencias previas</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span class="contrast-tag absent">Ausente</span>
+                <button class="action-btn btn-primary" onclick="pasarListaManual('${a.username}')" style="padding: 4px 8px; font-size: 0.72rem;" title="Registrar asistencia ahora">
+                  ➕ Asistió
+                </button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Renderizar Escalafón de Niveles de la Manada
+    function renderizarEscalafonNiveles(users = []) {
+      const tbody = document.getElementById('levels-table-body');
+      if (!tbody) return;
+
+      const espectadores = users.filter(u => u.username !== 'jikokun')
+        .sort((a, b) => (b.asistenciasCount || 0) - (a.asistenciasCount || 0));
+
+      if (espectadores.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align:center; color: var(--text-muted); padding: 30px;">
+              No hay miembros registrados aún. Haz clic en <b>🌱 Sembrar Datos</b> para cargar la muestra.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const medallas = ['🥇', '🥈', '🥉'];
+
+      tbody.innerHTML = espectadores.map((u, idx) => {
+        const posText = medallas[idx] || `#${idx + 1}`;
+        const count = u.asistenciasCount || 0;
+        const bono = u.bonoAsistencia || 500;
+        const pct = u.porcentajeProgreso || 0;
+        const faltantes = u.faltantesParaSiguienteNivel || 0;
+
+        return `
+          <tr>
+            <td style="font-family:var(--f-display); font-weight:800; font-size:1.1rem; color:${idx < 3 ? 'var(--oro)' : 'var(--text-dim)'};">${posText}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="contrast-avatar" style="width:36px; height:36px; font-size:1.2rem;">${u.insigniaEmoji}</div>
+                <div>
+                  <div style="font-weight:800; color:#fff; font-size:0.95rem;">@${u.displayName || u.username}</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech);">${u.rol || 'Espectador'}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div class="level-badge-pill">
+                <span>${u.insigniaEmoji}</span>
+                <span>${u.rangoTitulo}</span>
+                <span style="color:var(--text-dim); font-size:0.75rem;">(Nvl ${u.nivel})</span>
+              </div>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:800; font-size:1.1rem; color:var(--kick);">${count}</span>
+              <span style="font-size:0.75rem; color:var(--text-muted);"> streams</span>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:700; color:var(--oro); font-size:0.95rem;">+${bono} pts</span>
+            </td>
+            <td>
+              <div class="level-progress-wrap">
+                <div class="level-progress-txt">
+                  <span>${pct}%</span>
+                  <span>${faltantes > 0 ? `Faltan ${faltantes}` : 'Máximo'}</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            </td>
+            <td style="text-align: right;">
+              <button class="action-btn btn-secondary" onclick="cargarUsuarioEnBuscador('${u.username}')" style="padding: 5px 12px; font-size:0.78rem;">
+                🔍 Ficha
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Pasar lista manual
+    window.pasarListaManual = async function(username) {
+      if (!username) return;
+      const asis = await StreamDB.registrarAsistencia({ usuario: username, botEmisor: 'Panel_Estadisticas' });
+      if (asis) {
+        showToast(`🐺 Asistencia registrada para <b>@${username}</b> (+${asis.puntosOtorgados} pts • ${asis.insigniaEmoji} ${asis.rangoTitulo})`);
+        if (streamSeleccionadoId) {
+          cargarContrasteStream(streamSeleccionadoId);
+        }
+      }
+    };
+
+    window.marcarAsistenciaDesdeFicha = async function() {
+      if (!usuarioEncontradoActual) return;
+      await window.pasarListaManual(usuarioEncontradoActual.username);
+      // Recargar ficha
+      const u = await StreamDB.getUser(usuarioEncontradoActual.username);
+      if (u) renderizarFichaUsuario(u);
+    };
+
+    // Simular Live Stream Kick
+    window.toggleSimulacionLive = async function() {
+      const btn = document.getElementById('btn-toggle-live');
+      if (btn) btn.disabled = true;
+      try {
+        const nuevoEstado = await StreamDB.simularLiveStreamToggle();
+        showToast(nuevoEstado ? '🔴 ¡Directo en Kick iniciado! (Sesión abierta y registrada en Firebase)' : '⏹️ Transmisión de Kick finalizada y guardada.');
+      } catch (e) {
+        showToast('⚠️ Error al alternar simulación: ' + e.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    };
+
+    // Verificar API Kick
+    window.verificarKickAhora = async function() {
+      try {
+        await StreamDB.checkKickLiveStatusViaApi('jikokun');
+        showToast('📡 Estado de Kick verificado con la API v2 pública');
+      } catch (e) {
+        showToast('⚠️ Error verificando Kick API');
+      }
+    };
+
+    // Renderizar métricas KPI y Rankings de Tienda
+    function renderizarEstadisticas(stats = {}) {
+      const resumen = stats.resumen || {};
+
+      document.getElementById('kpi-total-gastado').textContent = (resumen.totalVentasPts || 0).toLocaleString() + ' pts';
+      document.getElementById('kpi-total-platillos').textContent = (resumen.totalPlatillosServidos || 0).toLocaleString();
+      document.getElementById('kpi-total-ordenes').textContent = (resumen.totalOrdenes || 0).toLocaleString();
+      document.getElementById('kpi-total-asistencias').textContent = (resumen.totalAsistenciasRegistradas || 0).toLocaleString();
+      document.getElementById('kpi-total-otorgados').textContent = (resumen.totalPuntosOtorgados || 0).toLocaleString() + ' pts';
+
+      // Ranking de Productos
+      const rankingProds = stats.rankingProductos || {};
+      const prodsArray = Object.entries(rankingProds).map(([key, val]) => ({
+        key,
+        nombre: val.nombre || key.toUpperCase(),
+        totalVendidos: val.totalVendidos || 0,
+        emoji: val.emoji || EMOJIS[key] || '🍽️'
+      })).sort((a, b) => b.totalVendidos - a.totalVendidos);
+
+      document.getElementById('badge-prods-count').textContent = `${prodsArray.length} items`;
+      const prodsListEl = document.getElementById('products-ranking-list');
+
+      if (prodsArray.length === 0) {
+        prodsListEl.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 35px 0; font-family: var(--f-tech);">
+            Sin ventas registradas aún. Realiza compras en la <a href="tiendita.html" target="_blank" style="color:var(--kick);">Tiendita</a> para ver el ranking.
+          </div>
+        `;
+      } else {
+        const maxVenta = Math.max(1, prodsArray[0].totalVendidos);
+        prodsListEl.innerHTML = prodsArray.map((p, idx) => {
+          const pct = Math.round((p.totalVendidos / maxVenta) * 100);
+          return `
+            <div class="product-row">
+              <div class="product-rank">#${idx + 1}</div>
+              <div class="product-icon">${p.emoji}</div>
+              <div class="product-details">
+                <div class="product-name-row">
+                  <span class="product-name">${p.nombre}</span>
+                  <span class="product-sold-tag">${p.totalVendidos} vendidos</span>
+                </div>
+                <div class="progress-bar-bg">
+                  <div class="progress-bar-fill" style="width: ${pct}%"></div>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Ranking de Usuarios / Top Compradores
+      const rankingUsers = stats.rankingUsuarios || {};
+      const usersArray = Object.entries(rankingUsers).map(([key, val]) => ({
+        key,
+        displayName: val.displayName || key,
+        totalGastado: val.totalGastado || 0,
+        comprasCount: val.comprasCount || 0,
+        saldoActual: val.saldoActual || 0
+      })).sort((a, b) => b.totalGastado - a.totalGastado);
+
+      document.getElementById('badge-users-count').textContent = `${usersArray.length} clientes`;
+      const usersListEl = document.getElementById('users-ranking-list');
+
+      if (usersArray.length === 0) {
+        usersListEl.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 35px 0; font-family: var(--f-tech);">
+            Sin compradores registrados todavía.
+          </div>
+        `;
+      } else {
+        usersListEl.innerHTML = usersArray.map((u, idx) => {
+          const inicial = (u.displayName[0] || '?').toUpperCase();
+          return `
+            <div class="user-rank-row" onclick="cargarUsuarioEnBuscador('${u.displayName}')">
+              <div class="user-rank-left">
+                <div class="user-avatar-badge">${inicial}</div>
+                <div class="user-info-text">
+                  <span class="user-handle">@${u.displayName}</span>
+                  <span class="user-meta-small">#${idx + 1} • ${u.comprasCount} ${u.comprasCount === 1 ? 'pedido' : 'pedidos'}</span>
+                </div>
+              </div>
+              <div class="user-rank-right">
+                <span class="user-spent-pts">${u.totalGastado} pts gastados</span>
+                <span class="user-balance-small">Saldo: ${u.saldoActual} pts</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    // Renderizar tabla de transacciones
+    function renderizarTransacciones(txList = []) {
+      const tbody = document.getElementById('tx-table-body');
+      document.getElementById('badge-tx-count').textContent = txList.length;
+
+      if (!txList || txList.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="5" style="text-align:center; color: var(--text-muted); padding: 25px;">
+              No hay transacciones registradas todavía.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = txList.map(tx => {
+        const hora = tx.fechaLegible || new Date(tx.timestamp || Date.now()).toLocaleTimeString();
+        return `
+          <tr>
+            <td style="color:var(--text-muted); font-family:var(--f-tech); font-size:0.8rem;">${hora}</td>
+            <td><span class="tx-user">@${tx.usuario}</span></td>
+            <td><span class="tx-badge">${tx.items || '--'}</span></td>
+            <td><span class="tx-cost">−${tx.costoTotal} pts</span></td>
+            <td style="font-family:var(--f-tech); color:var(--kick);">${tx.nuevoSaldo} pts</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Buscar usuario en vivo
+    window.buscarUsuario = async function() {
+      const input = document.getElementById('search-username');
+      const val = (input ? input.value : '').trim();
+      if (!val) return;
+
+      const user = await StreamDB.getUser(val);
+      if (!user) {
+        showToast(`❌ Usuario <b>@${val}</b> no encontrado`);
+        return;
+      }
+
+      renderizarFichaUsuario(user);
+    };
+
+    window.cargarUsuarioEnBuscador = function(username) {
+      const input = document.getElementById('search-username');
+      if (input) input.value = username;
+      window.buscarUsuario();
+    };
+
+    let usuarioEncontradoActual = null;
+
+    function renderizarFichaUsuario(u) {
+      usuarioEncontradoActual = u;
+      document.getElementById('user-profile-box').classList.add('active');
+      document.getElementById('search-empty-hint').style.display = 'none';
+
+      const inicial = (u.displayName[0] || '?').toUpperCase();
+      document.getElementById('upc-avatar').textContent = u.insigniaEmoji || inicial;
+      document.getElementById('upc-name').textContent = '@' + u.displayName;
+      document.getElementById('upc-role').textContent = u.rol || 'Espectador';
+      document.getElementById('upc-balance').textContent = (u.jikopuntos || 0) + ' pts';
+
+      const nivelInfo = calcularNivelUsuario(u.asistenciasCount || 0);
+      document.getElementById('upc-level-badge').innerHTML = `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`;
+
+      document.getElementById('upc-spent').textContent = (u.totalGastado || 0) + ' pts';
+      document.getElementById('upc-orders').textContent = u.totalCompras || 0;
+      document.getElementById('upc-attend').textContent = u.asistenciasCount || 0;
+      document.getElementById('upc-bonus').textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
+    }
+
+    window.ajustarPuntosEncontrado = async function(esSuma) {
+      if (!usuarioEncontradoActual) return;
+      const deltaInput = document.getElementById('pts-delta-input');
+      const cant = parseInt(deltaInput.value, 10) || 500;
+      const factor = esSuma ? cant : -cant;
+
+      const nuevoSaldo = await StreamDB.addJikopuntos(usuarioEncontradoActual.username, factor, 'Ajuste manual desde panel');
+      usuarioEncontradoActual.jikopuntos = nuevoSaldo;
+      document.getElementById('upc-balance').textContent = nuevoSaldo + ' pts';
+      showToast(`⚡ Saldo de <b>@${usuarioEncontradoActual.displayName}</b> actualizado a <b>${nuevoSaldo} pts</b>`);
+    };
+
+    window.migrarLocalStorageAUsuario = async function() {
+      if (!usuarioEncontradoActual) return;
+      const key = norm(usuarioEncontradoActual.username);
+      const val = localStorage.getItem('tiendita_pts_' + key);
+      if (val !== null) {
+        const pts = parseInt(val, 10);
+        await StreamDB.setJikopuntos(key, pts, 'Sincronizado desde localStorage');
+        usuarioEncontradoActual.jikopuntos = pts;
+        document.getElementById('upc-balance').textContent = pts + ' pts';
+        showToast(`🔄 Puntos locales (<b>${pts} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName}`);
+      } else {
+        showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName}`);
+      }
+    };
+
+    // Sembrar base de datos con datos completos (incluye usuarios con niveles y transmisiones)
+    window.sembrarDatosSiEstaVacia = async function() {
+      const btn = document.getElementById('btn-seed');
+      if (btn) btn.disabled = true;
+
+      try {
+        const res = await fetch('../stream_database_seed.json');
+        if (!res.ok) throw new Error('No se pudo cargar stream_database_seed.json');
+        const seed = await res.json();
+
+        // 1. Guardar usuarios de muestra
+        for (const [ukey, udata] of Object.entries(seed.stream.usuarios)) {
+          const user = await StreamDB.getUser(ukey);
+          if (udata.asistenciasCount) {
+            await StreamDB.updateUserStats(ukey, {
+              asistenciasCount: udata.asistenciasCount,
+              nivel: udata.nivel,
+              rangoTitulo: udata.rangoTitulo,
+              insigniaEmoji: udata.insigniaEmoji,
+              bonoAsistencia: udata.bonoAsistencia,
+              jikopuntos: udata.jikopuntos
+            });
+          }
+        }
+
+        // 2. Registrar transmisiones de prueba
+        if (seed.stream.transmisiones) {
+          for (const [streamKey, sData] of Object.entries(seed.stream.transmisiones)) {
+            await StreamDB.setWidgetConfig(`transmisiones/${streamKey}`, sData);
+          }
+        }
+
+        // 3. Registrar transmisiones_stats
+        if (seed.stream.transmisiones_stats) {
+          await StreamDB.setWidgetConfig('transmisiones_stats', seed.stream.transmisiones_stats);
+        }
+
+        // 4. Registrar transacciones de prueba
+        for (const tx of Object.values(seed.stream.tienda.transacciones)) {
+          await StreamDB.registrarCompra({
+            comprador: tx.usuario,
+            items: tx.items,
+            itemsKeys: tx.itemsKeys,
+            cantidad: tx.cantidadPlatos,
+            costoTotal: tx.costoTotal,
+            nuevoSaldo: tx.nuevoSaldo
+          });
+        }
+
+        showToast('🎉 ¡Datos semilla cargados con éxito! Niveles, transmisiones y estadísticas listas.');
+      } catch (err) {
+        showToast('⚠️ Error al cargar datos semilla: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    };
+  </script>
+</body>
+</html>

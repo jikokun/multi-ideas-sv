@@ -198,3 +198,211 @@ El panel de pruebas [prueba.html](file:///e:/Proyectos%20Web/multi-ideas-sv/prue
 - `SIMULATE_BOT_GREETING`: Simula el saludo de Lobito Mensajero para 1 espectador aleatorio (+500 pts).
 - `SIMULATE_MANY_ATTENDEES`: Simula la llegada de 9 espectadores en cascada para probar el carrusel vertical.
 - `RESET_ASISTENCIA`: Vacía la lista de asistencia del stream actual.
+
+---
+
+## 🔥 12. INTEGRACIÓN FIREBASE REALTIME DATABASE (`stream/`)
+
+El sistema cuenta con persistencia y sincronización en tiempo real conectada a la base de datos oficial del proyecto en Firebase RTDB (`https://sensunshopweb-default-rtdb.firebaseio.com`), organizada bajo el nodo raíz centralizado **`stream/`**:
+
+```mermaid
+graph TD
+    STREAM["Nodo Raíz: stream/"] --> USUARIOS["stream/usuarios/<br>(Perfiles, Jikopuntos, Historial, Vinculación)"]
+    STREAM --> WIDGETS["stream/widgets/<br>(tiendita, alertas, chat live)"]
+    STREAM --> OVERLAYS["stream/overlays/<br>(radioshow, marcocamara, sponsors)"]
+    STREAM --> TIENDA["stream/tienda/<br>(transacciones, asistencias, estadisticas)"]
+    STREAM --> VINCULACIONES["stream/vinculaciones/<br>(Auth UID -> username)"]
+
+    TIENDA --> TRANS["transacciones/<br>(Compras inmutables en tiempo real)"]
+    TIENDA --> ASIST["asistencias/<br>(Premios +500 Lobito Mensajero)"]
+    TIENDA --> STATS["estadisticas/<br>(Métricas agregadas y rankings)"]
+    
+    STATS --> RESUMEN["resumen/<br>(Ventas, órdenes, platillos, puntos)"]
+    STATS --> RANK_PROD["rankingProductos/<br>(Top platillos más vendidos)"]
+    STATS --> RANK_USERS["rankingUsuarios/<br>(Top clientes por gasto)"]
+```
+
+### Estructura de Datos y Nodos Principales
+
+#### 1. Perfil de Usuario (`stream/usuarios/{usernameNorm}`)
+```json
+{
+  "username": "lunagamer",
+  "displayName": "LunaGamer",
+  "avatar": "https://...",
+  "rol": "espectador",
+  "jikopuntos": 1450,
+  "totalGanado": 2000,
+  "totalGastado": 550,
+  "totalCompras": 2,
+  "asistenciasCount": 2,
+  "primerRegistro": 1791550000000,
+  "ultimaActividad": 1791550000000,
+  "vinculacion": {
+    "authUid": "FIREBASE_AUTH_UID_OPCIONAL",
+    "email": "usuario@gmail.com",
+    "vinculado": false,
+    "vinculadoEn": null
+  },
+  "widgets": {
+    "tiendita": {
+      "platoFavorito": "pupusas",
+      "pedidosCount": 2,
+      "platillosTotales": 3,
+      "ultimoPedido": 1791550000000
+    }
+  },
+  "stats": {
+    "platosConsumidos": {
+      "pupusas": 2,
+      "cafe": 1
+    },
+    "nivelLealtad": "Frecuente"
+  }
+}
+```
+
+#### 2. Transacciones de la Tienda (`stream/tienda/transacciones/{pushId}`)
+Cada compra realizada en OBS queda guardada de manera inmutable:
+- `id`: Clave única generada por Firebase RTDB.
+- `usuario`: Nombre visible del comprador (ej. `LunaGamer`).
+- `items`: Nombres de los platillos servidos.
+- `itemsKeys`: Claves de catálogo para agregaciones analíticas.
+- `cantidadPlatos`: Número de platillos servidos en mesa.
+- `costoTotal`: Monto en Jikopuntos deducido.
+- `nuevoSaldo`: Saldo restante tras la compra.
+- `timestamp`: Marca de tiempo UNIX para ordenamiento.
+- `fechaLegible`: Fecha y hora formateada en español.
+
+#### 3. Estadísticas Agregadas para Acceso Rápido (`stream/tienda/estadisticas`)
+Permite a cualquier dashboard o pantalla de métricas obtener estadísticas instantáneamente sin recorrer toda la base:
+- **`resumen`**: `totalVentasPts`, `totalOrdenes`, `totalPlatillosServidos`, `totalPuntosOtorgados`, `totalUsuariosRegistrados`, `totalAsistenciasRegistradas`.
+- **`rankingProductos/{itemKey}`**: Total vendidos, puntos generados y última fecha de venta de cada comida.
+- **`rankingUsuarios/{usernameNorm}`**: Top clientes con total gastado, cantidad de pedidos y saldo actual.
+
+### Vinculación Futura con Cuentas de Usuario Web
+El diseño incluye `stream/usuarios/{userNorm}/vinculacion` y el índice `stream/vinculaciones/{authUid}`. Cuando un espectador inicie sesión con Google o Correo en la web de Multi Ideas SV:
+1. `StreamDB.vincularCuenta(username, authUser)` vincula su Kick username a su Auth UID.
+2. El usuario podrá consultar su saldo de Jikopuntos, canjear premios web y personalizar sus widgets favoritos en [mis_widgets.html](file:///e:/Proyectos%20Web/multi-ideas-sv/mini_widgets/mis_widgets.html).
+
+### Panel de Control & Estadísticas en Vivo
+- **Archivo:** [estadisticas_tienda.html](file:///e:/Proyectos%20Web/multi-ideas-sv/mini_widgets/estadisticas_tienda.html)
+- **Módulo JS Central:** [stream_firebase.js](file:///e:/Proyectos%20Web/multi-ideas-sv/mini_widgets/js/stream_firebase.js)
+- **Archivo Semilla:** [stream_database_seed.json](file:///e:/Proyectos%20Web/multi-ideas-sv/stream_database_seed.json)
+
+---
+
+## 🐺 13. SISTEMA DE NIVELES POR ASISTENCIA (RANGOS DE LA MANADA)
+
+El sistema recompensa la lealtad y constancia de los espectadores mediante un **Escalafón Progresivo basado en las transmisiones a las que asisten**. Cada vez que un usuario sintoniza y es recibido por Lobito Mensajero o pasa lista, se le otorgan **500 Jikopuntos base + un bono extra correspondiente a su rango**:
+
+| Nivel | Insignia | Rango de la Manada | Asistencias Requeridas | Bono Extra | Puntos Totales por Stream | Beneficios y Descripción |
+| :---: | :---: | :--- | :---: | :---: | :---: | :--- |
+| **1** | 🐾 | **Cachorro** | 1 a 2 transmisiones | +0 pts | **500 pts** | Recién llegado a la manada |
+| **2** | 🧭 | **Explorador del Stream** | 3 a 5 transmisiones | +50 pts | **550 pts** | Sintoniza con frecuencia regular |
+| **3** | 🏹 | **Cazador Fiel** | 6 a 9 transmisiones | +100 pts | **600 pts** | Raras veces falta a un directo |
+| **4** | 🛡️ | **Guardián de la Manada** | 10 a 19 transmisiones | +150 pts | **650 pts** | Miembro veterano y pilar del chat |
+| **5** | ⚡ | **Lobo Beta (VIP)** | 20 a 34 transmisiones | +200 pts | **700 pts** | Rango élite con presencia constante |
+| **6** | 👑 | **Lobo Alfa Legendario** | 35+ transmisiones | +250 pts | **750 pts** | Leyenda de máxima lealtad en el canal |
+
+### Algoritmo de Cálculo y Métricas (`calcularNivelUsuario`)
+La función `calcularNivelUsuario(asistenciasCount)` calcula automáticamente:
+- `nivel`: Número del nivel (1 al 6).
+- `rangoTitulo`: Nombre del título nobiliario.
+- `insigniaEmoji`: Emoji distintivo para mostrar en badges y overlays.
+- `bonoExtra`: Puntos adicionales sumados a los 500 base.
+- `puntosPorAsistencia`: Suma total otorgada (500 + bono).
+- `porcentajeProgreso`: Porcentaje exacto (0-100%) completado dentro del rango actual.
+- `faltantesParaSiguienteNivel`: Cantidad de transmisiones que le faltan para subir al siguiente rango.
+
+---
+
+## 📡 14. DETECTOR INTERNO DE KICK (SIN STREAMER.BOT) & CONTRASTE DE ASISTENCIAS
+
+Para operar con total autonomía en widgets web y overlays de OBS **sin depender de Streamer.bot**, el servicio `StreamDB` implementa un **detector dual en tiempo real directamente con Kick**:
+
+```mermaid
+sequenceDiagram
+    participant Kick as Kick Platform (Canal jikokun)
+    participant Pusher as Kick Pusher WebSocket (ws-us2.pusher.com)
+    participant Monitor as StreamDB Detector Interno
+    participant RTDB as Firebase RTDB (stream/)
+    participant UI as Dashboard & Tiendita
+
+    Note over Kick, Pusher: Broadcaster inicia directo en OBS
+    Kick->>Pusher: Evento App\Events\StreamerIsLive (channel.1874362)
+    Pusher-->>Monitor: Notificación instantánea WebSocket
+    Monitor->>RTDB: Crear stream/transmisiones/{id} (numeroStream++)
+    Monitor->>RTDB: stream/transmisiones_stats (totalStreamsPrendidos++, isLive: true)
+    RTDB-->>UI: Badge 🔴 EN VIVO + Título + Contador en tiempo real
+    
+    Note over Monitor: Fallback HTTP Polling cada 25s a /api/v2/channels/jikokun
+```
+
+### 1. Detección Dual de Transmisión
+1. **Pusher WebSocket Nativo (`wss://ws-us2.pusher.com`)**:
+   - Conexión al clúster `us2` con la app key de Kick `32cbd69e4b950bf97679`.
+   - Se suscribe al canal privado `channel.1874362` (ID numérico del canal `jikokun`).
+   - Escucha los eventos:
+     - `App\Events\StreamerIsLive`: Dispara `_handleStreamStarted()`.
+     - `App\Events\StopStreamBroadcast`: Dispara `_handleStreamStopped()`.
+2. **Polling HTTP de Respaldo (`https://kick.com/api/v2/channels/jikokun`)**:
+   - Chequeo periódico cada 25 segundos para garantizar redundancia si el WebSocket se reconecta.
+   - Extrae `livestream.session_title`, `viewer_count`, y `created_at`.
+
+### 2. Estructura de Datos en Firebase RTDB
+
+#### A. Contador Global (`stream/transmisiones_stats`)
+```json
+{
+  "totalStreamsPrendidos": 12,
+  "isLive": true,
+  "streamActivoId": "stream_1791550000000",
+  "ultimoStreamId": "stream_1791550000000",
+  "ultimaDeteccionTimestamp": 1791550000000,
+  "streamActual": {
+    "numeroStream": 12,
+    "titulo": "🔥 JIKOKUN EN VIVO ✦ JIKOPUNTOS & TIENDITA",
+    "viewers": 42
+  }
+}
+```
+
+#### B. Registro Individual de Sesión (`stream/transmisiones/{streamId}`)
+```json
+{
+  "id": "stream_1791550000000",
+  "numeroStream": 12,
+  "canal": "jikokun",
+  "canalId": 1874362,
+  "inicioTimestamp": 1791549000000,
+  "inicioFechaLegible": "09/10/2026, 08:00:00 p. m.",
+  "finTimestamp": null,
+  "finFechaLegible": null,
+  "duracionMinutos": 0,
+  "estado": "en_vivo",
+  "titulo": "🔥 JIKOKUN EN VIVO ✦ JIKOPUNTOS & TIENDITA",
+  "categoria": "Just Chatting",
+  "viewersPico": 45,
+  "totalAsistentes": 2,
+  "puntosRepartidos": 1150,
+  "asistentes": {
+    "lunagamer": {
+      "username": "LunaGamer",
+      "usuarioNorm": "lunagamer",
+      "hora": "08:00 p. m.",
+      "timestamp": 1791549000000,
+      "nivel": 2,
+      "rangoTitulo": "Explorador del Stream",
+      "insigniaEmoji": "🧭",
+      "puntosOtorgados": 550
+    }
+  }
+}
+```
+
+### 3. Contraste de Asistencias (Presentes vs Ausentes)
+El método `StreamDB.contrastarAsistenciasTransmision(streamId)` compara en tiempo real todos los usuarios de la base de datos contra los que registraron asistencia en esa sesión específica:
+- **`presentes`**: Espectadores que asistieron, con su nivel, rango, hora de llegada y puntos otorgados.
+- **`ausentes`**: Miembros de la comunidad registrados que no sintonizaron esa transmisión, mostrando sus asistencias históricas y un botón directo para marcarles asistencia si llegaron con retraso.
+- **`tasaAsistencia`**: Porcentaje visual de asistencia de la comunidad.

@@ -17,7 +17,8 @@ import {
     signInWithPopup,
     getAdditionalUserInfo,
     signInWithRedirect,
-    getRedirectResult
+    getRedirectResult,
+    signInAnonymously
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getDatabase } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -57,5 +58,6 @@ export {
     signInWithPopup,
     getAdditionalUserInfo,
     signInWithRedirect,
-    getRedirectResult
+    getRedirectResult,
+    signInAnonymously
 };
