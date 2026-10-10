@@ -1316,6 +1316,32 @@
   }
   .theme-unicorn .pc-border { animation: rainbowBorder 8s linear infinite; }
 
+  /* 9. CORONA DEL CREADOR / LOBO SUPREMO: Diseño ÚNICO y Exclusivo para Jikokun (Dueño del Canal) */
+  .theme-owner, .theme-creador {
+    --glow-1: #ffd700; --glow-2: #00f2fe; --glow-3: #ff2a5f;
+    --border-1: #fff8cc; --border-2: #ffd700; --border-3: #00f2fe; --border-4: #ff2a5f; --border-5: #ffe680;
+    --glow-shadow-1: rgba(255, 215, 0, .85); --glow-shadow-2: rgba(0, 242, 254, .9); --glow-shadow-3: rgba(255, 42, 95, .5);
+    --panel-bg-1: rgba(14, 18, 32, .92); --panel-bg-2: rgba(6, 8, 16, .84);
+    --grid-color-1: rgba(255, 215, 0, .045); --grid-color-2: rgba(0, 242, 254, .035);
+    --light-color-1: rgba(255, 215, 0, .22); --light-color-2: rgba(0, 242, 254, .1);
+    --accent: #ffd700; --accent-glow: #00f2fe; --accent-shadow: rgba(255, 215, 0, .65); --accent-shadow-2: rgba(0, 242, 254, .85);
+    --tag-color: #ffd700; --text-color: #ffffff; --level-bg: rgba(255, 215, 0, .14); --level-border: #ffd700; --level-text: #fff3a8;
+    --divider-mid: #ffd700; --divider-glow: rgba(0, 242, 254, .35); --section-color: #00f2fe;
+    --inner-bg-1: rgba(255, 215, 0, .12); --inner-bg-2: rgba(0, 242, 254, .08); --inner-border: rgba(255, 215, 0, .35);
+    --stat-name: #fff2b2; --bar-bg: rgba(255, 255, 255, .09); --bar-fill-1: #00f2fe; --bar-fill-2: #ffd700; --bar-glow: rgba(255, 215, 0, .9);
+    --hp-fill-1: #ff2a5f; --hp-fill-2: #ffd700; --skill-bg: rgba(255, 215, 0, .15); --skill-border: rgba(0, 242, 254, .45); --skill-shadow: rgba(255, 215, 0, .15);
+    --avatar-1: #fff8cc; --avatar-2: #ffd700; --avatar-inner-1: rgba(0, 242, 254, .3); --avatar-inner-2: rgba(14, 18, 32, .96);
+    --bevel-light: rgba(255, 250, 205, .45); --bevel-dark: rgba(20, 25, 45, .7); --specular: rgba(255, 255, 255, .22); --circuit: rgba(255, 215, 0, .08); --noise-opacity: .04;
+  }
+  .theme-owner .pc-border, .theme-creador .pc-border {
+    animation: ownerCrownShimmer 6s ease-in-out infinite alternate;
+  }
+  @keyframes ownerCrownShimmer {
+    0% { filter: drop-shadow(0 0 5px rgba(255, 215, 0, .95)) drop-shadow(0 0 16px rgba(0, 242, 254, .6)); }
+    50% { filter: drop-shadow(0 0 6px rgba(0, 242, 254, .95)) drop-shadow(0 0 20px rgba(255, 42, 95, .55)); }
+    100% { filter: drop-shadow(0 0 5px rgba(255, 215, 0, .95)) drop-shadow(0 0 18px rgba(255, 215, 0, .7)); }
+  }
+
   /* Capas y estructura de la tarjeta cibernética */
   .pc-shadow {
     position: absolute; inset: 8px; background: transparent;
@@ -2255,7 +2281,7 @@
 
     // Roles y Badges
     const rol = (u.rol || 'espectador').toLowerCase();
-    const isJiko = normUser === 'jikokun' || rol === 'broadcaster';
+    const isJiko = normUser === 'jikokun' || rol === 'broadcaster' || rol === 'creador';
     const isMod = rol === 'moderador' || rol === 'mod';
     const isVip = rol === 'vip';
     const isSub = rol === 'sub' || rol === 'subscriber' || Boolean(u.esSub);
@@ -2307,7 +2333,8 @@
           consumerTitle = '💧 Hidratado al 100%';
         }
       } else {
-        if (nivel >= 43) consumerTitle = '👑 Leyenda de la Manada';
+        if (isJiko) consumerTitle = '👑 Dueño y Creador del Canal';
+        else if (nivel >= 43) consumerTitle = '👑 Leyenda de la Manada';
         else if (nivel >= 34) consumerTitle = '🐺 Guerrero Alfa';
         else if (nivel >= 26) consumerTitle = '🛡️ Guardián del Canal';
         else if (nivel >= 16) consumerTitle = '🏹 Cazador Fiel';
@@ -2316,19 +2343,41 @@
       }
     }
 
-    // ══════ JERARQUÍA ESTRICTA DE TEMAS SOLICITADA ══════
-    // - Gris: seguidores simples o niveles bajos (Nvl 1 a 5)
-    // - Verde: siguientes niveles y rangos (Nvl 6 a 15)
-    // - Azul: siguiente nivel (Nvl 16 a 25)
-    // - Morado: siguiente nivel (Nvl 26 a 33)
-    // - Naranja: siguientes niveles después del morado (Nvl 34 a 42)
-    // - Rojo: máximo nivel y rango (Nvl 43 a 50)
-    // - Dorado: ÚNICAMENTE para los Sub sin importar nivel ni rango
-    // - Rosa Unicornio: Manada VIP asignado exclusivamente por Jikokun
+    // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
+    // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard:
+    // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
+    // 3. Fallback jerárquico estándar: Manada VIP -> Subs -> Nivel 43-50 -> 34-42 -> 26-33 -> 16-25 -> 6-15 -> 1-5
     let themeClass = 'theme-silver';
-    let themeLabel = 'CACHORRO';
+    let themeLabel = '🐾 CACHORRO';
 
-    if (esManadaVip) {
+    const MARCO_LABELS = {
+      'theme-owner': '👑 CREADOR & DUEÑO',
+      'theme-creador': '👑 CREADOR & DUEÑO',
+      'theme-unicorn': '🦄 MANADA VIP',
+      'theme-unicornio': '🦄 MANADA VIP',
+      'theme-gold': '🪙 SUB GOLD',
+      'theme-dorado': '🪙 SUB GOLD',
+      'theme-red': '🔴 LOBO ALFA',
+      'theme-rojo': '🔴 LOBO ALFA',
+      'theme-orange': '🟠 LOBO BETA',
+      'theme-naranja': '🟠 LOBO BETA',
+      'theme-purple': '🟣 GUARDIÁN',
+      'theme-morado': '🟣 GUARDIÁN',
+      'theme-cyan': '🔵 CAZADOR FIEL',
+      'theme-azul': '🔵 CAZADOR FIEL',
+      'theme-green': '🟢 EXPLORADOR',
+      'theme-verde': '🟢 EXPLORADOR',
+      'theme-silver': '⚪ CACHORRO',
+      'theme-gris': '⚪ CACHORRO'
+    };
+
+    if (u.marcoPerfil && u.marcoPerfil !== 'auto' && MARCO_LABELS[u.marcoPerfil]) {
+      themeClass = u.marcoPerfil;
+      themeLabel = MARCO_LABELS[u.marcoPerfil];
+    } else if (isJiko) {
+      themeClass = 'theme-owner';
+      themeLabel = '👑 CREADOR & DUEÑO';
+    } else if (esManadaVip) {
       themeClass = 'theme-unicorn';
       themeLabel = '🦄 MANADA VIP';
     } else if (isSub) {
@@ -2543,6 +2592,33 @@
   window.simularPerfilDemo = function() {
     const target = (usuarioActual && usuarioActual !== 'Esperando cliente…') ? usuarioActual : 'alexandraaa_16';
     mostrarCardPerfilTiendita(target);
+  };
+  window.testPerfilTema = function(themeClass) {
+    let lvl = 3;
+    let xp = 800;
+    const isOwner = (themeClass === 'theme-owner' || themeClass === 'theme-creador');
+    if (isOwner) { lvl = 50; xp = 50000; }
+    else if (themeClass === 'theme-red') { lvl = 48; xp = 45000; }
+    else if (themeClass === 'theme-orange') { lvl = 38; xp = 32000; }
+    else if (themeClass === 'theme-purple') { lvl = 29; xp = 22000; }
+    else if (themeClass === 'theme-cyan') { lvl = 21; xp = 14000; }
+    else if (themeClass === 'theme-green') { lvl = 12; xp = 7800; }
+    else if (themeClass === 'theme-silver') { lvl = 3; xp = 800; }
+
+    const mockUser = {
+      username: 'jikokun',
+      displayName: 'Jikokun',
+      jikopuntos: isOwner ? 99999 : 5420,
+      asistenciasCount: isOwner ? 50 : 18,
+      experiencia: xp,
+      nivel: lvl,
+      _forceLevel: true,
+      marcoPerfil: isOwner ? 'theme-owner' : (themeClass === 'theme-gold' ? 'theme-gold' : themeClass),
+      rol: isOwner ? 'broadcaster' : (themeClass === 'theme-gold' ? 'sub' : 'espectador'),
+      tituloPersonalizado: themeClass === 'theme-unicorn' ? 'Manada VIP' : (isOwner ? 'Lobo Supremo' : null),
+      stats: { platosConsumidos: { cerveza: 6, pupusas: 4 } }
+    };
+    mostrarCardPerfilTiendita(mockUser);
   };
 
   /* ═══════════ SISTEMA DE ASISTENCIA & LOBITO MENSAJERO (+500 JIKOPUNTOS) ═══════════ */

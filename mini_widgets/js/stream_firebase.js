@@ -256,6 +256,9 @@ class StreamFirebaseService {
             if (u && u.username) {
               this.usersCache.set(u.username, u);
               this._updateLocalCache(u.username, u.jikopuntos);
+              if (!u.avatar || !String(u.avatar).startsWith('http')) {
+                this.absorberAvatarKick(u.username).catch(() => {});
+              }
             }
           });
         }
@@ -319,6 +322,9 @@ class StreamFirebaseService {
 
         this.usersCache.set(key, data);
         this._updateLocalCache(key, data.jikopuntos);
+        if (!data.avatar || !String(data.avatar).startsWith('http')) {
+          this.absorberAvatarKick(key).catch(() => {});
+        }
         return data;
       }
 
@@ -372,6 +378,7 @@ class StreamFirebaseService {
       this._updateLocalCache(key, initialPts);
       this._incrementarEstadistica('totalUsuariosRegistrados', 1);
 
+      this.absorberAvatarKick(key).catch(() => {});
       return newUser;
     } catch (err) {
       console.warn(`[StreamDB] Error al consultar usuario @${key}, usando fallback local:`, err);
@@ -391,7 +398,7 @@ class StreamFirebaseService {
   }
 
   // Crear usuario manualmente
-  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, experiencia = null, tiempoVistoMinutos = 0, tituloPersonalizado = null, avatar = '' }) {
+  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, experiencia = null, tiempoVistoMinutos = 0, tituloPersonalizado = null, avatar = '', marcoPerfil = null }) {
     await this.init();
     const key = norm(username);
     if (!key) throw new Error('Nombre de usuario no válido');
@@ -409,6 +416,7 @@ class StreamFirebaseService {
       : (asistencias * 200);
     const tiempoMin = Math.max(0, parseInt(tiempoVistoMinutos, 10) || 0);
     const customTitle = tituloPersonalizado && String(tituloPersonalizado).trim() ? String(tituloPersonalizado).trim() : null;
+    const cleanMarco = marcoPerfil && marcoPerfil !== 'auto' && String(marcoPerfil).trim() ? String(marcoPerfil).trim() : null;
 
     const nivelInfo = calcularNivelUsuario({
       experiencia: xp,
@@ -430,6 +438,7 @@ class StreamFirebaseService {
       experiencia: xp,
       tiempoVistoMinutos: tiempoMin,
       tituloPersonalizado: customTitle,
+      marcoPerfil: cleanMarco,
       nivel: nivelInfo.nivel,
       rangoTitulo: nivelInfo.rangoTitulo,
       tituloAutomatico: nivelInfo.tituloAutomatico,
@@ -508,6 +517,11 @@ class StreamFirebaseService {
         ? String(updates.tituloPersonalizado).trim()
         : null;
     }
+    if (updates.marcoPerfil !== undefined) {
+      cleanUpdates.marcoPerfil = updates.marcoPerfil && updates.marcoPerfil !== 'auto' && String(updates.marcoPerfil).trim()
+        ? String(updates.marcoPerfil).trim()
+        : null;
+    }
 
     let recalculateLevel = false;
     let nextAsist = current.asistenciasCount || 0;
@@ -576,6 +590,13 @@ class StreamFirebaseService {
     if (!key) return null;
     const cleanTitle = (titulo && String(titulo).trim()) ? String(titulo).trim() : null;
     return this.actualizarUsuario(key, { tituloPersonalizado: cleanTitle });
+  }
+
+  async setMarcoPerfil(username, marco) {
+    const key = norm(username);
+    if (!key) return null;
+    const cleanMarco = (marco && marco !== 'auto' && String(marco).trim()) ? String(marco).trim() : null;
+    return this.actualizarUsuario(key, { marcoPerfil: cleanMarco });
   }
 
   async addTiempoVisto(username, minutosDelta) {
