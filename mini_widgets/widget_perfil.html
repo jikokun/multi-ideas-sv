@@ -1620,14 +1620,32 @@ body {
 
 <!-- Integración Firebase Realtime Database -->
 <script type="module">
-  import { StreamDB, norm, calcularNivelUsuario } from './js/stream_firebase.js';
+  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl } from './js/stream_firebase.js';
   window.StreamDB = StreamDB;
   window.norm = norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
+  window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
 
   StreamDB.init().then(() => {
     console.log('[WidgetPerfil] 🔥 Firebase RTDB conectado correctamente');
-    StreamDB.obtenerUsuarios().catch(() => {});
+    StreamDB.obtenerUsuarios().then(users => {
+      if (Array.isArray(users)) {
+        users.forEach(u => {
+          if (u && u.username && u.avatar) {
+            avatarMemCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
+          }
+        });
+      }
+    }).catch(() => {});
+    StreamDB.onUsers((users) => {
+      if (Array.isArray(users)) {
+        users.forEach(u => {
+          if (u && u.username && u.avatar) {
+            avatarMemCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
+          }
+        });
+      }
+    });
   });
 </script>
 
@@ -1697,55 +1715,103 @@ body {
   }
 
   /* ═══════════ MOTOR DE CÁLCULO DE PERFILES Y TEMAS ═══════════ */
-  const avatarMemCache = {};
+  function normalizarAvatarKickUrlLocal(url) {
+    if (!url || typeof url !== 'string') return null;
+    let clean = url.trim();
+    if (!clean.startsWith('http')) return null;
+    if (clean.includes('kick-files-prod.s3') || clean.includes('files.kick.com')) {
+      clean = clean.split('?')[0];
+    }
+    clean = clean.replace(/https?:\/\/kick-files-prod\.s3[^\/]*\.amazonaws\.com\//i, 'https://files.kick.com/');
+    return clean;
+  }
+
+  const avatarMemCache = {
+    'jikokun': 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp',
+    'alexandraaa_16': 'https://files.kick.com/images/user/55774936/profile_image/conversion/a08124be-3518-4698-b463-d64a67ff780b-fullsize.webp',
+    'xeth4n_k': 'https://files.kick.com/images/user/89597096/profile_image/conversion/9e66b817-bc16-4439-9e7f-24789d8a571a-fullsize.webp',
+    'culi0n_3000': 'https://files.kick.com/images/user/71942704/profile_image/conversion/28aef026-b881-4395-b8d6-f764cdace9a2-fullsize.webp',
+    'villalta_20': 'https://files.kick.com/images/user/31153678/profile_image/conversion/84a936e1-0901-4631-973c-0bc106dba016-fullsize.webp',
+    'camiii07_ok': 'https://files.kick.com/images/user/34774419/profile_image/conversion/5da3c198-71f7-4e7d-a975-fb9cd64d098b-fullsize.webp',
+    'capibara_1612': 'https://files.kick.com/images/user/86621263/profile_image/conversion/ba13160b-a16c-4a73-8121-e9da7017a549-fullsize.webp',
+    'crzymoonchild': 'https://files.kick.com/images/user/2008326/profile_image/conversion/3a8ad36f-b258-450f-a035-7cf2a30bbdf3-fullsize.webp',
+    'dailerrg': 'https://files.kick.com/images/user/60872795/profile_image/conversion/52f67931-8f56-426c-8e81-2c9dd7275084-fullsize.webp',
+    'elrejitasoficial': 'https://files.kick.com/images/user/65618665/profile_image/conversion/cdfd7366-419b-4654-8e4a-b50a293dc9a4-fullsize.webp',
+    'emmy_aine': 'https://files.kick.com/images/user/46374041/profile_image/conversion/fdbdcf22-9092-4113-a4e9-11c52d4ddb59-fullsize.webp',
+    'jhonax22': 'https://files.kick.com/images/user/10064644/profile_image/conversion/8404e8d8-9c17-485a-8b1b-b72ec1d4ffbc-fullsize.webp',
+    'juanchofficial': 'https://files.kick.com/images/user/33154841/profile_image/conversion/2c2069cb-6dfd-42aa-b88d-e0b503024843-fullsize.webp',
+    'lilycl': 'https://files.kick.com/images/user/77509343/profile_image/conversion/c5da1eb4-97c9-4fc1-a9f4-0da084eef110-fullsize.webp',
+    'lunagamer': 'https://files.kick.com/images/user/7395009/profile_image/conversion/de67bb26-d668-4545-9ec7-c0e5a959cb3a-fullsize.webp',
+    'nessaxov': 'https://files.kick.com/images/user/36581636/profile_image/conversion/f403be4f-d007-42aa-bf61-55c3c0b0a2fa-fullsize.webp',
+    'netinhosr': 'https://files.kick.com/images/user/100788451/profile_image/conversion/279093bf-038c-4a11-897c-9f6b4e339d1b-fullsize.webp',
+    'panoita': 'https://files.kick.com/images/user/60720482/profile_image/conversion/fcbe8ff9-373c-44da-b0c6-3aebe4c3298a-fullsize.webp',
+    'tioriki': 'https://files.kick.com/images/user/124183407/profile_image/conversion/667f5b35-6aa5-4303-a26f-96eb132a613d-fullsize.webp',
+    'xashlyrp': 'https://files.kick.com/images/user/103296614/profile_image/conversion/daffda16-1f3c-4bca-85f8-b328148b30f7-fullsize.webp',
+    'xelcapo': 'https://files.kick.com/images/user/36896139/profile_image/conversion/b06a4b2c-ba09-4ee7-91f6-ea4e5113dbb3-fullsize.webp',
+    'xfreyp_27': 'https://files.kick.com/images/user/88330582/profile_image/conversion/6df5b9dc-c3c4-4b53-9333-e7178c1efc48-fullsize.webp',
+    'xglasmirp_a': 'https://files.kick.com/images/user/60028817/profile_image/conversion/1ee55df6-6f77-449e-b530-eb4174d8124b-fullsize.webp',
+    'xsaraip_1402': 'https://files.kick.com/images/user/97404443/profile_image/conversion/180e0c8b-302a-41e9-92db-5c68ff8a7a85-fullsize.webp'
+  };
+
+  function crearAvatarImgHtml(url, name) {
+    if (!url || typeof url !== 'string') return '';
+    const safeUrl = normalizarAvatarKickUrlLocal(url) || url;
+    const proxyUrl = `https://wsrv.nl/?url=${encodeURIComponent(safeUrl)}`;
+    const jikoFallback = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+    return `<img src="${safeUrl}" alt="${name || 'Avatar'}" referrerpolicy="no-referrer" loading="eager" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='${proxyUrl}';} else if(this.dataset.retry==='1' && '${safeUrl}' !== '${jikoFallback}'){this.dataset.retry='2'; this.src='${jikoFallback}';} else {this.style.display='none';}">`;
+  }
 
   async function obtenerAvatarKick(username) {
     const cleanUser = String(username || '').replace(/^@/, '').trim().toLowerCase();
     if (!cleanUser) return null;
     if (avatarMemCache[cleanUser]) return avatarMemCache[cleanUser];
 
-    // 1. Firebase RTDB Cache
+    // 1. Fallback permanente oficial para el dueño
+    if (cleanUser === 'jikokun') {
+      const jikoPic = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+      avatarMemCache['jikokun'] = jikoPic;
+      return jikoPic;
+    }
+
+    // 2. Firebase RTDB Cache
     if (window.StreamDB && typeof StreamDB.getUser === 'function') {
       try {
         const u = await StreamDB.getUser(cleanUser);
         if (u && u.avatar && String(u.avatar).startsWith('http')) {
-          avatarMemCache[cleanUser] = u.avatar;
-          return u.avatar;
+          const pic = normalizarAvatarKickUrlLocal(u.avatar);
+          if (pic) {
+            avatarMemCache[cleanUser] = pic;
+            return pic;
+          }
         }
       } catch(e){}
     }
 
-    // 2. Kick API v1
-    try {
-      const res = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(cleanUser)}`);
-      if (res.ok) {
-        const d = await res.json();
-        const pic = d.profilepic || d.profile_pic || d.profile_image || d.avatar;
-        if (pic && typeof pic === 'string' && pic.startsWith('http')) {
-          avatarMemCache[cleanUser] = pic;
-          if (window.StreamDB && typeof StreamDB.actualizarUsuario === 'function') {
-            StreamDB.actualizarUsuario(cleanUser, { avatar: pic }).catch(()=>{});
-          }
-          return pic;
-        }
-      }
-    } catch(e){}
+    // 3. Kick API via proxy seguro (evita bloqueo CORS / Cloudflare)
+    const endpoints = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v1/users/' + cleanUser)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanUser)}`,
+      `https://kick.com/api/v1/users/${encodeURIComponent(cleanUser)}`,
+      `https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`
+    ];
 
-    // 3. Kick API v2 (Canales / Broadcasters como Jikokun)
-    try {
-      const res2 = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`);
-      if (res2.ok) {
-        const d2 = await res2.json();
-        const pic2 = d2.user?.profilepic || d2.user?.profile_pic || d2.user?.profile_image || d2.user?.avatar;
-        if (pic2 && typeof pic2 === 'string' && pic2.startsWith('http')) {
-          avatarMemCache[cleanUser] = pic2;
-          if (window.StreamDB && typeof StreamDB.actualizarUsuario === 'function') {
-            StreamDB.actualizarUsuario(cleanUser, { avatar: pic2 }).catch(()=>{});
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep);
+        if (res.ok) {
+          const d = await res.json();
+          const rawPic = d.profilepic || d.profile_pic || d.profile_image || d.avatar || d.user?.profilepic || d.user?.profile_pic || d.user?.avatar;
+          if (rawPic && typeof rawPic === 'string' && rawPic.startsWith('http')) {
+            const pic = normalizarAvatarKickUrlLocal(rawPic);
+            avatarMemCache[cleanUser] = pic;
+            if (window.StreamDB && typeof StreamDB.actualizarUsuario === 'function') {
+              StreamDB.actualizarUsuario(cleanUser, { avatar: pic }).catch(()=>{});
+            }
+            return pic;
           }
-          return pic2;
         }
-      }
-    } catch(e2){}
+      } catch(e) {}
+    }
 
     return null;
   }
@@ -1906,7 +1972,7 @@ body {
     return {
       username: normUser,
       displayName: displayName,
-      avatar: (u.avatar && String(u.avatar).startsWith('http')) ? u.avatar : null,
+      avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarMemCache[normUser] || (normUser === 'jikokun' ? avatarMemCache['jikokun'] : null),
       nivel: nivel,
       rangoTitulo: (u._forceLevel && nivel >= 43) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 34) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro')),
       insigniaEmoji: (u._forceLevel && nivel >= 43) ? '👑' : ((u._forceLevel && nivel >= 34) ? '🐺' : (nivelInfo.insigniaEmoji || '🐾')),
@@ -1946,6 +2012,7 @@ body {
         uData = {
           username: clean,
           displayName: clean,
+          avatar: avatarMemCache[clean] || (clean === 'jikokun' ? avatarMemCache['jikokun'] : null),
           jikopuntos: 1000,
           asistenciasCount: 0,
           experiencia: 0,
@@ -1965,16 +2032,17 @@ body {
     root.className = 'card-wrapper ' + d.themeClass;
     document.getElementById('card-theme-label').textContent = d.themeLabel;
 
-    // Foto de perfil Kick
+    // Foto de perfil Kick oficial
     const avEl = document.getElementById('card-avatar');
-    if (d.avatar) {
-      avEl.innerHTML = `<img src="${d.avatar}" alt="${d.displayName}" onerror="this.parentElement.textContent='${d.insigniaEmoji}';">`;
+    const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarMemCache[d.username] || (d.username === 'jikokun' ? avatarMemCache['jikokun'] : null);
+    if (finalAvatar) {
+      avEl.innerHTML = crearAvatarImgHtml(finalAvatar, d.displayName);
     } else {
-      avEl.textContent = d.insigniaEmoji;
+      avEl.innerHTML = `<span style="font-size:36px; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">🐺</span>`;
       // Intentar obtener avatar en segundo plano
       obtenerAvatarKick(d.username).then(pic => {
         if (pic && root.classList.contains('visible')) {
-          avEl.innerHTML = `<img src="${pic}" alt="${d.displayName}" onerror="this.parentElement.textContent='${d.insigniaEmoji}';">`;
+          avEl.innerHTML = crearAvatarImgHtml(pic, d.displayName);
         }
       });
     }
@@ -2183,6 +2251,7 @@ body {
     const mockUser = {
       username: 'jikokun',
       displayName: 'Jikokun',
+      avatar: 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp',
       jikopuntos: isOwner ? 99999 : 5420,
       asistenciasCount: isOwner ? 50 : 18,
       experiencia: xp,

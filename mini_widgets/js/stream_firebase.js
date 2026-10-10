@@ -33,6 +33,23 @@ export const norm = s => {
   return clean;
 };
 
+// Normalizador de Avatar de Kick: Convierte URLs temporales de S3 al CDN permanente oficial de Kick (files.kick.com)
+export const normalizarAvatarKickUrl = url => {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.trim();
+  if (!clean.startsWith('http')) return null;
+
+  // 1. Quitar query parameters temporales de AWS S3 (?X-Amz-...)
+  if (clean.includes('kick-files-prod.s3') || clean.includes('files.kick.com')) {
+    clean = clean.split('?')[0];
+  }
+
+  // 2. Reemplazar endpoint privado S3 por el CDN público y permanente oficial de Kick
+  clean = clean.replace(/https?:\/\/kick-files-prod\.s3[^\/]*\.amazonaws\.com\//i, 'https://files.kick.com/');
+
+  return clean;
+};
+
 // Constantes de Nodos
 export const USER_DEFAULT_POINTS = 1000;
 export const NODE_STREAM = 'stream';
@@ -258,6 +275,11 @@ class StreamFirebaseService {
         if (Array.isArray(users)) {
           users.forEach(u => {
             if (u && u.username) {
+              if (u.avatar) {
+                u.avatar = normalizarAvatarKickUrl(u.avatar);
+              } else if (u.username === 'jikokun') {
+                u.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+              }
               this.usersCache.set(u.username, u);
               this._updateLocalCache(u.username, u.jikopuntos);
               if (!u.avatar || !String(u.avatar).startsWith('http')) {
@@ -323,6 +345,12 @@ class StreamFirebaseService {
         data.xpParaSubir = nivelInfo.xpParaSubir;
         data.xpFaltante = nivelInfo.xpFaltante;
         data.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
+
+        if (data.avatar) {
+          data.avatar = normalizarAvatarKickUrl(data.avatar);
+        } else if (key === 'jikokun') {
+          data.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+        }
 
         this.usersCache.set(key, data);
         this._updateLocalCache(key, data.jikopuntos);
@@ -503,7 +531,7 @@ class StreamFirebaseService {
       cleanUpdates.displayName = String(updates.displayName).trim() || current.displayName || key;
     }
     if (updates.avatar !== undefined) {
-      cleanUpdates.avatar = String(updates.avatar).trim();
+      cleanUpdates.avatar = normalizarAvatarKickUrl(updates.avatar);
     }
     if (updates.rol !== undefined && key !== 'jikokun') {
       cleanUpdates.rol = updates.rol;
@@ -625,31 +653,35 @@ class StreamFirebaseService {
     const key = norm(username);
     if (!key) return null;
 
-    try {
-      // 1. API v1 de Usuarios de Kick (Directo para espectadores y streamers)
-      const res = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(username)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const pic = data.profilepic || data.profile_pic || data.profile_image || data.avatar;
-        if (pic && typeof pic === 'string' && pic.startsWith('http')) {
-          await this.actualizarUsuario(key, { avatar: pic });
-          return pic;
-        }
-      }
-    } catch (e) {}
+    // Fallback permanente oficial para el dueño
+    if (key === 'jikokun') {
+      const jikoAvatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+      await this.actualizarUsuario(key, { avatar: jikoAvatar });
+      return jikoAvatar;
+    }
 
-    try {
-      // 2. API v2 de Canales de Kick (Fallback para creadores de contenido)
-      const res2 = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(username)}`);
-      if (res2.ok) {
-        const data2 = await res2.json();
-        const pic2 = data2.user?.profilepic || data2.user?.profile_pic || data2.user?.profile_image || data2.user?.avatar;
-        if (pic2 && typeof pic2 === 'string' && pic2.startsWith('http')) {
-          await this.actualizarUsuario(key, { avatar: pic2 });
-          return pic2;
+    // Probar múltiples endpoints y proxy seguro para evitar bloqueos CORS
+    const endpoints = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v1/users/' + username)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + username)}`,
+      `https://kick.com/api/v1/users/${encodeURIComponent(username)}`,
+      `https://kick.com/api/v2/channels/${encodeURIComponent(username)}`
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep);
+        if (res.ok) {
+          const data = await res.json();
+          const rawPic = data.profilepic || data.profile_pic || data.profile_image || data.avatar || data.user?.profilepic || data.user?.profile_pic || data.user?.avatar;
+          if (rawPic && typeof rawPic === 'string' && rawPic.startsWith('http')) {
+            const cleanPic = normalizarAvatarKickUrl(rawPic);
+            await this.actualizarUsuario(key, { avatar: cleanPic });
+            return cleanPic;
+          }
         }
-      }
-    } catch (e2) {}
+      } catch (e) {}
+    }
 
     return null;
   }
@@ -2169,6 +2201,7 @@ if (typeof window !== 'undefined') {
   window.formatearTiempoVisto = formatearTiempoVisto;
   window.formatearHorasDecimal = formatearHorasDecimal;
   window.calcularNivelUsuario = calcularNivelUsuario;
+  window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
 }
 
 export default StreamDB;
