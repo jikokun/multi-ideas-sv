@@ -684,14 +684,22 @@ html,body{
   right: 0;
   top: 672px;
   height: 130px;
-  z-index: 6;
   pointer-events: none;
+}
+.vip-tables-zone.vip-tables-back {
+  z-index: 6; /* Parte superior de la mesa y respaldo sofá: DETRÁS de la animación */
+}
+.vip-tables-zone.vip-tables-front {
+  z-index: 8; /* Parte baja de la mesa / asiento frontal: SOBRE la animación */
 }
 .vip-booth {
   position: absolute;
   width: 310px;
   height: 100px;
   pointer-events: auto;
+}
+.vip-tables-front .vip-booth {
+  pointer-events: none;
 }
 .vip-booth.left { left: 90px; }
 .vip-booth.right { right: 90px; }
@@ -1425,7 +1433,6 @@ html,body{
   right: 0;
   bottom: 0;
   height: 380px;
-  z-index: 9;
   pointer-events: none;
 }
 
@@ -1637,21 +1644,75 @@ html,body{
   100% { transform: translateX(-50%) translateY(-5px) rotate(4deg) scale(1.12); }
 }
 
-/* Distintivo de realeza / host exclusivo para Jikokun */
+/* ============ EXCLUSIVO: SKIN WOLF DE JIKOKUN (ANIMACIONES WEBM ALFA) ============ */
+.vip-spot.is-jikokun-host {
+  width: 220px;
+}
 .vip-spot.is-jikokun-host .vip-nametag {
   border-color: #ffd700 !important;
   color: #fff !important;
   text-shadow: 0 0 10px #ffd700, 0 0 20px rgba(255, 215, 0, 0.8) !important;
   box-shadow: 0 0 18px rgba(255, 215, 0, 0.75), inset 0 0 6px rgba(255, 215, 0, 0.4) !important;
+  margin-bottom: 4px;
 }
-.vip-spot.is-jikokun-host .vip-avatar-head {
-  border-color: #ffd700 !important;
-  box-shadow: 0 0 24px rgba(255, 215, 0, 0.95), inset 0 0 12px rgba(255, 215, 0, 0.55) !important;
+.vip-spot.is-jikokun-host .vip-avatar-head,
+.vip-spot.is-jikokun-host .vip-body {
+  display: none !important;
+}
+.vip-spot.is-jikokun-host.facing-left {
+  transform: translateX(-50%) scale(var(--d-scale, 1)) !important;
+}
+.vip-spot.is-jikokun-host.facing-left .vip-nametag {
+  animation: tagBob calc(var(--beat-tempo) * 2) ease-in-out infinite alternate !important;
+  transform: none !important;
+}
+.vip-spot.is-jikokun-host.is-seated {
+  z-index: 7 !important;
+}
+.vip-spot.is-jikokun-host.is-at-table {
+  z-index: 15 !important;
+}
+.vip-spot.is-jikokun-host.is-seated .vip-floor-ring,
+.vip-spot.is-jikokun-host.is-at-table .vip-floor-ring {
+  display: none !important;
+}
+.wolf-skin-container {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin-top: -6px;
+  margin-bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.45));
+  flex-shrink: 0 !important;
+  z-index: 5;
+}
+.vip-spot.is-jikokun-host.is-seated .wolf-skin-container {
+  filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.35));
+}
+.wolf-skin-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: transparent;
+  pointer-events: none;
+  border-radius: 0;
 }
 .vip-spot.is-jikokun-host .vip-floor-ring {
+  width: 140px;
+  height: 32px;
+  bottom: -4px;
   border-color: #ffd700 !important;
   box-shadow: 0 0 24px #ffd700, inset 0 0 14px #ffd700 !important;
 }
+.vip-spot.is-jikokun-host .faint-stars-orbit {
+  top: 130px;
+  left: 65px;
+}
+
 
 /* Bebida que sostiene si compró en el bar */
 .vip-drink-badge {
@@ -3672,6 +3733,24 @@ html,body{
     <span onclick="window.testAFK()" style="cursor:pointer; color:#ff9933" title="Simular inactividad de 2 minutos (El guardia Bob viene a retirar al usuario si está en pista)">💤 <b>Test AFK</b></span>
     <span>·</span>
     <span onclick="window.testBar()" style="cursor:pointer" title="Clic para simular !bar">🍸 <b>!bar</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfBailar()" style="cursor:pointer; color:#ffd700" title="Rotar poses de baile del Lobo Jikokun">🐺 <b>Lobo Baile</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfBeber()" style="cursor:pointer; color:#ffd700" title="Lobo Jikokun bebiendo cerveza/trago">🐺🍺 <b>Lobo Beber</b></span>
+    <span>·</span>
+    <span onclick="window.testBotellazoAJikokun()" style="cursor:pointer; color:#00ff88" title="Tirarle botellazo al Lobo Jikokun (animación morir)">🐺🍾 <b>Lobo Botellazo</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfPelea()" style="cursor:pointer; color:#ff1744" title="Pelea cómica 20s con Lobo Jikokun en llamas">🐺🥊 <b>Lobo Pelea</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfAnim('masked')" style="cursor:pointer; color:#00e5ff" title="Pose de victoria del Lobo Jikokun (Enmascarado)">🐺👑 <b>Victoria Lobo</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfAnim('exploding')" style="cursor:pointer; color:#ff0055" title="Pose de derrota del Lobo Jikokun (Explotando)">🐺💥 <b>Derrota Lobo</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfSentadoFondo()" style="cursor:pointer; color:#ffd700" title="Sentar a Jikokun al fondo tras el sofá VIP (animación sentadoespalda)">🐺🛋️ <b>Sentado Fondo VIP</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfSentadoFrontal('left')" style="cursor:pointer; color:#00e5ff" title="Sentar a Jikokun en mesa frontal izquierda (animación sentadoderecha / sentadoizquierda)">🐺🪑 <b>Mesa Frontal Izq</b></span>
+    <span>·</span>
+    <span onclick="window.testWolfSentadoFrontal('right')" style="cursor:pointer; color:#ff2fd0" title="Sentar a Jikokun en mesa frontal derecha (animación sentadoderecha / sentadoizquierda)">🐺🪑 <b>Mesa Frontal Der</b></span>
   </div>
 
   <!-- PISTA DE BAILE -->
@@ -3799,20 +3878,18 @@ html,body{
 
   <!-- ========================================================
        ZONA DE MESAS VIP Y SALÓN AL FONDO (!sentarse)
-       Mesas neón con sofás donde se sientan y asoma solo la cabecita
+       Capa Trasera (z-index: 6): Rótulos neón y parte superior de la mesa / sofá
        ======================================================== -->
-  <div class="vip-tables-zone" id="vip-tables-zone">
+  <div class="vip-tables-zone vip-tables-back" id="vip-tables-zone">
     <!-- Mesa / Booth Izquierda -->
     <div class="vip-booth left">
       <div class="booth-neon-sign">VIP 1</div>
       <div class="booth-sofa"></div>
-      <div class="booth-table"></div>
     </div>
     <!-- Mesa / Booth Derecha -->
     <div class="vip-booth right">
       <div class="booth-neon-sign">VIP 2</div>
       <div class="booth-sofa"></div>
-      <div class="booth-table"></div>
     </div>
   </div>
 
@@ -3848,8 +3925,22 @@ html,body{
   <!-- ========================================================
        PISTA DE BAILE: BAILARINES DINÁMICOS AL RITMO DE LA MÚSICA
        Inicia 100% vacía. Entran caminando desde la derecha con !bailar
+       (Bailarines sentados en VIP al fondo: z-index 7)
        ======================================================== -->
   <div class="vip-dancers-stage" id="vip-dancers-stage"></div>
+
+  <!-- ========================================================
+       ZONA DE MESAS VIP AL FONDO - CAPA DELANTERA (z-index: 8)
+       Parte baja de la mesa / asiento sobre la animación
+       ======================================================== -->
+  <div class="vip-tables-zone vip-tables-front" id="vip-tables-front">
+    <div class="vip-booth left">
+      <div class="booth-table"></div>
+    </div>
+    <div class="vip-booth right">
+      <div class="booth-table"></div>
+    </div>
+  </div>
 
   <!-- BOLA DE DISCO CON CÍRCULO GIRATORIO DE PORTADA SPOTIFY -->
   <div class="ballWire"></div>
@@ -4096,10 +4187,113 @@ html,body{
     }
   };
   
+  /* ═══════════ RECURSOS EXCLUSIVOS: SKIN WOLF PARA JIKOKUN ═══════════ */
+  const WOLF_SKIN_ASSETS = {
+    walk_left: 'recursos/skin_wolf_jikokun/caminandoizquierda_w9xsa0.webm',
+    walk_right: 'recursos/skin_wolf_jikokun/caminandoderecha_j54s2n.webm',
+    dance_front_right: 'recursos/skin_wolf_jikokun/bailederechofrontal_qjtmsw.webm',
+    dance_front_left: 'recursos/skin_wolf_jikokun/baileizquierdafrontal_mmghpm.webm',
+    dance_back_right: 'recursos/skin_wolf_jikokun/bailederechoback_f00m0a.webm',
+    dance_back_left: 'recursos/skin_wolf_jikokun/baileizquierdoback_rkqn8e.webm',
+    idle_right: 'recursos/skin_wolf_jikokun/tranquiloderecho_opvgy9.webm',
+    idle_left: 'recursos/skin_wolf_jikokun/tranquiloizquierdo_fziywj.webm',
+    sit_back: 'recursos/skin_wolf_jikokun/sentadoespalda.webm',
+    sit_left: 'recursos/skin_wolf_jikokun/sentadoizquierda.webm',
+    sit_right: 'recursos/skin_wolf_jikokun/sentadoderecha.webm',
+    sentadoespalda: 'recursos/skin_wolf_jikokun/sentadoespalda.webm',
+    sentadoizquierda: 'recursos/skin_wolf_jikokun/sentadoizquierda.webm',
+    sentadoderecha: 'recursos/skin_wolf_jikokun/sentadoderecha.webm',
+    drink: 'recursos/skin_wolf_jikokun/bebiendo_dxwffi.webm',
+    eat: 'recursos/skin_wolf_jikokun/comiendo_exdifx.webm',
+    die: 'recursos/skin_wolf_jikokun/morir_i9ljlp.webm',
+    masked: 'recursos/skin_wolf_jikokun/enmascarado_eqcmcu.webm',
+    exploding: 'recursos/skin_wolf_jikokun/explotando_hxib2f.webm',
+    fire: 'recursos/skin_wolf_jikokun/enllamas_xgvrbj.webm',
+    spin: 'recursos/skin_wolf_jikokun/girando_pekovc.webm',
+    clap: 'recursos/skin_wolf_jikokun/aplaudir_u5mb46.webm'
+  };
+
+  const WOLF_DANCE_POSES = [
+    WOLF_SKIN_ASSETS.dance_front_right,
+    WOLF_SKIN_ASSETS.dance_front_left,
+    WOLF_SKIN_ASSETS.dance_back_right,
+    WOLF_SKIN_ASSETS.dance_back_left
+  ];
+
+  let wolfDancePoseIdx = 0;
+  function getNextWolfDancePose() {
+    const pose = WOLF_DANCE_POSES[wolfDancePoseIdx % WOLF_DANCE_POSES.length];
+    wolfDancePoseIdx++;
+    return pose;
+  }
+
+  function getWolfDanceForStyle(styleKey) {
+    if (styleKey === 'dance-salto' || styleKey === 'dance-manosarriba' || styleKey === 'dance-hype') {
+      return WOLF_SKIN_ASSETS.dance_front_right;
+    }
+    if (styleKey === 'dance-pasito' || styleKey === 'dance-reggaeton' || styleKey === 'dance-perreo') {
+      return WOLF_SKIN_ASSETS.dance_front_left;
+    }
+    if (styleKey === 'dance-cumbia' || styleKey === 'dance-disco') {
+      return WOLF_SKIN_ASSETS.dance_back_right;
+    }
+    if (styleKey === 'dance-electronica' || styleKey === 'dance-meneo') {
+      return WOLF_SKIN_ASSETS.dance_back_left;
+    }
+    return getNextWolfDancePose();
+  }
+
+  function getWolfSittingAnimation(seatId) {
+    const seat = TABLE_SEATS.find(s => s.id === seatId);
+    if (!seat) return WOLF_SKIN_ASSETS.sit_back;
+    if (seat.type === 'vip') {
+      return WOLF_SKIN_ASSETS.sit_back;
+    }
+    // Mesas frontales de la pista
+    if (seat.facing === 'left') {
+      return WOLF_SKIN_ASSETS.sit_left;
+    } else {
+      return WOLF_SKIN_ASSETS.sit_right;
+    }
+  }
+
+  function setWolfAnimation(cleanUser, assetKeyOrUrl, options = {}) {
+    const clean = norm(cleanUser || '');
+    if (clean !== 'jikokun' && clean !== 'broadcaster') return;
+    const dancer = activeDancers.get(clean);
+    if (!dancer || !dancer.el) return;
+    const video = dancer.el.querySelector('.wolf-skin-video');
+    if (!video) return;
+
+    const resolvedSrc = WOLF_SKIN_ASSETS[assetKeyOrUrl] || assetKeyOrUrl;
+    if (!resolvedSrc) return;
+
+    const loop = options.loop !== undefined ? options.loop : true;
+    video.loop = loop;
+
+    if (video.dataset.currentAnim === resolvedSrc && !video.paused && !options.force) {
+      return;
+    }
+
+    video.dataset.currentAnim = resolvedSrc;
+    video.src = resolvedSrc;
+    video.currentTime = 0;
+    video.play().catch(()=>{});
+
+    if (options.onEnded) {
+      const handleEnd = () => {
+        video.removeEventListener('ended', handleEnd);
+        options.onEnded();
+      };
+      video.addEventListener('ended', handleEnd, { once: true });
+    }
+  }
+
   // La pista de baile inicia completamente vacía (sin bailarines por defecto)
   // Al usar !bailar entran caminando desde el lateral derecho
   localStorage.removeItem('jikoteca_vip_dancers');
   const activeDancers = new Map();
+
 
   /* ═══════════ SISTEMA DE ESTADO DE MÚSICA (EN REPOSO / REPRODUCIENDO) ═══════════ */
   let isMusicPlaying = true;
@@ -4117,6 +4311,11 @@ html,body{
       activeDancers.forEach(dancer => {
         if (!dancer || !dancer.el || dancer.isSeated) return;
         if (dancer.el.classList.contains('is-fainted') || dancer.el.classList.contains('is-ejected')) return;
+
+        const isHost = norm(dancer.username) === 'jikokun' || norm(dancer.username) === 'broadcaster';
+        if (isHost) {
+          setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.idle_left, { loop: true });
+        }
 
         // Limpiar intervalos de cambio y re-sincronización
         if (dancer.changeInterval) clearInterval(dancer.changeInterval);
@@ -4144,12 +4343,17 @@ html,body{
           scheduleDancerWander(dancer);
         }
       });
-      showHud('⏸️ Música en pausa. Los bailarines bajan los brazos y descansan en la pista...', '💤');
+      showHud('⏸️ Música en pausa. Los bailarines descansan en la pista...', '💤');
     } else {
       // Reanudar baile enérgico al ritmo de la música
       activeDancers.forEach(dancer => {
         if (!dancer || !dancer.el || dancer.isSeated) return;
         if (dancer.el.classList.contains('is-fainted') || dancer.el.classList.contains('is-ejected')) return;
+
+        const isHost = norm(dancer.username) === 'jikokun' || norm(dancer.username) === 'broadcaster';
+        if (isHost) {
+          setWolfAnimation('jikokun', WOLF_DANCE_POSES[0], { loop: true });
+        }
 
         if (dancer.wanderTimer) clearTimeout(dancer.wanderTimer);
         dancer.wanderTimer = null;
@@ -4179,6 +4383,9 @@ html,body{
             const st = getAutoDanceStyleForBPM();
             assignRandomDanceStyles(cur.el, st);
             cur.danceStyle = st;
+            if (isHost) {
+              setWolfAnimation('jikokun', getNextWolfDancePose(), { loop: true });
+            }
           }
         }, 30000);
       });
@@ -4190,13 +4397,19 @@ html,body{
     if (isMusicPlaying || !dancer || !dancer.el || dancer.isSeated || dancer.isCoupleDancing) return;
     if (dancer.wanderTimer) clearTimeout(dancer.wanderTimer);
 
+    const isHost = norm(dancer.username) === 'jikokun' || norm(dancer.username) === 'broadcaster';
     const minX = 350;
     const maxX = 1570;
     const targetX = minX + Math.floor(Math.random() * (maxX - minX));
     const currentX = dancer.x || parseInt(dancer.el.style.left, 10) || 960;
 
-    if (targetX < currentX) dancer.el.classList.add('facing-left');
-    else dancer.el.classList.remove('facing-left');
+    if (targetX < currentX) {
+      dancer.el.classList.add('facing-left');
+      if (isHost) setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.walk_left, { loop: true });
+    } else {
+      dancer.el.classList.remove('facing-left');
+      if (isHost) setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.walk_right, { loop: true });
+    }
 
     dancer.el.style.transition = 'left 4.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
     dancer.el.style.left = targetX + 'px';
@@ -4204,6 +4417,7 @@ html,body{
 
     dancer.wanderTimer = setTimeout(() => {
       if (isMusicPlaying || !dancer || !dancer.el || dancer.isSeated) return;
+      if (isHost) setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.idle_left, { loop: true });
       // Posibilidad de alternar entre pasear y sentarse en el suelo a descansar
       if (Math.random() < 0.45) {
         dancer.el.classList.remove('is-wandering');
@@ -4605,6 +4819,20 @@ html,body{
     avatarCache[clean] = cleanUrl;
     saveAvatarToStorage(clean, cleanUrl);
 
+    // Jikokun usa exclusivamente el modelo Skin Wolf en pista, pero actualizamos la foto del bar
+    if (clean === 'jikokun' || clean === 'broadcaster') {
+      if (currentBarUser && norm(currentBarUser) === clean) {
+        const barImg = document.getElementById('bar-user-img');
+        const barFb = document.getElementById('bar-user-fallback');
+        if (barImg) {
+          if (barImg.src !== cleanUrl) barImg.src = cleanUrl;
+          barImg.style.display = 'block';
+          if (barFb) barFb.style.display = 'none';
+        }
+      }
+      return;
+    }
+
     // 1. Actualizar personaje en pista o mesa VIP buscando en memoria activa Y directamente en el DOM
     // Esto asegura que si el muñeco está en plena animación de caminata o transición, absorba la foto de inmediato
     const dancer = activeDancers.get(clean);
@@ -4889,6 +5117,11 @@ html,body{
     const info = assignRandomDanceStyles(dancer.el, styleKey);
     dancer.danceStyle = info.danceStyle;
 
+    const isHost = clean === 'jikokun' || clean === 'broadcaster';
+    if (isHost) {
+      setWolfAnimation(clean, getWolfDanceForStyle(dancer.danceStyle), { loop: true });
+    }
+
     const styleObj = DANCE_STYLES.find(s => s.key === dancer.danceStyle) || { name: 'un nuevo estilo', emoji: '🕺' };
     playSfx('drink');
     showHud(`🔥 ¡<b>@${dancer.username}</b> salta a bailar <b>${styleObj.name}</b>! ${styleObj.emoji} <small style="opacity:.8">(30s ritmo libre)</small>`, '🪩');
@@ -4907,6 +5140,9 @@ html,body{
 
           assignRandomDanceStyles(dancer.el, bestStyle);
           dancer.danceStyle = bestStyle;
+          if (isHost) {
+            setWolfAnimation(clean, getNextWolfDancePose(), { loop: true });
+          }
           const st = DANCE_STYLES.find(s => s.key === bestStyle) || { name: 'ritmo ideal', emoji: '🎵' };
           const tempoStr = getComputedStyle(document.documentElement).getPropertyValue('--beat-tempo').trim();
           const bpm = Math.round(60 / (parseFloat(tempoStr) || 0.468));
@@ -4982,9 +5218,14 @@ html,body{
   }
 
   // Obtener asiento aleatorio disponible (VIP o Mesas Laterales)
-  function getRandomAvailableSeat(excludeSeatId = null, preferOtherBooth = false, currentBooth = null) {
+  function getRandomAvailableSeat(excludeSeatId = null, preferOtherBooth = false, currentBooth = null, preferredType = null) {
     let available = TABLE_SEATS.filter(s => !s.occupiedBy && s.id !== excludeSeatId);
     if (available.length === 0) return null;
+
+    if (preferredType) {
+      const typeFiltered = available.filter(s => s.type === preferredType);
+      if (typeFiltered.length > 0) available = typeFiltered;
+    }
 
     if (preferOtherBooth && currentBooth) {
       const otherBoothSeats = available.filter(s => s.booth !== currentBooth);
@@ -5031,6 +5272,10 @@ html,body{
           else existing.el.classList.remove('facing-left');
 
           existing.el.classList.add('is-walking');
+          const isHost = clean === 'jikokun' || clean === 'broadcaster';
+          if (isHost) {
+            setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+          }
           existing.el.style.transition = 'left 2.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), bottom 2.5s ease';
           existing.el.style.left = pos.x + 'px';
           existing.el.style.bottom = pos.bottom + 'px';
@@ -5052,6 +5297,14 @@ html,body{
             const initialStyle = preferredStyle || getRandomDanceStyle();
             const moves = assignRandomDanceStyles(existing.el, initialStyle);
             existing.danceStyle = moves.danceStyle;
+
+            if (isHost) {
+              if (!isMusicPlaying) {
+                setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+              } else {
+                setWolfAnimation(clean, getWolfDanceForStyle(moves.danceStyle), { loop: true });
+              }
+            }
 
             triggerSpawnEffect(existing.el);
             playSfx('drink');
@@ -5163,21 +5416,27 @@ html,body{
 
     dancerEl.innerHTML = `
       <div class="vip-nametag" style="border-color:${pal.color}; text-shadow:0 0 8px ${pal.color}">${nametagText}</div>
-      <div class="vip-avatar-head" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.glow}">
-        ${crownHtml}
-        <img class="vip-avatar-img" src="${resolvedPic || ''}" alt="@${username}" style="${resolvedPic ? 'display:block' : 'display:none'}" referrerpolicy="no-referrer" loading="eager">
-        <span class="vip-avatar-fallback" style="${resolvedPic ? 'display:none' : 'display:block'}">${fallbackEmoji}</span>
-        <span class="vip-drink-badge" style="display:none">🍹</span>
-      </div>
-      <div class="vip-body">
-        <div class="vip-torso" style="border-color:${pal.color}99; box-shadow:0 0 14px ${pal.glow}"></div>
-        <div class="vip-arm l"></div>
-        <div class="vip-arm r"></div>
-        <div class="vip-legs">
-          <div class="vip-leg l" style="border-color:${pal.color}88"></div>
-          <div class="vip-leg r" style="border-color:${pal.color}88"></div>
+      ${isJikokun ? `
+        <div class="wolf-skin-container">
+          <video class="wolf-skin-video" autoplay loop muted playsinline src="${WOLF_SKIN_ASSETS.walk_left}"></video>
         </div>
-      </div>
+      ` : `
+        <div class="vip-avatar-head" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.glow}">
+          ${crownHtml}
+          <img class="vip-avatar-img" src="${resolvedPic || ''}" alt="@${username}" style="${resolvedPic ? 'display:block' : 'display:none'}" referrerpolicy="no-referrer" loading="eager">
+          <span class="vip-avatar-fallback" style="${resolvedPic ? 'display:none' : 'display:block'}">${fallbackEmoji}</span>
+          <span class="vip-drink-badge" style="display:none">🍹</span>
+        </div>
+        <div class="vip-body">
+          <div class="vip-torso" style="border-color:${pal.color}99; box-shadow:0 0 14px ${pal.glow}"></div>
+          <div class="vip-arm l"></div>
+          <div class="vip-arm r"></div>
+          <div class="vip-legs">
+            <div class="vip-leg l" style="border-color:${pal.color}88"></div>
+            <div class="vip-leg r" style="border-color:${pal.color}88"></div>
+          </div>
+        </div>
+      `}
       <div class="vip-floor-ring" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.color}, inset 0 0 10px ${pal.color}"></div>
     `;
 
@@ -5258,6 +5517,9 @@ html,body{
 
       if (!isMusicPlaying) {
         dancerEl.classList.add('is-no-music');
+        if (isJikokun) {
+          setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+        }
         triggerSpawnEffect(dancerEl);
         playSfx('ticket');
 
@@ -5272,6 +5534,10 @@ html,body{
         const initialStyle = preferredStyle || getRandomDanceStyle();
         moves = assignRandomDanceStyles(dancerEl, initialStyle);
         dancerObj.danceStyle = moves ? moves.danceStyle : initialStyle;
+
+        if (isJikokun) {
+          setWolfAnimation(clean, getWolfDanceForStyle(dancerObj.danceStyle), { loop: true });
+        }
 
         triggerSpawnEffect(dancerEl);
         playSfx('drink');
@@ -5290,6 +5556,9 @@ html,body{
               setTimeout(() => dancerEl.classList.remove('jump-boost'), 750);
               assignRandomDanceStyles(dancerEl, bestStyle);
               currentObj.danceStyle = bestStyle;
+              if (isJikokun) {
+                setWolfAnimation(clean, getNextWolfDancePose(), { loop: true });
+              }
               const st = DANCE_STYLES.find(s => s.key === bestStyle) || { name: 'ritmo ideal', emoji: '🎵' };
               const tempoStr = getComputedStyle(document.documentElement).getPropertyValue('--beat-tempo').trim();
               const bpm = Math.round(60 / (parseFloat(tempoStr) || 0.468));
@@ -5310,6 +5579,9 @@ html,body{
             const bestStyle = getAutoDanceStyleForBPM();
             assignRandomDanceStyles(dancerEl, bestStyle);
             currentObj.danceStyle = bestStyle;
+            if (isJikokun) {
+              setWolfAnimation(clean, getNextWolfDancePose(), { loop: true });
+            }
           }
         }, 30000);
       }
@@ -5327,7 +5599,7 @@ html,body{
   const assignDancerToFloor = spawnWalkingDancer;
 
   /* ═══════════ ENTRAR A SENTARSE A LA MESA VIP (!sentarse) ═══════════ */
-  async function sitDancerAtTable(username, pic = null) {
+  async function sitDancerAtTable(username, pic = null, preferredType = null) {
     const clean = norm(username);
     if (!clean) return;
 
@@ -5338,8 +5610,8 @@ html,body{
       return;
     }
 
-    // Buscar un asiento aleatorio desocupado (VIP 1 o VIP 2)
-    const availableSeat = getRandomAvailableSeat();
+    // Buscar un asiento aleatorio desocupado (VIP 1 o VIP 2 o mesas frontales)
+    const availableSeat = getRandomAvailableSeat(null, false, null, preferredType);
     if (!availableSeat) {
       playSfx('error');
       showHud(`⚠️ ¡Todas las mesas VIP están ocupadas! Espera a que alguien vuelva a bailar con <b>!bailar</b>.`, '🛋️', true);
@@ -5382,6 +5654,10 @@ html,body{
       else existing.el.classList.remove('facing-left');
 
       existing.el.classList.add('is-walking');
+      const isHostA = clean === 'jikokun' || clean === 'broadcaster';
+      if (isHostA) {
+        setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+      }
       // Caminar hacia la mesa (VIP o lateral)
       const targetScale = availableSeat.scale || '0.68';
       const targetZ = availableSeat.zIndex || 7;
@@ -5411,6 +5687,11 @@ html,body{
         existing.bottom = availableSeat.bottom;
         existing.scale = targetScale;
         existing.zIndex = targetZ;
+
+        if (isHostA) {
+          const sitAnim = getWolfSittingAnimation(availableSeat.id);
+          setWolfAnimation(clean, sitAnim, { loop: true });
+        }
 
         playSfx('drink');
         if (availableSeat.type === 'lateral') {
@@ -5463,21 +5744,27 @@ html,body{
 
     dancerEl.innerHTML = `
       <div class="vip-nametag" style="border-color:${pal.color}; text-shadow:0 0 8px ${pal.color}">${nametagText}</div>
-      <div class="vip-avatar-head" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.glow}">
-        ${crownHtml}
-        <img class="vip-avatar-img" src="${resolvedPic || ''}" alt="@${username}" style="${resolvedPic ? 'display:block' : 'display:none'}" referrerpolicy="no-referrer" loading="eager">
-        <span class="vip-avatar-fallback" style="${resolvedPic ? 'display:none' : 'display:block'}">${fallbackEmoji}</span>
-        <span class="vip-drink-badge" style="display:none">🍹</span>
-      </div>
-      <div class="vip-body">
-        <div class="vip-torso" style="border-color:${pal.color}99; box-shadow:0 0 14px ${pal.glow}"></div>
-        <div class="vip-arm l"></div>
-        <div class="vip-arm r"></div>
-        <div class="vip-legs">
-          <div class="vip-leg l" style="border-color:${pal.color}88"></div>
-          <div class="vip-leg r" style="border-color:${pal.color}88"></div>
+      ${isJikokun ? `
+        <div class="wolf-skin-container">
+          <video class="wolf-skin-video" autoplay loop muted playsinline src="${WOLF_SKIN_ASSETS.walk_left}"></video>
         </div>
-      </div>
+      ` : `
+        <div class="vip-avatar-head" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.glow}">
+          ${crownHtml}
+          <img class="vip-avatar-img" src="${resolvedPic || ''}" alt="@${username}" style="${resolvedPic ? 'display:block' : 'display:none'}" referrerpolicy="no-referrer" loading="eager">
+          <span class="vip-avatar-fallback" style="${resolvedPic ? 'display:none' : 'display:block'}">${fallbackEmoji}</span>
+          <span class="vip-drink-badge" style="display:none">🍹</span>
+        </div>
+        <div class="vip-body">
+          <div class="vip-torso" style="border-color:${pal.color}99; box-shadow:0 0 14px ${pal.glow}"></div>
+          <div class="vip-arm l"></div>
+          <div class="vip-arm r"></div>
+          <div class="vip-legs">
+            <div class="vip-leg l" style="border-color:${pal.color}88"></div>
+            <div class="vip-leg r" style="border-color:${pal.color}88"></div>
+          </div>
+        </div>
+      `}
       <div class="vip-floor-ring" style="border-color:${pal.color}; box-shadow:0 0 18px ${pal.color}, inset 0 0 10px ${pal.color}"></div>
     `;
 
@@ -5555,6 +5842,11 @@ html,body{
       dancerEl.style.left = availableSeat.x + 'px';
       seatedDancerObj.isWalking = false;
 
+      if (isJikokun) {
+        const sitAnim = getWolfSittingAnimation(availableSeat.id);
+        setWolfAnimation(clean, sitAnim, { loop: true });
+      }
+
       playSfx('drink');
       if (availableSeat.type === 'lateral') {
         showHud(`🛋️ ¡<b>@${username}</b> se acomodó a la par de la <b>${availableSeat.boothName}</b>! (Usa <b>!beber</b> para tomar un trago o <b>!bailar</b> para la pista)`, '🍸');
@@ -5602,6 +5894,10 @@ html,body{
     
     // Caminar hacia la derecha fuera de pantalla
     dancer.el.classList.add('is-walking');
+    const isHost = clean === 'jikokun' || clean === 'broadcaster';
+    if (isHost) {
+      setWolfAnimation(clean, WOLF_SKIN_ASSETS.walk_right, { loop: true });
+    }
     dancer.el.style.transition = 'left 2.6s cubic-bezier(0.4, 0, 0.2, 1)';
     dancer.el.style.left = '2080px';
 
@@ -5638,6 +5934,22 @@ html,body{
 
     // Reproducir sonido de trago y animación de beber
     playSfx('drink');
+    const isHost = clean === 'jikokun' || clean === 'broadcaster';
+    if (isHost) {
+      setWolfAnimation(clean, WOLF_SKIN_ASSETS.drink, { loop: false, force: true });
+      setTimeout(() => {
+        const cur = activeDancers.get(clean);
+        if (!cur || cur.isKnockedOut || cur.isSleeping || cur.isDrunk || cur.isFighting) return;
+        if (cur.isSeated) {
+          setWolfAnimation(clean, getWolfSittingAnimation(cur.seatId), { loop: true });
+        } else if (!isMusicPlaying) {
+          setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+        } else {
+          setWolfAnimation(clean, getWolfDanceForStyle(cur.danceStyle), { loop: true });
+        }
+      }, 2750);
+    }
+
     dancer.el.classList.remove('is-sipping-drink');
     void dancer.el.offsetWidth;
     dancer.el.classList.add('is-sipping-drink');
@@ -5761,6 +6073,11 @@ html,body{
 
       playSfx('bottle'); // Golpe sordo contra el suelo
 
+      const isHost = clean === 'jikokun' || clean === 'broadcaster';
+      if (isHost) {
+        setWolfAnimation(clean, WOLF_SKIN_ASSETS.die, { loop: false, force: true });
+      }
+
       // Cambiar cara/icono a desmayado 😵
       const fallbackEl = dancer.el.querySelector('.vip-avatar-fallback');
       const prevFallback = fallbackEl ? fallbackEl.textContent : '🔥';
@@ -5828,6 +6145,14 @@ html,body{
         assignRandomDanceStyles(dancer.el, style);
         dancer.danceStyle = style;
 
+        if (isHost) {
+          if (!isMusicPlaying) {
+            setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+          } else {
+            setWolfAnimation(clean, WOLF_DANCE_POSES[0], { loop: true });
+          }
+        }
+
         dancer.el.classList.add('is-waking-up');
         setTimeout(() => {
           if (dancer.el) dancer.el.classList.remove('is-waking-up');
@@ -5864,6 +6189,8 @@ html,body{
       showHud(`⚠️ <b>@${dancer.username}</b> ¡no puedes moverte en este estado!`, '⏳', true);
       return;
     }
+
+    const isHost = clean === 'jikokun' || clean === 'broadcaster';
 
     let cleanTarget = norm((targetParam || '').replace(/^@/, ''));
     if (cleanTarget === clean) {
@@ -5906,6 +6233,10 @@ html,body{
             dancer.el.classList.remove('is-no-music', 'is-sitting-floor', 'is-wandering', 'jump-boost', 'is-dancing-couple');
             dancer.el.classList.add('is-walking');
 
+            if (isHost) {
+              setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+            }
+
             const targetScale = openSeatAtBooth.scale || '0.68';
             const targetZ = openSeatAtBooth.zIndex || 7;
             dancer.el.style.setProperty('--d-scale', targetScale);
@@ -5937,6 +6268,11 @@ html,body{
               dancer.scale = targetScale;
               dancer.zIndex = targetZ;
 
+              if (isHost) {
+                const sitAnim = getWolfSittingAnimation(openSeatAtBooth.id);
+                setWolfAnimation(clean, sitAnim, { loop: true });
+              }
+
               playSfx('drink');
               showHud(`🛋️ ¡<b>@${dancer.username}</b> y <b>@${targetDancer.username}</b> están compartiendo la <b>${openSeatAtBooth.boothName}</b>! 🍸`, '🍹');
             }, 2200);
@@ -5966,6 +6302,10 @@ html,body{
             dancer.el.classList.remove('is-no-music', 'is-sitting-floor', 'is-wandering', 'jump-boost', 'is-dancing-couple');
             dancer.el.classList.add('is-walking');
 
+            if (isHost) {
+              setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+            }
+
             dancer.el.style.setProperty('--d-scale', targetScale);
             dancer.el.style.setProperty('--d-z', String(targetZ));
 
@@ -5988,6 +6328,13 @@ html,body{
 
               const moves = assignRandomDanceStyles(dancer.el);
               dancer.danceStyle = moves.danceStyle;
+              if (isHost) {
+                if (!isMusicPlaying) {
+                  setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+                } else {
+                  setWolfAnimation(clean, getWolfDanceForStyle(moves.danceStyle), { loop: true });
+                }
+              }
               playSfx('drink');
             }, 2200);
             return;
@@ -6024,6 +6371,10 @@ html,body{
       dancer.el.classList.remove('is-no-music', 'is-sitting-floor', 'is-wandering', 'jump-boost', 'is-dancing-couple');
       dancer.el.classList.add('is-walking');
 
+      if (isHost) {
+        setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+      }
+
       dancer.el.style.setProperty('--d-scale', targetScale);
       dancer.el.style.setProperty('--d-z', String(targetZ));
 
@@ -6046,6 +6397,13 @@ html,body{
 
         const moves = assignRandomDanceStyles(dancer.el);
         dancer.danceStyle = moves.danceStyle;
+        if (isHost) {
+          if (!isMusicPlaying) {
+            setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+          } else {
+            setWolfAnimation(clean, getWolfDanceForStyle(moves.danceStyle), { loop: true });
+          }
+        }
 
         triggerSpawnEffect(dancer.el);
         playSfx('drink');
@@ -6080,6 +6438,10 @@ html,body{
       dancer.el.classList.remove('is-no-music', 'is-sitting-floor', 'is-wandering', 'jump-boost', 'is-dancing-couple');
       dancer.el.classList.add('is-walking');
 
+      if (isHost) {
+        setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+      }
+
       const targetScale = newSeat.scale || '0.68';
       const targetZ = newSeat.zIndex || 7;
       dancer.el.style.setProperty('--d-scale', targetScale);
@@ -6110,6 +6472,11 @@ html,body{
         dancer.scale = targetScale;
         dancer.zIndex = targetZ;
 
+        if (isHost) {
+          const sitAnim = getWolfSittingAnimation(newSeat.id);
+          setWolfAnimation(clean, sitAnim, { loop: true });
+        }
+
         playSfx('drink');
         showHud(`🛋️ ¡<b>@${dancer.username}</b> se acomodó en su nuevo lugar en la <b>${newSeat.boothName}</b>!`, '🍹');
       }, 2200);
@@ -6136,6 +6503,10 @@ html,body{
     dancer.el.classList.remove('is-no-music', 'is-sitting-floor', 'is-wandering', 'jump-boost', 'is-dancing-couple');
     dancer.el.classList.add('is-walking');
 
+    if (isHost) {
+      setWolfAnimation(clean, isMovingLeft ? WOLF_SKIN_ASSETS.walk_left : WOLF_SKIN_ASSETS.walk_right, { loop: true });
+    }
+
     // Desplazamiento fluido a la nueva posición
     dancer.el.style.transition = 'left 2.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), bottom 2.4s ease';
     dancer.el.style.left = newPos.x + 'px';
@@ -6160,6 +6531,14 @@ html,body{
       dancer.armStyle = moves.armStyle;
       dancer.legStyle = moves.legStyle;
       dancer.bodyGroove = moves.bodyGroove;
+
+      if (isHost) {
+        if (!isMusicPlaying) {
+          setWolfAnimation(clean, WOLF_SKIN_ASSETS.idle_left, { loop: true });
+        } else {
+          setWolfAnimation(clean, getWolfDanceForStyle(moves.danceStyle), { loop: true });
+        }
+      }
 
       triggerSpawnEffect(dancer.el);
       playSfx('drink');
@@ -6454,6 +6833,11 @@ html,body{
     targetDancer.isKnockedOut = true;
     targetDancer.el.classList.add('is-fainted', 'is-knocked-out');
 
+    const isHostTarget = cleanTarget === 'jikokun' || cleanTarget === 'broadcaster';
+    if (isHostTarget) {
+      setWolfAnimation(cleanTarget, WOLF_SKIN_ASSETS.die, { loop: false, force: true });
+    }
+
     if (targetDancer.isCoupleDancing) {
       targetDancer.isCoupleDancing = false;
       targetDancer.el.classList.remove('is-dancing-couple');
@@ -6486,6 +6870,14 @@ html,body{
       targetDancer.el.classList.remove('is-fainted', 'is-knocked-out');
       if (starsOrbit.parentNode) starsOrbit.parentNode.removeChild(starsOrbit);
       if (fallbackEl) fallbackEl.textContent = prevFallback;
+
+      if (isHostTarget) {
+        if (!isMusicPlaying) {
+          setWolfAnimation(cleanTarget, WOLF_SKIN_ASSETS.idle_left, { loop: true, force: true });
+        } else {
+          setWolfAnimation(cleanTarget, getNextWolfDancePose(), { loop: true, force: true });
+        }
+      }
 
       targetDancer.el.classList.remove('jump-boost');
       void targetDancer.el.offsetWidth;
@@ -6560,6 +6952,13 @@ html,body{
     dancerB.el.style.setProperty('--d-z', '28');
     dancerB.el.classList.add('facing-left');
     dancerB.el.classList.add('is-fighting', 'fighter-right');
+
+    if (cleanA === 'jikokun' || cleanA === 'broadcaster') {
+      setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.fire, { loop: true, force: true });
+    }
+    if (cleanB === 'jikokun' || cleanB === 'broadcaster') {
+      setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.fire, { loop: true, force: true });
+    }
 
     const stageEl = document.getElementById('vip-dancers-stage');
 
@@ -6820,7 +7219,14 @@ html,body{
       const cleanWinner = aGana ? cleanA : cleanB;
       const cleanLoser = aGana ? cleanB : cleanA;
 
+      const isHostWinner = cleanWinner === 'jikokun' || cleanWinner === 'broadcaster';
+      const isHostLoser = cleanLoser === 'jikokun' || cleanLoser === 'broadcaster';
+
       // Efectos del Ganador
+      if (isHostWinner) {
+        setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.masked, { loop: true, force: true });
+      }
+
       winner.el.classList.remove('jump-boost');
       void winner.el.offsetWidth;
       winner.el.classList.add('jump-boost');
@@ -6837,6 +7243,10 @@ html,body{
       setTimeout(() => { if (trophy.parentNode) trophy.remove(); }, 4500);
 
       // Efectos del Perdedor (Noqueado por 5s idéntico al botellazo)
+      if (isHostLoser) {
+        setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.exploding, { loop: false, force: true });
+      }
+
       loser.isKnockedOut = true;
       loser.el.classList.add('is-fainted', 'is-knocked-out');
       const loseFallback = loser.el.querySelector('.vip-avatar-fallback');
@@ -6863,6 +7273,13 @@ html,body{
         if (starsOrbit.parentNode) starsOrbit.remove();
         if (loseFallback) loseFallback.textContent = '🔥';
         assignRandomDanceStyles(loser.el);
+        if (isHostLoser) {
+          if (!isMusicPlaying) {
+            setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.idle_left, { loop: true, force: true });
+          } else {
+            setWolfAnimation('jikokun', getNextWolfDancePose(), { loop: true, force: true });
+          }
+        }
         showHud(`✨ ¡<b>@${loser.username}</b> se recuperó del K.O. y vuelve a bailar!`, '🕺');
       }, 5000);
 
@@ -6872,6 +7289,13 @@ html,body{
         winner.el.classList.remove('jump-boost');
         if (winFallback) winFallback.textContent = '🔥';
         assignRandomDanceStyles(winner.el);
+        if (isHostWinner) {
+          if (!isMusicPlaying) {
+            setWolfAnimation('jikokun', WOLF_SKIN_ASSETS.idle_left, { loop: true, force: true });
+          } else {
+            setWolfAnimation('jikokun', getNextWolfDancePose(), { loop: true, force: true });
+          }
+        }
       }, 2500);
 
       // Conteo acumulativo de peleas por participante
@@ -8199,7 +8623,15 @@ html,body{
         t === '!sentar' || t === 'sentar' || t.startsWith('!sentar') ||
         t === '!sit' || t === 'sit' || t.startsWith('!sit') ||
         t === '!descansar' || t === 'descansar' || t === '!mesa' || t === 'mesa') {
-      sitDancerAtTable(user, avatarUrl);
+      const parts = raw.split(/\s+/);
+      const sub = parts.length > 1 ? norm(parts[1]) : '';
+      let preferredType = null;
+      if (sub === 'fondo' || sub === 'vip' || sub === 'sofa' || sub === 'atras' || sub === 'espalda') {
+        preferredType = 'vip';
+      } else if (sub === 'frente' || sub === 'frontal' || sub === 'mesa' || sub === 'mesas' || sub === 'lateral' || sub === 'delante') {
+        preferredType = 'lateral';
+      }
+      sitDancerAtTable(user, avatarUrl, preferredType);
       return;
     }
 
@@ -9010,6 +9442,13 @@ html,body{
   window.testSalir = (user = 'Jikokun') => executeCommand('!salirdisco', user);
   window.testEchar = (target = '') => executeCommand('!echar ' + (target ? '@' + target : ''), 'Jikokun');
   window.testBotellazo = (target = '') => { botellazoCooldowns.delete('jikokun'); executeCommand('!botellazo ' + (target ? '@' + target : ''), 'Jikokun'); };
+  window.testBotellazoAJikokun = () => {
+    if (!activeDancers.has('jhonax')) spawnWalkingDancer('JhonaX', null);
+    botellazoCooldowns.delete('jhonax');
+    setTimeout(() => {
+      executeCommand('!botellazo @Jikokun', 'JhonaX');
+    }, 450);
+  };
   window.testPelea = (userA = 'Jikokun', userB = 'JhonaX') => {
     if (!activeDancers.has(norm(userB))) {
       spawnWalkingDancer(userB, null);
@@ -9324,6 +9763,104 @@ html,body{
     const current = parseInt(document.getElementById('spotify-dj-bpm').textContent, 10) || 128;
     const nextIdx = (bpms.indexOf(current) + 1) % bpms.length;
     window.testBPM(bpms[nextIdx]);
+  };
+
+  /* ═══════════ FUNCIONES DE PRUEBA RÁPIDA: WOLF SKIN JIKOKUN ═══════════ */
+  window.testWolfAnim = function(key) {
+    if (!activeDancers.has('jikokun')) {
+      spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    }
+    setTimeout(() => {
+      setWolfAnimation('jikokun', key, { force: true });
+      showHud(`🐺 Test Animación Lobo Jikokun: <b>${key}</b>`, '🐺');
+    }, 350);
+  };
+
+  window.testWolfPelea = function() {
+    if (!activeDancers.has('jikokun')) spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    if (!activeDancers.has('jhonax')) spawnWalkingDancer('JhonaX', null);
+    setTimeout(() => {
+      triggerBrawlFight('jikokun', 'jhonax');
+    }, 450);
+  };
+
+  window.testWolfBotellazo = function() {
+    if (!activeDancers.has('jikokun')) spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    setTimeout(() => {
+      const dancer = activeDancers.get('jikokun');
+      if (dancer) executeSmashAndFaint(dancer, 'jikokun', 'JhonaX');
+    }, 400);
+  };
+
+  window.testWolfBeber = function() {
+    if (!activeDancers.has('jikokun')) spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    setTimeout(() => {
+      const dancer = activeDancers.get('jikokun');
+      if (dancer) handleDancerDrink(dancer, 'jikokun', 'Cerveza Corona');
+    }, 400);
+  };
+
+  window.testWolfMesa = function() {
+    window.testWolfSentadoFondo();
+  };
+
+  window.testWolfSentadoFondo = function() {
+    if (!activeDancers.has('jikokun')) spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    setTimeout(() => {
+      const dancer = activeDancers.get('jikokun');
+      if (dancer && dancer.isSeated) {
+        freeDancerSeat('jikokun');
+        dancer.isSeated = false;
+        dancer.seatId = null;
+      }
+      sitDancerAtTable('jikokun', JIKOKUN_OFFICIAL_AVATAR, 'vip');
+    }, 300);
+  };
+
+  window.testWolfSentadoFrontal = function(side = 'left') {
+    if (!activeDancers.has('jikokun')) spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    setTimeout(() => {
+      const dancer = activeDancers.get('jikokun');
+      if (dancer && dancer.isSeated) {
+        freeDancerSeat('jikokun');
+        dancer.isSeated = false;
+        dancer.seatId = null;
+      }
+      const targetBooth = side === 'right' ? 'lateral-right' : 'lateral-left';
+      const availableSeat = TABLE_SEATS.find(s => s.booth === targetBooth && !s.occupiedBy) 
+        || TABLE_SEATS.find(s => s.type === 'lateral' && (side === 'right' ? s.facing === 'right' : s.facing === 'left')) 
+        || TABLE_SEATS.find(s => s.type === 'lateral');
+
+      if (availableSeat && dancer && dancer.el) {
+        availableSeat.occupiedBy = 'jikokun';
+        dancer.isSeated = true;
+        dancer.seatId = availableSeat.id;
+        dancer.el.classList.remove('is-walking', 'facing-left', 'is-seated');
+        dancer.el.classList.add('is-at-table');
+        if (availableSeat.facing === 'left') dancer.el.classList.add('facing-left');
+        dancer.el.style.left = availableSeat.x + 'px';
+        dancer.el.style.bottom = availableSeat.bottom + 'px';
+        dancer.el.style.setProperty('--d-scale', availableSeat.scale || '0.94');
+        dancer.el.style.setProperty('--d-z', String(availableSeat.zIndex || 15));
+        setWolfAnimation('jikokun', getWolfSittingAnimation(availableSeat.id), { loop: true });
+        showHud(`🐺 Jikokun sentado en ${availableSeat.boothName} (${availableSeat.facing === 'left' ? 'Sentado Izquierda' : 'Sentado Derecha'})`, '🍸');
+      } else {
+        sitDancerAtTable('jikokun', JIKOKUN_OFFICIAL_AVATAR, 'lateral');
+      }
+    }, 300);
+  };
+
+  window.testWolfBailar = function() {
+    if (!activeDancers.has('jikokun')) {
+      spawnWalkingDancer('Jikokun', JIKOKUN_OFFICIAL_AVATAR);
+    } else {
+      const dancer = activeDancers.get('jikokun');
+      if (dancer && dancer.isSeated) {
+        sitDancerAtTable('jikokun', null);
+      } else {
+        setWolfAnimation('jikokun', getNextWolfDancePose(), { loop: true, force: true });
+      }
+    }
   };
 
   // Auto-spawn de Jikokun al cargar el overlay para que siempre esté presente bailando en la discoteca
