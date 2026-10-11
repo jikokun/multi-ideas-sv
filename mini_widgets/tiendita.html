@@ -3500,6 +3500,9 @@
     animarPuntos(saldoActual);
     playSfx('buy');
 
+    // ⭐ Recompensa de Experiencia (XP): 50% equivalente de los Jikopuntos gastados
+    const xpGanada = Math.round(total * 0.5);
+
     // Registrar en Firebase Realtime Database (stream/tienda/transacciones y estadísticas)
     if (window.StreamDB) {
       window.StreamDB.registrarCompra({
@@ -3508,7 +3511,15 @@
         itemsKeys: ordenActual.map(i => i.key),
         cantidad: ordenActual.length,
         costoTotal: total,
-        nuevoSaldo: saldoActual
+        nuevoSaldo: saldoActual,
+        xpGanada: xpGanada
+      }).then(res => {
+        if (res && res.subioNivel) {
+          playSfx('success');
+          setTimeout(() => {
+            toast(`👑 ¡SUBIDA DE NIVEL! <b>@${user}</b> ascendió a <b>NIVEL ${res.nuevoNivel}</b> (${res.rangoTitulo}) ${res.insigniaEmoji}`);
+          }, 1800);
+        }
       }).catch(err => console.warn('[Tiendita] Error al registrar compra en Firebase:', err));
     }
 
@@ -3523,13 +3534,14 @@
           itemsKeys: ordenActual.map(i => i.key),
           cantidad: ordenActual.length,
           costoTotal: total,
-          nuevoSaldo: saldoActual
+          nuevoSaldo: saldoActual,
+          xpGanada: xpGanada
         },
         id:'compra-orden-ok'
       }));
     }
 
-    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${ordenActual.length} platillos <span style="color:var(--oro)">−${total} pts</span>`);
+    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${ordenActual.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡ (50%)</span>`);
 
     const platosAServir = [...ordenActual];
     vaciarOrden();

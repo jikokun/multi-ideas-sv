@@ -1600,10 +1600,24 @@ class StreamFirebaseService {
   // 4. TIENDA DE JIKO: REGISTRO DE COMPRAS, TRANSFERENCIAS Y ESTADÍSTICAS
   // ==========================================================================
 
-  async registrarCompra({ comprador, items, itemsKeys = [], cantidad, costoTotal, nuevoSaldo }) {
+  async registrarCompra({ comprador, items, itemsKeys = [], cantidad, costoTotal, nuevoSaldo, xpGanada = null }) {
     const key = norm(comprador);
     const ahora = Date.now();
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
+
+    // ⭐ REGLA DE EXPERIENCIA: Otorgar 50% equivalente de los Jikopuntos gastados como XP al comprador
+    // Ejemplo: gasta 500 jikopuntos -> recibe 250 puntos de experiencia
+    const gastoPuntos = Math.max(0, parseInt(costoTotal, 10) || 0);
+    const xpOtorgada = (xpGanada !== null && xpGanada !== undefined)
+      ? Math.max(0, parseInt(xpGanada, 10) || 0)
+      : Math.round(gastoPuntos * 0.5);
+
+    let nivelPrevio = 1;
+    let nuevoNivel = 1;
+    let totalXpUsuario = 0;
+    let subioNivel = false;
+    let rangoTituloNuevo = 'Cachorro';
+    let insigniaEmojiNueva = '🐾';
 
     const transaccion = {
       usuario: comprador,
@@ -1611,8 +1625,9 @@ class StreamFirebaseService {
       items: Array.isArray(items) ? items.join(', ') : String(items || ''),
       itemsKeys: itemsKeys,
       cantidadPlatos: cantidad || itemsKeys.length || 1,
-      costoTotal: costoTotal,
+      costoTotal: gastoPuntos,
       nuevoSaldo: nuevoSaldo,
+      experienciaGanada: xpOtorgada,
       timestamp: ahora,
       fechaLegible: fechaLegible,
       origen: 'tiendita_widget'
@@ -1631,21 +1646,60 @@ class StreamFirebaseService {
       const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
       await runTransaction(userRef, (u) => {
         if (!u) {
+          totalXpUsuario = xpOtorgada;
+          const nivelInfo = calcularNivelUsuario({ experiencia: totalXpUsuario, asistenciasCount: 0 });
+          nuevoNivel = nivelInfo.nivel;
+          rangoTituloNuevo = nivelInfo.rangoTitulo;
+          insigniaEmojiNueva = nivelInfo.insigniaEmoji;
           u = {
             username: key,
             displayName: comprador,
             jikopuntos: nuevoSaldo,
-            totalGastado: costoTotal,
+            totalGastado: gastoPuntos,
             totalCompras: 1,
+            experiencia: totalXpUsuario,
+            nivel: nuevoNivel,
+            rangoTitulo: rangoTituloNuevo,
+            insigniaEmoji: insigniaEmojiNueva,
+            porcentajeProgreso: nivelInfo.porcentajeProgreso,
+            xpEnNivel: nivelInfo.xpEnNivel,
+            xpParaSubir: nivelInfo.xpParaSubir,
+            xpFaltante: nivelInfo.xpFaltante,
             ultimaActividad: ahora,
             widgets: { tiendita: { pedidosCount: 1, platillosTotales: transaccion.cantidadPlatos, ultimoPedido: ahora } },
             stats: { platosConsumidos: {} }
           };
         } else {
           u.jikopuntos = nuevoSaldo;
-          u.totalGastado = (u.totalGastado || 0) + costoTotal;
+          u.totalGastado = (u.totalGastado || 0) + gastoPuntos;
           u.totalCompras = (u.totalCompras || 0) + 1;
           u.ultimaActividad = ahora;
+
+          // ⭐ RECOMPENSA DE EXPERIENCIA: 50% de lo gastado acumulado
+          nivelPrevio = u.nivel || 1;
+          const prevXp = (u.experiencia !== undefined && u.experiencia !== null)
+            ? Math.max(0, parseInt(u.experiencia, 10) || 0)
+            : ((u.asistenciasCount || 0) * 200);
+          totalXpUsuario = prevXp + xpOtorgada;
+          u.experiencia = totalXpUsuario;
+
+          const nivelInfo = calcularNivelUsuario({
+            experiencia: totalXpUsuario,
+            asistenciasCount: u.asistenciasCount || 0,
+            tituloPersonalizado: u.tituloPersonalizado || null
+          });
+          nuevoNivel = nivelInfo.nivel;
+          rangoTituloNuevo = nivelInfo.rangoTitulo;
+          insigniaEmojiNueva = nivelInfo.insigniaEmoji;
+          subioNivel = nuevoNivel > nivelPrevio;
+
+          u.nivel = nuevoNivel;
+          u.rangoTitulo = rangoTituloNuevo;
+          u.insigniaEmoji = insigniaEmojiNueva;
+          u.porcentajeProgreso = nivelInfo.porcentajeProgreso;
+          u.xpEnNivel = nivelInfo.xpEnNivel;
+          u.xpParaSubir = nivelInfo.xpParaSubir;
+          u.xpFaltante = nivelInfo.xpFaltante;
 
           if (!u.widgets) u.widgets = {};
           if (!u.widgets.tiendita) u.widgets.tiendita = {};
@@ -1673,10 +1727,17 @@ class StreamFirebaseService {
         return u;
       });
 
+      transaccion.experienciaTotal = totalXpUsuario;
+      transaccion.nivelPrevio = nivelPrevio;
+      transaccion.nuevoNivel = nuevoNivel;
+      transaccion.subioNivel = subioNivel;
+      transaccion.rangoTitulo = rangoTituloNuevo;
+      transaccion.insigniaEmoji = insigniaEmojiNueva;
+
       const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
       await runTransaction(resumenRef, (res) => {
         if (!res) res = {};
-        res.totalVentasPts = (res.totalVentasPts || 0) + costoTotal;
+        res.totalVentasPts = (res.totalVentasPts || 0) + gastoPuntos;
         res.totalOrdenes = (res.totalOrdenes || 0) + 1;
         res.totalPlatillosServidos = (res.totalPlatillosServidos || 0) + transaccion.cantidadPlatos;
         res.ultimoPedidoTimestamp = ahora;
@@ -1700,22 +1761,36 @@ class StreamFirebaseService {
           ru = {
             username: key,
             displayName: comprador,
-            totalGastado: costoTotal,
+            totalGastado: gastoPuntos,
             comprasCount: 1,
             platillosCount: transaccion.cantidadPlatos,
             saldoActual: nuevoSaldo,
+            experienciaTotal: totalXpUsuario,
+            nivel: nuevoNivel,
             ultimoGastoTimestamp: ahora
           };
         } else {
-          ru.totalGastado = (ru.totalGastado || 0) + costoTotal;
+          ru.totalGastado = (ru.totalGastado || 0) + gastoPuntos;
           ru.comprasCount = (ru.comprasCount || 0) + 1;
           ru.platillosCount = (ru.platillosCount || 0) + transaccion.cantidadPlatos;
           ru.saldoActual = nuevoSaldo;
+          ru.experienciaTotal = totalXpUsuario;
+          ru.nivel = nuevoNivel;
           ru.ultimoGastoTimestamp = ahora;
         }
         return ru;
       });
 
+      if (this.usersCache.has(key)) {
+        const cached = this.usersCache.get(key);
+        cached.jikopuntos = nuevoSaldo;
+        cached.experiencia = totalXpUsuario;
+        cached.nivel = nuevoNivel;
+        cached.rangoTitulo = rangoTituloNuevo;
+        cached.insigniaEmoji = insigniaEmojiNueva;
+      }
+
+      console.log(`[StreamDB] 🛒 Compra registrada para @${comprador}: -${gastoPuntos} pts | +${xpOtorgada} XP (50% de compra) -> Total XP: ${totalXpUsuario} (Nvl ${nuevoNivel})`);
       return transaccion;
     } catch (err) {
       console.error('[StreamDB] Error al registrar compra:', err);
