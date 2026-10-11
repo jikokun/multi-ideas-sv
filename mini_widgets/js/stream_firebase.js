@@ -1939,6 +1939,12 @@ class StreamFirebaseService {
     }
   }
 
+  onOverlayState(overlayName, callback) {
+    return onValue(ref(this.rtdb, `${NODE_OVERLAYS}/${overlayName}/estadoEnVivo`), snap => {
+      callback(snap.val() || {});
+    });
+  }
+
   // ==========================================================================
   // 7. SINCRONIZACIÓN MAESTRA DE DATOS LOCALES CON FIREBASE RTDB
   // ==========================================================================
