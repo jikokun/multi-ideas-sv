@@ -70,6 +70,36 @@ export const KICK_CHANNEL = 'jikokun';
 export const KICK_CHANNEL_ID = 1874362;
 export const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
 export const KICK_PUSHER_CLUSTER = 'us2';
+export const KICK_CHATROOM_ID = 1866891;
+
+// Extractor universal y resiliente del saludo de bienvenida de Lobito Mensajero
+export function extraerUsuarioDeBienvenidaGlobal(texto) {
+  if (!texto || typeof texto !== 'string') return null;
+  const clean = texto.trim();
+
+  // 1. "Gracias por estar aquí [,] [!] @usuario [!]"
+  let m = clean.match(/gracias\s+por\s+estar\s+aqu[ií][\s,!.:\-¡¿]*@?([a-zA-Z0-9_\-\.]+)/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['el', 'la', 'un', 'una', 'en', 'por', 'aqui', 'aquí'].includes(u.toLowerCase())) return u;
+  }
+
+  // 2. "@usuario [,] ¡gracias por estar aquí!"
+  m = clean.match(/@?([a-zA-Z0-9_\-\.]+)[\s,!.:\-¡¿]+gracias\s+por\s+estar\s+aqu[ií]/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['el', 'la', 'un', 'una', 'en', 'por', 'gracias', 'hola', 'aqui', 'aquí'].includes(u.toLowerCase())) return u;
+  }
+
+  // 3. "Bienvenido/a @usuario [a la manada / al stream]"
+  m = clean.match(/bienvenid[oa@][\s,!.:\-¡¿]*@?([a-zA-Z0-9_\-\.]+)/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['a', 'al', 'la', 'el', 'todos', 'gente', 'manada', 'stream', 'chat'].includes(u.toLowerCase())) return u;
+  }
+
+  return null;
+}
 
 // ==========================================================================
 // 🐺 ESCALAFÓN Y SISTEMA DE 50 NIVELES DE EXPERIENCIA (XP) Y RANGOS
@@ -244,6 +274,8 @@ class StreamFirebaseService {
     this.kickPusherWs = null;
     this.kickPollTimer = null;
     this.kickStateListeners = new Set();
+    this.kickChatListeners = new Set();
+    this.kickChatStatusListeners = new Set();
 
     // Tracking de Duración del Directo e Interacciones con XP Progresiva
     this.interaccionesUsuarios = new Map();
@@ -289,6 +321,18 @@ class StreamFirebaseService {
           });
         }
       });
+
+      // Sincronizar estado inicial de stream en vivo desde Firebase RTDB
+      try {
+        const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+        if (statsSnap.exists()) {
+          const stats = statsSnap.val();
+          if (stats.isLive) {
+            this.kickIsLive = true;
+            this.kickLivestreamData = stats.streamActual || null;
+          }
+        }
+      } catch(e) {}
 
       this.isInitialized = true;
       return true;
@@ -973,11 +1017,16 @@ class StreamFirebaseService {
       this.kickPusherWs = ws;
 
       ws.onopen = () => {
-        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a eventos en vivo de channel.' + channelId);
+        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a channel.' + channelId + ' y chatrooms.1866891.v2');
         ws.send(JSON.stringify({
           event: 'pusher:subscribe',
           data: { channel: `channel.${channelId}` }
         }));
+        ws.send(JSON.stringify({
+          event: 'pusher:subscribe',
+          data: { channel: 'chatrooms.1866891.v2' }
+        }));
+        this._notifyKickChatStatus(true);
       };
 
       ws.onmessage = async (event) => {
@@ -991,11 +1040,14 @@ class StreamFirebaseService {
           } else if (ev === 'App\\Events\\StopStreamBroadcast') {
             console.log('[StreamDB] ⚪ [KICK PUSHER] ¡EVENTO DETECTADO: StopStreamBroadcast!');
             await this._handleStreamStopped();
+          } else if (ev === 'App\\Events\\ChatMessageEvent') {
+            this._handleKickPusherChatMessage(msg.data);
           }
         } catch (e) {}
       };
 
       ws.onclose = () => {
+        this._notifyKickChatStatus(false);
         if (this.kickMonitorActive) {
           setTimeout(() => this._connectKickPusher(channelId), 8000);
         }
@@ -1005,60 +1057,171 @@ class StreamFirebaseService {
     } catch (e) {}
   }
 
-  // Manejar inicio de transmisión detectado internamente
+  // Interceptar mensajes de Kick Chat en tiempo real desde Pusher WebSocket
+  _handleKickPusherChatMessage(rawData) {
+    try {
+      let data = rawData;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch(e){}
+      }
+      if (data && data.data) {
+        if (typeof data.data === 'string') {
+          try { data = JSON.parse(data.data); } catch(e){}
+        } else {
+          data = data.data;
+        }
+      }
+      if (!data || !data.content) return;
+
+      const sender = data.sender?.username || '';
+      const content = String(data.content || '').trim();
+
+      // Construir objeto enriquecido de mensaje de Kick para el Monitor y Combustible
+      const chatMsg = {
+        id: data.id || `kick_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        usuario: sender,
+        usuarioNorm: norm(sender),
+        mensaje: content,
+        timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
+        color: data.sender?.identity?.color || '#53fc18',
+        badges: Array.isArray(data.sender?.identity?.badges) ? data.sender.identity.badges : [],
+        esBot: (norm(sender) === 'lobitomensajero' || norm(sender) === 'lobito_mensajero'),
+        raw: data
+      };
+
+      // Notificar a los listeners del chat en vivo
+      if (this.kickChatListeners && this.kickChatListeners.size > 0) {
+        this.kickChatListeners.forEach(cb => {
+          try { cb(chatMsg); } catch(err){}
+        });
+      }
+
+      const usuarioDetectado = extraerUsuarioDeBienvenidaGlobal(content);
+      if (usuarioDetectado) {
+        console.log(`[StreamDB] 🐺 Saludo de Lobito detectado en Kick Chat para @${usuarioDetectado} (emisor: ${sender}): "${content}"`);
+        this.registrarAsistencia({
+          usuario: usuarioDetectado,
+          botEmisor: 'Lobito_Mensajero'
+        }).catch(err => console.warn('[StreamDB] Error al procesar asistencia interceptada:', err));
+      }
+    } catch(err) {
+      console.warn('[StreamDB] Error procesando mensaje de chat Pusher:', err);
+    }
+  }
+
+  // Manejar inicio de transmisión detectado internamente de forma idempotente y segura
   async _handleStreamStarted(channelData) {
     const ahora = Date.now();
     const live = channelData.livestream || {};
     const streamId = live.id ? `stream_${live.id}` : `stream_${ahora}`;
     const fechaLegible = new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
-    console.log(`[StreamDB] 🚀 ¡DIRECTO INICIADO EN KICK! Registrando sesión en Firebase: ${streamId}`);
+    console.log(`[StreamDB] 🚀 Verificando inicio/continuidad de sesión Kick: ${streamId}`);
 
     try {
-      // 1. Obtener y actualizar número total correlativo de streams
       const statsRef = ref(this.rtdb, NODE_TRANS_STATS);
-      let numeroStream = 1;
+      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
 
-      await runTransaction(statsRef, (stats) => {
-        if (!stats) stats = {};
-        stats.totalStreamsPrendidos = (stats.totalStreamsPrendidos || 0) + 1;
-        stats.streamActivoId = streamId;
-        stats.isLive = true;
-        stats.ultimoLiveTimestamp = ahora;
-        stats.streamActual = {
+      const [statsSnap, transSnap] = await Promise.all([
+        get(statsRef),
+        get(transRef)
+      ]);
+
+      const currentStats = statsSnap.exists() ? statsSnap.val() : {};
+      const transYaExiste = transSnap.exists();
+      const yaEsStreamActivo = currentStats.isLive === true && currentStats.streamActivoId === streamId;
+
+      let numeroStream = transYaExiste 
+        ? (transSnap.val().numeroStream || currentStats.totalStreamsPrendidos || 1)
+        : ((currentStats.totalStreamsPrendidos || 0) + 1);
+
+      // 1. Si no era el stream actualmente activo, actualizar stats sin inflar contador
+      if (!yaEsStreamActivo) {
+        await runTransaction(statsRef, (stats) => {
+          if (!stats) stats = {};
+          if (!transYaExiste && stats.streamActivoId !== streamId) {
+            stats.totalStreamsPrendidos = (stats.totalStreamsPrendidos || 0) + 1;
+            numeroStream = stats.totalStreamsPrendidos;
+          }
+          stats.streamActivoId = streamId;
+          stats.isLive = true;
+          stats.ultimoLiveTimestamp = ahora;
+          stats.streamActual = {
+            id: streamId,
+            numeroStream: numeroStream,
+            titulo: live.session_title || (transYaExiste ? transSnap.val().titulo : 'Transmisión en Vivo'),
+            categoria: live.categories?.[0]?.name || (transYaExiste ? transSnap.val().categoria : 'Just Chatting'),
+            inicioTimestamp: transYaExiste ? (transSnap.val().inicioTimestamp || ahora) : ahora,
+            inicioFechaLegible: transYaExiste ? (transSnap.val().inicioFechaLegible || fechaLegible) : fechaLegible,
+            viewers: live.viewer_count || 0
+          };
+          return stats;
+        });
+      }
+
+      // 2. Si la transmisión YA EXISTE en Firebase: NUNCA SOBREESCRIBIR CON set()
+      if (transYaExiste) {
+        const existingData = transSnap.val();
+        await update(transRef, {
+          estado: 'en_vivo',
+          titulo: live.session_title || existingData.titulo || 'Transmisión en Vivo',
+          categoria: live.categories?.[0]?.name || existingData.categoria || 'Just Chatting',
+          viewersPico: Math.max(existingData.viewersPico || 0, live.viewer_count || 0)
+        });
+        console.log(`[StreamDB] ℹ️ Sesión existente ${streamId} mantenida con sus ${existingData.totalAsistentes || Object.keys(existingData.asistentes || {}).length} asistentes intactos.`);
+      } else {
+        // Absorber asistentes que hayan registrado asistencia en las últimas 3 horas (pre-stream)
+        const asistentesIniciales = {};
+        let totalAsist = 0;
+        let ptsRepartidos = 0;
+
+        try {
+          const ventanaReciente = ahora - (3 * 3600 * 1000);
+          const asisRecientesSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
+          if (asisRecientesSnap.exists()) {
+            asisRecientesSnap.forEach(child => {
+              const a = child.val();
+              if (a.timestamp >= ventanaReciente && a.usuarioNorm && !asistentesIniciales[a.usuarioNorm]) {
+                asistentesIniciales[a.usuarioNorm] = {
+                  username: a.usuario || a.usuarioNorm,
+                  usuarioNorm: a.usuarioNorm,
+                  hora: a.fechaLegible ? a.fechaLegible.split(',')[1]?.trim() : new Date(a.timestamp).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
+                  timestamp: a.timestamp,
+                  experiencia: a.experienciaTotal || 200,
+                  nivel: a.nivelUsuario || 1,
+                  rangoTitulo: a.rangoTitulo || 'Cachorro',
+                  insigniaEmoji: a.insigniaEmoji || '🐾',
+                  puntosOtorgados: a.puntosOtorgados || 500
+                };
+                totalAsist++;
+                ptsRepartidos += (a.puntosOtorgados || 500);
+              }
+            });
+          }
+        } catch(e) {}
+
+        await set(transRef, {
           id: streamId,
-          numeroStream: stats.totalStreamsPrendidos,
-          titulo: live.session_title || 'Transmisión en Vivo',
-          categoria: live.categories?.[0]?.name || 'Just Chatting',
+          numeroStream: numeroStream,
+          canal: KICK_CHANNEL,
+          canalId: KICK_CHANNEL_ID,
           inicioTimestamp: ahora,
           inicioFechaLegible: fechaLegible,
-          viewers: live.viewer_count || 0
-        };
-        numeroStream = stats.totalStreamsPrendidos;
-        return stats;
-      });
+          finTimestamp: null,
+          finFechaLegible: null,
+          duracionMinutos: 0,
+          estado: 'en_vivo',
+          titulo: live.session_title || 'Transmisión en Vivo',
+          categoria: live.categories?.[0]?.name || 'Just Chatting',
+          viewersPico: live.viewer_count || 0,
+          totalAsistentes: totalAsist,
+          puntosRepartidos: ptsRepartidos,
+          asistentes: asistentesIniciales
+        });
+        console.log(`[StreamDB] 🆕 Nueva sesión ${streamId} creada vinculando ${totalAsist} asistentes recientes.`);
+      }
 
-      // 2. Crear documento de la transmisión en stream/transmisiones/{streamId}
-      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
-      await set(transRef, {
-        id: streamId,
-        numeroStream: numeroStream,
-        canal: KICK_CHANNEL,
-        canalId: KICK_CHANNEL_ID,
-        inicioTimestamp: ahora,
-        inicioFechaLegible: fechaLegible,
-        finTimestamp: null,
-        finFechaLegible: null,
-        duracionMinutos: 0,
-        estado: 'en_vivo',
-        titulo: live.session_title || 'Transmisión en Vivo',
-        categoria: live.categories?.[0]?.name || 'Just Chatting',
-        viewersPico: live.viewer_count || 0,
-        totalAsistentes: 0,
-        puntosRepartidos: 0,
-        asistentes: {}
-      });
-
+      this.kickIsLive = true;
       return streamId;
     } catch (err) {
       console.error('[StreamDB] Error al registrar inicio de stream en Firebase:', err);
@@ -1154,6 +1317,65 @@ class StreamFirebaseService {
         });
       } catch (e) {}
     });
+  }
+
+  onKickChatMessage(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.kickChatListeners.add(callback);
+    return () => this.kickChatListeners.delete(callback);
+  }
+
+  onKickChatStatus(callback) {
+    if (typeof callback !== 'function') return () => {};
+    if (!this.kickChatStatusListeners) this.kickChatStatusListeners = new Set();
+    this.kickChatStatusListeners.add(callback);
+    callback(this.getKickPusherStatus());
+    return () => this.kickChatStatusListeners.delete(callback);
+  }
+
+  _notifyKickChatStatus(connected) {
+    if (this.kickChatStatusListeners) {
+      this.kickChatStatusListeners.forEach(cb => {
+        try { cb(this.getKickPusherStatus()); } catch (e) {}
+      });
+    }
+  }
+
+  getKickPusherStatus() {
+    const isConnected = !!this.kickPusherWs && this.kickPusherWs.readyState === 1;
+    return {
+      connected: isConnected,
+      channelId: KICK_CHANNEL_ID,
+      chatroom: 'chatrooms.1866891.v2',
+      channelName: KICK_CHANNEL
+    };
+  }
+
+  // Acreditar combustible acumulado de chat a un usuario en Firebase RTDB
+  async acreditarCombustibleChat(username, { puntos = 0, xp = 0, motivo = 'combustible_chat' } = {}) {
+    await this.init();
+    const key = norm(username);
+    if (!key) throw new Error('Usuario no válido');
+    const user = await this.getUser(key);
+    if (!user) throw new Error(`El usuario @${key} no existe en Firebase.`);
+
+    const ptsDelta = Math.max(0, Math.round(Number(puntos) || 0));
+    const xpDelta = Math.max(0, Math.round(Number(xp) || 0));
+
+    const updates = {};
+    if (ptsDelta > 0) {
+      updates.jikopuntos = (user.jikopuntos || 0) + ptsDelta;
+      updates.totalGanado = (user.totalGanado || 0) + ptsDelta;
+    }
+    if (xpDelta > 0) {
+      const prevXp = user.experiencia !== undefined ? user.experiencia : ((user.asistenciasCount || 0) * 200);
+      updates.experiencia = prevXp + xpDelta;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      return this.actualizarUsuario(key, updates);
+    }
+    return user;
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -1340,12 +1562,21 @@ class StreamFirebaseService {
         const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
         if (statsSnap.exists()) {
           const stats = statsSnap.val();
-          if (stats.isLive && stats.streamActivoId) {
-            streamActivoId = stats.streamActivoId;
-            numeroStream = stats.streamActual?.numeroStream || null;
-          }
+          streamActivoId = stats.streamActivoId || stats.ultimoStreamId || null;
+          numeroStream = stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null;
         }
       } catch (e) {}
+
+      // Si ya está registrado en este stream activo, no duplicar puntos
+      if (streamActivoId) {
+        try {
+          const streamUserSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`));
+          if (streamUserSnap.exists()) {
+            console.log(`[StreamDB] ℹ️ @${usuario} ya tiene asistencia registrada en stream activo ${streamActivoId}`);
+            return streamUserSnap.val();
+          }
+        } catch(e) {}
+      }
 
       // 3. Guardar registro en stream/tienda/asistencias
       const asisRef = push(ref(this.rtdb, NODE_ATTENDANCE));
@@ -1390,7 +1621,8 @@ class StreamFirebaseService {
         const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}`);
         await runTransaction(transRef, (s) => {
           if (s) {
-            s.totalAsistentes = (s.totalAsistentes || 0) + 1;
+            if (!s.asistentes) s.asistentes = {};
+            s.totalAsistentes = Object.keys(s.asistentes).length;
             s.puntosRepartidos = (s.puntosRepartidos || 0) + puntosOtorgados;
           }
           return s;
@@ -1460,6 +1692,61 @@ class StreamFirebaseService {
     }
   }
 
+  // Asegurar que un usuario esté vinculado a la sesión de stream activa
+  async asegurarAsistenteEnStreamActivo(usuario) {
+    const key = norm(usuario);
+    if (!key) return null;
+    try {
+      const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+      if (!statsSnap.exists()) return null;
+      const stats = statsSnap.val();
+      const streamId = stats.streamActivoId || stats.ultimoStreamId;
+      if (!streamId) return null;
+
+      const userAsistRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes/${key}`);
+      const snap = await get(userAsistRef);
+      if (snap.exists()) return snap.val();
+
+      const user = await this.getUser(usuario);
+      const asistCount = user ? (user.asistenciasCount || 1) : 1;
+      const totalXp = user?.experiencia || (asistCount * 200);
+      const nivelInfo = calcularNivelUsuario({
+        experiencia: totalXp,
+        asistenciasCount: asistCount,
+        tituloPersonalizado: user?.tituloPersonalizado
+      });
+      const puntosOtorgados = nivelInfo.puntosPorAsistencia;
+
+      const dataAsist = {
+        username: user?.displayName || usuario,
+        usuarioNorm: key,
+        hora: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
+        timestamp: Date.now(),
+        experiencia: totalXp,
+        nivel: nivelInfo.nivel,
+        rangoTitulo: nivelInfo.rangoTitulo,
+        insigniaEmoji: nivelInfo.insigniaEmoji,
+        puntosOtorgados: puntosOtorgados
+      };
+      await set(userAsistRef, dataAsist);
+
+      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
+      await runTransaction(transRef, (s) => {
+        if (s) {
+          if (!s.asistentes) s.asistentes = {};
+          s.totalAsistentes = Object.keys(s.asistentes).length;
+        }
+        return s;
+      });
+
+      console.log(`[StreamDB] 🐺 Asistente @${usuario} vinculado con éxito al stream activo ${streamId}`);
+      return dataAsist;
+    } catch (e) {
+      console.warn(`[StreamDB] Error asegurando asistente @${usuario}:`, e);
+      return null;
+    }
+  }
+
   // Contrastar quiénes asistieron vs quiénes estuvieron ausentes en una transmisión
   async contrastarAsistenciasTransmision(streamId) {
     try {
@@ -1479,6 +1766,34 @@ class StreamFirebaseService {
       const streamData = streamSnap.val();
       const asistentesMap = streamData.asistentes || {};
       const asistentesKeys = new Set(Object.keys(asistentesMap));
+
+      // Auto-reconciliación: Integrar cualquier asistencia registrada para este stream en NODE_ATTENDANCE
+      try {
+        const asisSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
+        if (asisSnap.exists()) {
+          asisSnap.forEach(child => {
+            const a = child.val();
+            if (a.usuarioNorm && !asistentesKeys.has(a.usuarioNorm)) {
+              const ventanaMin = streamData.inicioTimestamp ? (streamData.inicioTimestamp - 3 * 3600 * 1000) : 0;
+              const ventanaMax = streamData.finTimestamp ? (streamData.finTimestamp + 3600 * 1000) : (Date.now() + 3600 * 1000);
+              if (a.streamId === streamId || (a.timestamp >= ventanaMin && a.timestamp <= ventanaMax)) {
+                asistentesKeys.add(a.usuarioNorm);
+                asistentesMap[a.usuarioNorm] = {
+                  username: a.usuario || a.usuarioNorm,
+                  usuarioNorm: a.usuarioNorm,
+                  hora: a.fechaLegible ? (a.fechaLegible.split(',')[1]?.trim() || '--:--') : '--:--',
+                  timestamp: a.timestamp,
+                  experiencia: a.experienciaTotal || 200,
+                  nivel: a.nivelUsuario || 1,
+                  rangoTitulo: a.rangoTitulo || 'Cachorro',
+                  insigniaEmoji: a.insigniaEmoji || '🐾',
+                  puntosOtorgados: a.puntosOtorgados || 500
+                };
+              }
+            }
+          });
+        }
+      } catch(e) {}
 
       const presentes = [];
       const ausentes = [];

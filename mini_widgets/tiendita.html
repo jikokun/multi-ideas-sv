@@ -1963,11 +1963,12 @@
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
-  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl } from './js/stream_firebase.js';
+  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js';
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
+  window.extraerUsuarioDeBienvenidaGlobal = extraerUsuarioDeBienvenidaGlobal;
   StreamDB.init().then(() => {
     console.log('[Tiendita] 🔥 Firebase RTDB StreamDB inicializado correctamente (nodo: stream)');
     StreamDB.obtenerUsuarios().then(users => {
@@ -2805,9 +2806,18 @@
   // Extrae el nombre de usuario del saludo de Lobito_Mensajero / Botrix: "Gracias por estar aquí $(name)!"
   function extraerUsuarioDeBienvenida(texto){
     if(!texto || typeof texto !== 'string') return null;
-    const m = texto.match(/gracias\s+por\s+estar\s+aqu[ií]\s+@?([a-zA-Z0-9_\-\.]+)/i);
+    if(typeof window.extraerUsuarioDeBienvenidaGlobal === 'function'){
+      const resGlobal = window.extraerUsuarioDeBienvenidaGlobal(texto);
+      if(resGlobal) return resGlobal;
+    }
+    const clean = texto.trim();
+    let m = clean.match(/gracias\s+por\s+estar\s+aqu[ií][\s,!.:-]*@?([a-zA-Z0-9_\-\.]+)/i);
     if(m && m[1]){
-      return m[1].replace(/^[!¡]+|[!¡?.,\s]+$/g, '').trim();
+      return m[1].replace(/^[!¡@]+|[!¡?.,\s]+$/g, '').trim();
+    }
+    m = clean.match(/@?([a-zA-Z0-9_\-\.]+)[\s,!.:-]+gracias\s+por\s+estar\s+aqu[ií]/i);
+    if(m && m[1]){
+      return m[1].replace(/^[!¡@]+|[!¡?.,\s]+$/g, '').trim();
     }
     return null;
   }
@@ -2893,6 +2903,9 @@
       }
     } else {
       console.log(`[Tiendita] ℹ️ @${cleanUser} ya fue registrado en la asistencia de esta transmisión.`);
+      if (window.StreamDB && typeof window.StreamDB.asegurarAsistenteEnStreamActivo === 'function') {
+        window.StreamDB.asegurarAsistenteEnStreamActivo(cleanUser).catch(()=>{});
+      }
     }
 
     // Si la tarjeta de pasar lista está visible en pantalla, refrescarla en vivo

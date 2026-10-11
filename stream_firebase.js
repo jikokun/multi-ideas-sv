@@ -33,6 +33,23 @@ export const norm = s => {
   return clean;
 };
 
+// Normalizador de Avatar de Kick: Convierte URLs temporales de S3 al CDN permanente oficial de Kick (files.kick.com)
+export const normalizarAvatarKickUrl = url => {
+  if (!url || typeof url !== 'string') return null;
+  let clean = url.trim();
+  if (!clean.startsWith('http')) return null;
+
+  // 1. Quitar query parameters temporales de AWS S3 (?X-Amz-...)
+  if (clean.includes('kick-files-prod.s3') || clean.includes('files.kick.com')) {
+    clean = clean.split('?')[0];
+  }
+
+  // 2. Reemplazar endpoint privado S3 por el CDN público y permanente oficial de Kick
+  clean = clean.replace(/https?:\/\/kick-files-prod\.s3[^\/]*\.amazonaws\.com\//i, 'https://files.kick.com/');
+
+  return clean;
+};
+
 // Constantes de Nodos
 export const USER_DEFAULT_POINTS = 1000;
 export const NODE_STREAM = 'stream';
@@ -53,6 +70,36 @@ export const KICK_CHANNEL = 'jikokun';
 export const KICK_CHANNEL_ID = 1874362;
 export const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
 export const KICK_PUSHER_CLUSTER = 'us2';
+export const KICK_CHATROOM_ID = 1866891;
+
+// Extractor universal y resiliente del saludo de bienvenida de Lobito Mensajero
+export function extraerUsuarioDeBienvenidaGlobal(texto) {
+  if (!texto || typeof texto !== 'string') return null;
+  const clean = texto.trim();
+
+  // 1. "Gracias por estar aquí [,] [!] @usuario [!]"
+  let m = clean.match(/gracias\s+por\s+estar\s+aqu[ií][\s,!.:\-¡¿]*@?([a-zA-Z0-9_\-\.]+)/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['el', 'la', 'un', 'una', 'en', 'por', 'aqui', 'aquí'].includes(u.toLowerCase())) return u;
+  }
+
+  // 2. "@usuario [,] ¡gracias por estar aquí!"
+  m = clean.match(/@?([a-zA-Z0-9_\-\.]+)[\s,!.:\-¡¿]+gracias\s+por\s+estar\s+aqu[ií]/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['el', 'la', 'un', 'una', 'en', 'por', 'gracias', 'hola', 'aqui', 'aquí'].includes(u.toLowerCase())) return u;
+  }
+
+  // 3. "Bienvenido/a @usuario [a la manada / al stream]"
+  m = clean.match(/bienvenid[oa@][\s,!.:\-¡¿]*@?([a-zA-Z0-9_\-\.]+)/i);
+  if (m && m[1]) {
+    const u = m[1].replace(/^[!¡@?¿]+|[!¡?¿.,\s]+$/g, '').trim();
+    if (u && !['a', 'al', 'la', 'el', 'todos', 'gente', 'manada', 'stream', 'chat'].includes(u.toLowerCase())) return u;
+  }
+
+  return null;
+}
 
 // ==========================================================================
 // 🐺 ESCALAFÓN Y SISTEMA DE 50 NIVELES DE EXPERIENCIA (XP) Y RANGOS
@@ -227,6 +274,12 @@ class StreamFirebaseService {
     this.kickPusherWs = null;
     this.kickPollTimer = null;
     this.kickStateListeners = new Set();
+    this.kickChatListeners = new Set();
+    this.kickChatStatusListeners = new Set();
+
+    // Tracking de Duración del Directo e Interacciones con XP Progresiva
+    this.interaccionesUsuarios = new Map();
+    this._streamLocalInicioTimestamp = Date.now();
   }
 
   // Inicialización y autenticación anónima para permisos de escritura limpios
@@ -254,12 +307,32 @@ class StreamFirebaseService {
         if (Array.isArray(users)) {
           users.forEach(u => {
             if (u && u.username) {
+              if (u.avatar) {
+                u.avatar = normalizarAvatarKickUrl(u.avatar);
+              } else if (u.username === 'jikokun') {
+                u.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+              }
               this.usersCache.set(u.username, u);
               this._updateLocalCache(u.username, u.jikopuntos);
+              if (!u.avatar || !String(u.avatar).startsWith('http')) {
+                this.absorberAvatarKick(u.username).catch(() => {});
+              }
             }
           });
         }
       });
+
+      // Sincronizar estado inicial de stream en vivo desde Firebase RTDB
+      try {
+        const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+        if (statsSnap.exists()) {
+          const stats = statsSnap.val();
+          if (stats.isLive) {
+            this.kickIsLive = true;
+            this.kickLivestreamData = stats.streamActual || null;
+          }
+        }
+      } catch(e) {}
 
       this.isInitialized = true;
       return true;
@@ -317,8 +390,17 @@ class StreamFirebaseService {
         data.xpFaltante = nivelInfo.xpFaltante;
         data.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
 
+        if (data.avatar) {
+          data.avatar = normalizarAvatarKickUrl(data.avatar);
+        } else if (key === 'jikokun') {
+          data.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+        }
+
         this.usersCache.set(key, data);
         this._updateLocalCache(key, data.jikopuntos);
+        if (!data.avatar || !String(data.avatar).startsWith('http')) {
+          this.absorberAvatarKick(key).catch(() => {});
+        }
         return data;
       }
 
@@ -372,6 +454,7 @@ class StreamFirebaseService {
       this._updateLocalCache(key, initialPts);
       this._incrementarEstadistica('totalUsuariosRegistrados', 1);
 
+      this.absorberAvatarKick(key).catch(() => {});
       return newUser;
     } catch (err) {
       console.warn(`[StreamDB] Error al consultar usuario @${key}, usando fallback local:`, err);
@@ -391,7 +474,7 @@ class StreamFirebaseService {
   }
 
   // Crear usuario manualmente
-  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, experiencia = null, tiempoVistoMinutos = 0, tituloPersonalizado = null, avatar = '' }) {
+  async crearUsuario({ username, displayName, rol = 'espectador', jikopuntos = USER_DEFAULT_POINTS, asistenciasCount = 0, experiencia = null, tiempoVistoMinutos = 0, tituloPersonalizado = null, avatar = '', marcoPerfil = null }) {
     await this.init();
     const key = norm(username);
     if (!key) throw new Error('Nombre de usuario no válido');
@@ -409,6 +492,7 @@ class StreamFirebaseService {
       : (asistencias * 200);
     const tiempoMin = Math.max(0, parseInt(tiempoVistoMinutos, 10) || 0);
     const customTitle = tituloPersonalizado && String(tituloPersonalizado).trim() ? String(tituloPersonalizado).trim() : null;
+    const cleanMarco = marcoPerfil && marcoPerfil !== 'auto' && String(marcoPerfil).trim() ? String(marcoPerfil).trim() : null;
 
     const nivelInfo = calcularNivelUsuario({
       experiencia: xp,
@@ -430,6 +514,7 @@ class StreamFirebaseService {
       experiencia: xp,
       tiempoVistoMinutos: tiempoMin,
       tituloPersonalizado: customTitle,
+      marcoPerfil: cleanMarco,
       nivel: nivelInfo.nivel,
       rangoTitulo: nivelInfo.rangoTitulo,
       tituloAutomatico: nivelInfo.tituloAutomatico,
@@ -490,7 +575,7 @@ class StreamFirebaseService {
       cleanUpdates.displayName = String(updates.displayName).trim() || current.displayName || key;
     }
     if (updates.avatar !== undefined) {
-      cleanUpdates.avatar = String(updates.avatar).trim();
+      cleanUpdates.avatar = normalizarAvatarKickUrl(updates.avatar);
     }
     if (updates.rol !== undefined && key !== 'jikokun') {
       cleanUpdates.rol = updates.rol;
@@ -506,6 +591,11 @@ class StreamFirebaseService {
     if (updates.tituloPersonalizado !== undefined) {
       cleanUpdates.tituloPersonalizado = updates.tituloPersonalizado && String(updates.tituloPersonalizado).trim()
         ? String(updates.tituloPersonalizado).trim()
+        : null;
+    }
+    if (updates.marcoPerfil !== undefined) {
+      cleanUpdates.marcoPerfil = updates.marcoPerfil && updates.marcoPerfil !== 'auto' && String(updates.marcoPerfil).trim()
+        ? String(updates.marcoPerfil).trim()
         : null;
     }
 
@@ -578,6 +668,13 @@ class StreamFirebaseService {
     return this.actualizarUsuario(key, { tituloPersonalizado: cleanTitle });
   }
 
+  async setMarcoPerfil(username, marco) {
+    const key = norm(username);
+    if (!key) return null;
+    const cleanMarco = (marco && marco !== 'auto' && String(marco).trim()) ? String(marco).trim() : null;
+    return this.actualizarUsuario(key, { marcoPerfil: cleanMarco });
+  }
+
   async addTiempoVisto(username, minutosDelta) {
     const key = norm(username);
     if (!key) return null;
@@ -600,31 +697,35 @@ class StreamFirebaseService {
     const key = norm(username);
     if (!key) return null;
 
-    try {
-      // 1. API v1 de Usuarios de Kick (Directo para espectadores y streamers)
-      const res = await fetch(`https://kick.com/api/v1/users/${encodeURIComponent(username)}`);
-      if (res.ok) {
-        const data = await res.json();
-        const pic = data.profilepic || data.profile_pic || data.profile_image || data.avatar;
-        if (pic && typeof pic === 'string' && pic.startsWith('http')) {
-          await this.actualizarUsuario(key, { avatar: pic });
-          return pic;
-        }
-      }
-    } catch (e) {}
+    // Fallback permanente oficial para el dueño
+    if (key === 'jikokun') {
+      const jikoAvatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
+      await this.actualizarUsuario(key, { avatar: jikoAvatar });
+      return jikoAvatar;
+    }
 
-    try {
-      // 2. API v2 de Canales de Kick (Fallback para creadores de contenido)
-      const res2 = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(username)}`);
-      if (res2.ok) {
-        const data2 = await res2.json();
-        const pic2 = data2.user?.profilepic || data2.user?.profile_pic || data2.user?.profile_image || data2.user?.avatar;
-        if (pic2 && typeof pic2 === 'string' && pic2.startsWith('http')) {
-          await this.actualizarUsuario(key, { avatar: pic2 });
-          return pic2;
+    // Probar múltiples endpoints y proxy seguro para evitar bloqueos CORS
+    const endpoints = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v1/users/' + username)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + username)}`,
+      `https://kick.com/api/v1/users/${encodeURIComponent(username)}`,
+      `https://kick.com/api/v2/channels/${encodeURIComponent(username)}`
+    ];
+
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep);
+        if (res.ok) {
+          const data = await res.json();
+          const rawPic = data.profilepic || data.profile_pic || data.profile_image || data.avatar || data.user?.profilepic || data.user?.profile_pic || data.user?.avatar;
+          if (rawPic && typeof rawPic === 'string' && rawPic.startsWith('http')) {
+            const cleanPic = normalizarAvatarKickUrl(rawPic);
+            await this.actualizarUsuario(key, { avatar: cleanPic });
+            return cleanPic;
+          }
         }
-      }
-    } catch (e2) {}
+      } catch (e) {}
+    }
 
     return null;
   }
@@ -916,11 +1017,16 @@ class StreamFirebaseService {
       this.kickPusherWs = ws;
 
       ws.onopen = () => {
-        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a eventos en vivo de channel.' + channelId);
+        console.log('[StreamDB] ⚡ Pusher Kick conectado. Suscribiendo a channel.' + channelId + ' y chatrooms.1866891.v2');
         ws.send(JSON.stringify({
           event: 'pusher:subscribe',
           data: { channel: `channel.${channelId}` }
         }));
+        ws.send(JSON.stringify({
+          event: 'pusher:subscribe',
+          data: { channel: 'chatrooms.1866891.v2' }
+        }));
+        this._notifyKickChatStatus(true);
       };
 
       ws.onmessage = async (event) => {
@@ -934,11 +1040,14 @@ class StreamFirebaseService {
           } else if (ev === 'App\\Events\\StopStreamBroadcast') {
             console.log('[StreamDB] ⚪ [KICK PUSHER] ¡EVENTO DETECTADO: StopStreamBroadcast!');
             await this._handleStreamStopped();
+          } else if (ev === 'App\\Events\\ChatMessageEvent') {
+            this._handleKickPusherChatMessage(msg.data);
           }
         } catch (e) {}
       };
 
       ws.onclose = () => {
+        this._notifyKickChatStatus(false);
         if (this.kickMonitorActive) {
           setTimeout(() => this._connectKickPusher(channelId), 8000);
         }
@@ -948,60 +1057,171 @@ class StreamFirebaseService {
     } catch (e) {}
   }
 
-  // Manejar inicio de transmisión detectado internamente
+  // Interceptar mensajes de Kick Chat en tiempo real desde Pusher WebSocket
+  _handleKickPusherChatMessage(rawData) {
+    try {
+      let data = rawData;
+      if (typeof data === 'string') {
+        try { data = JSON.parse(data); } catch(e){}
+      }
+      if (data && data.data) {
+        if (typeof data.data === 'string') {
+          try { data = JSON.parse(data.data); } catch(e){}
+        } else {
+          data = data.data;
+        }
+      }
+      if (!data || !data.content) return;
+
+      const sender = data.sender?.username || '';
+      const content = String(data.content || '').trim();
+
+      // Construir objeto enriquecido de mensaje de Kick para el Monitor y Combustible
+      const chatMsg = {
+        id: data.id || `kick_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        usuario: sender,
+        usuarioNorm: norm(sender),
+        mensaje: content,
+        timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
+        color: data.sender?.identity?.color || '#53fc18',
+        badges: Array.isArray(data.sender?.identity?.badges) ? data.sender.identity.badges : [],
+        esBot: (norm(sender) === 'lobitomensajero' || norm(sender) === 'lobito_mensajero'),
+        raw: data
+      };
+
+      // Notificar a los listeners del chat en vivo
+      if (this.kickChatListeners && this.kickChatListeners.size > 0) {
+        this.kickChatListeners.forEach(cb => {
+          try { cb(chatMsg); } catch(err){}
+        });
+      }
+
+      const usuarioDetectado = extraerUsuarioDeBienvenidaGlobal(content);
+      if (usuarioDetectado) {
+        console.log(`[StreamDB] 🐺 Saludo de Lobito detectado en Kick Chat para @${usuarioDetectado} (emisor: ${sender}): "${content}"`);
+        this.registrarAsistencia({
+          usuario: usuarioDetectado,
+          botEmisor: 'Lobito_Mensajero'
+        }).catch(err => console.warn('[StreamDB] Error al procesar asistencia interceptada:', err));
+      }
+    } catch(err) {
+      console.warn('[StreamDB] Error procesando mensaje de chat Pusher:', err);
+    }
+  }
+
+  // Manejar inicio de transmisión detectado internamente de forma idempotente y segura
   async _handleStreamStarted(channelData) {
     const ahora = Date.now();
     const live = channelData.livestream || {};
     const streamId = live.id ? `stream_${live.id}` : `stream_${ahora}`;
     const fechaLegible = new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
-    console.log(`[StreamDB] 🚀 ¡DIRECTO INICIADO EN KICK! Registrando sesión en Firebase: ${streamId}`);
+    console.log(`[StreamDB] 🚀 Verificando inicio/continuidad de sesión Kick: ${streamId}`);
 
     try {
-      // 1. Obtener y actualizar número total correlativo de streams
       const statsRef = ref(this.rtdb, NODE_TRANS_STATS);
-      let numeroStream = 1;
+      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
 
-      await runTransaction(statsRef, (stats) => {
-        if (!stats) stats = {};
-        stats.totalStreamsPrendidos = (stats.totalStreamsPrendidos || 0) + 1;
-        stats.streamActivoId = streamId;
-        stats.isLive = true;
-        stats.ultimoLiveTimestamp = ahora;
-        stats.streamActual = {
+      const [statsSnap, transSnap] = await Promise.all([
+        get(statsRef),
+        get(transRef)
+      ]);
+
+      const currentStats = statsSnap.exists() ? statsSnap.val() : {};
+      const transYaExiste = transSnap.exists();
+      const yaEsStreamActivo = currentStats.isLive === true && currentStats.streamActivoId === streamId;
+
+      let numeroStream = transYaExiste 
+        ? (transSnap.val().numeroStream || currentStats.totalStreamsPrendidos || 1)
+        : ((currentStats.totalStreamsPrendidos || 0) + 1);
+
+      // 1. Si no era el stream actualmente activo, actualizar stats sin inflar contador
+      if (!yaEsStreamActivo) {
+        await runTransaction(statsRef, (stats) => {
+          if (!stats) stats = {};
+          if (!transYaExiste && stats.streamActivoId !== streamId) {
+            stats.totalStreamsPrendidos = (stats.totalStreamsPrendidos || 0) + 1;
+            numeroStream = stats.totalStreamsPrendidos;
+          }
+          stats.streamActivoId = streamId;
+          stats.isLive = true;
+          stats.ultimoLiveTimestamp = ahora;
+          stats.streamActual = {
+            id: streamId,
+            numeroStream: numeroStream,
+            titulo: live.session_title || (transYaExiste ? transSnap.val().titulo : 'Transmisión en Vivo'),
+            categoria: live.categories?.[0]?.name || (transYaExiste ? transSnap.val().categoria : 'Just Chatting'),
+            inicioTimestamp: transYaExiste ? (transSnap.val().inicioTimestamp || ahora) : ahora,
+            inicioFechaLegible: transYaExiste ? (transSnap.val().inicioFechaLegible || fechaLegible) : fechaLegible,
+            viewers: live.viewer_count || 0
+          };
+          return stats;
+        });
+      }
+
+      // 2. Si la transmisión YA EXISTE en Firebase: NUNCA SOBREESCRIBIR CON set()
+      if (transYaExiste) {
+        const existingData = transSnap.val();
+        await update(transRef, {
+          estado: 'en_vivo',
+          titulo: live.session_title || existingData.titulo || 'Transmisión en Vivo',
+          categoria: live.categories?.[0]?.name || existingData.categoria || 'Just Chatting',
+          viewersPico: Math.max(existingData.viewersPico || 0, live.viewer_count || 0)
+        });
+        console.log(`[StreamDB] ℹ️ Sesión existente ${streamId} mantenida con sus ${existingData.totalAsistentes || Object.keys(existingData.asistentes || {}).length} asistentes intactos.`);
+      } else {
+        // Absorber asistentes que hayan registrado asistencia en las últimas 3 horas (pre-stream)
+        const asistentesIniciales = {};
+        let totalAsist = 0;
+        let ptsRepartidos = 0;
+
+        try {
+          const ventanaReciente = ahora - (3 * 3600 * 1000);
+          const asisRecientesSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
+          if (asisRecientesSnap.exists()) {
+            asisRecientesSnap.forEach(child => {
+              const a = child.val();
+              if (a.timestamp >= ventanaReciente && a.usuarioNorm && !asistentesIniciales[a.usuarioNorm]) {
+                asistentesIniciales[a.usuarioNorm] = {
+                  username: a.usuario || a.usuarioNorm,
+                  usuarioNorm: a.usuarioNorm,
+                  hora: a.fechaLegible ? a.fechaLegible.split(',')[1]?.trim() : new Date(a.timestamp).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
+                  timestamp: a.timestamp,
+                  experiencia: a.experienciaTotal || 200,
+                  nivel: a.nivelUsuario || 1,
+                  rangoTitulo: a.rangoTitulo || 'Cachorro',
+                  insigniaEmoji: a.insigniaEmoji || '🐾',
+                  puntosOtorgados: a.puntosOtorgados || 500
+                };
+                totalAsist++;
+                ptsRepartidos += (a.puntosOtorgados || 500);
+              }
+            });
+          }
+        } catch(e) {}
+
+        await set(transRef, {
           id: streamId,
-          numeroStream: stats.totalStreamsPrendidos,
-          titulo: live.session_title || 'Transmisión en Vivo',
-          categoria: live.categories?.[0]?.name || 'Just Chatting',
+          numeroStream: numeroStream,
+          canal: KICK_CHANNEL,
+          canalId: KICK_CHANNEL_ID,
           inicioTimestamp: ahora,
           inicioFechaLegible: fechaLegible,
-          viewers: live.viewer_count || 0
-        };
-        numeroStream = stats.totalStreamsPrendidos;
-        return stats;
-      });
+          finTimestamp: null,
+          finFechaLegible: null,
+          duracionMinutos: 0,
+          estado: 'en_vivo',
+          titulo: live.session_title || 'Transmisión en Vivo',
+          categoria: live.categories?.[0]?.name || 'Just Chatting',
+          viewersPico: live.viewer_count || 0,
+          totalAsistentes: totalAsist,
+          puntosRepartidos: ptsRepartidos,
+          asistentes: asistentesIniciales
+        });
+        console.log(`[StreamDB] 🆕 Nueva sesión ${streamId} creada vinculando ${totalAsist} asistentes recientes.`);
+      }
 
-      // 2. Crear documento de la transmisión en stream/transmisiones/{streamId}
-      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
-      await set(transRef, {
-        id: streamId,
-        numeroStream: numeroStream,
-        canal: KICK_CHANNEL,
-        canalId: KICK_CHANNEL_ID,
-        inicioTimestamp: ahora,
-        inicioFechaLegible: fechaLegible,
-        finTimestamp: null,
-        finFechaLegible: null,
-        duracionMinutos: 0,
-        estado: 'en_vivo',
-        titulo: live.session_title || 'Transmisión en Vivo',
-        categoria: live.categories?.[0]?.name || 'Just Chatting',
-        viewersPico: live.viewer_count || 0,
-        totalAsistentes: 0,
-        puntosRepartidos: 0,
-        asistentes: {}
-      });
-
+      this.kickIsLive = true;
       return streamId;
     } catch (err) {
       console.error('[StreamDB] Error al registrar inicio de stream en Firebase:', err);
@@ -1099,8 +1319,194 @@ class StreamFirebaseService {
     });
   }
 
+  onKickChatMessage(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.kickChatListeners.add(callback);
+    return () => this.kickChatListeners.delete(callback);
+  }
+
+  onKickChatStatus(callback) {
+    if (typeof callback !== 'function') return () => {};
+    if (!this.kickChatStatusListeners) this.kickChatStatusListeners = new Set();
+    this.kickChatStatusListeners.add(callback);
+    callback(this.getKickPusherStatus());
+    return () => this.kickChatStatusListeners.delete(callback);
+  }
+
+  _notifyKickChatStatus(connected) {
+    if (this.kickChatStatusListeners) {
+      this.kickChatStatusListeners.forEach(cb => {
+        try { cb(this.getKickPusherStatus()); } catch (e) {}
+      });
+    }
+  }
+
+  getKickPusherStatus() {
+    const isConnected = !!this.kickPusherWs && this.kickPusherWs.readyState === 1;
+    return {
+      connected: isConnected,
+      channelId: KICK_CHANNEL_ID,
+      chatroom: 'chatrooms.1866891.v2',
+      channelName: KICK_CHANNEL
+    };
+  }
+
+  // Acreditar combustible acumulado de chat a un usuario en Firebase RTDB
+  async acreditarCombustibleChat(username, { puntos = 0, xp = 0, motivo = 'combustible_chat' } = {}) {
+    await this.init();
+    const key = norm(username);
+    if (!key) throw new Error('Usuario no válido');
+    const user = await this.getUser(key);
+    if (!user) throw new Error(`El usuario @${key} no existe en Firebase.`);
+
+    const ptsDelta = Math.max(0, Math.round(Number(puntos) || 0));
+    const xpDelta = Math.max(0, Math.round(Number(xp) || 0));
+
+    const updates = {};
+    if (ptsDelta > 0) {
+      updates.jikopuntos = (user.jikopuntos || 0) + ptsDelta;
+      updates.totalGanado = (user.totalGanado || 0) + ptsDelta;
+    }
+    if (xpDelta > 0) {
+      const prevXp = user.experiencia !== undefined ? user.experiencia : ((user.asistenciasCount || 0) * 200);
+      updates.experiencia = prevXp + xpDelta;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      return this.actualizarUsuario(key, updates);
+    }
+    return user;
+  }
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // 3. TIEMPO, DURACIÓN DEL DIRECTO & MULTIPLICADOR JUSTO DE EXPERIENCIA (XP)
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // Obtener estado y duración activa del stream actual (en minutos y horas)
+  getStreamDuracionActual() {
+    const ahora = Date.now();
+    let isLive = this.kickIsLive;
+    let inicioTimestamp = null;
+    let titulo = 'Transmisión en Vivo';
+
+    // 1. Kick livestream data oficial
+    if (this.kickLivestreamData) {
+      isLive = true;
+      if (this.kickLivestreamData.created_at) {
+        inicioTimestamp = new Date(this.kickLivestreamData.created_at).getTime();
+      }
+      titulo = this.kickLivestreamData.session_title || titulo;
+    }
+
+    // 2. Sesión activa local como fallback si Kick monitor está offline o en pruebas de OBS
+    if (!inicioTimestamp) {
+      if (!this._streamLocalInicioTimestamp) {
+        this._streamLocalInicioTimestamp = ahora;
+      }
+      inicioTimestamp = this._streamLocalInicioTimestamp;
+    }
+
+    const duracionMs = Math.max(0, ahora - inicioTimestamp);
+    const duracionMinutos = Math.max(1, Math.floor(duracionMs / 60000));
+
+    return {
+      isLive: isLive || true,
+      inicioTimestamp: inicioTimestamp,
+      duracionMinutos: duracionMinutos,
+      duracionHoras: (duracionMinutos / 60).toFixed(1),
+      titulo: titulo
+    };
+  }
+
+  // Multiplicador justo de XP según la duración del directo:
+  // A mayor tiempo transcurrido en el directo, más se multiplica la XP por fidelidad:
+  // - 0 a 29 min:  1.00x (Inicio del stream)
+  // - 30 a 59 min: 1.25x (Comunidad activa)
+  // - 60 a 89 min: 1.50x (1 hora de stream cumplida)
+  // - 90 a 119 min: 1.75x (Transmisión sólida)
+  // - 120+ min:    2.00x (Maratón / Gran directo de Jikokun)
+  calcularMultiplicadorDuracionStream(duracionMinutos = 1) {
+    const bloques = Math.floor(Math.max(0, duracionMinutos) / 30);
+    const factor = 1.0 + Math.min(1.0, bloques * 0.25);
+    return Number(factor.toFixed(2));
+  }
+
+  // Registrar interacción de un usuario en el directo y acumular XP por tiempo activo de forma justa
+  async registrarInteraccionStream({ usuario, tipo = 'chat', mensaje = '' }) {
+    const key = norm(usuario);
+    if (!key) return null;
+
+    const BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'];
+    if (BOTS_IGNORADOS.includes(key)) return null;
+
+    const ahora = Date.now();
+    if (!this.interaccionesUsuarios) {
+      this.interaccionesUsuarios = new Map();
+    }
+
+    let userTrack = this.interaccionesUsuarios.get(key);
+    if (!userTrack) {
+      userTrack = {
+        usuario: key,
+        primeraInteraccion: ahora,
+        ultimaInteraccion: ahora,
+        ultimaXpAsignada: ahora,
+        minutosInteractuados: 0,
+        xpGanadaEnDirecto: 0
+      };
+      this.interaccionesUsuarios.set(key, userTrack);
+      return {
+        usuario: key,
+        primeraVez: true,
+        xpGanada: 0,
+        minutosDelta: 0,
+        factor: 1.0
+      };
+    }
+
+    userTrack.ultimaInteraccion = ahora;
+    const deltaMs = ahora - userTrack.ultimaXpAsignada;
+
+    // Acumulación justa poco a poco: cada 60 segundos (1 minuto) de permanencia activa
+    if (deltaMs >= 60000) {
+      const minutosDelta = Math.min(5, Math.max(1, Math.floor(deltaMs / 60000)));
+      const streamInfo = this.getStreamDuracionActual();
+      const factor = this.calcularMultiplicadorDuracionStream(streamInfo.duracionMinutos);
+
+      // 10 XP base por minuto activo * factor multiplicador de la duración del directo
+      const xpBase = 10 * minutosDelta;
+      const xpGanada = Math.round(xpBase * factor);
+
+      // Persistir XP y tiempo visto en Firebase
+      await this.addExperiencia(key, xpGanada, 'interaccion_tiempo_stream');
+      await this.addTiempoVisto(key, minutosDelta);
+
+      userTrack.ultimaXpAsignada = ahora;
+      userTrack.minutosInteractuados += minutosDelta;
+      userTrack.xpGanadaEnDirecto += xpGanada;
+
+      console.log(`[StreamXP] ⚡ @${key} ganó +${xpGanada} XP (+${minutosDelta}m activo | Directo: ${streamInfo.duracionMinutos}m | Factor: x${factor})`);
+
+      return {
+        usuario: key,
+        xpGanada: xpGanada,
+        minutosDelta: minutosDelta,
+        minutosInteractuados: userTrack.minutosInteractuados,
+        totalXpDirecto: userTrack.xpGanadaEnDirecto,
+        factor: factor,
+        duracionStreamMinutos: streamInfo.duracionMinutos
+      };
+    }
+
+    return {
+      usuario: key,
+      xpGanada: 0,
+      cooldownMinuto: true
+    };
+  }
+
   // ==========================================================================
-  // 3. ASISTENCIA CON BONO POR NIVEL & CONTRASTE POR TRANSMISIÓN
+  // 4. ASISTENCIA CON BONO POR NIVEL & CONTRASTE POR TRANSMISIÓN
   // ==========================================================================
 
   // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
@@ -1108,6 +1514,24 @@ class StreamFirebaseService {
     const key = norm(usuario);
     const ahora = Date.now();
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
+
+    if (!this._streamLocalInicioTimestamp) {
+      this._streamLocalInicioTimestamp = ahora;
+    }
+    if (!this.interaccionesUsuarios) {
+      this.interaccionesUsuarios = new Map();
+    }
+    if (!this.interaccionesUsuarios.has(key)) {
+      this.interaccionesUsuarios.set(key, {
+        usuario: key,
+        primeraInteraccion: ahora,
+        ultimaInteraccion: ahora,
+        ultimaXpAsignada: ahora,
+        minutosInteractuados: 0,
+        xpGanadaEnDirecto: 200,
+        asistio: true
+      });
+    }
 
     try {
       // 1. Obtener perfil del usuario y calcular nivel
@@ -1138,12 +1562,21 @@ class StreamFirebaseService {
         const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
         if (statsSnap.exists()) {
           const stats = statsSnap.val();
-          if (stats.isLive && stats.streamActivoId) {
-            streamActivoId = stats.streamActivoId;
-            numeroStream = stats.streamActual?.numeroStream || null;
-          }
+          streamActivoId = stats.streamActivoId || stats.ultimoStreamId || null;
+          numeroStream = stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null;
         }
       } catch (e) {}
+
+      // Si ya está registrado en este stream activo, no duplicar puntos
+      if (streamActivoId) {
+        try {
+          const streamUserSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`));
+          if (streamUserSnap.exists()) {
+            console.log(`[StreamDB] ℹ️ @${usuario} ya tiene asistencia registrada en stream activo ${streamActivoId}`);
+            return streamUserSnap.val();
+          }
+        } catch(e) {}
+      }
 
       // 3. Guardar registro en stream/tienda/asistencias
       const asisRef = push(ref(this.rtdb, NODE_ATTENDANCE));
@@ -1188,7 +1621,8 @@ class StreamFirebaseService {
         const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}`);
         await runTransaction(transRef, (s) => {
           if (s) {
-            s.totalAsistentes = (s.totalAsistentes || 0) + 1;
+            if (!s.asistentes) s.asistentes = {};
+            s.totalAsistentes = Object.keys(s.asistentes).length;
             s.puntosRepartidos = (s.puntosRepartidos || 0) + puntosOtorgados;
           }
           return s;
@@ -1258,6 +1692,61 @@ class StreamFirebaseService {
     }
   }
 
+  // Asegurar que un usuario esté vinculado a la sesión de stream activa
+  async asegurarAsistenteEnStreamActivo(usuario) {
+    const key = norm(usuario);
+    if (!key) return null;
+    try {
+      const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+      if (!statsSnap.exists()) return null;
+      const stats = statsSnap.val();
+      const streamId = stats.streamActivoId || stats.ultimoStreamId;
+      if (!streamId) return null;
+
+      const userAsistRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes/${key}`);
+      const snap = await get(userAsistRef);
+      if (snap.exists()) return snap.val();
+
+      const user = await this.getUser(usuario);
+      const asistCount = user ? (user.asistenciasCount || 1) : 1;
+      const totalXp = user?.experiencia || (asistCount * 200);
+      const nivelInfo = calcularNivelUsuario({
+        experiencia: totalXp,
+        asistenciasCount: asistCount,
+        tituloPersonalizado: user?.tituloPersonalizado
+      });
+      const puntosOtorgados = nivelInfo.puntosPorAsistencia;
+
+      const dataAsist = {
+        username: user?.displayName || usuario,
+        usuarioNorm: key,
+        hora: new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
+        timestamp: Date.now(),
+        experiencia: totalXp,
+        nivel: nivelInfo.nivel,
+        rangoTitulo: nivelInfo.rangoTitulo,
+        insigniaEmoji: nivelInfo.insigniaEmoji,
+        puntosOtorgados: puntosOtorgados
+      };
+      await set(userAsistRef, dataAsist);
+
+      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
+      await runTransaction(transRef, (s) => {
+        if (s) {
+          if (!s.asistentes) s.asistentes = {};
+          s.totalAsistentes = Object.keys(s.asistentes).length;
+        }
+        return s;
+      });
+
+      console.log(`[StreamDB] 🐺 Asistente @${usuario} vinculado con éxito al stream activo ${streamId}`);
+      return dataAsist;
+    } catch (e) {
+      console.warn(`[StreamDB] Error asegurando asistente @${usuario}:`, e);
+      return null;
+    }
+  }
+
   // Contrastar quiénes asistieron vs quiénes estuvieron ausentes en una transmisión
   async contrastarAsistenciasTransmision(streamId) {
     try {
@@ -1277,6 +1766,34 @@ class StreamFirebaseService {
       const streamData = streamSnap.val();
       const asistentesMap = streamData.asistentes || {};
       const asistentesKeys = new Set(Object.keys(asistentesMap));
+
+      // Auto-reconciliación: Integrar cualquier asistencia registrada para este stream en NODE_ATTENDANCE
+      try {
+        const asisSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
+        if (asisSnap.exists()) {
+          asisSnap.forEach(child => {
+            const a = child.val();
+            if (a.usuarioNorm && !asistentesKeys.has(a.usuarioNorm)) {
+              const ventanaMin = streamData.inicioTimestamp ? (streamData.inicioTimestamp - 3 * 3600 * 1000) : 0;
+              const ventanaMax = streamData.finTimestamp ? (streamData.finTimestamp + 3600 * 1000) : (Date.now() + 3600 * 1000);
+              if (a.streamId === streamId || (a.timestamp >= ventanaMin && a.timestamp <= ventanaMax)) {
+                asistentesKeys.add(a.usuarioNorm);
+                asistentesMap[a.usuarioNorm] = {
+                  username: a.usuario || a.usuarioNorm,
+                  usuarioNorm: a.usuarioNorm,
+                  hora: a.fechaLegible ? (a.fechaLegible.split(',')[1]?.trim() || '--:--') : '--:--',
+                  timestamp: a.timestamp,
+                  experiencia: a.experienciaTotal || 200,
+                  nivel: a.nivelUsuario || 1,
+                  rangoTitulo: a.rangoTitulo || 'Cachorro',
+                  insigniaEmoji: a.insigniaEmoji || '🐾',
+                  puntosOtorgados: a.puntosOtorgados || 500
+                };
+              }
+            }
+          });
+        }
+      } catch(e) {}
 
       const presentes = [];
       const ausentes = [];
@@ -1404,6 +1921,7 @@ class StreamFirebaseService {
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
     // ⭐ REGLA DE EXPERIENCIA: Otorgar 50% equivalente de los Jikopuntos gastados como XP al comprador
+    // Ejemplo: gasta 500 jikopuntos -> recibe 250 puntos de experiencia
     const gastoPuntos = Math.max(0, parseInt(costoTotal, 10) || 0);
     const xpOtorgada = (xpGanada !== null && xpGanada !== undefined)
       ? Math.max(0, parseInt(xpGanada, 10) || 0)
@@ -1734,6 +2252,12 @@ class StreamFirebaseService {
     } catch (e) {
       return false;
     }
+  }
+
+  onOverlayState(overlayName, callback) {
+    return onValue(ref(this.rtdb, `${NODE_OVERLAYS}/${overlayName}/estadoEnVivo`), snap => {
+      callback(snap.val() || {});
+    });
   }
 
   // ==========================================================================
@@ -2073,6 +2597,7 @@ if (typeof window !== 'undefined') {
   window.formatearTiempoVisto = formatearTiempoVisto;
   window.formatearHorasDecimal = formatearHorasDecimal;
   window.calcularNivelUsuario = calcularNivelUsuario;
+  window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
 }
 
 export default StreamDB;
