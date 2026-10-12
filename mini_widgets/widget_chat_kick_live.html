@@ -27,6 +27,7 @@
       --kick-purple: #a855f7;
       --kick-gold: #f59e0b;
       --text-color: #f8fafc;
+      --custom-text-color: #ffffff;
       --subtext-color: #94a3b8;
     }
 
@@ -308,6 +309,12 @@
       border-left-color: #a855f7 !important;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(168, 85, 247, 0.35);
     }
+    .bubble-follow {
+      background: linear-gradient(135deg, rgba(8, 47, 73, 0.88) 0%, rgba(15, 23, 42, 0.92) 100%);
+      border-color: rgba(56, 189, 248, 0.5);
+      border-left-color: #38bdf8 !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.35);
+    }
 
     .event-badge-pill {
       display: inline-flex;
@@ -326,6 +333,7 @@
     .event-badge-gift { background: #f43f5e; color: #ffffff; }
     .event-badge-kicks { background: #06b6d4; color: #042f2e; }
     .event-badge-raid { background: #a855f7; color: #ffffff; }
+    .event-badge-follow { background: #38bdf8; color: #082f49; }
 
     .event-highlight-text {
       font-size: 1.05em;
@@ -348,6 +356,32 @@
       background: rgba(15, 23, 42, 0.95);
       border: 1px solid rgba(255, 255, 255, 0.05);
       box-shadow: none;
+    }
+
+    /* Estilo Simple: Solo Texto sin Burbujas */
+    body.theme-text-only .chat-bubble {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      -webkit-backdrop-filter: none !important;
+      border: none !important;
+      box-shadow: none !important;
+      padding: 2px 6px !important;
+      margin-bottom: 3px !important;
+    }
+    body.theme-text-only .chat-bubble .bubble-text {
+      color: var(--custom-text-color, #ffffff) !important;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 2px 8px rgba(0, 0, 0, 0.85) !important;
+      font-weight: 600;
+    }
+    body.theme-text-only .chat-bubble .bubble-username {
+      text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 10px var(--user-glow, rgba(83, 252, 24, 0.35)) !important;
+    }
+    body.theme-text-only .chat-bubble.bubble-event {
+      background: rgba(15, 23, 42, 0.85) !important;
+      backdrop-filter: blur(10px) !important;
+      border: 1px solid rgba(255, 255, 255, 0.15) !important;
+      border-radius: 12px !important;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
     }
   </style>
 </head>
@@ -388,6 +422,7 @@
           .map(u => u.trim())
           .filter(Boolean),
         theme: urlParams.get('theme') || 'cyberpunk',
+        textColor: urlParams.get('textcolor') || urlParams.get('color') || '#ffffff',
         showBadges: urlParams.get('badges') !== 'false' && urlParams.get('badges') !== '0',
         showAlerts: urlParams.get('alerts') !== 'false' && urlParams.get('alerts') !== '0',
         align: urlParams.get('align') || 'bottom',
@@ -416,10 +451,15 @@
       function applyStyles() {
         document.documentElement.style.setProperty('--chat-font', `'${state.font}', sans-serif`);
         document.documentElement.style.setProperty('--chat-font-size', `${state.fontSize}px`);
+        document.documentElement.style.setProperty('--custom-text-color', state.textColor || '#ffffff');
 
         document.body.className = '';
         if (state.theme && state.theme !== 'cyberpunk') {
           document.body.classList.add(`theme-${state.theme}`);
+        }
+
+        if (window.self === window.top && !state.obsMode) {
+          document.body.classList.add('standalone-preview');
         }
 
         if (state.align === 'top') {
@@ -598,6 +638,12 @@
             badgeClass = 'event-badge-raid';
             icon = 'fa-rocket';
             eventLabel = `RAID ENTRANTE ${extra ? `(${extra} VIEWERS)` : ''}`;
+            break;
+          case 'follow':
+            cardClass = 'bubble-follow';
+            badgeClass = 'event-badge-follow';
+            icon = 'fa-heart';
+            eventLabel = `¡NUEVO SEGUIDOR!`;
             break;
         }
 
@@ -807,6 +853,19 @@
                 extra: `${viewers} viewers`
               });
             });
+
+            // Nuevo Seguidor (FollowersUpdated)
+            channelEvents.bind('App\\Events\\FollowersUpdated', function(payload) {
+              let data = payload;
+              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
+              const user = data.username || data.follower?.username || data.follower || 'NuevoSeguidor';
+              addEventBubble({
+                type: 'follow',
+                username: user,
+                title: `💙 ¡${user} comenzó a seguirte!`,
+                message: '¡Bienvenido a la comunidad del canal!'
+              });
+            });
           }
 
           // Conexión exitosa
@@ -918,6 +977,15 @@
             extra: '85 viewers'
           });
         }
+        else if (d.type === 'TEST_FOLLOW') {
+          addEventBubble({
+            type: 'follow',
+            username: d.username || 'AstroFollower',
+            title: `💙 ¡${d.username || 'AstroFollower'} comenzó a seguirte!`,
+            message: '¡Bienvenido a la comunidad del canal!',
+            extra: 'Follow'
+          });
+        }
         else if (d.type === 'SET_CHAT_CONFIG') {
           if (d.font) state.font = d.font;
           if (d.fontSize) state.fontSize = parseInt(d.fontSize, 10);
@@ -926,6 +994,7 @@
             state.isPermanent = state.duration === 0;
           }
           if (d.theme) state.theme = d.theme;
+          if (d.textColor) state.textColor = d.textColor;
           if (d.filterBots !== undefined) state.filterBots = !!d.filterBots;
           if (d.filterCommands !== undefined) state.filterCommands = !!d.filterCommands;
           if (d.blockedUsers) {
