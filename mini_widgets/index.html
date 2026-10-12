@@ -2252,29 +2252,39 @@
       if (btn) btn.disabled = true;
       if (text) text.textContent = 'Conectando con Google...';
 
+      const activeAuth = auth || window.firebaseAuth;
+
       try {
+        if (!activeAuth) {
+          throw new Error("Firebase Auth no disponible de inmediato");
+        }
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({
           prompt: 'select_account'
         });
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(activeAuth, provider);
         const user = result.user;
         if (text) text.textContent = '¡Bienvenido! Entrando...';
         await registerWidgetUserInFirebase(user);
         updateAuthGateUI(user);
       } catch (error) {
         console.error("Error autenticando con Google en Widgets Gate:", error);
+        if (btn) btn.disabled = false;
+        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+
         if (error.code === 'auth/popup-blocked') {
           try {
-            await signInWithRedirect(auth, new GoogleAuthProvider());
+            await signInWithRedirect(activeAuth, new GoogleAuthProvider());
             return;
           } catch (redirectErr) {
             console.error("Error redirect fallback:", redirectErr);
           }
         }
-        if (btn) btn.disabled = false;
-        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
-        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+
+        // Si falla el popup o el navegador lo bloquea, abrir el modal oficial de autenticación de la página
+        if (typeof window.openAuthModal === 'function') {
+          window.openAuthModal();
+        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
           alert("No se pudo iniciar sesión con Google. Intenta nuevamente.");
         }
       }
@@ -3317,6 +3327,8 @@
           toast.textContent = toast.dataset.originalText;
         }, 3500);
       }
+    };
+
     // Inserción interactiva de variables dinámicas en los campos de texto
     window.insertVariable = function(inputId, variableTag, alertType) {
       const input = document.getElementById(inputId);

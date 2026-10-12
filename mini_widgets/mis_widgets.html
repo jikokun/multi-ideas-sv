@@ -1023,24 +1023,30 @@
       if (btn) btn.disabled = true;
       if (text) text.textContent = 'Conectando con Google...';
 
+      const activeAuth = auth || window.firebaseAuth;
+
       try {
+        if (!activeAuth) throw new Error("Firebase Auth no disponible");
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({ prompt: 'select_account' });
-        const result = await signInWithPopup(auth, provider);
+        const result = await signInWithPopup(activeAuth, provider);
         await registerWidgetUserInFirebase(result.user);
       } catch (error) {
         console.error("Error autenticando con Google en Mis Widgets:", error);
+        if (btn) btn.disabled = false;
+        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+
         if (error.code === 'auth/popup-blocked') {
           try {
-            await signInWithRedirect(auth, new GoogleAuthProvider());
+            await signInWithRedirect(activeAuth, new GoogleAuthProvider());
             return;
           } catch (rErr) {
             console.error("Redirect fallback error:", rErr);
           }
         }
-        if (btn) btn.disabled = false;
-        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
-        if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        if (typeof window.openAuthModal === 'function') {
+          window.openAuthModal();
+        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
           alert("No se pudo iniciar sesión con Google. Intenta nuevamente.");
         }
       }

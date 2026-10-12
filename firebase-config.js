@@ -2,7 +2,7 @@
 // CONFIGURACIÓN CENTRALIZADA DE FIREBASE - MULTI IDEAS SV & SENSUN SHOP
 // ==========================================================================
 // Módulos oficiales de Firebase v10 desde el CDN de Google.
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { 
     getAuth, 
     signInWithEmailAndPassword, 
@@ -34,8 +34,8 @@ const firebaseConfig = {
     measurementId: "G-WYP6KJ6B0J"
 };
 
-// Inicializar Firebase
-const app = initializeApp(firebaseConfig);
+// Inicializar Firebase evitando colisión de app duplicada
+const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 // Inicializar servicios para exportación
 const auth = getAuth(app);
