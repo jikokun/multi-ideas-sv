@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chat Flotante Kick (API Nativa) - Burbuja Futurista</title>
+  
+  <!-- Tipografías Modernas -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Cliente Pusher JS Oficial para WebSockets de Kick -->
+  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+
+  <style>
+    :root {
+      --chat-font: 'Rajdhani', sans-serif;
+      --chat-font-size: 16px;
+      --bubble-bg: rgba(15, 23, 42, 0.82);
+      --bubble-border: rgba(255, 255, 255, 0.1);
+      --bubble-glow: rgba(83, 252, 24, 0.18);
+      --kick-green: #53fc18;
+      --kick-cyan: #00f5d4;
+      --kick-pink: #f43f5e;
+      --kick-purple: #a855f7;
+      --kick-gold: #f59e0b;
+      --text-color: #f8fafc;
+      --subtext-color: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: transparent;
+      font-family: var(--chat-font);
+      font-size: var(--chat-font-size);
+      color: var(--text-color);
+      user-select: none;
+    }
+
+    /* Fondo oscuro de demostración cuando se abre directamente en el navegador sin OBS */
+    body.standalone-preview {
+      background: #090d16 radial-gradient(circle at top right, rgba(83, 252, 24, 0.12), transparent 50%) !important;
+    }
+
+    /* Contenedor Flotante de Chat */
+    #chat-wrapper {
+      position: absolute;
+      inset: 0;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 10px;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    #chat-wrapper.align-top {
+      justify-content: flex-start;
+    }
+
+    /* Estado de Conexión Sutil (Ocultable en OBS) */
+    #connection-hud {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      padding: 4px 10px;
+      background: rgba(3, 7, 18, 0.75);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 999px;
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: #94a3b8;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 999;
+      transition: opacity 0.5s ease;
+      opacity: 0;
+      pointer-events: none;
+    }
+    #connection-hud.visible {
+      opacity: 1;
+    }
+    .hud-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #f59e0b;
+      box-shadow: 0 0 6px currentColor;
+    }
+    .hud-dot.online {
+      background: #10b981;
+      color: #10b981;
+    }
+
+    /* =======================================================================
+       BURBUJAS FUTURISTAS DE CHAT
+       ======================================================================= */
+    .chat-bubble {
+      position: relative;
+      background: var(--bubble-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--bubble-border);
+      border-left: 3.5px solid var(--user-color, var(--kick-green));
+      border-radius: 14px;
+      padding: 9px 14px;
+      max-width: 96%;
+      align-self: flex-start;
+      box-shadow: 
+        0 8px 24px rgba(0, 0, 0, 0.55),
+        0 0 12px var(--user-glow, rgba(83, 252, 24, 0.12));
+      animation: bubbleEnter 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      word-break: break-word;
+      line-height: 1.4;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* Animación de Entrada Suave */
+    @keyframes bubbleEnter {
+      0% {
+        opacity: 0;
+        transform: translateY(22px) scale(0.92);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Animación de Salida / Desaparición */
+    @keyframes bubbleLeave {
+      0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        max-height: 200px;
+        margin-bottom: 0;
+        padding-top: 9px;
+        padding-bottom: 9px;
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-16px) scale(0.95);
+        max-height: 0;
+        margin-bottom: -10px;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-width: 0;
+      }
+    }
+
+    .chat-bubble.leaving {
+      animation: bubbleLeave 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      pointer-events: none;
+    }
+
+    /* Cabecera del Mensaje: Insignias + Nombre */
+    .bubble-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* Badges de Kick */
+    .badge-kick {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 0.65rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      padding: 1px 6px;
+      border-radius: 6px;
+      line-height: 1.3;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+    .badge-broadcaster {
+      background: rgba(239, 68, 68, 0.25);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.6);
+    }
+    .badge-moderator {
+      background: rgba(16, 185, 129, 0.25);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.6);
+    }
+    .badge-vip {
+      background: rgba(168, 85, 247, 0.25);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.6);
+    }
+    .badge-subscriber {
+      background: rgba(83, 252, 24, 0.2);
+      color: #53fc18;
+      border: 1px solid rgba(83, 252, 24, 0.6);
+    }
+    .badge-og, .badge-founder {
+      background: rgba(245, 158, 11, 0.25);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.6);
+    }
+    .badge-verified {
+      background: rgba(56, 189, 248, 0.25);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.6);
+    }
+
+    /* Nombre del Usuario con Color Oficial y Resplandor */
+    .bubble-username {
+      font-weight: 800;
+      color: var(--user-color, var(--kick-green));
+      text-shadow: 0 0 10px var(--user-glow, rgba(83, 252, 24, 0.35));
+      letter-spacing: 0.3px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* Cuerpo del Mensaje */
+    .bubble-text {
+      color: #f1f5f9;
+      font-weight: 500;
+      letter-spacing: 0.2px;
+      word-break: break-word;
+      line-height: 1.45;
+    }
+
+    /* Emotes y Stickers de Kick */
+    .kick-emote {
+      display: inline-block;
+      vertical-align: middle;
+      height: 1.6em;
+      min-width: 1.6em;
+      object-fit: contain;
+      margin: -2px 2px;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.4));
+    }
+
+    /* =======================================================================
+       TARJETAS ESPECIALES DE EVENTOS (ALERTAS EN EL CHAT)
+       ======================================================================= */
+    .chat-bubble.bubble-event {
+      border-left-width: 4px;
+      padding: 12px 16px;
+      border-radius: 16px;
+      position: relative;
+      overflow: hidden;
+      animation: eventBubbleEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .chat-bubble.bubble-event::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    @keyframes eventBubbleEnter {
+      0% {
+        opacity: 0;
+        transform: translateY(28px) scale(0.9);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Tipos de Alertas de Chat */
+    .bubble-sub {
+      background: linear-gradient(135deg, rgba(20, 83, 45, 0.85) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-color: rgba(83, 252, 24, 0.5);
+      border-left-color: #53fc18 !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(83, 252, 24, 0.35);
+    }
+    .bubble-gift {
+      background: linear-gradient(135deg, rgba(131, 24, 67, 0.85) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-color: rgba(244, 63, 94, 0.5);
+      border-left-color: #f43f5e !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(244, 63, 94, 0.35);
+    }
+    .bubble-kicks {
+      background: linear-gradient(135deg, rgba(14, 116, 144, 0.85) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-color: rgba(6, 182, 212, 0.5);
+      border-left-color: #06b6d4 !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(6, 182, 212, 0.35);
+    }
+    .bubble-raid {
+      background: linear-gradient(135deg, rgba(88, 28, 135, 0.85) 0%, rgba(15, 23, 42, 0.9) 100%);
+      border-color: rgba(168, 85, 247, 0.5);
+      border-left-color: #a855f7 !important;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 16px rgba(168, 85, 247, 0.35);
+    }
+
+    .event-badge-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      margin-bottom: 2px;
+    }
+    .event-badge-sub { background: #53fc18; color: #022c22; }
+    .event-badge-gift { background: #f43f5e; color: #ffffff; }
+    .event-badge-kicks { background: #06b6d4; color: #042f2e; }
+    .event-badge-raid { background: #a855f7; color: #ffffff; }
+
+    .event-highlight-text {
+      font-size: 1.05em;
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 0.3px;
+    }
+
+    /* Temas de Fondo */
+    body.theme-neon .chat-bubble {
+      background: rgba(10, 15, 30, 0.92);
+      border: 1px solid rgba(0, 245, 212, 0.25);
+    }
+    body.theme-crystal .chat-bubble {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+    body.theme-minimal .chat-bubble {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      box-shadow: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Indicador sutil de conexión Kick -->
+  <div id="connection-hud">
+    <span class="hud-dot" id="hud-dot"></span>
+    <span id="hud-text">Conectando a Kick...</span>
+  </div>
+
+  <!-- Contenedor del Chat Flotante -->
+  <div id="chat-wrapper"></div>
+
+  <!-- Sonido sutil opcional de notificación -->
+  <audio id="audio-chime" preload="auto">
+    <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YV4GAACBhYqFbF1fdJivrJBhNjVgodDbq2EcHCek3fDCkF44MqvS7sqxhnE6K5/E2+fXwWw0L4exyNbk4M2EZSs2ebfL5N/i5cx6PzJ7q8fk5eXm38yBODiCq8Tf4uPl49uFQT+EqcLf4OHg4Np7PD2EqL/c3dzc2tZ6QTuCp7vZ2djZ19N4PTuBp7nW1tXX0s5zOjmAns7Ly8vKy8lsNSmG" type="audio/wav">
+  </audio>
+
+  <script>
+    (function() {
+      // -----------------------------------------------------------------------
+      // 1. CONFIGURACIÓN Y PARÁMETROS URL
+      // -----------------------------------------------------------------------
+      const urlParams = new URLSearchParams(window.location.search);
+
+      const state = {
+        channel: (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').toLowerCase().trim().replace(/^@/, ''),
+        font: urlParams.get('font') || 'Rajdhani',
+        fontSize: parseInt(urlParams.get('size') || '16', 10),
+        duration: parseInt(urlParams.get('duration') || '10', 10), // 0 o NaN = Permanente
+        isPermanent: urlParams.get('duration') === '0' || urlParams.get('permanent') === 'true',
+        filterBots: urlParams.get('bots') === '0' || urlParams.get('nobots') === '1' || urlParams.get('filterbots') === 'true',
+        filterCommands: urlParams.get('commands') === '0' || urlParams.get('nocmd') === '1' || urlParams.get('filtercommands') === 'true',
+        blockedUsers: (urlParams.get('blocked') || urlParams.get('ignore') || '')
+          .toLowerCase()
+          .split(',')
+          .map(u => u.trim())
+          .filter(Boolean),
+        theme: urlParams.get('theme') || 'cyberpunk',
+        showBadges: urlParams.get('badges') !== 'false' && urlParams.get('badges') !== '0',
+        showAlerts: urlParams.get('alerts') !== 'false' && urlParams.get('alerts') !== '0',
+        align: urlParams.get('align') || 'bottom',
+        sound: urlParams.get('sound') === 'true' || urlParams.get('sound') === '1',
+        preview: (window.self !== window.top) || urlParams.get('preview') === 'true' || urlParams.get('demo') === 'true' || urlParams.get('preview') === '1',
+        obsMode: urlParams.get('obs') === 'true'
+      };
+
+      if (window.self === window.top && !state.obsMode) {
+        document.body.classList.add('standalone-preview');
+      }
+
+      // Lista predeterminada de bots conocidos de Kick
+      const DEFAULT_BOTS = ['botrix', 'nightbot', 'streamlabs', 'streamelements', 'kickbot', 'jikobot', 'creatisbot'];
+
+      // Elementos del DOM
+      const chatWrapper = document.getElementById('chat-wrapper');
+      const connectionHud = document.getElementById('connection-hud');
+      const hudDot = document.getElementById('hud-dot');
+      const hudText = document.getElementById('hud-text');
+      const audioChime = document.getElementById('audio-chime');
+
+      // -----------------------------------------------------------------------
+      // 2. APLICACIÓN DE ESTILOS Y TEMAS DINÁMICOS
+      // -----------------------------------------------------------------------
+      function applyStyles() {
+        document.documentElement.style.setProperty('--chat-font', `'${state.font}', sans-serif`);
+        document.documentElement.style.setProperty('--chat-font-size', `${state.fontSize}px`);
+
+        document.body.className = '';
+        if (state.theme && state.theme !== 'cyberpunk') {
+          document.body.classList.add(`theme-${state.theme}`);
+        }
+
+        if (state.align === 'top') {
+          chatWrapper.classList.add('align-top');
+        } else {
+          chatWrapper.classList.remove('align-top');
+        }
+      }
+      applyStyles();
+
+      function updateHud(status, text) {
+        if (state.obsMode) return; // En OBS estricto no mostrar HUD
+        connectionHud.classList.add('visible');
+        hudText.textContent = text;
+        if (status === 'online') {
+          hudDot.className = 'hud-dot online';
+          setTimeout(() => connectionHud.classList.remove('visible'), 4000);
+        } else if (status === 'error') {
+          hudDot.className = 'hud-dot';
+          hudDot.style.background = '#ef4444';
+        } else {
+          hudDot.className = 'hud-dot';
+          hudDot.style.background = '#f59e0b';
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 3. PROCESAMIENTO DE EMOTES Y STICKERS DE KICK
+      // -----------------------------------------------------------------------
+      function parseKickEmotes(text) {
+        if (!text) return '';
+        // Reemplazar sintaxis oficial de Kick: [emote:ID:NOMBRE]
+        let parsed = text.replace(/\[emote:(\d+):([\w-]+)\]/g, (match, id, name) => {
+          return `<img class="kick-emote" src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" title="${name}" loading="lazy">`;
+        });
+
+        // Reemplazar sintaxis alternativa de sticker o stickers animados
+        parsed = parsed.replace(/\[sticker:(\d+):([\w-]+)\]/g, (match, id, name) => {
+          return `<img class="kick-emote" src="https://files.kick.com/emotes/${id}/fullsize" alt="${name}" title="${name}" loading="lazy">`;
+        });
+
+        return parsed;
+      }
+
+      // -----------------------------------------------------------------------
+      // 4. GENERACIÓN DE BADGES DE KICK
+      // -----------------------------------------------------------------------
+      function generateBadgesHtml(badges = []) {
+        if (!state.showBadges || !Array.isArray(badges) || badges.length === 0) return '';
+
+        return badges.map(b => {
+          const type = (b.type || '').toLowerCase();
+          const count = b.count ? ` ${b.count}` : '';
+          switch (type) {
+            case 'broadcaster':
+              return `<span class="badge-kick badge-broadcaster"><i class="fa-solid fa-crown"></i> Streamer</span>`;
+            case 'moderator':
+              return `<span class="badge-kick badge-moderator"><i class="fa-solid fa-shield-halved"></i> Mod</span>`;
+            case 'vip':
+              return `<span class="badge-kick badge-vip"><i class="fa-solid fa-gem"></i> VIP</span>`;
+            case 'subscriber':
+              return `<span class="badge-kick badge-subscriber"><i class="fa-solid fa-star"></i> Sub${count}</span>`;
+            case 'og':
+              return `<span class="badge-kick badge-og"><i class="fa-solid fa-fire"></i> OG</span>`;
+            case 'founder':
+              return `<span class="badge-kick badge-founder"><i class="fa-solid fa-bolt"></i> Founder</span>`;
+            case 'verified':
+              return `<span class="badge-kick badge-verified"><i class="fa-solid fa-check"></i></span>`;
+            default:
+              return b.text ? `<span class="badge-kick" style="background:rgba(255,255,255,0.1);">${b.text}</span>` : '';
+          }
+        }).join('');
+      }
+
+      // Convertir HEX a RGBA para resplandores
+      function hexToRgba(hex, alpha = 0.25) {
+        if (!hex || hex[0] !== '#') return `rgba(83, 252, 24, ${alpha})`;
+        let c = hex.substring(1);
+        if (c.length === 3) c = c.split('').map(x => x + x).join('');
+        const num = parseInt(c, 16);
+        return `rgba(${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}, ${alpha})`;
+      }
+
+      // -----------------------------------------------------------------------
+      // 5. RENDERIZADO DE BURBUJA DE CHAT
+      // -----------------------------------------------------------------------
+      function addChatMessage({ username, userColor, text, badges = [], messageId = null }) {
+        if (!text || !username) return;
+
+        const cleanUser = username.toLowerCase().trim();
+
+        // 1. Filtro de usuarios bloqueados
+        if (state.blockedUsers.includes(cleanUser)) return;
+
+        // 2. Filtro de bots
+        if (state.filterBots && DEFAULT_BOTS.includes(cleanUser)) return;
+
+        // 3. Filtro de comandos (!comandos, /me, etc.)
+        if (state.filterCommands && (text.startsWith('!') || text.startsWith('/') || text.startsWith('.'))) return;
+
+        const finalColor = userColor && userColor !== '#000000' ? userColor : '#53fc18';
+        const finalGlow = hexToRgba(finalColor, 0.3);
+
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble';
+        bubble.style.setProperty('--user-color', finalColor);
+        bubble.style.setProperty('--user-glow', finalGlow);
+        if (messageId) bubble.dataset.msgId = messageId;
+        bubble.dataset.sender = cleanUser;
+
+        const badgesHtml = generateBadgesHtml(badges);
+        const parsedContent = parseKickEmotes(text);
+
+        bubble.innerHTML = `
+          <div class="bubble-header">
+            ${badgesHtml}
+            <span class="bubble-username">${username}</span>
+          </div>
+          <div class="bubble-text">${parsedContent}</div>
+        `;
+
+        chatWrapper.appendChild(bubble);
+
+        // Limitar máximo de burbujas en pantalla para no saturar memoria
+        const allBubbles = chatWrapper.querySelectorAll('.chat-bubble:not(.leaving)');
+        if (allBubbles.length > 30) {
+          allBubbles[0].remove();
+        }
+
+        // Desaparición con temporizador si no es permanente
+        if (!state.isPermanent && state.duration > 0) {
+          setTimeout(() => {
+            bubble.classList.add('leaving');
+            setTimeout(() => bubble.remove(), 500);
+          }, state.duration * 1000);
+        }
+
+        if (state.sound && audioChime) {
+          audioChime.currentTime = 0;
+          audioChime.play().catch(() => {});
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 6. RENDERIZADO DE BURBUJAS DE ALERTAS (DONACIONES, SUBS, RAIDS)
+      // -----------------------------------------------------------------------
+      function addEventBubble({ type, username, title, message, extra = '' }) {
+        if (!state.showAlerts) return;
+
+        let cardClass = 'bubble-sub';
+        let badgeClass = 'event-badge-sub';
+        let icon = 'fa-star';
+        let eventLabel = 'NUEVO SUSCRIPTOR';
+
+        switch(type) {
+          case 'sub':
+            cardClass = 'bubble-sub';
+            badgeClass = 'event-badge-sub';
+            icon = 'fa-star';
+            eventLabel = `SUSCRIPCIÓN ${extra ? `(${extra})` : ''}`;
+            break;
+          case 'gift':
+            cardClass = 'bubble-gift';
+            badgeClass = 'event-badge-gift';
+            icon = 'fa-gift';
+            eventLabel = `SUB REGALADA ${extra ? `(${extra})` : ''}`;
+            break;
+          case 'kicks':
+            cardClass = 'bubble-kicks';
+            badgeClass = 'event-badge-kicks';
+            icon = 'fa-gem';
+            eventLabel = `DONACIÓN ${extra ? `(${extra} KICKS)` : ''}`;
+            break;
+          case 'raid':
+            cardClass = 'bubble-raid';
+            badgeClass = 'event-badge-raid';
+            icon = 'fa-rocket';
+            eventLabel = `RAID ENTRANTE ${extra ? `(${extra} VIEWERS)` : ''}`;
+            break;
+        }
+
+        const bubble = document.createElement('div');
+        bubble.className = `chat-bubble bubble-event ${cardClass}`;
+
+        bubble.innerHTML = `
+          <div>
+            <span class="event-badge-pill ${badgeClass}">
+              <i class="fa-solid ${icon}"></i> ${eventLabel}
+            </span>
+          </div>
+          <div class="event-highlight-text">
+            ${title || username}
+          </div>
+          ${message ? `<div class="bubble-text" style="color:#e2e8f0; font-size: 0.9em; margin-top:2px;">${parseKickEmotes(message)}</div>` : ''}
+        `;
+
+        chatWrapper.appendChild(bubble);
+
+        // Duración de alertas: un 50% más visible que mensajes comunes
+        const alertDuration = state.isPermanent ? 0 : Math.max(12, state.duration * 1.5);
+        if (alertDuration > 0) {
+          setTimeout(() => {
+            bubble.classList.add('leaving');
+            setTimeout(() => bubble.remove(), 500);
+          }, alertDuration * 1000);
+        }
+
+        if (state.sound && audioChime) {
+          audioChime.currentTime = 0;
+          audioChime.play().catch(() => {});
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 7. CONEXIÓN DIRECTA A LA API DE KICK Y PUSHER WEBSOCKETS
+      // -----------------------------------------------------------------------
+      const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
+      const KICK_PUSHER_CLUSTER = "us2";
+
+      async function resolverCanalKick(username) {
+        const clean = username.trim().toLowerCase().replace(/^@/, '');
+        updateHud('connecting', `Buscando canal @${clean}...`);
+
+        const cacheKey = `kick_chat_cache_${clean}`;
+        try {
+          const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+          if (cached && cached.chatroomId) {
+            console.log(`[Kick Chat Cache] Usando ID en caché para @${clean}:`, cached);
+            return cached;
+          }
+        } catch(e) {}
+
+        const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+        let data = null;
+
+        // Intento 1: Fetch directo
+        try {
+          const res = await fetch(targetUrl);
+          if (res.ok) data = await res.json();
+        } catch(e) {}
+
+        // Intento 2: Proxy AllOrigins
+        if (!data) {
+          try {
+            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+            if (res.ok) data = await res.json();
+          } catch(e) {}
+        }
+
+        // Intento 3: Proxy CORSProxy
+        if (!data) {
+          try {
+            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+            if (res.ok) data = await res.json();
+          } catch(e) {}
+        }
+
+        if (data && (data.chatroom?.id || data.id)) {
+          const resolved = {
+            channelId: data.id,
+            chatroomId: data.chatroom?.id || data.id,
+            slug: data.slug || clean
+          };
+          try {
+            localStorage.setItem(cacheKey, JSON.stringify(resolved));
+          } catch(e) {}
+          return resolved;
+        }
+
+        return null;
+      }
+
+      async function conectarWebSocketKick() {
+        if (!state.channel) return;
+
+        const info = await resolverCanalKick(state.channel);
+        if (!info || !info.chatroomId) {
+          updateHud('error', `Canal @${state.channel} no encontrado`);
+          console.warn("[Kick Chat] No se pudo resolver el canal. Iniciando demostración de prueba.");
+          if (state.preview) iniciarDemoPreview();
+          return;
+        }
+
+        updateHud('connecting', `Conectando WebSocket para @${info.slug}...`);
+
+        try {
+          const pusher = new Pusher(KICK_PUSHER_KEY, {
+            cluster: KICK_PUSHER_CLUSTER,
+            wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
+            wsPort: 443,
+            wssPort: 443,
+            enabledTransports: ['ws', 'wss'],
+            forceTLS: true
+          });
+
+          // 1. Suscripción al Chatroom de Kick (chatrooms.{id}.v2)
+          const chatChannel = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
+
+          // Evento de Mensaje de Chat
+          chatChannel.bind('App\\Events\\ChatMessageEvent', function(payload) {
+            let data = payload;
+            if (typeof data === 'string') {
+              try { data = JSON.parse(data); } catch(e) {}
+            }
+            if (data && data.data) {
+              if (typeof data.data === 'string') {
+                try { data = JSON.parse(data.data); } catch(e) {}
+              } else {
+                data = data.data;
+              }
+            }
+
+            if (!data || !data.content) return;
+            const sender = data.sender || {};
+            const badges = sender.identity?.badges || [];
+
+            addChatMessage({
+              username: sender.username || sender.slug || 'Espectador',
+              userColor: sender.identity?.color || '#53fc18',
+              text: data.content || '',
+              badges: badges,
+              messageId: data.id
+            });
+          });
+
+          // Moderación: Mensaje Borrado
+          chatChannel.bind('App\\Events\\MessageDeletedEvent', function(payload) {
+            const msgId = payload?.message?.id || payload?.id;
+            if (msgId) {
+              const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+              if (el) el.remove();
+            }
+          });
+
+          // Moderación: Usuario Baneado / Silenciado
+          chatChannel.bind('App\\Events\\UserBannedEvent', function(payload) {
+            const username = payload?.user?.username || payload?.username;
+            if (username) {
+              document.querySelectorAll(`[data-sender="${username.toLowerCase()}"]`).forEach(el => el.remove());
+            }
+          });
+
+          // 2. Suscripción a Eventos del Canal (channel.{channelId}) para alertas integradas
+          if (info.channelId) {
+            const channelEvents = pusher.subscribe(`channel.${info.channelId}`);
+
+            // Nueva Suscripción
+            channelEvents.bind('App\\Events\\SubscriptionEvent', function(payload) {
+              let data = payload;
+              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
+              const user = data.username || data.user?.username || 'Usuario';
+              const months = data.months || data.count || 1;
+              addEventBubble({
+                type: 'sub',
+                username: user,
+                title: `⭐ ${user} se ha suscrito`,
+                extra: `${months} ${months === 1 ? 'mes' : 'meses'}`
+              });
+            });
+
+            // Suscripción Regalada
+            channelEvents.bind('App\\Events\\GiftedSubscriptionsEvent', function(payload) {
+              let data = payload;
+              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
+              const gifter = data.gifter_username || data.username || 'Un mecenas';
+              const gifts = data.gifted_usernames?.length || data.count || 1;
+              addEventBubble({
+                type: 'gift',
+                username: gifter,
+                title: `🎁 ${gifter} regaló ${gifts} ${gifts === 1 ? 'suscripción' : 'suscripciones'}`,
+                extra: `${gifts} subs`
+              });
+            });
+
+            // Raid o Host Entrante
+            channelEvents.bind('App\\Events\\StreamHostEvent', function(payload) {
+              let data = payload;
+              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
+              const hostName = data.host_username || data.channel?.slug || 'Canal';
+              const viewers = data.number_viewers || data.viewers || 0;
+              addEventBubble({
+                type: 'raid',
+                username: hostName,
+                title: `🚀 ¡Raid de ${hostName}!`,
+                extra: `${viewers} viewers`
+              });
+            });
+          }
+
+          // Conexión exitosa
+          pusher.connection.bind('connected', function() {
+            updateHud('online', `Conectado al chat de @${info.slug}`);
+          });
+
+          pusher.connection.bind('disconnected', function() {
+            updateHud('connecting', 'Reconectando con Kick...');
+          });
+
+          pusher.connection.bind('error', function() {
+            updateHud('error', 'Error en WebSocket de Kick');
+          });
+
+        } catch(err) {
+          console.error("[Kick Pusher] Error fatal:", err);
+          updateHud('error', 'Error conectando');
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // 8. SIMULADOR Y DEMOSTRACIÓN DE PREVISUALIZACIÓN
+      // -----------------------------------------------------------------------
+      function iniciarDemoPreview() {
+        const demoMessages = [
+          { username: 'Jikokun', color: '#53fc18', text: '¡Bienvenidos a la tripulación estelar! [emote:51941:pepeClap]', badges: [{ type: 'broadcaster' }] },
+          { username: 'StarlightMod', color: '#38bdf8', text: 'Recuerden respetar las normas de la comunidad [emote:49603:EZ]', badges: [{ type: 'moderator' }, { type: 'subscriber', count: 12 }] },
+          { username: 'CyberGamer', color: '#f59e0b', text: 'Que buen gameplay hermano, gg! 🔥', badges: [{ type: 'vip' }, { type: 'subscriber', count: 6 }] },
+          { username: 'NebulaGirl', color: '#ec4899', text: 'Vamos por ese récord hoy [emote:51941:pepeClap]', badges: [{ type: 'subscriber', count: 3 }] },
+          { username: 'AstroViewer', color: '#a855f7', text: 'Saludos desde la nave nodriza!', badges: [{ type: 'og' }] }
+        ];
+
+        // Cargar inmediatamente los 3 primeros mensajes con cascada rápida
+        demoMessages.slice(0, 3).forEach((m, idx) => {
+          setTimeout(() => {
+            addChatMessage({
+              username: m.username,
+              userColor: m.color,
+              text: m.text,
+              badges: m.badges
+            });
+          }, idx * 250);
+        });
+
+        let index = 3;
+        function sendNext() {
+          const m = demoMessages[index % demoMessages.length];
+          addChatMessage({
+            username: m.username,
+            userColor: m.color,
+            text: m.text,
+            badges: m.badges
+          });
+          index++;
+          // Intervalo entre mensajes simulados
+          setTimeout(sendNext, Math.floor(Math.random() * 2000) + 3000);
+        }
+
+        setTimeout(sendNext, 2500);
+      }
+
+      // -----------------------------------------------------------------------
+      // 9. RECEPTOR DE MENSAJES EN TIEMPO REAL (DESDE PANEL DE CONFIGURACIÓN)
+      // -----------------------------------------------------------------------
+      window.addEventListener('message', (event) => {
+        if (!event.data) return;
+        const d = event.data;
+
+        if (d.type === 'TEST_CHAT_MSG') {
+          addChatMessage({
+            username: d.username || 'EspectadorKick',
+            userColor: d.color || '#53fc18',
+            text: d.text || '¡Este es un mensaje de prueba con estilo futurista! [emote:51941:pepeClap]',
+            badges: d.badges || [{ type: 'subscriber', count: 6 }, { type: 'vip' }]
+          });
+        }
+        else if (d.type === 'TEST_SUB') {
+          addEventBubble({
+            type: 'sub',
+            username: d.username || 'ComandanteNova',
+            title: `⭐ ${d.username || 'ComandanteNova'} se suscribió a la nave`,
+            message: '¡Excelente contenido, vamos por más meses!',
+            extra: d.extra || '6 meses'
+          });
+        }
+        else if (d.type === 'TEST_GIFT') {
+          addEventBubble({
+            type: 'gift',
+            username: d.username || 'MecenasCyber',
+            title: `🎁 ${d.username || 'MecenasCyber'} regaló 5 suscripciones`,
+            extra: '5 subs'
+          });
+        }
+        else if (d.type === 'TEST_KICKS') {
+          addEventBubble({
+            type: 'kicks',
+            username: d.username || 'DonadorPro',
+            title: `💎 ${d.username || 'DonadorPro'} aportó 500 Kicks`,
+            message: 'Para mejorar la nave espacial!',
+            extra: '500'
+          });
+        }
+        else if (d.type === 'TEST_RAID') {
+          addEventBubble({
+            type: 'raid',
+            username: d.username || 'CapitanStar',
+            title: `🚀 ¡Raid de ${d.username || 'CapitanStar'}!`,
+            extra: '85 viewers'
+          });
+        }
+        else if (d.type === 'SET_CHAT_CONFIG') {
+          if (d.font) state.font = d.font;
+          if (d.fontSize) state.fontSize = parseInt(d.fontSize, 10);
+          if (d.duration !== undefined) {
+            state.duration = parseInt(d.duration, 10);
+            state.isPermanent = state.duration === 0;
+          }
+          if (d.theme) state.theme = d.theme;
+          if (d.filterBots !== undefined) state.filterBots = !!d.filterBots;
+          if (d.filterCommands !== undefined) state.filterCommands = !!d.filterCommands;
+          if (d.blockedUsers) {
+            state.blockedUsers = d.blockedUsers.split(',').map(u => u.trim().toLowerCase()).filter(Boolean);
+          }
+          if (d.align) state.align = d.align;
+          applyStyles();
+        }
+      });
+
+      // -----------------------------------------------------------------------
+      // 10. INICIALIZACIÓN
+      // -----------------------------------------------------------------------
+      conectarWebSocketKick();
+
+      if (state.preview) {
+        setTimeout(iniciarDemoPreview, 300);
+      }
+
+    })();
+  </script>
+</body>
+</html>
