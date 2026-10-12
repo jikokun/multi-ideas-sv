@@ -2339,9 +2339,9 @@
             <span>•</span>
             <span id="chat-ws-status-badge" style="color:var(--cyan); font-weight:700;">Conectando WebSocket...</span>
             <span>•</span>
-            <span id="chat-fb-sync-badge" style="color:var(--kick); font-weight:700;">💾 Firebase RTDB: Lotes c/30s (Anti-saturación)</span>
+            <span id="chat-fb-sync-badge" style="color:var(--kick); font-weight:700;">💾 Firebase RTDB: Auto (c/1 min)</span>
             <span>•</span>
-            <span>⚡ Ratio: <b style="color:var(--oro);" id="badge-combustible-ratio">0.50 pts &amp; XP / msg</b> + <b style="color:var(--cyan);">5 pts &amp; 10 XP / min</b></span>
+            <span>⚡ Ratio: <b style="color:var(--oro);" id="badge-combustible-ratio">0.50 pts &amp; XP / msg + 5 pts &amp; 10 XP / min</b></span>
           </div>
         </div>
 
@@ -2352,6 +2352,9 @@
             <button class="pill-btn" id="btn-ratio-025" onclick="setCombustibleRatio(0.25)">0.25x</button>
             <button class="pill-btn" id="btn-ratio-100" onclick="setCombustibleRatio(1.0)">1.0x</button>
           </div>
+          <button class="action-btn btn-primary" onclick="forzarSincronizacionManualFirebase()" id="btn-sync-firebase" style="padding: 7px 13px; font-size: 0.8rem; background: linear-gradient(135deg, rgba(83, 252, 24, 0.28), rgba(0, 242, 254, 0.28)); border: 1px solid var(--kick); color: #fff; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;" title="Guardar y sincronizar inmediatamente todos los datos y puntos en Firebase RTDB">
+            🔄 Sincronizar Firebase
+          </button>
           <button class="action-btn btn-secondary" onclick="pausarReanudarChatFeed()" id="btn-pause-chat" style="padding: 7px 12px; font-size: 0.8rem;">
             ⏸️ Pausar
           </button>
@@ -3236,6 +3239,31 @@
     let ultimoSyncFirebase = 0;
     const STORAGE_KEY_COMBUSTIBLE = 'jikokun_combustible_sesion_v2';
 
+    // 1. CARGA INMEDIATA SÍNCRONA: Garantiza que al recargar (F5) NUNCA se vuelva a cero
+    function cargarRespaldoLocalInmediato() {
+      try {
+        const rawLocal = localStorage.getItem(STORAGE_KEY_COMBUSTIBLE);
+        if (!rawLocal) return;
+        const parsed = JSON.parse(rawLocal);
+        if (parsed && parsed.chatters && typeof parsed.chatters === 'object') {
+          console.log('[Combustible] ⚡ Restaurando inmediatamente desde respaldo local (0ms)...');
+          for (const [key, c] of Object.entries(parsed.chatters)) {
+            chattersMap.set(key, {
+              ...c,
+              ultimaMinutoContado: Date.now()
+            });
+          }
+          if (parsed.factorCombustible) {
+            factorCombustibleActual = parsed.factorCombustible;
+          }
+          recalcularTodoElCombustible();
+        }
+      } catch (e) {
+        console.warn('[Combustible] Error leyendo respaldo local inicial:', e);
+      }
+    }
+    cargarRespaldoLocalInmediato();
+
     window.setCombustibleRatio = function(ratio) {
       factorCombustibleActual = Number(ratio) || 0.50;
       document.querySelectorAll('.combustible-pill-selector .pill-btn').forEach(btn => btn.classList.remove('active'));
@@ -3249,6 +3277,7 @@
       // Recalcular combustible acumulado en base al nuevo factor
       combustibleDirty = true;
       recalcularTodoElCombustible();
+      guardarRespaldoLocalCombustible();
       showToast(`⚡ Factor de combustible ajustado a <b>${factorCombustibleActual.toFixed(2)}x por mensaje</b>`);
     };
 
@@ -3276,6 +3305,26 @@
       }
       document.getElementById('chat-live-counter').textContent = '(0 eventos)';
       showToast('🧹 Feed visual de chat limpiado');
+    };
+
+    // BOTÓN MANUAL: Sincronizar en Firebase RTDB a petición del streamer
+    window.forzarSincronizacionManualFirebase = async function() {
+      const btn = document.getElementById('btn-sync-firebase');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Guardando...';
+      }
+      try {
+        await sincronizarCombustibleAFirebaseLote();
+        showToast('✅ ¡Puntos, mensajes y permanencia sincronizados en Firebase RTDB exitosamente!');
+      } catch (err) {
+        showToast(`❌ Error al sincronizar con Firebase: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🔄 Sincronizar Firebase';
+        }
+      }
     };
 
     function recalcularTodoElCombustible() {
@@ -3363,7 +3412,7 @@
     }
 
     // ──────────────────────────────────────────────────────────────────────────
-    // CICLO EN SEGUNDO PLANO (WEB WORKER): Watch Time & Sincronización en Lotes
+    // CICLO EN SEGUNDO PLANO (WEB WORKER): Watch Time & Sincronización en Lotes (c/1 min)
     // ──────────────────────────────────────────────────────────────────────────
     function cicloTickWatchTimeYSincronizacion() {
       const ahora = Date.now();
@@ -3396,8 +3445,8 @@
         guardarRespaldoLocalCombustible();
       }
 
-      // 2. Sincronizar en lotes a Firebase RTDB cada 28s sin saturar la red ni cuota
-      if (combustibleDirty && (ahora - ultimoSyncFirebase >= 28000)) {
+      // 2. Sincronizar en lotes a Firebase RTDB cada 1 minuto (60s) para no sofocar la base de datos
+      if (combustibleDirty && (ahora - ultimoSyncFirebase >= 60000)) {
         sincronizarCombustibleAFirebaseLote();
       }
     }
@@ -3496,13 +3545,17 @@
 
     async function restaurarCombustibleSesion() {
       try {
-        // 1. Intentar desde Firebase RTDB primero
         const rtdbData = await StreamDB.obtenerCombustibleEnVivo();
         if (rtdbData && rtdbData.chatters && typeof rtdbData.chatters === 'object' && Object.keys(rtdbData.chatters).length > 0) {
-          console.log('[Combustible] 📥 Restaurando combustible activo desde Firebase RTDB...');
+          console.log('[Combustible] 📥 Fusionando combustible activo desde Firebase RTDB...');
           for (const [key, c] of Object.entries(rtdbData.chatters)) {
+            const local = chattersMap.get(key);
             chattersMap.set(key, {
               ...c,
+              count: Math.max(Number(c.count) || 0, Number(local?.count) || 0),
+              minutosVistos: Math.max(Number(c.minutosVistos) || 0, Number(local?.minutosVistos) || 0),
+              jikopuntosGenerados: Math.max(Number(c.jikopuntosGenerados) || 0, Number(local?.jikopuntosGenerados) || 0),
+              xpGenerada: Math.max(Number(c.xpGenerada) || 0, Number(local?.xpGenerada) || 0),
               ultimaMinutoContado: Date.now()
             });
           }
@@ -3510,36 +3563,29 @@
             factorCombustibleActual = rtdbData.factorCombustible;
           }
           recalcularTodoElCombustible();
-          return;
-        }
+          guardarRespaldoLocalCombustible();
 
-        // 2. Fallback a respaldo local
-        const rawLocal = localStorage.getItem(STORAGE_KEY_COMBUSTIBLE);
-        if (rawLocal) {
-          const parsed = JSON.parse(rawLocal);
-          if (parsed && parsed.chatters) {
-            console.log('[Combustible] 📥 Restaurando combustible desde respaldo local...');
-            for (const [key, c] of Object.entries(parsed.chatters)) {
-              chattersMap.set(key, {
-                ...c,
-                ultimaMinutoContado: Date.now()
-              });
-            }
-            recalcularTodoElCombustible();
+          const syncBadge = document.getElementById('chat-fb-sync-badge');
+          if (syncBadge && rtdbData.ultimaActualizacion) {
+            const hStr = new Date(rtdbData.ultimaActualizacion).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            syncBadge.innerHTML = `🟢 <b style="color:var(--kick);">Firebase RTDB al día</b> (${hStr})`;
           }
         }
       } catch (e) {
-        console.warn('[Combustible] Error restaurando sesión previa:', e);
+        console.warn('[Combustible] Error restaurando sesión desde Firebase:', e);
       }
     }
 
     function reiniciarCombustibleNuevoStream(streamId) {
-      console.log(`[Combustible] 🚀 ¡Nuevo directo detectado (#${streamId})! Reiniciando combustible...`);
+      // Si ya tenemos espectadores activos en esta sesión, NUNCA borrarlos
+      if (chattersMap.size > 0) {
+        console.log(`[Combustible] ℹ️ Sesión con ${chattersMap.size} espectadores mantenida intacta para stream #${streamId}.`);
+        return;
+      }
       chattersMap.clear();
       localStorage.removeItem(STORAGE_KEY_COMBUSTIBLE);
       limpiarChatFeed();
       recalcularTodoElCombustible();
-      showToast(`🚀 <b>¡Nuevo Directo en Vivo!</b> Las estadísticas de combustible se han reiniciado.`);
     }
 
     function manejarCombustibleAutoAcreditado(info) {

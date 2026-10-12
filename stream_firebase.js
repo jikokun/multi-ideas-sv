@@ -1227,7 +1227,9 @@ class StreamFirebaseService {
 
       this.kickIsLive = true;
       this._notifyKickStateListeners();
-      this._notifyStreamStarted(streamId);
+      if (!transYaExiste && !yaEsStreamActivo) {
+        this._notifyStreamStarted(streamId);
+      }
       return streamId;
     } catch (err) {
       console.error('[StreamDB] Error al registrar inicio de stream en Firebase:', err);
