@@ -2339,7 +2339,9 @@
             <span>•</span>
             <span id="chat-ws-status-badge" style="color:var(--cyan); font-weight:700;">Conectando WebSocket...</span>
             <span>•</span>
-            <span>⚡ Factor: <b style="color:var(--oro);" id="badge-combustible-ratio">0.50 pts &amp; XP / msg</b></span>
+            <span id="chat-fb-sync-badge" style="color:var(--kick); font-weight:700;">💾 Firebase RTDB: Lotes c/30s (Anti-saturación)</span>
+            <span>•</span>
+            <span>⚡ Ratio: <b style="color:var(--oro);" id="badge-combustible-ratio">0.50 pts &amp; XP / msg</b> + <b style="color:var(--cyan);">5 pts &amp; 10 XP / min</b></span>
           </div>
         </div>
 
@@ -2366,6 +2368,13 @@
           <div class="cf-kpi-content">
             <div class="cf-kpi-val" id="cf-total-mensajes">0</div>
             <div class="cf-kpi-lbl">Mensajes de Chat</div>
+          </div>
+        </div>
+        <div class="cf-kpi">
+          <div class="cf-kpi-icon">⏱️</div>
+          <div class="cf-kpi-content">
+            <div class="cf-kpi-val" id="cf-total-watchtime">0 min</div>
+            <div class="cf-kpi-lbl">Permanencia Activa</div>
           </div>
         </div>
         <div class="cf-kpi">
@@ -3194,6 +3203,19 @@
         }
       });
 
+      // 11. Escuchar inicio de nuevo directo para reiniciar estadísticas limpias
+      StreamDB.onStreamStarted((streamId) => {
+        reiniciarCombustibleNuevoStream(streamId);
+      });
+
+      // 12. Escuchar auto-acreditación por fin de directo
+      StreamDB.onCombustibleAutoAcreditado((info) => {
+        manejarCombustibleAutoAcreditado(info);
+      });
+
+      // 13. Restaurar sesión activa de combustible desde Firebase RTDB o almacenamiento local
+      restaurarCombustibleSesion();
+
       showToast('🔥 Conectado con éxito a <b>Firebase RTDB (stream/)</b> con <b>Detector Kick Interno</b>');
     }).catch(err => {
       document.getElementById('firebase-status-txt').textContent = 'ERROR CONEXIÓN';
@@ -3205,9 +3227,14 @@
     // MONITOR DE CHAT EN VIVO DE KICK & SISTEMA DE COMBUSTIBLE (XP & PUNTOS)
     // ══════════════════════════════════════════════════════════════════════════
     let chatHistorialEventos = [];
-    const chattersMap = new Map(); // usernameNorm -> { username, displayName, color, badges, count, jikopuntosGenerados, xpGenerada, ultimoMsg, ultimaHora, esBot }
+    const chattersMap = new Map(); // usernameNorm -> { username, displayName, color, badges, count, minutosVistos, jikopuntosGenerados, xpGenerada, ultimoMsg, ultimaHora, ultimaMinutoContado, esBot }
     let factorCombustibleActual = 0.50; // 0.25, 0.50, 1.00
+    const factorTiempoPts = 5; // +5 Jikopuntos por minuto activo
+    const factorTiempoXp = 10; // +10 XP por minuto activo
     let feedChatPausado = false;
+    let combustibleDirty = false;
+    let ultimoSyncFirebase = 0;
+    const STORAGE_KEY_COMBUSTIBLE = 'jikokun_combustible_sesion_v2';
 
     window.setCombustibleRatio = function(ratio) {
       factorCombustibleActual = Number(ratio) || 0.50;
@@ -3217,9 +3244,10 @@
       else if (factorCombustibleActual === 1.0) document.getElementById('btn-ratio-100')?.classList.add('active');
 
       const badge = document.getElementById('badge-combustible-ratio');
-      if (badge) badge.textContent = `${factorCombustibleActual.toFixed(2)} pts & XP / msg`;
+      if (badge) badge.textContent = `${factorCombustibleActual.toFixed(2)} pts & XP / msg + 5 pts & 10 XP / min`;
 
       // Recalcular combustible acumulado en base al nuevo factor
+      combustibleDirty = true;
       recalcularTodoElCombustible();
       showToast(`⚡ Factor de combustible ajustado a <b>${factorCombustibleActual.toFixed(2)}x por mensaje</b>`);
     };
@@ -3251,18 +3279,39 @@
     };
 
     function recalcularTodoElCombustible() {
+      let totalMsgs = 0;
+      let totalMins = 0;
       let totalPts = 0;
       let totalXp = 0;
+
       for (const [key, data] of chattersMap.entries()) {
-        data.jikopuntosGenerados = +(data.count * factorCombustibleActual).toFixed(2);
-        data.xpGenerada = +(data.count * factorCombustibleActual).toFixed(2);
+        const ptsMsg = data.count * factorCombustibleActual;
+        const ptsTime = (data.minutosVistos || 0) * factorTiempoPts;
+        data.jikopuntosGenerados = +(ptsMsg + ptsTime).toFixed(2);
+
+        const xpMsg = data.count * factorCombustibleActual;
+        const xpTime = (data.minutosVistos || 0) * factorTiempoXp;
+        data.xpGenerada = +(xpMsg + xpTime).toFixed(2);
+
         if (!data.esBot) {
+          totalMsgs += data.count;
+          totalMins += (data.minutosVistos || 0);
           totalPts += data.jikopuntosGenerados;
           totalXp += data.xpGenerada;
         }
       }
+
+      const espectadoresChat = Array.from(chattersMap.values()).filter(c => !c.esBot).length;
+
+      document.getElementById('badge-chat-msgs-total').textContent = `${totalMsgs} msgs`;
+      document.getElementById('cf-total-mensajes').textContent = totalMsgs;
+      const wtEl = document.getElementById('cf-total-watchtime');
+      if (wtEl) wtEl.textContent = `${totalMins} min`;
+      document.getElementById('cf-total-chatters').textContent = espectadoresChat;
       document.getElementById('cf-total-jikopuntos').textContent = totalPts.toFixed(2);
       document.getElementById('cf-total-xp').textContent = totalXp.toFixed(2);
+      document.getElementById('chat-live-counter').textContent = `(${totalMsgs} eventos)`;
+
       renderizarRankingChatters();
     }
 
@@ -3275,7 +3324,7 @@
       const ahora = chatMsg.timestamp || Date.now();
       const esBot = chatMsg.esBot === true;
 
-      // Actualizar contador del chatter
+      // Actualizar o registrar chatter
       let chatter = chattersMap.get(userKey);
       if (!chatter) {
         chatter = {
@@ -3285,10 +3334,12 @@
           color: chatMsg.color || '#53fc18',
           badges: chatMsg.badges || [],
           count: 0,
+          minutosVistos: 0,
           jikopuntosGenerados: 0,
           xpGenerada: 0,
           ultimoMsg: content,
           ultimaHora: ahora,
+          ultimaMinutoContado: ahora,
           esBot: esBot
         };
         chattersMap.set(userKey, chatter);
@@ -3297,35 +3348,206 @@
       chatter.count++;
       chatter.ultimoMsg = content;
       chatter.ultimaHora = ahora;
-      chatter.jikopuntosGenerados = +(chatter.count * factorCombustibleActual).toFixed(2);
-      chatter.xpGenerada = +(chatter.count * factorCombustibleActual).toFixed(2);
+      if (!chatter.ultimaMinutoContado) chatter.ultimaMinutoContado = ahora;
 
-      // Actualizar KPIs de combustible
-      const totalMsgs = Array.from(chattersMap.values()).reduce((acc, c) => acc + c.count, 0);
-      const espectadoresChat = Array.from(chattersMap.values()).filter(c => !c.esBot).length;
-      let totalPts = 0;
-      let totalXp = 0;
-      for (const c of chattersMap.values()) {
-        if (!c.esBot) {
-          totalPts += c.jikopuntosGenerados;
-          totalXp += c.xpGenerada;
-        }
-      }
-
-      document.getElementById('badge-chat-msgs-total').textContent = `${totalMsgs} msgs`;
-      document.getElementById('cf-total-mensajes').textContent = totalMsgs;
-      document.getElementById('cf-total-chatters').textContent = espectadoresChat;
-      document.getElementById('cf-total-jikopuntos').textContent = totalPts.toFixed(2);
-      document.getElementById('cf-total-xp').textContent = totalXp.toFixed(2);
-      document.getElementById('chat-live-counter').textContent = `(${totalMsgs} eventos)`;
+      combustibleDirty = true;
+      recalcularTodoElCombustible();
 
       // Agregar evento visual de chat si no está pausado
       if (!feedChatPausado) {
         agregarMensajeAlFeedVisual(chatMsg, chatter);
       }
 
-      // Actualizar tabla/ranking de chatters
-      renderizarRankingChatters();
+      // Guardado local de contingencia
+      guardarRespaldoLocalCombustible();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CICLO EN SEGUNDO PLANO (WEB WORKER): Watch Time & Sincronización en Lotes
+    // ──────────────────────────────────────────────────────────────────────────
+    function cicloTickWatchTimeYSincronizacion() {
+      const ahora = Date.now();
+      let huboCambioTiempo = false;
+
+      // 1. Calcular permanencia activa (Watch Time) para usuarios que interactuaron
+      for (const [key, chatter] of chattersMap.entries()) {
+        if (chatter.esBot) continue;
+
+        // Si el usuario tuvo actividad en los últimos 25 minutos, se considera espectador activo
+        const inactivoMs = ahora - (chatter.ultimaHora || ahora);
+        if (inactivoMs <= 25 * 60 * 1000) {
+          if (!chatter.ultimaMinutoContado) chatter.ultimaMinutoContado = ahora;
+          const deltaMs = ahora - chatter.ultimaMinutoContado;
+          if (deltaMs >= 60000) {
+            const minutosGanados = Math.floor(deltaMs / 60000);
+            chatter.minutosVistos = (chatter.minutosVistos || 0) + minutosGanados;
+            chatter.ultimaMinutoContado = ahora;
+            huboCambioTiempo = true;
+          }
+        }
+      }
+
+      if (huboCambioTiempo) {
+        combustibleDirty = true;
+        recalcularTodoElCombustible();
+      }
+
+      if (combustibleDirty) {
+        guardarRespaldoLocalCombustible();
+      }
+
+      // 2. Sincronizar en lotes a Firebase RTDB cada 28s sin saturar la red ni cuota
+      if (combustibleDirty && (ahora - ultimoSyncFirebase >= 28000)) {
+        sincronizarCombustibleAFirebaseLote();
+      }
+    }
+
+    // Iniciar Web Worker blob para evitar que el navegador congele los ticks en segundo plano
+    try {
+      const blob = new Blob([`
+        let timer = null;
+        self.onmessage = function(e) {
+          if (e.data === 'start') {
+            if (!timer) timer = setInterval(() => self.postMessage('tick'), 15000);
+          } else if (e.data === 'stop') {
+            if (timer) clearInterval(timer);
+            timer = null;
+          }
+        };
+      `], { type: 'application/javascript' });
+      const bgWorker = new Worker(URL.createObjectURL(blob));
+      bgWorker.onmessage = () => {
+        cicloTickWatchTimeYSincronizacion();
+      };
+      bgWorker.postMessage('start');
+    } catch (e) {
+      setInterval(() => cicloTickWatchTimeYSincronizacion(), 15000);
+    }
+
+    function guardarRespaldoLocalCombustible() {
+      try {
+        const obj = {
+          timestamp: Date.now(),
+          streamId: streamSeleccionadoId || null,
+          factorCombustible: factorCombustibleActual,
+          chatters: Array.from(chattersMap.entries()).reduce((acc, [k, v]) => { acc[k] = v; return acc; }, {})
+        };
+        localStorage.setItem(STORAGE_KEY_COMBUSTIBLE, JSON.stringify(obj));
+      } catch (e) {}
+    }
+
+    async function sincronizarCombustibleAFirebaseLote() {
+      const ahora = Date.now();
+      const chattersObj = {};
+      let totalMsgs = 0;
+      let totalMins = 0;
+      let totalPts = 0;
+      let totalXp = 0;
+
+      for (const [key, c] of chattersMap.entries()) {
+        chattersObj[key] = {
+          username: c.username,
+          usernameNorm: c.usernameNorm,
+          color: c.color,
+          count: c.count,
+          minutosVistos: c.minutosVistos || 0,
+          jikopuntosGenerados: c.jikopuntosGenerados || 0,
+          xpGenerada: c.xpGenerada || 0,
+          ultimoMsg: c.ultimoMsg || '',
+          ultimaHora: c.ultimaHora || ahora,
+          esBot: c.esBot || false
+        };
+        if (!c.esBot) {
+          totalMsgs += c.count;
+          totalMins += (c.minutosVistos || 0);
+          totalPts += (c.jikopuntosGenerados || 0);
+          totalXp += (c.xpGenerada || 0);
+        }
+      }
+
+      const totalChatters = Object.values(chattersObj).filter(c => !c.esBot).length;
+
+      try {
+        await StreamDB.sincronizarCombustibleEnVivoLote({
+          streamId: streamSeleccionadoId || null,
+          factorCombustible: factorCombustibleActual,
+          factorTiempoPts: factorTiempoPts,
+          factorTiempoXp: factorTiempoXp,
+          totalMensajes: totalMsgs,
+          totalMinutosVistos: totalMins,
+          totalChatters: totalChatters,
+          totalJikopuntos: +totalPts.toFixed(2),
+          totalXp: +totalXp.toFixed(2),
+          chatters: chattersObj
+        });
+
+        ultimoSyncFirebase = ahora;
+        combustibleDirty = false;
+
+        const syncBadge = document.getElementById('chat-fb-sync-badge');
+        if (syncBadge) {
+          const horaStr = new Date(ahora).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          syncBadge.innerHTML = `🟢 <b style="color:var(--kick);">Firebase RTDB al día</b> (${horaStr})`;
+        }
+      } catch (err) {
+        console.warn('[Combustible] Error sincronizando lote con Firebase RTDB:', err);
+      }
+    }
+
+    async function restaurarCombustibleSesion() {
+      try {
+        // 1. Intentar desde Firebase RTDB primero
+        const rtdbData = await StreamDB.obtenerCombustibleEnVivo();
+        if (rtdbData && rtdbData.chatters && typeof rtdbData.chatters === 'object' && Object.keys(rtdbData.chatters).length > 0) {
+          console.log('[Combustible] 📥 Restaurando combustible activo desde Firebase RTDB...');
+          for (const [key, c] of Object.entries(rtdbData.chatters)) {
+            chattersMap.set(key, {
+              ...c,
+              ultimaMinutoContado: Date.now()
+            });
+          }
+          if (rtdbData.factorCombustible) {
+            factorCombustibleActual = rtdbData.factorCombustible;
+          }
+          recalcularTodoElCombustible();
+          return;
+        }
+
+        // 2. Fallback a respaldo local
+        const rawLocal = localStorage.getItem(STORAGE_KEY_COMBUSTIBLE);
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (parsed && parsed.chatters) {
+            console.log('[Combustible] 📥 Restaurando combustible desde respaldo local...');
+            for (const [key, c] of Object.entries(parsed.chatters)) {
+              chattersMap.set(key, {
+                ...c,
+                ultimaMinutoContado: Date.now()
+              });
+            }
+            recalcularTodoElCombustible();
+          }
+        }
+      } catch (e) {
+        console.warn('[Combustible] Error restaurando sesión previa:', e);
+      }
+    }
+
+    function reiniciarCombustibleNuevoStream(streamId) {
+      console.log(`[Combustible] 🚀 ¡Nuevo directo detectado (#${streamId})! Reiniciando combustible...`);
+      chattersMap.clear();
+      localStorage.removeItem(STORAGE_KEY_COMBUSTIBLE);
+      limpiarChatFeed();
+      recalcularTodoElCombustible();
+      showToast(`🚀 <b>¡Nuevo Directo en Vivo!</b> Las estadísticas de combustible se han reiniciado.`);
+    }
+
+    function manejarCombustibleAutoAcreditado(info) {
+      console.log('[Combustible] 🎉 Combustible auto-acreditado al terminar directo:', info);
+      chattersMap.clear();
+      localStorage.removeItem(STORAGE_KEY_COMBUSTIBLE);
+      recalcularTodoElCombustible();
+      showToast(`🎉 <b>¡Directo Finalizado!</b> Se auto-acreditaron <b>+${info.totalPts} Jikopuntos</b> y <b>+${info.totalXp} XP</b> a <b>${info.espectadores} espectadores</b> en Firebase.`);
     }
 
     function agregarMensajeAlFeedVisual(msg, chatter) {
@@ -3355,7 +3577,7 @@
           <div class="kick-msg-text">${escapeHtml(msg.mensaje)}</div>
           ${!msg.esBot ? `
             <div class="kick-fuel-tag">
-              ⚡ +${factorCombustibleActual.toFixed(2)} pts &amp; XP
+              ⚡ +${factorCombustibleActual.toFixed(2)} pts/msg • ⏱️ ${chatter.minutosVistos || 0}m activo
               <span style="color:var(--text-dim); margin-left:4px;">(#${chatter.count})</span>
             </div>
           ` : ''}
@@ -3379,7 +3601,7 @@
       const cont = document.getElementById('chatters-ranking-list');
       if (!cont) return;
 
-      const chattersArray = Array.from(chattersMap.values()).sort((a, b) => b.count - a.count);
+      const chattersArray = Array.from(chattersMap.values()).sort((a, b) => (b.jikopuntosGenerados + b.xpGenerada) - (a.jikopuntosGenerados + a.xpGenerada));
       if (chattersArray.length === 0) {
         cont.innerHTML = `
           <div class="chat-empty-state" id="ranking-empty-state">
@@ -3405,6 +3627,7 @@
               </div>
               <div class="chatter-fuel-pills">
                 <span class="chatter-fuel-pill-msgs">💬 ${c.count} msgs</span>
+                <span class="chatter-fuel-pill-msgs" style="border-color:rgba(0,242,254,0.3); color:var(--cyan);">⏱️ ${c.minutosVistos || 0} min</span>
                 ${!c.esBot ? `
                   <span class="chatter-fuel-pill-pts">🪙 +${c.jikopuntosGenerados} pts</span>
                   <span class="chatter-fuel-pill-xp">⚡ +${c.xpGenerada} XP</span>
@@ -3426,23 +3649,27 @@
       if (!chatter) return;
       const pts = Math.round(chatter.jikopuntosGenerados);
       const xp = Math.round(chatter.xpGenerada);
+      const mins = Math.max(0, Math.round(chatter.minutosVistos || 0));
 
       if (pts <= 0 && xp <= 0) {
         showToast('⚠️ No hay combustible acumulado suficiente para acreditar (mínimo 1).');
         return;
       }
 
-      if (!confirm(`¿Deseas acreditar +${pts} Jikopuntos y +${xp} XP a @${chatter.username} en Firebase RTDB por su actividad en el chat de Kick?`)) {
+      if (!confirm(`¿Deseas acreditar +${pts} Jikopuntos, +${xp} XP y +${mins}m vistos a @${chatter.username} en Firebase RTDB?`)) {
         return;
       }
 
       try {
-        await StreamDB.acreditarCombustibleChat(usernameNorm, { puntos: pts, xp: xp });
-        showToast(`🎉 ¡Combustible acreditado a <b>@${chatter.username}</b> (+${pts} pts, +${xp} XP)!`);
+        await StreamDB.acreditarCombustibleChat(usernameNorm, { puntos: pts, xp: xp, tiempoMinutos: mins });
+        showToast(`🎉 ¡Combustible acreditado a <b>@${chatter.username}</b> (+${pts} pts, +${xp} XP, +${mins}m vistos)!`);
         chatter.count = 0;
+        chatter.minutosVistos = 0;
         chatter.jikopuntosGenerados = 0;
         chatter.xpGenerada = 0;
+        combustibleDirty = true;
         recalcularTodoElCombustible();
+        sincronizarCombustibleAFirebaseLote();
       } catch (err) {
         showToast(`❌ Error acreditando combustible: ${err.message}`);
       }
@@ -3467,8 +3694,10 @@
         try {
           const pts = Math.round(c.jikopuntosGenerados);
           const xp = Math.round(c.xpGenerada);
-          await StreamDB.acreditarCombustibleChat(c.usernameNorm, { puntos: pts, xp: xp });
+          const mins = Math.max(0, Math.round(c.minutosVistos || 0));
+          await StreamDB.acreditarCombustibleChat(c.usernameNorm, { puntos: pts, xp: xp, tiempoMinutos: mins });
           c.count = 0;
+          c.minutosVistos = 0;
           c.jikopuntosGenerados = 0;
           c.xpGenerada = 0;
           exitos++;
@@ -3477,7 +3706,9 @@
         }
       }
 
+      combustibleDirty = true;
       recalcularTodoElCombustible();
+      sincronizarCombustibleAFirebaseLote();
       showToast(`⚡ ¡Combustible acreditado con éxito a <b>${exitos} espectadores</b>!`);
     };
 

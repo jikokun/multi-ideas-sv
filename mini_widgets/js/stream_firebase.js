@@ -64,6 +64,7 @@ export const NODE_ATTENDANCE = 'stream/tienda/asistencias';
 export const NODE_TRANSFERS = 'stream/tienda/transferencias';
 export const NODE_STATS = 'stream/tienda/estadisticas';
 export const NODE_BINDINGS = 'stream/vinculaciones';
+export const NODE_COMBUSTIBLE_ACTIVO = 'stream/transmisiones_stats/combustibleEnVivo';
 
 // Constantes de Kick
 export const KICK_CHANNEL = 'jikokun';
@@ -276,6 +277,9 @@ class StreamFirebaseService {
     this.kickStateListeners = new Set();
     this.kickChatListeners = new Set();
     this.kickChatStatusListeners = new Set();
+    this.streamStartedListeners = new Set();
+    this.streamStoppedListeners = new Set();
+    this.combustibleAcreditadoListeners = new Set();
 
     // Tracking de Duración del Directo e Interacciones con XP Progresiva
     this.interaccionesUsuarios = new Map();
@@ -1222,6 +1226,8 @@ class StreamFirebaseService {
       }
 
       this.kickIsLive = true;
+      this._notifyKickStateListeners();
+      this._notifyStreamStarted(streamId);
       return streamId;
     } catch (err) {
       console.error('[StreamDB] Error al registrar inicio de stream en Firebase:', err);
@@ -1240,6 +1246,13 @@ class StreamFirebaseService {
       const streamId = statsSnap.exists() ? statsSnap.val() : null;
 
       if (streamId) {
+        // Auto-acreditar combustible acumulado de la sesión antes de cerrar
+        try {
+          await this.autoAcreditarCombustibleDirecto(streamId);
+        } catch (errComb) {
+          console.warn('[StreamDB] Error al auto-acreditar combustible al finalizar stream:', errComb);
+        }
+
         const streamRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
         const streamSnap = await get(streamRef);
 
@@ -1267,6 +1280,7 @@ class StreamFirebaseService {
       this.kickIsLive = false;
       this.kickLivestreamData = null;
       this._notifyKickStateListeners();
+      if (streamId) this._notifyStreamStopped(streamId);
     } catch (err) {
       console.warn('[StreamDB] Error al cerrar sesión de transmisión:', err);
     }
@@ -1351,16 +1365,209 @@ class StreamFirebaseService {
     };
   }
 
-  // Acreditar combustible acumulado de chat a un usuario en Firebase RTDB
-  async acreditarCombustibleChat(username, { puntos = 0, xp = 0, motivo = 'combustible_chat' } = {}) {
+  onStreamStarted(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.streamStartedListeners.add(callback);
+    return () => this.streamStartedListeners.delete(callback);
+  }
+
+  _notifyStreamStarted(streamId) {
+    this.streamStartedListeners.forEach(fn => {
+      try { fn(streamId); } catch(e){}
+    });
+  }
+
+  onStreamStopped(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.streamStoppedListeners.add(callback);
+    return () => this.streamStoppedListeners.delete(callback);
+  }
+
+  _notifyStreamStopped(streamId) {
+    this.streamStoppedListeners.forEach(fn => {
+      try { fn(streamId); } catch(e){}
+    });
+  }
+
+  onCombustibleAutoAcreditado(callback) {
+    if (typeof callback !== 'function') return () => {};
+    this.combustibleAcreditadoListeners.add(callback);
+    return () => this.combustibleAcreditadoListeners.delete(callback);
+  }
+
+  _notifyCombustibleAutoAcreditado(res) {
+    this.combustibleAcreditadoListeners.forEach(fn => {
+      try { fn(res); } catch(e){}
+    });
+  }
+
+  // Sincronizar por lotes en Firebase RTDB (Evita sobrecarga: se llama cada 25-30s sólo si hay cambios)
+  async sincronizarCombustibleEnVivoLote(datosLote = {}) {
+    if (!datosLote || !datosLote.chatters) return;
+    await this.init();
+    try {
+      const payload = {
+        streamId: datosLote.streamId || null,
+        factorCombustible: datosLote.factorCombustible || 0.50,
+        factorTiempoPts: datosLote.factorTiempoPts || 5,
+        factorTiempoXp: datosLote.factorTiempoXp || 10,
+        ultimaActualizacion: Date.now(),
+        totalMensajes: datosLote.totalMensajes || 0,
+        totalMinutosVistos: datosLote.totalMinutosVistos || 0,
+        totalChatters: datosLote.totalChatters || 0,
+        totalJikopuntos: datosLote.totalJikopuntos || 0,
+        totalXp: datosLote.totalXp || 0,
+        chatters: datosLote.chatters
+      };
+
+      await set(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO), payload);
+
+      if (datosLote.streamId) {
+        const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${datosLote.streamId}/combustibleEnVivo`);
+        await set(transRef, {
+          totalMensajes: datosLote.totalMensajes || 0,
+          totalMinutosVistos: datosLote.totalMinutosVistos || 0,
+          totalChatters: datosLote.totalChatters || 0,
+          totalJikopuntos: datosLote.totalJikopuntos || 0,
+          totalXp: datosLote.totalXp || 0,
+          ultimaActualizacion: Date.now()
+        });
+      }
+    } catch (err) {
+      console.warn('[StreamDB] Error al sincronizar combustible en vivo por lote:', err);
+    }
+  }
+
+  // Obtener combustible en vivo guardado en Firebase RTDB (para restauración inmediata)
+  async obtenerCombustibleEnVivo() {
+    await this.init();
+    try {
+      const snap = await get(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO));
+      return snap.exists() ? snap.val() : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Auto-acreditar el combustible a los usuarios en Firebase al terminar el directo
+  async autoAcreditarCombustibleDirecto(streamId = null, chattersFallback = null) {
+    await this.init();
+    const ahora = Date.now();
+    let targetStreamId = streamId;
+
+    if (!targetStreamId) {
+      try {
+        const statsSnap = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/streamActivoId`));
+        targetStreamId = statsSnap.exists() ? statsSnap.val() : null;
+      } catch(e){}
+    }
+
+    let combustibleData = null;
+    try {
+      const snap = await get(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO));
+      if (snap.exists()) {
+        combustibleData = snap.val();
+      }
+    } catch (e) {}
+
+    let chatters = (combustibleData && combustibleData.chatters) ? combustibleData.chatters : chattersFallback;
+    if (!chatters || typeof chatters !== 'object') {
+      console.log('[StreamDB] ℹ️ No hay combustible en vivo pendiente de auto-acreditar.');
+      return { exitos: 0, totalPts: 0, totalXp: 0, espectadores: 0 };
+    }
+
+    const BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'lobitomensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'];
+    let exitos = 0;
+    let totalPts = 0;
+    let totalXp = 0;
+    const detallesAcreditados = {};
+
+    for (const [keyRaw, c] of Object.entries(chatters)) {
+      const uKey = norm(c.usernameNorm || c.username || keyRaw);
+      if (!uKey || BOTS_IGNORADOS.includes(uKey)) continue;
+
+      const pts = Math.round(Number(c.jikopuntosGenerados) || 0);
+      const xp = Math.round(Number(c.xpGenerada) || 0);
+      const mins = Math.max(0, Math.round(Number(c.minutosVistos) || 0));
+
+      if (pts <= 0 && xp <= 0) continue;
+
+      try {
+        await this.acreditarCombustibleChat(uKey, {
+          puntos: pts,
+          xp: xp,
+          tiempoMinutos: mins,
+          motivo: 'cierre_directo_kick',
+          streamId: targetStreamId
+        });
+        exitos++;
+        totalPts += pts;
+        totalXp += xp;
+        detallesAcreditados[uKey] = {
+          username: c.username || uKey,
+          puntos: pts,
+          xp: xp,
+          minutosVistos: mins,
+          mensajes: c.count || 0,
+          timestamp: ahora
+        };
+      } catch (errUser) {
+        console.warn(`[StreamDB] Error al auto-acreditar combustible a @${uKey}:`, errUser);
+      }
+    }
+
+    // Registrar en la transmisión histórica en Firebase RTDB
+    if (targetStreamId && exitos > 0) {
+      try {
+        const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${targetStreamId}`);
+        await update(transRef, {
+          combustibleAutoAcreditado: true,
+          combustibleFechaAcreditacion: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' }),
+          combustiblePuntosRepartidos: totalPts,
+          combustibleXpRepartida: totalXp,
+          combustibleEspectadoresPremiados: exitos,
+          combustibleDetalles: detallesAcreditados
+        });
+      } catch (e) {}
+    }
+
+    // Limpiar el nodo de combustible en vivo para que no quede pendiente duplicado
+    try {
+      await set(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO), null);
+    } catch (e) {}
+
+    console.log(`[StreamDB] 🎉 Auto-acreditación completada: +${totalPts} pts y +${totalXp} XP a ${exitos} espectadores.`);
+    this._notifyCombustibleAutoAcreditado({
+      streamId: targetStreamId,
+      exitos,
+      totalPts,
+      totalXp,
+      espectadores: exitos
+    });
+
+    return { exitos, totalPts, totalXp, espectadores: exitos };
+  }
+
+  // Acreditar combustible acumulado de chat y permanencia a un usuario en Firebase RTDB
+  async acreditarCombustibleChat(username, { puntos = 0, xp = 0, tiempoMinutos = 0, motivo = 'combustible_chat', streamId = null } = {}) {
     await this.init();
     const key = norm(username);
     if (!key) throw new Error('Usuario no válido');
-    const user = await this.getUser(key);
-    if (!user) throw new Error(`El usuario @${key} no existe en Firebase.`);
 
+    let user = await this.getUser(key);
     const ptsDelta = Math.max(0, Math.round(Number(puntos) || 0));
     const xpDelta = Math.max(0, Math.round(Number(xp) || 0));
+    const minsDelta = Math.max(0, Math.round(Number(tiempoMinutos) || 0));
+
+    if (!user) {
+      // Auto-crear perfil para el espectador en su primera interacción
+      user = await this.crearUsuario({
+        username: key,
+        displayName: username,
+        jikopuntos: USER_DEFAULT_POINTS,
+        experiencia: 0
+      });
+    }
 
     const updates = {};
     if (ptsDelta > 0) {
@@ -1370,6 +1577,9 @@ class StreamFirebaseService {
     if (xpDelta > 0) {
       const prevXp = user.experiencia !== undefined ? user.experiencia : ((user.asistenciasCount || 0) * 200);
       updates.experiencia = prevXp + xpDelta;
+    }
+    if (minsDelta > 0) {
+      updates.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minsDelta;
     }
 
     if (Object.keys(updates).length > 0) {
