@@ -1624,8 +1624,7 @@ function initAuthentication(depth) {
     const prefix = depth === 2 ? '../../' : depth === 1 ? '../' : './';
     const authModalPath = prefix + 'partials/auth-modal.html';
     const profileModalPath = prefix + 'partials/profile-modal.html';
-    // Agregar cache-buster para evitar que el navegador use una versión vieja en cache
-    const configPath = prefix + 'firebase-config.js?v=' + Date.now();
+    const configPath = prefix + 'firebase-config.js';
 
     console.log("[Auth Debug] initAuthentication started. configPath:", configPath);
 
@@ -2079,18 +2078,7 @@ async function connectFirebaseToAuth(authUI, fb) {
         if (!rtdb || !dbHelpers) return;
         try {
             const { ref, set, onDisconnect, onValue, update } = dbHelpers;
-
-            // Intentar autenticación anónima si no hay sesión para evitar errores de permisos en Firebase RTDB
-            if (!auth.currentUser) {
-                try {
-                    const { signInAnonymously } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js");
-                    await signInAnonymously(auth);
-                } catch(e) {
-                    // Continuar si falla o no está habilitada
-                }
-            }
-
-            const activeUser = auth.currentUser || user;
+            const activeUser = user || auth.currentUser;
 
             if (!scriptPresenceSessionId) {
                 scriptPresenceSessionId = "sess_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
@@ -2167,13 +2155,22 @@ async function connectFirebaseToAuth(authUI, fb) {
         }
     }
 
-    // Inicializar presencia
-    initPresence(null);
-
-    // Escuchar cambios de estado en la sesión
+    // Escuchar cambios de estado en la sesión (mantiene persistencia entre páginas sin sobreescritura anónima)
     onAuthStateChanged(auth, (user) => {
         window.firebaseUserInstance = user;
-        if (user && !user.isAnonymous) syncUserProfile(user);
+        const isRegistered = Boolean(user && !user.isAnonymous);
+        if (isRegistered) {
+            try {
+                localStorage.setItem('multiideas_user_authed', 'true');
+                localStorage.setItem('multiideas_user_uid', user.uid);
+            } catch(e) {}
+            syncUserProfile(user);
+        } else {
+            try {
+                localStorage.removeItem('multiideas_user_authed');
+                localStorage.removeItem('multiideas_user_uid');
+            } catch(e) {}
+        }
         initPresence(user);
         updateHeaderUI(user, window.openAuthModal, signOut, auth);
     });

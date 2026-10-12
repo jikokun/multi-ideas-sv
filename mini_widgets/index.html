@@ -2184,16 +2184,39 @@
       return Boolean(user && !user.isAnonymous && (user.email || (user.providerData && user.providerData.length > 0)));
     }
 
+    // Comprobar estado previo guardado para evitar bloqueos innecesarios al navegar entre páginas
+    if (localStorage.getItem('multiideas_user_authed') === 'true') {
+      const gateEl = document.getElementById('widgets-auth-gate');
+      const containerEl = document.getElementById('widgets-container');
+      if (gateEl) {
+        gateEl.classList.add('unlocked');
+        gateEl.style.display = 'none';
+      }
+      if (containerEl) {
+        containerEl.classList.remove('locked');
+      }
+    }
+
     onAuthStateChanged(auth, async (user) => {
       const validUser = isVerifiedUser(user) ? user : null;
       currentUser = validUser;
-      updateAuthGateUI(validUser);
-      updateSyncBannerUI(validUser);
 
       if (validUser) {
+        try {
+          localStorage.setItem('multiideas_user_authed', 'true');
+          localStorage.setItem('multiideas_user_uid', validUser.uid);
+        } catch(e) {}
+        updateAuthGateUI(validUser);
+        updateSyncBannerUI(validUser);
         await registerWidgetUserInFirebase(validUser);
         await loadUserDataFromFirebase(validUser.uid);
       } else {
+        try {
+          localStorage.removeItem('multiideas_user_authed');
+          localStorage.removeItem('multiideas_user_uid');
+        } catch(e) {}
+        updateAuthGateUI(null);
+        updateSyncBannerUI(null);
         userWidgetsConfig = {};
         resetFavoriteButtonsUI();
       }
