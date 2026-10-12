@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta Estelar Animada — Kick API Nativa</title>
+    
+    <!-- Tipografías -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Cliente Oficial Pusher JS (Soporta WebSocket WSS de Kick sin restricciones CORS) -->
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+
+    <style>
+        :root {
+            /* Colores de fondo de la página para previsualización */
+            --bg-page-start: #e1cbed;
+            --bg-page-end: #f4e1f9;
+            
+            /* Colores base de la alerta (Modo Sub / Púrpura Estelar por defecto) */
+            --alert-bg-dark: #1b1928;
+            --alert-bg-light: #252336;
+            --accent-border: #b1a7d1;
+            --accent-fill-top: #4e4868;
+            --accent-fill-bottom: #2d2940;
+            --star-dark: #111016;
+            --star-yellow: #fce882;
+            --star-purple: #8f79c2;
+            --star-white: #ffffff;
+            --subtext-color: #b1a7d1;
+            --username-glow: rgba(252, 232, 130, 0.6);
+            --pill-shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        /* =====================================================================
+           TEMAS DE COLOR POR TIPO DE ALERTA DE KICK
+           ===================================================================== */
+        /* 1. SEGUIDOR: Verde Neón Kick & Jade Estelar */
+        .theme-follow {
+            --alert-bg-dark: #0a1f12;
+            --alert-bg-light: #13331e;
+            --accent-border: #53fc18;
+            --accent-fill-top: #1b4d27;
+            --accent-fill-bottom: #0f2e17;
+            --star-dark: #07150c;
+            --star-yellow: #53fc18;
+            --star-purple: #86efac;
+            --star-white: #ffffff;
+            --subtext-color: #a7f3d0;
+            --username-glow: rgba(83, 252, 24, 0.65);
+        }
+
+        /* 2. SUSCRIPCIÓN: Púrpura Cósmico y Oro Celestial */
+        .theme-sub {
+            --alert-bg-dark: #1b1928;
+            --alert-bg-light: #252336;
+            --accent-border: #b1a7d1;
+            --accent-fill-top: #4e4868;
+            --accent-fill-bottom: #2d2940;
+            --star-dark: #111016;
+            --star-yellow: #fce882;
+            --star-purple: #8f79c2;
+            --star-white: #ffffff;
+            --subtext-color: #b1a7d1;
+            --username-glow: rgba(252, 232, 130, 0.6);
+        }
+
+        /* 3. SUSCRIPCIÓN REGALADA: Rosa Neón & Flor de Loto Estelar */
+        .theme-gift {
+            --alert-bg-dark: #260e1d;
+            --alert-bg-light: #3d172e;
+            --accent-border: #f472b6;
+            --accent-fill-top: #6d284f;
+            --accent-fill-bottom: #38152a;
+            --star-dark: #160811;
+            --star-yellow: #fbcfe8;
+            --star-purple: #f43f5e;
+            --star-white: #ffffff;
+            --subtext-color: #fbcfe8;
+            --username-glow: rgba(244, 114, 182, 0.7);
+        }
+
+        /* 4. RAID / HOST: Naranja Fuego Solar Cósmico */
+        .theme-raid {
+            --alert-bg-dark: #291207;
+            --alert-bg-light: #421e0d;
+            --accent-border: #fb923c;
+            --accent-fill-top: #7c3111;
+            --accent-fill-bottom: #3d1708;
+            --star-dark: #170904;
+            --star-yellow: #fed7aa;
+            --star-purple: #ea580c;
+            --star-white: #ffffff;
+            --subtext-color: #fed7aa;
+            --username-glow: rgba(251, 146, 60, 0.7);
+        }
+
+        /* 5. KICKS / DONACIÓN / TIPS: Oro Brillante & Verde Esmeralda */
+        .theme-kicks, .theme-donation, .theme-cheer {
+            --alert-bg-dark: #211c05;
+            --alert-bg-light: #3b320d;
+            --accent-border: #facc15;
+            --accent-fill-top: #63520e;
+            --accent-fill-bottom: #332a07;
+            --star-dark: #141103;
+            --star-yellow: #fef08a;
+            --star-purple: #53fc18;
+            --star-white: #ffffff;
+            --subtext-color: #fef08a;
+            --username-glow: rgba(250, 204, 21, 0.75);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+        }
+
+        /* Fondo completamente transparente para OBS Studio por defecto */
+        body {
+            background: transparent !important;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Si se activa modo fondo (para pruebas directas en navegador) */
+        body.with-bg {
+            background: linear-gradient(135deg, var(--bg-page-start), var(--bg-page-end)) !important;
+        }
+
+        /* Botón discreto para accionar la alerta en pruebas */
+        .trigger-btn {
+            position: fixed;
+            bottom: 20px;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 700;
+            color: white;
+            background: #6a4c93;
+            border: none;
+            border-radius: 999px;
+            cursor: pointer;
+            box-shadow: 0 4px 14px rgba(106, 76, 147, 0.4);
+            transition: transform 0.2s, background 0.2s;
+            z-index: 10;
+        }
+
+        .trigger-btn:hover {
+            background: #593c7a;
+            transform: scale(1.05);
+        }
+
+        .trigger-btn.hidden {
+            display: none !important;
+        }
+
+        /* Panel de botones de prueba rápidos */
+        .test-bar {
+            position: fixed;
+            bottom: 15px;
+            display: flex;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.85);
+            padding: 8px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        }
+
+        .test-bar button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .test-bar button:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .test-bar.hidden {
+            display: none !important;
+        }
+
+        /* Estado de conexión Kick Cloud en esquina */
+        .kick-status-indicator {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(83, 252, 24, 0.4);
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #53fc18;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(8px);
+            z-index: 10;
+        }
+
+        .kick-status-indicator .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: #53fc18;
+            box-shadow: 0 0 8px #53fc18;
+        }
+
+        .kick-status-indicator.hidden {
+            display: none !important;
+        }
+
+        /* Contenedor del Overlay (Transparente para OBS Studio) */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+        }
+
+        /* En modo con fondo previsualizador aplica suave desenfoque */
+        body.with-bg .overlay {
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(3px);
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        /* Caja de la alerta */
+        .alert-box {
+            width: 90%;
+            max-width: 550px;
+            height: 180px;
+            background: linear-gradient(120deg, var(--alert-bg-dark) 0%, var(--alert-bg-light) 50%, var(--alert-bg-dark) 100%);
+            border-radius: 16px;
+            position: relative;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
+            transform: scale(0.5);
+            opacity: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            transition: background 0.4s ease, border-color 0.4s ease;
+        }
+
+        .overlay.active .alert-box {
+            animation: popIn 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+
+        .overlay.exiting .alert-box {
+            animation: popOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes popOut {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.8) translateY(-20px); opacity: 0; }
+        }
+
+        /* Píldora Superior */
+        .top-pill {
+            position: absolute;
+            top: -24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 65%;
+            height: 48px;
+            background: linear-gradient(to bottom, var(--accent-fill-top), var(--accent-fill-bottom));
+            border-radius: 999px;
+            border: 2px solid var(--accent-border);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 2;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.4s ease;
+        }
+
+        .top-pill h2 {
+            font-size: 16px;
+            color: #ffffff;
+            margin: 0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        /* Rombo Inferior */
+        .bottom-diamond {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%) rotate(45deg);
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent-fill-top), var(--accent-fill-bottom));
+            border-radius: 8px;
+            border: 2px solid var(--accent-border);
+            box-shadow: inset 0 2px 5px rgba(255,255,255,0.1), 0 4px 10px rgba(0,0,0,0.3);
+            z-index: 2;
+            transition: all 0.4s ease;
+        }
+
+        /* Contenido de texto interno */
+        .content {
+            z-index: 5;
+            color: white;
+            padding: 0 40px;
+        }
+
+        .content p {
+            font-size: 16px;
+            color: var(--subtext-color);
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+            transition: color 0.4s ease;
+        }
+        
+        .username {
+            color: var(--star-yellow); /* Color estelar integrado al tema */
+            font-weight: 800;
+            font-size: 34px; /* Más grande al aprovechar el espacio */
+            letter-spacing: 1px;
+            text-shadow: 0 0 15px var(--username-glow);
+            display: block;
+            margin-top: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 440px;
+            transition: color 0.4s ease, text-shadow 0.4s ease;
+        }
+
+        /* Decoraciones Absolutas (Estrellas y Líneas) */
+        .deco {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        /* Estrellas Oscuras Grandes */
+        .star-large-left {
+            top: -30px;
+            left: -40px;
+            width: 130px;
+            height: 130px;
+            z-index: 3;
+            transform: rotate(-15deg);
+            animation: float 4s ease-in-out infinite;
+        }
+
+        .star-large-right {
+            bottom: -30px;
+            right: -25px;
+            width: 100px;
+            height: 100px;
+            z-index: 3;
+            transform: rotate(15deg);
+            animation: float 5s ease-in-out infinite reverse;
+        }
+
+        /* Estrellas Pequeñas de Colores con Resplandor y Movimiento */
+        .star-small { 
+            width: 15px; 
+            height: 15px; 
+            animation: twinkle 3s ease-in-out infinite;
+        }
+        .s-purple-1 { bottom: 15px; left: 20%; width: 22px; height: 22px; --base-rot: -20deg; --glow: var(--star-purple); animation-delay: 0.2s;}
+        .s-yellow-1 { top: 40px; right: 25%; width: 12px; height: 12px; --base-rot: 0deg; --glow: var(--star-yellow); animation-delay: 1.5s;}
+        .s-white-1 { top: 30px; left: 15%; width: 8px; height: 8px; --base-rot: 0deg; --glow: var(--star-white); animation-delay: 0.8s;}
+        .s-yellow-2 { bottom: 30px; left: 40%; width: 12px; height: 12px; --base-rot: 0deg; --glow: var(--star-yellow); animation-delay: 2.1s;}
+        .s-purple-2 { top: 20px; right: 8%; width: 16px; height: 16px; --base-rot: 25deg; --glow: var(--star-purple); animation-delay: 1.1s;}
+        .s-white-2 { bottom: 40px; right: 18%; width: 10px; height: 10px; --base-rot: 0deg; --glow: var(--star-white); animation-delay: 0.5s;}
+
+        /* Constelaciones (Líneas punteadas) */
+        .constellation {
+            fill: none;
+            stroke: rgba(255, 255, 255, 0.4);
+            stroke-width: 1.5;
+            stroke-dasharray: 2 4;
+            stroke-linecap: round;
+        }
+        
+        .constellation-svg {
+            width: 80px;
+            height: 80px;
+            z-index: 1;
+        }
+
+        .c-bottom-left {
+            bottom: 10px;
+            left: 10px;
+            transform: rotate(15deg);
+        }
+
+        .c-top-right {
+            top: 10px;
+            right: 15%;
+            transform: rotate(-10deg);
+            width: 120px;
+        }
+
+        /* Animación flotante y resplandor para las estrellas gigantes */
+        @keyframes float {
+            0% { transform: translateY(0) rotate(var(--rot, 0deg)); filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) drop-shadow(0 0 4px rgba(255,255,255,0.0)); }
+            50% { transform: translateY(-8px) rotate(calc(var(--rot, 0deg) + 3deg)); filter: drop-shadow(0 15px 15px rgba(0,0,0,0.3)) drop-shadow(0 0 10px rgba(255,255,255,0.2)); }
+            100% { transform: translateY(0) rotate(var(--rot, 0deg)); filter: drop-shadow(0 8px 12px rgba(0,0,0,0.4)) drop-shadow(0 0 4px rgba(255,255,255,0.0)); }
+        }
+
+        /* Animación de destello, movimiento y brillo para las estrellas pequeñas */
+        @keyframes twinkle {
+            0% { transform: rotate(var(--base-rot)) scale(0.8) translate(0, 0); opacity: 0.6; filter: drop-shadow(0 0 2px var(--glow)); }
+            50% { transform: rotate(var(--base-rot)) scale(1.3) translate(3px, -3px); opacity: 1; filter: drop-shadow(0 0 12px var(--glow)); }
+            100% { transform: rotate(var(--base-rot)) scale(0.8) translate(0, 0); opacity: 0.6; filter: drop-shadow(0 0 2px var(--glow)); }
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .alert-box { height: 160px; }
+            .star-large-left { width: 100px; height: 100px; left: -20px; top: -20px;}
+            .star-large-right { width: 80px; height: 80px; right: -10px; bottom: -20px;}
+            .top-pill { width: 75%; height: 40px; top: -20px;}
+            .username { font-size: 26px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Indicador de Estado Kick Cloud (Esquina superior derecha) -->
+    <div class="kick-status-indicator" id="kickStatusBadge">
+        <span class="dot" id="kickDot"></span>
+        <span id="kickStatusText">Kick: Conectando...</span>
+    </div>
+
+    <!-- Botonera de Pruebas de Alerta (Oculta en OBS, visible en pruebas o al hacer clic) -->
+    <div class="test-bar" id="testBar">
+        <button onclick="triggerAlertByType('follow')">💚 Follow</button>
+        <button onclick="triggerAlertByType('sub')">⭐ Sub</button>
+        <button onclick="triggerAlertByType('gift')">🎁 Gift</button>
+        <button onclick="triggerAlertByType('raid')">🚀 Raid</button>
+        <button onclick="triggerAlertByType('kicks')">💎 Kicks</button>
+    </div>
+
+    <!-- Overlay y Contenedor de la Alerta -->
+    <div class="overlay" id="overlay">
+        <div class="alert-box" id="alertBox">
+            
+            <!-- Elementos UI Superiores/Inferiores -->
+            <div class="top-pill">
+                <h2 id="alertTitle">¡Nuevo Seguidor!</h2>
+            </div>
+            <div class="bottom-diamond"></div>
+
+            <!-- Constelaciones (Líneas punteadas curvas) -->
+            <svg class="deco constellation-svg c-bottom-left" viewBox="0 0 100 100">
+                <path class="constellation" d="M 10 90 Q 30 40 80 10" />
+            </svg>
+            <svg class="deco constellation-svg c-top-right" viewBox="0 0 150 100">
+                <path class="constellation" d="M 0 50 Q 75 90 150 10" />
+            </svg>
+
+            <!-- Estrella Gigante Izquierda -->
+            <svg class="deco star-large-left" style="--rot: -15deg;" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" 
+                      fill="var(--star-dark)" 
+                      stroke="var(--accent-border)" 
+                      stroke-width="3" 
+                      stroke-linejoin="round"/>
+            </svg>
+
+            <!-- Estrella Gigante Derecha -->
+            <svg class="deco star-large-right" style="--rot: 15deg;" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" 
+                      fill="var(--star-dark)" 
+                      stroke="var(--accent-border)" 
+                      stroke-width="3.5" 
+                      stroke-linejoin="round"/>
+            </svg>
+
+            <!-- Estrellas Pequeñas Esparcidas -->
+            <!-- Morada inferior -->
+            <svg class="deco star-small s-purple-1" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-purple)" />
+            </svg>
+            <!-- Amarilla superior -->
+            <svg class="deco star-small s-yellow-1" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-yellow)" />
+            </svg>
+            <!-- Blanca izquierda -->
+            <svg class="deco star-small s-white-1" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-white)" />
+            </svg>
+            <!-- Amarilla inferior centro -->
+            <svg class="deco star-small s-yellow-2" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-yellow)" />
+            </svg>
+             <!-- Morada superior derecha -->
+             <svg class="deco star-small s-purple-2" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-purple)" />
+            </svg>
+            <!-- Blanca derecha -->
+            <svg class="deco star-small s-white-2" viewBox="0 0 100 100">
+                <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-white)" />
+            </svg>
+
+            <!-- Contenido textual de Alerta Kick -->
+            <div class="content">
+                <p id="alertSubtitle">Se ha unido a la tripulación</p>
+                <span id="followerName" class="username">Usuario123</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // =====================================================================
+        // PARÁMETROS URL Y CONFIGURACIÓN
+        // =====================================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const kickChannel = (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').trim().toLowerCase().replace(/^@/, '');
+        const isPreview = urlParams.get('preview') === 'true';
+        let isLoopMode = urlParams.get('loop') === 'true';
+        const isMuted = urlParams.get('mute') === 'true';
+        const hideControls = urlParams.get('hidecontrols') === 'true';
+        const withBg = urlParams.get('bg') === 'true';
+        
+        const durationParam = parseFloat(urlParams.get('duration'));
+        const alertDuration = (!isNaN(durationParam) && durationParam >= 2 && durationParam <= 20) 
+            ? durationParam * 1000 
+            : 5000;
+
+        let alertVolume = 0.85;
+        const volParam = parseFloat(urlParams.get('volume'));
+        if (!isNaN(volParam)) {
+            alertVolume = volParam > 1 ? volParam / 100 : volParam;
+        }
+
+        if (withBg) {
+            document.body.classList.add('with-bg');
+        }
+
+        // Si se solicita ocultar controles (ej. en OBS o en iframes limpios)
+        if (hideControls) {
+            document.getElementById('testBar')?.classList.add('hidden');
+            document.getElementById('kickStatusBadge')?.classList.add('hidden');
+        }
+
+        // =====================================================================
+        // SINTETIZADOR DE AUDIO WEB AUDIO API (Campanillas Celestes)
+        // =====================================================================
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playAlertSound(type) {
+            if (isMuted) return;
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+                const masterGain = ctx.createGain();
+                masterGain.gain.setValueAtTime(0.3 * alertVolume, now);
+                masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+                masterGain.connect(ctx.destination);
+
+                let freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 (Follow)
+                if (type === 'sub') freqs = [587.33, 739.99, 880.00, 1174.66, 1479.98]; // Re Mayor Celestial
+                else if (type === 'gift') freqs = [659.25, 830.61, 987.77, 1318.51]; // Rosa Mágico
+                else if (type === 'raid') freqs = [440.00, 554.37, 659.25, 880.00, 1108.73]; // Fanfarria
+                else if (type === 'kicks') freqs = [523.25, 659.25, 783.99, 987.77, 1046.50, 1318.51]; // Oro brillante
+
+                freqs.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const noteGain = ctx.createGain();
+                    const startTime = now + (idx * 0.08);
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    noteGain.gain.setValueAtTime(0.001, startTime);
+                    noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.015);
+                    noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.8);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(masterGain);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.85);
+                });
+            } catch(e) {
+                console.warn("[Web Audio Error]:", e);
+            }
+        }
+
+        // =====================================================================
+        // COLA DE ALERTAS FIFO Y CONTROL VISUAL
+        // =====================================================================
+        const alertQueue = [];
+        let isAlertActive = false;
+        let alertTimeout = null;
+
+        const overlay = document.getElementById('overlay');
+        const alertBox = document.getElementById('alertBox');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertSubtitle = document.getElementById('alertSubtitle');
+        const followerName = document.getElementById('followerName');
+
+        function queueAlert(data) {
+            alertQueue.push(data);
+            processQueue();
+        }
+
+        function processQueue() {
+            if (isAlertActive || alertQueue.length === 0) return;
+            const current = alertQueue.shift();
+            displayAlert(current);
+        }
+
+        function displayAlert(data) {
+            isAlertActive = true;
+
+            // 1. Limpiar temas anteriores y asignar el tema de color correspondiente
+            document.body.className = document.body.className.replace(/\btheme-\S+/g, '').trim();
+            document.body.classList.add(`theme-${data.type}`);
+
+            // 2. Insertar contenidos textuales
+            alertTitle.textContent = data.title || '¡Nuevo Evento!';
+            alertSubtitle.textContent = data.subtitle || 'Se ha unido a la tripulación';
+            followerName.textContent = data.username || 'Usuario';
+
+            // 3. Reproducir audio sintetizado
+            playAlertSound(data.type);
+
+            // 4. Forzar reinicio limpio de la animación
+            overlay.classList.remove('active', 'exiting');
+            void overlay.offsetWidth; // Forzar reflow para reiniciar la animación popIn inmediatamente
+            overlay.classList.add('active');
+
+            // 5. Temporizador para ocultar y dar paso a la siguiente alerta
+            const visibleDuration = Math.max(2500, alertDuration - 500);
+
+            alertTimeout = setTimeout(() => {
+                overlay.classList.add('exiting');
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    overlay.classList.remove('exiting');
+                    isAlertActive = false;
+
+                    // Si está en modo bucle continuo (para previsualización)
+                    if (isLoopMode && alertQueue.length === 0) {
+                        setTimeout(() => {
+                            triggerRandomTest();
+                        }, 1200);
+                    } else {
+                        processQueue();
+                    }
+                }, 450);
+            }, visibleDuration);
+        }
+
+        // =====================================================================
+        // SIMULADOR DE EVENTOS DE PRUEBA
+        // =====================================================================
+        const mockUsers = ["NinjaEspacial", "EstrellaFugaz_99", "CapitanKick", "NovaGamerZ", "Astro_Boy", "CosmicLuna", "Jikokun"];
+
+        function triggerAlertByType(type) {
+            if (alertTimeout) {
+                clearTimeout(alertTimeout);
+                alertTimeout = null;
+            }
+            isAlertActive = false;
+
+            const randomName = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+
+            switch(type) {
+                case 'follow':
+                    displayAlert({
+                        type: 'follow',
+                        title: '¡Nuevo Seguidor!',
+                        subtitle: 'Se ha unido a la tripulación',
+                        username: randomName
+                    });
+                    break;
+                case 'sub':
+                    const months = [1, 2, 3, 6, 12][Math.floor(Math.random() * 5)];
+                    displayAlert({
+                        type: 'sub',
+                        title: '¡Nueva Suscripción!',
+                        subtitle: months > 1 ? `Lleva ${months} meses en la nave` : 'Ha abordado la nave estelar',
+                        username: randomName
+                    });
+                    break;
+                case 'gift':
+                    const gifts = [1, 5, 10, 20][Math.floor(Math.random() * 4)];
+                    displayAlert({
+                        type: 'gift',
+                        title: '¡Sub Regalada!',
+                        subtitle: `Regaló ${gifts} suscripci${gifts > 1 ? 'ones' : 'ón'} estelar${gifts > 1 ? 'es' : ''}`,
+                        username: randomName
+                    });
+                    break;
+                case 'raid':
+                    const viewers = Math.floor(Math.random() * 200) + 15;
+                    displayAlert({
+                        type: 'raid',
+                        title: '¡Raid Entrante!',
+                        subtitle: `Aterrizó con ${viewers} tripulantes`,
+                        username: randomName
+                    });
+                    break;
+                case 'kicks':
+                    const kicks = [100, 250, 500, 1000, 2500][Math.floor(Math.random() * 5)];
+                    displayAlert({
+                        type: 'kicks',
+                        title: '¡Kicks Aportados!',
+                        subtitle: `Ha enviado ${kicks} de combustible estelar`,
+                        username: randomName
+                    });
+                    break;
+            }
+        }
+
+        function triggerRandomTest() {
+            const types = ['follow', 'sub', 'gift', 'raid', 'kicks'];
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            triggerAlertByType(randomType);
+        }
+
+        // =====================================================================
+        // CONEXIÓN NATIVA CON KICK PUSHER CLOUD Y RESOLUCIÓN REST
+        // =====================================================================
+        const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
+        const KICK_PUSHER_CLUSTER = "us2";
+
+        async function resolverCanalKick(username) {
+            const clean = username.trim().toLowerCase().replace(/^@/, '');
+            const statusText = document.getElementById('kickStatusText');
+            const statusDot = document.getElementById('kickDot');
+
+            // 0. Si viene en URL directamente o está en caché local, conectar de inmediato a 0 latencia
+            const urlCid = urlParams.get('channel_id') || urlParams.get('cid');
+            const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id');
+            if (urlCid) {
+                return { channelId: parseInt(urlCid, 10), chatroomId: parseInt(urlChatId || urlCid, 10), slug: clean };
+            }
+
+            const cacheKey = `kick_channel_cache_${clean}`;
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached && cached.channelId && cached.chatroomId) {
+                    console.log(`[Kick Cache] Canal @${clean} cargado desde caché local.`);
+                    // Continuar en segundo plano para verificar frescura sin bloquear
+                    setTimeout(() => refreshKickCache(clean), 1000);
+                    return cached;
+                }
+            } catch(e) {}
+
+            if (statusText) statusText.textContent = `Kick: Buscando @${clean}...`;
+
+            const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+            let data = null;
+
+            // 1. Fetch directo
+            try {
+                const res = await fetch(targetUrl);
+                if (res.ok) data = await res.json();
+            } catch(e) {}
+
+            // 2. Fetch con Proxy 1 (AllOrigins)
+            if (!data) {
+                try {
+                    const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+                    if (resProxy.ok) data = await resProxy.json();
+                } catch(e) {}
+            }
+
+            // 3. Fetch con Proxy 2 (CORSProxy)
+            if (!data) {
+                try {
+                    const resProxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
+                    if (resProxy2.ok) data = await resProxy2.json();
+                } catch(e) {}
+            }
+
+            // 4. Fetch con Proxy 3 (CodeTabs)
+            if (!data) {
+                try {
+                    const resProxy3 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
+                    if (resProxy3.ok) data = await resProxy3.json();
+                } catch(e) {}
+            }
+
+            if (!data || !data.id) {
+                console.warn(`[Kick API] No se pudo resolver @${clean}. Funcionando en modo autónomo.`);
+                if (statusText) statusText.textContent = `@${clean} (Offline)`;
+                if (statusDot) statusDot.style.background = '#f59e0b';
+                return null;
+            }
+
+            const resolvedInfo = {
+                channelId: data.id,
+                chatroomId: data.chatroom?.id || data.id,
+                slug: data.slug
+            };
+
+            // Guardar en caché para conexiones instantáneas en futuras sesiones
+            try {
+                localStorage.setItem(cacheKey, JSON.stringify(resolvedInfo));
+            } catch(e) {}
+
+            return resolvedInfo;
+        }
+
+        async function refreshKickCache(clean) {
+            try {
+                const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+                const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data && data.id) {
+                        localStorage.setItem(`kick_channel_cache_${clean}`, JSON.stringify({
+                            channelId: data.id,
+                            chatroomId: data.chatroom?.id || data.id,
+                            slug: data.slug
+                        }));
+                    }
+                }
+            } catch(e) {}
+        }
+
+        async function conectarKickCloud() {
+            const info = await resolverCanalKick(kickChannel);
+            if (!info) return;
+
+            const statusText = document.getElementById('kickStatusText');
+            const statusDot = document.getElementById('kickDot');
+
+            try {
+                const pusher = new Pusher(KICK_PUSHER_KEY, {
+                    cluster: KICK_PUSHER_CLUSTER,
+                    wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
+                    wsPort: 443,
+                    wssPort: 443,
+                    enabledTransports: ['ws', 'wss'],
+                    forceTLS: true
+                });
+
+                // Suscripción al Canal (Follows, Subs, Gifts, Raids)
+                const channelSub = pusher.subscribe(`channel.${info.channelId}`);
+
+                // A. Followers
+                channelSub.bind('App\\Events\\FollowersUpdated', (ev) => {
+                    queueAlert({
+                        type: 'follow',
+                        title: '¡Nuevo Seguidor!',
+                        subtitle: 'Se ha unido a la tripulación',
+                        username: ev.username || 'Nuevo Seguidor'
+                    });
+                });
+
+                // B. Suscripciones
+                channelSub.bind('App\\Events\\SubscriptionEvent', (ev) => {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const months = raw.months || 1;
+                    queueAlert({
+                        type: 'sub',
+                        title: '¡Nueva Suscripción!',
+                        subtitle: months > 1 ? `Lleva ${months} meses en la nave` : 'Ha abordado la nave estelar',
+                        username: raw.username || 'Suscriptor'
+                    });
+                });
+
+                // C. Suscripciones Regaladas
+                channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', (ev) => {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const count = raw.gifted_usernames?.length || raw.count || 1;
+                    queueAlert({
+                        type: 'gift',
+                        title: '¡Sub Regalada!',
+                        subtitle: `Regaló ${count} suscripci${count > 1 ? 'ones' : 'ón'} a la tripulación`,
+                        username: raw.gifter_username || 'Amigo del Canal'
+                    });
+                });
+
+                // D. Raids
+                channelSub.bind('App\\Events\\StreamHostEvent', (ev) => {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const viewers = raw.number || raw.viewers || 0;
+                    queueAlert({
+                        type: 'raid',
+                        title: '¡Raid Entrante!',
+                        subtitle: `Aterrizó con ${viewers} tripulantes`,
+                        username: raw.host_username || 'Streamer Amigo'
+                    });
+                });
+
+                // Suscripción al Chatroom (Kicks, tips, cheers)
+                const chatSub = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
+                chatSub.bind('App\\Events\\ChatMessageEvent', (ev) => {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const content = (raw.content || '').toLowerCase();
+                    const sender = raw.sender?.username || 'Espectador';
+
+                    if (content.includes('!kick') || content.includes('kicks') || raw.type === 'tip') {
+                        queueAlert({
+                            type: 'kicks',
+                            title: '¡Kicks Aportados!',
+                            subtitle: 'Ha enviado combustible estelar',
+                            username: sender
+                        });
+                    }
+                });
+
+                pusher.connection.bind('connected', () => {
+                    console.log(`[Kick Cloud] Conectado exitosamente a @${info.slug}`);
+                    if (statusText) statusText.textContent = `Kick: @${info.slug} (En Vivo)`;
+                    if (statusDot) {
+                        statusDot.style.background = '#53fc18';
+                        statusDot.style.boxShadow = '0 0 8px #53fc18';
+                    }
+                });
+
+                pusher.connection.bind('disconnected', () => {
+                    if (statusText) statusText.textContent = `Kick: Desconectado`;
+                    if (statusDot) statusDot.style.background = '#ef4444';
+                });
+
+            } catch(err) {
+                console.warn("[Kick Pusher Error]:", err);
+            }
+        }
+
+        // =====================================================================
+        // COMUNICACIÓN CON LA GALERÍA INDEX.HTML (POSTMESSAGE)
+        // =====================================================================
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+
+            if (event.data.type === 'TRIGGER_TEST_ALERT') {
+                triggerAlertByType(event.data.alertType || 'follow');
+            } else if (event.data.type === 'SET_LOOP_MODE') {
+                isLoopMode = !!event.data.isLoop;
+                if (isLoopMode && !isAlertActive) {
+                    triggerRandomTest();
+                }
+            }
+        });
+
+        // =====================================================================
+        // INICIALIZACIÓN
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            // Conectar a la API nativa de Kick
+            conectarKickCloud();
+
+            // Si es vista previa o loop, disparar primera alerta
+            if (isPreview || isLoopMode) {
+                setTimeout(() => {
+                    triggerAlertByType(urlParams.get('test') || 'follow');
+                }, 400);
+            }
+        });
+    </script>
+</body>
+</html>
