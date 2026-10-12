@@ -1052,23 +1052,28 @@
       }
     };
 
+    function isVerifiedUser(user) {
+      return Boolean(user && !user.isAnonymous && (user.email || (user.providerData && user.providerData.length > 0)));
+    }
+
     // Escuchar estado de autenticación
     onAuthStateChanged(auth, async (user) => {
       document.getElementById('auth-loading').style.display = 'none';
-      currentUser = user;
+      const validUser = isVerifiedUser(user) ? user : null;
+      currentUser = validUser;
 
-      if (user) {
+      if (validUser) {
         document.getElementById('unauth-view').style.display = 'none';
         document.getElementById('auth-view').style.display = 'block';
 
         // Actualizar datos del héroe
-        const displayName = user.displayName || user.email.split('@')[0];
+        const displayName = validUser.displayName || validUser.email.split('@')[0];
         document.getElementById('hero-avatar-char').textContent = displayName.charAt(0).toUpperCase();
         document.getElementById('hero-user-title').innerHTML = `Widgets de <span class="gradient-text">${displayName}</span>`;
-        document.getElementById('hero-user-subtitle').textContent = `Tus overlays favoritos sincronizados en tu cuenta (${user.email}).`;
+        document.getElementById('hero-user-subtitle').textContent = `Tus overlays favoritos sincronizados en tu cuenta (${validUser.email}).`;
 
-        await registerWidgetUserInFirebase(user);
-        await loadUserWidgetsFromFirebase(user.uid);
+        await registerWidgetUserInFirebase(validUser);
+        await loadUserWidgetsFromFirebase(validUser.uid);
       } else {
         document.getElementById('auth-view').style.display = 'none';
         document.getElementById('unauth-view').style.display = 'block';

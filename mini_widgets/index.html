@@ -2179,13 +2179,20 @@
     // -----------------------------------------------------------------------
     // FIREBASE AUTH & SINCRONIZACIÓN EN LA NUBE
     // -----------------------------------------------------------------------
+    // Validación estricta: Solo usuarios registrados y autenticados con cuenta real (no anónimos)
+    function isVerifiedUser(user) {
+      return Boolean(user && !user.isAnonymous && (user.email || (user.providerData && user.providerData.length > 0)));
+    }
+
     onAuthStateChanged(auth, async (user) => {
-      currentUser = user;
-      updateAuthGateUI(user);
-      updateSyncBannerUI(user);
-      if (user) {
-        await registerWidgetUserInFirebase(user);
-        await loadUserDataFromFirebase(user.uid);
+      const validUser = isVerifiedUser(user) ? user : null;
+      currentUser = validUser;
+      updateAuthGateUI(validUser);
+      updateSyncBannerUI(validUser);
+
+      if (validUser) {
+        await registerWidgetUserInFirebase(validUser);
+        await loadUserDataFromFirebase(validUser.uid);
       } else {
         userWidgetsConfig = {};
         resetFavoriteButtonsUI();
@@ -2196,18 +2203,26 @@
     function updateAuthGateUI(user) {
       const gate = document.getElementById('widgets-auth-gate');
       const container = document.getElementById('widgets-container');
-      if (user) {
-        if (gate) gate.classList.add('unlocked');
+      const isAuthed = isVerifiedUser(user);
+
+      if (isAuthed) {
+        if (gate) {
+          gate.classList.add('unlocked');
+          gate.style.display = 'none';
+        }
         if (container) container.classList.remove('locked');
       } else {
-        if (gate) gate.classList.remove('unlocked');
+        if (gate) {
+          gate.classList.remove('unlocked');
+          gate.style.display = 'flex';
+        }
         if (container) container.classList.add('locked');
       }
     }
 
     // Registro obligatorio de los usuarios de widgets en Firebase RTDB
     async function registerWidgetUserInFirebase(user) {
-      if (!user || !user.uid) return;
+      if (!isVerifiedUser(user)) return;
       try {
         const now = Date.now();
         const isGoogle = Boolean(
@@ -2264,13 +2279,23 @@
         });
         const result = await signInWithPopup(activeAuth, provider);
         const user = result.user;
-        if (text) text.textContent = '¡Bienvenido! Entrando...';
-        await registerWidgetUserInFirebase(user);
-        updateAuthGateUI(user);
+
+        if (isVerifiedUser(user)) {
+          if (text) text.textContent = '¡Bienvenido! Entrando...';
+          await registerWidgetUserInFirebase(user);
+          updateAuthGateUI(user);
+        } else {
+          updateAuthGateUI(null);
+          if (btn) btn.disabled = false;
+          if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+        }
       } catch (error) {
         console.error("Error autenticando con Google en Widgets Gate:", error);
         if (btn) btn.disabled = false;
         if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+
+        // Asegurarse de mantener la pantalla completamente bloqueada
+        updateAuthGateUI(null);
 
         if (error.code === 'auth/popup-blocked') {
           try {
@@ -2281,10 +2306,16 @@
           }
         }
 
-        // Si falla el popup o el navegador lo bloquea, abrir el modal oficial de autenticación de la página
+        // Si fue cancelado o cerrado por el usuario, permanecer bloqueado sin error molesto
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+          console.log("[Auth Gate] Ventana de Google cerrada sin completar. Acceso protegido.");
+          return;
+        }
+
+        // Si falla por otro error imprevisto, ofrecer fallback
         if (typeof window.openAuthModal === 'function') {
           window.openAuthModal();
-        } else if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+        } else {
           alert("No se pudo iniciar sesión con Google. Intenta nuevamente.");
         }
       }
