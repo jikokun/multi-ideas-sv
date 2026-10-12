@@ -1,0 +1,3465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overlays & Mini Widgets para OBS | Multi Ideas Sv</title>
+  <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@700;900&family=Rajdhani:wght@600;700;900&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="../estilos.css">
+  <link rel="stylesheet" href="css/style.css">
+
+  <script>
+      (function() {
+          const savedTheme = localStorage.getItem('theme');
+          if (savedTheme === 'light') {
+              document.querySelector('link[href*="../estilos.css"]').href = '../estilo_claro_multi.css?v=3';
+              document.body?.classList.add('light-theme');
+          }
+      })();
+  </script>
+
+  <style>
+    html, body {
+      height: auto !important;
+      min-height: 100vh !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+    }
+
+    .mini-widgets-container {
+      width: 100%;
+      max-width: 1350px;
+      margin: 0 auto;
+      padding: 20px 20px 60px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .page-title-section {
+      text-align: center;
+      margin-bottom: 40px;
+      max-width: 800px;
+    }
+
+    .page-title-section h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      color: #00f5d4;
+      text-shadow: 0 0 16px rgba(0, 245, 212, 0.6);
+      margin-bottom: 12px;
+    }
+
+    p.subtitle {
+      color: #a0c0d8;
+      font-size: 1.1rem;
+      line-height: 1.5;
+    }
+
+    .grid {
+      columns: 2 440px;
+      column-gap: 35px;
+      width: 100%;
+    }
+
+    .card {
+      break-inside: avoid;
+      margin-bottom: 35px;
+      background: rgba(4, 20, 32, 0.85);
+      border: 1.5px solid rgba(0, 245, 212, 0.35);
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      backdrop-filter: blur(10px);
+    }
+
+    .card h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.2rem;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .iframe-preview {
+      width: 100%;
+      height: 180px;
+      border: 1px dashed rgba(0, 245, 212, 0.4);
+      border-radius: 12px;
+      background: radial-gradient(circle at center, #061928 0%, #02090f 100%);
+      overflow: hidden;
+      position: relative;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #00f5d4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      background: rgba(2, 9, 15, 0.8);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      border-radius: 10px;
+      color: #ffffff;
+      font-family: 'Nunito', sans-serif;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-field:focus {
+      border-color: #00f5d4;
+      box-shadow: 0 0 12px rgba(0, 245, 212, 0.3);
+    }
+
+    /* Estilos Neón Modernos para Checkboxes Custom */
+    .checkbox-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 800;
+      color: #a0c0d8;
+      user-select: none;
+    }
+
+    .custom-checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: rgba(2, 9, 15, 0.8);
+      border: 2px solid rgba(0, 245, 212, 0.4);
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .custom-checkbox:checked {
+      background: #00f5d4;
+      border-color: #00f5d4;
+      box-shadow: 0 0 10px rgba(0, 245, 212, 0.6);
+    }
+
+    .custom-checkbox:checked::after {
+      content: '✓';
+      color: #02090f;
+      font-size: 13px;
+      font-weight: 900;
+    }
+
+    /* Scrollbar Estilizada y Adaptada al Contenedor */
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-track {
+      background: rgba(2, 9, 15, 0.6);
+      border-radius: 10px;
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, #00f5d4 0%, #0077b6 100%);
+      border-radius: 10px;
+      box-shadow: 0 0 8px rgba(0, 245, 212, 0.5);
+    }
+
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #00f5d4;
+    }
+
+    .btn-copy {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px 20px;
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      font-weight: 900;
+      font-size: 0.98rem;
+      border: none;
+      border-radius: 25px;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+      box-shadow: 0 4px 15px rgba(0, 245, 212, 0.3);
+      margin-top: 6px;
+    }
+
+    .btn-copy:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 245, 212, 0.5);
+    }
+
+    .btn-copy.copied {
+      background: linear-gradient(135deg, #53fc18 0%, #00b4d8 100%);
+      color: #02090f;
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #00f5d4;
+      color: #02090f;
+      font-weight: 900;
+      padding: 14px 28px;
+      border-radius: 30px;
+      box-shadow: 0 10px 30px rgba(0, 245, 212, 0.6);
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Banner de Sincronización en la Nube */
+    .cloud-sync-banner {
+      background: rgba(3, 16, 26, 0.85);
+      border: 1px solid rgba(0, 245, 212, 0.25);
+      border-radius: 18px;
+      padding: 16px 22px;
+      margin-bottom: 25px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: all 0.3s ease;
+    }
+    .cloud-sync-banner.logged-in {
+      background: rgba(2, 24, 36, 0.9);
+      border-color: rgba(0, 245, 212, 0.5);
+      box-shadow: 0 8px 30px rgba(0, 245, 212, 0.15);
+    }
+    .sync-banner-content {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      flex: 1;
+      min-width: 260px;
+    }
+    .sync-icon-wrap {
+      width: 46px;
+      height: 46px;
+      border-radius: 12px;
+      background: rgba(0, 245, 212, 0.1);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.45rem;
+      flex-shrink: 0;
+      box-shadow: 0 0 15px rgba(0, 245, 212, 0.15);
+    }
+    .sync-text-wrap h3 {
+      margin: 0 0 4px 0;
+      font-size: 1.05rem;
+      color: #00f5d4;
+      font-weight: 800;
+    }
+    .sync-text-wrap p {
+      margin: 0;
+      font-size: 0.88rem;
+      color: #a0c0d8;
+      line-height: 1.4;
+    }
+    .sync-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-sync-action {
+      padding: 10px 20px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      font-weight: 800;
+      font-size: 0.9rem;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(0, 245, 212, 0.3);
+    }
+    .btn-sync-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 245, 212, 0.5);
+    }
+    .btn-sync-action.btn-secondary {
+      background: rgba(0, 245, 212, 0.12);
+      border: 1px solid rgba(0, 245, 212, 0.35);
+      color: #00f5d4;
+      box-shadow: none;
+    }
+    .btn-sync-action.btn-secondary:hover {
+      background: rgba(0, 245, 212, 0.22);
+      border-color: #00f5d4;
+    }
+
+    /* Cabecera de Tarjeta con Botón de Favorito */
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .card-header-row h2 {
+      margin: 0;
+      font-size: 1.25rem;
+    }
+    .btn-card-fav {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 10px;
+      padding: 6px 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      color: #94a3b8;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+      user-select: none;
+    }
+    .btn-card-fav .fav-icon {
+      font-size: 1.1rem;
+      filter: grayscale(1);
+      transition: all 0.25s ease;
+    }
+    .btn-card-fav:hover {
+      background: rgba(255, 183, 3, 0.15);
+      border-color: rgba(255, 183, 3, 0.4);
+      color: #ffb703;
+      transform: translateY(-1px);
+    }
+    .btn-card-fav:hover .fav-icon {
+      filter: grayscale(0);
+      transform: scale(1.15);
+    }
+    .btn-card-fav.active {
+      background: rgba(255, 183, 3, 0.2);
+      border-color: #ffb703;
+      color: #ffb703;
+      box-shadow: 0 0 15px rgba(255, 183, 3, 0.4);
+    }
+    .btn-card-fav.active .fav-icon {
+      filter: grayscale(0);
+      transform: scale(1.1);
+    }
+
+    /* Estilos Modernos para Paneles y Selectores de Color */
+    .color-customizer-panel {
+      background: rgba(2, 9, 15, 0.45);
+      border: 1px solid rgba(0, 245, 212, 0.25);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    .color-panel-title {
+      font-size: 0.82rem;
+      font-weight: 800;
+      color: #00f5d4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .color-grid-row {
+      display: grid;
+      gap: 12px;
+    }
+
+    .color-grid-row.cols-3 {
+      grid-template-columns: repeat(3, 1fr);
+    }
+
+    .color-grid-row.cols-2 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+
+    @media (max-width: 520px) {
+      .color-grid-row.cols-3,
+      .color-grid-row.cols-2 {
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      }
+    }
+
+    .color-picker-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .color-picker-item label {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: #a0c0d8;
+      white-space: nowrap;
+      text-transform: uppercase;
+    }
+
+    .color-picker-input {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 100%;
+      height: 38px;
+      background: rgba(2, 9, 15, 0.8);
+      border: 1.5px solid rgba(0, 245, 212, 0.35);
+      border-radius: 10px;
+      padding: 3px;
+      cursor: pointer;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .color-picker-input:hover {
+      border-color: #00f5d4;
+      box-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .color-picker-input::-webkit-color-swatch-wrapper {
+      padding: 0;
+      border-radius: 7px;
+    }
+
+    .color-picker-input::-webkit-color-swatch {
+      border: none;
+      border-radius: 7px;
+      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+    }
+
+    .color-picker-input::-moz-color-swatch {
+      border: none;
+      border-radius: 7px;
+      box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.4);
+    }
+
+    /* Estilos para las casillas individuales de redes sociales (Widget 3) */
+    .social-box {
+      background: rgba(2, 9, 15, 0.5);
+      padding: 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.25s ease;
+    }
+
+    .social-box.box-kick { border-color: rgba(83, 252, 24, 0.35); }
+    .social-box.box-discord { border-color: rgba(88, 101, 242, 0.35); }
+    .social-box.box-instagram { border-color: rgba(225, 48, 108, 0.35); }
+    .social-box.box-facebook { border-color: rgba(24, 119, 242, 0.35); }
+    .social-box.box-spotify { border-color: rgba(29, 185, 84, 0.35); }
+    .social-box.box-tiktok { border-color: rgba(0, 242, 254, 0.35); }
+    .social-box.box-telegram { border-color: rgba(0, 136, 204, 0.35); }
+    .social-box.box-youtube { border-color: rgba(255, 0, 0, 0.35); }
+    /* Estilos Premium para los Botones de Probar Audio */
+    .btn-test-audio {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));
+      color: #38bdf8;
+      border: 1.5px solid rgba(56, 189, 248, 0.4);
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-family: 'Rajdhani', 'Nunito', sans-serif;
+      font-size: 0.82rem;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-test-audio:hover {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #ffffff;
+      border-color: #7dd3fc;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.5), 0 4px 12px rgba(0, 0, 0, 0.5);
+      transform: translateY(-2px);
+    }
+
+    .btn-test-audio:active {
+      transform: translateY(1px);
+    }
+
+    body.light-theme .btn-test-audio {
+      background: linear-gradient(135deg, #e0f2fe, #bae6fd) !important;
+      color: #0369a1 !important;
+      border-color: rgba(2, 132, 199, 0.4) !important;
+    }
+
+    body.light-theme .btn-test-audio:hover {
+      background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+      color: #ffffff !important;
+      border-color: #0284c7 !important;
+      box-shadow: 0 0 12px rgba(2, 132, 199, 0.3) !important;
+    }
+
+    /* Etiquetas de Inserción Rápida de Variables y Botón de Prueba */
+    .var-chips-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 4px;
+      margin-bottom: 2px;
+    }
+    .var-chips-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .var-badge {
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid rgba(192, 132, 252, 0.4);
+      color: #fce882;
+      font-family: 'Rajdhani', monospace, sans-serif;
+      font-weight: 700;
+      font-size: 0.78rem;
+      padding: 2px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .var-badge:hover {
+      background: rgba(192, 132, 252, 0.25);
+      border-color: #fce882;
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 0 8px rgba(252, 232, 130, 0.4);
+    }
+    .btn-test-mini {
+      background: rgba(15, 23, 42, 0.9);
+      border: 1.5px solid rgba(244, 114, 182, 0.4);
+      color: #f472b6;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 0.78rem;
+      font-weight: 800;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-test-mini:hover {
+      background: linear-gradient(135deg, #f472b6, #c084fc);
+      color: #02090f;
+      border-color: #f472b6;
+      box-shadow: 0 0 10px rgba(244, 114, 182, 0.5);
+    }
+
+    body.light-theme .var-badge {
+      background: rgba(240, 235, 255, 0.9) !important;
+      border-color: rgba(147, 51, 234, 0.35) !important;
+      color: #7e22ce !important;
+    }
+    body.light-theme .btn-test-mini {
+      background: #fdf2f8 !important;
+      border-color: #f472b6 !important;
+      color: #db2777 !important;
+    }
+
+    /* ========================================================
+       ADAPTACIÓN ARMÓNICA AL MODO CLARO (body.light-theme)
+       ======================================================== */
+    body.light-theme .cloud-sync-banner {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1.5px solid rgba(0, 143, 150, 0.35) !important;
+      box-shadow: 0 10px 30px rgba(0, 143, 150, 0.1) !important;
+    }
+
+    body.light-theme .cloud-sync-banner.logged-in {
+      background: linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(255, 255, 255, 0.98)) !important;
+      border-color: rgba(0, 143, 150, 0.5) !important;
+      box-shadow: 0 10px 30px rgba(0, 143, 150, 0.15) !important;
+    }
+
+    body.light-theme .sync-icon-wrap {
+      background: rgba(0, 143, 150, 0.1) !important;
+      border-color: rgba(0, 143, 150, 0.35) !important;
+    }
+
+    body.light-theme .sync-text-wrap h3 {
+      color: #063d41 !important;
+    }
+
+    body.light-theme .sync-text-wrap p {
+      color: #475569 !important;
+    }
+
+    body.light-theme .sync-text-wrap p strong {
+      color: #063d41 !important;
+    }
+
+    .sync-user-highlight {
+      color: #00f5d4;
+      font-weight: 800;
+    }
+
+    body.light-theme .sync-user-highlight {
+      color: #008f96 !important;
+    }
+
+    body.light-theme .btn-sync-action {
+      background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 15px rgba(0, 143, 150, 0.3) !important;
+    }
+
+    body.light-theme .btn-sync-action:hover {
+      box-shadow: 0 6px 20px rgba(0, 143, 150, 0.45) !important;
+    }
+
+    body.light-theme .btn-card-fav {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border: 1px solid rgba(0, 0, 0, 0.12) !important;
+      color: #64748b !important;
+    }
+
+    body.light-theme .btn-card-fav:hover {
+      background: rgba(255, 183, 3, 0.15) !important;
+      border-color: #ffb703 !important;
+      color: #b45309 !important;
+    }
+
+    body.light-theme .btn-card-fav.active {
+      background: rgba(255, 183, 3, 0.22) !important;
+      border-color: #ffb703 !important;
+      color: #b45309 !important;
+      box-shadow: 0 2px 10px rgba(255, 183, 3, 0.25) !important;
+    }
+
+    body.light-theme .color-customizer-panel {
+      background: rgba(240, 251, 251, 0.85) !important;
+      border-color: rgba(0, 143, 150, 0.25) !important;
+      box-shadow: 0 4px 15px rgba(0, 143, 150, 0.05);
+    }
+
+    body.light-theme .color-panel-title {
+      color: #008f96 !important;
+    }
+
+    body.light-theme .color-picker-item label {
+      color: #334155 !important;
+    }
+
+    body.light-theme .color-picker-input {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-color: rgba(0, 143, 150, 0.3) !important;
+    }
+
+    body.light-theme .color-picker-input:hover {
+      border-color: #008f96 !important;
+      box-shadow: 0 0 10px rgba(0, 143, 150, 0.3) !important;
+    }
+
+    body.light-theme .page-title-section h1 {
+      color: #008f96;
+      text-shadow: 0 0 12px rgba(0, 143, 150, 0.25);
+    }
+
+    body.light-theme p.subtitle {
+      color: #405e61;
+    }
+
+    body.light-theme .card {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-color: rgba(0, 143, 150, 0.25) !important;
+      box-shadow: 0 10px 30px rgba(0, 143, 150, 0.08) !important;
+      backdrop-filter: blur(16px);
+    }
+
+    body.light-theme .card h2 {
+      color: #063d41 !important;
+    }
+
+    body.light-theme .iframe-preview {
+      border-color: rgba(0, 143, 150, 0.3) !important;
+      background: radial-gradient(circle at center, #e6f7f7 0%, #d4f0f0 100%) !important;
+    }
+
+    body.light-theme .form-group label {
+      color: #008f96 !important;
+    }
+
+    body.light-theme .input-field {
+      background: rgba(255, 255, 255, 0.95) !important;
+      color: #0f172a !important;
+      border: 1.5px solid rgba(0, 143, 150, 0.3) !important;
+    }
+
+    body.light-theme .input-field:focus {
+      border-color: #008f96 !important;
+      box-shadow: 0 0 10px rgba(0, 143, 150, 0.25) !important;
+    }
+
+    body.light-theme select.input-field {
+      background: rgba(255, 255, 255, 0.95) !important;
+      color: #0f172a !important;
+    }
+
+    body.light-theme .checkbox-group {
+      color: #334155 !important;
+    }
+
+    body.light-theme .custom-checkbox {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-color: rgba(0, 143, 150, 0.4) !important;
+    }
+
+    body.light-theme .custom-checkbox:checked {
+      background: #008f96 !important;
+      border-color: #008f96 !important;
+    }
+
+    body.light-theme .section-subtitle {
+      color: #008f96 !important;
+    }
+
+    /* Adaptación limpia y armónica para las casillas de redes en modo claro */
+    body.light-theme .social-box {
+      background: rgba(240, 251, 251, 0.85) !important;
+      box-shadow: 0 2px 8px rgba(0, 143, 150, 0.06) !important;
+    }
+
+    body.light-theme .social-box.box-kick { border-color: rgba(83, 252, 24, 0.6) !important; background: rgba(235, 253, 230, 0.85) !important; }
+    body.light-theme .social-box.box-discord { border-color: rgba(88, 101, 242, 0.6) !important; background: rgba(238, 240, 255, 0.85) !important; }
+    body.light-theme .social-box.box-instagram { border-color: rgba(225, 48, 108, 0.6) !important; background: rgba(255, 238, 243, 0.85) !important; }
+    body.light-theme .social-box.box-facebook { border-color: rgba(24, 119, 242, 0.6) !important; background: rgba(235, 244, 255, 0.85) !important; }
+    body.light-theme .social-box.box-spotify { border-color: rgba(29, 185, 84, 0.6) !important; background: rgba(232, 252, 238, 0.85) !important; }
+    body.light-theme .social-box.box-tiktok { border-color: rgba(0, 180, 216, 0.6) !important; background: rgba(230, 253, 255, 0.85) !important; }
+    body.light-theme .social-box.box-telegram { border-color: rgba(0, 136, 204, 0.6) !important; background: rgba(230, 245, 255, 0.85) !important; }
+    body.light-theme .social-box.box-youtube { border-color: rgba(255, 0, 0, 0.6) !important; background: rgba(255, 235, 235, 0.85) !important; }
+    body.light-theme .social-box.box-twitch { border-color: rgba(145, 70, 255, 0.6) !important; background: rgba(244, 235, 255, 0.85) !important; }
+
+    /* ========================================================
+       CARD 11: ALERTA ESTELAR ANIMADA (MODO OSCURO & CLARO)
+       ======================================================== */
+    /* Modo Oscuro (por defecto) */
+    #card-star-alerts {
+      border-color: rgba(244, 114, 182, 0.45);
+      background: rgba(18, 12, 32, 0.92);
+    }
+    .card-title-star {
+      color: #f472b6;
+      margin: 0;
+    }
+    .badge-star-tech {
+      font-size: 0.75rem;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: rgba(244, 114, 182, 0.15);
+      color: #f472b6;
+      border: 1px solid rgba(244, 114, 182, 0.35);
+    }
+    .banner-star-info {
+      border-color: rgba(244, 114, 182, 0.35);
+      background: rgba(244, 114, 182, 0.08);
+    }
+    .lbl-star-section-title {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #f472b6;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .star-text-panel {
+      margin-bottom: 12px;
+      border-color: rgba(143, 121, 194, 0.45);
+      background: rgba(15, 23, 42, 0.65);
+      border-radius: 12px;
+      padding: 14px;
+      border: 1.5px solid rgba(143, 121, 194, 0.45);
+    }
+    .star-text-title {
+      margin: 0;
+      color: #c084fc;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 800;
+      font-size: 0.92rem;
+    }
+    .badge-kick-dynamic {
+      font-size: 0.72rem;
+      color: #fce882;
+      background: rgba(252, 232, 130, 0.15);
+      padding: 2px 8px;
+      border-radius: 12px;
+      border: 1px solid rgba(252, 232, 130, 0.3);
+      font-weight: 800;
+    }
+    .star-tip-box {
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      margin-bottom: 10px;
+      line-height: 1.4;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 8px 12px;
+      border-radius: 8px;
+      border-left: 3px solid #c084fc;
+    }
+    .lbl-star-follow { font-size: 0.8rem; font-weight: 700; color: #53fc18; margin-bottom: 0; }
+    .lbl-star-sub { font-size: 0.8rem; font-weight: 700; color: #fce882; margin-bottom: 0; }
+    .lbl-star-gift { font-size: 0.8rem; font-weight: 700; color: #f472b6; margin-bottom: 0; }
+    .lbl-star-raid { font-size: 0.8rem; font-weight: 700; color: #fb923c; margin-bottom: 0; }
+    .lbl-star-kicks { font-size: 0.8rem; font-weight: 700; color: #facc15; margin-bottom: 0; }
+    .btn-copy-star {
+      margin-top: 8px;
+      background: linear-gradient(135deg, #6a4c93, #8f79c2);
+      color: #ffffff;
+    }
+
+    /* Adaptación Armónica al Modo Claro (body.light-theme) */
+    body.light-theme #card-star-alerts {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(253, 244, 255, 0.95)) !important;
+      border: 1.5px solid rgba(216, 180, 254, 0.6) !important;
+      box-shadow: 0 10px 30px rgba(168, 85, 247, 0.1) !important;
+    }
+    body.light-theme .card-title-star {
+      color: #7e22ce !important;
+    }
+    body.light-theme .badge-star-tech {
+      background: rgba(147, 51, 234, 0.1) !important;
+      color: #7e22ce !important;
+      border-color: rgba(147, 51, 234, 0.3) !important;
+    }
+    body.light-theme #card-star-alerts .alert-info-banner {
+      background: rgba(250, 245, 255, 0.95) !important;
+      border-color: rgba(192, 132, 252, 0.35) !important;
+      color: #334155 !important;
+    }
+    body.light-theme #card-star-alerts .alert-info-banner p strong {
+      color: #6b21a8 !important;
+    }
+    body.light-theme #preview-star-alerts {
+      border-color: rgba(192, 132, 252, 0.4) !important;
+      background: radial-gradient(circle at center, #f5effc 0%, #ebe0f7 100%) !important;
+    }
+    body.light-theme .lbl-star-section-title {
+      color: #7e22ce !important;
+    }
+    body.light-theme .star-text-panel {
+      background: linear-gradient(135deg, rgba(250, 245, 255, 0.95), rgba(255, 255, 255, 0.95)) !important;
+      border: 1.5px solid rgba(192, 132, 252, 0.35) !important;
+      box-shadow: 0 4px 18px rgba(147, 51, 234, 0.06) !important;
+    }
+    body.light-theme .star-text-title {
+      color: #6b21a8 !important;
+    }
+    body.light-theme .badge-kick-dynamic {
+      background: rgba(147, 51, 234, 0.1) !important;
+      color: #6b21a8 !important;
+      border-color: rgba(147, 51, 234, 0.25) !important;
+    }
+    body.light-theme .star-tip-box {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-left: 3px solid #9333ea !important;
+      color: #334155 !important;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04) !important;
+    }
+    body.light-theme .star-tip-box strong {
+      color: #581c87 !important;
+    }
+    body.light-theme .star-tip-box code {
+      font-weight: 800 !important;
+    }
+    body.light-theme .lbl-star-follow { color: #15803d !important; }
+    body.light-theme .lbl-star-sub { color: #854d0e !important; }
+    body.light-theme .lbl-star-gift { color: #be185d !important; }
+    body.light-theme .lbl-star-raid { color: #c2410c !important; }
+    body.light-theme .lbl-star-kicks { color: #b45309 !important; }
+    body.light-theme #star-volume-val { color: #7e22ce !important; }
+    body.light-theme .btn-copy-star {
+      background: linear-gradient(135deg, #7e22ce 0%, #9333ea 50%, #c026d3 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 15px rgba(147, 51, 234, 0.3) !important;
+    }
+    body.light-theme .btn-copy-star:hover {
+      box-shadow: 0 6px 22px rgba(147, 51, 234, 0.45) !important;
+    }
+
+    /* Ocultar Popups y Carritos fuera de contexto internacional */
+    #promo-popup, #cart-floating-btn, #cart-drawer, #cart-overlay, #cart-toast {
+      display: none !important;
+    }
+
+    /* ========================================================
+       BLOQUEO / REGISTRO OBLIGATORIO PARA MINI WIDGETS
+       ======================================================== */
+    .widgets-auth-gate {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(2, 9, 15, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      transition: opacity 0.4s ease, visibility 0.4s ease;
+      overflow-y: auto;
+    }
+    .widgets-auth-gate.unlocked {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    .mini-widgets-container.locked {
+      filter: blur(14px) brightness(0.65);
+      pointer-events: none !important;
+      user-select: none !important;
+      max-height: 90vh;
+      overflow: hidden;
+    }
+    body.light-theme .mini-widgets-container.locked {
+      filter: blur(14px) brightness(0.95);
+    }
+    .auth-gate-card {
+      width: 100%;
+      max-width: 520px;
+      background: linear-gradient(145deg, rgba(4, 20, 32, 0.96), rgba(8, 14, 26, 0.96));
+      border: 1.5px solid rgba(0, 245, 212, 0.45);
+      border-radius: 26px;
+      padding: 38px 30px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 245, 212, 0.2);
+      position: relative;
+      animation: gatePopIn 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes gatePopIn {
+      from { transform: scale(0.92) translateY(20px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+    .auth-gate-badge {
+      display: inline-block;
+      padding: 5px 14px;
+      border-radius: 20px;
+      background: rgba(0, 245, 212, 0.12);
+      border: 1px solid rgba(0, 245, 212, 0.35);
+      color: #00f5d4;
+      font-size: 0.76rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+    .auth-gate-icon {
+      font-size: 3.2rem;
+      margin-bottom: 12px;
+      filter: drop-shadow(0 0 16px rgba(0, 245, 212, 0.5));
+      animation: lockFloat 3s ease-in-out infinite alternate;
+    }
+    @keyframes lockFloat {
+      from { transform: translateY(0); }
+      to { transform: translateY(-6px); }
+    }
+    .auth-gate-card h2 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.55rem;
+      color: #ffffff;
+      margin-bottom: 12px;
+      line-height: 1.3;
+    }
+    .auth-gate-desc {
+      color: #a0c0d8;
+      font-size: 0.95rem;
+      line-height: 1.55;
+      margin-bottom: 26px;
+    }
+    .auth-gate-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .btn-gate-google {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      padding: 14px 20px;
+      background: #ffffff;
+      color: #1f2937;
+      font-weight: 800;
+      font-size: 1rem;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 30px;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+      transition: all 0.25s ease;
+    }
+    .btn-gate-google:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(255, 255, 255, 0.25);
+      background: #f9fafb;
+    }
+    .btn-gate-google:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .auth-gate-divider {
+      display: flex;
+      align-items: center;
+      text-align: center;
+      margin: 4px 0;
+    }
+    .auth-gate-divider::before,
+    .auth-gate-divider::after {
+      content: '';
+      flex: 1;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .auth-gate-divider span {
+      padding: 0 10px;
+      font-size: 0.78rem;
+      color: #94a3b8;
+      text-transform: uppercase;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+    .btn-gate-email {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      width: 100%;
+      padding: 13px 20px;
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.15), rgba(0, 119, 182, 0.2));
+      color: #00f5d4;
+      font-weight: 800;
+      font-size: 0.95rem;
+      border: 1.5px solid rgba(0, 245, 212, 0.4);
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    .btn-gate-email:hover {
+      background: linear-gradient(135deg, #00f5d4, #0077b6);
+      color: #02090f;
+      box-shadow: 0 0 20px rgba(0, 245, 212, 0.5);
+      transform: translateY(-2px);
+    }
+    .auth-gate-features {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+      background: rgba(2, 9, 15, 0.6);
+      padding: 14px 18px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .gate-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: #cbd5e1;
+    }
+    .feat-check {
+      color: #53fc18;
+      font-weight: 900;
+      font-size: 0.9rem;
+    }
+
+    /* Adaptación al Modo Claro de la pantalla de bloqueo */
+    body.light-theme .widgets-auth-gate {
+      background: rgba(240, 245, 250, 0.88);
+    }
+    body.light-theme .auth-gate-card {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(245, 250, 255, 0.98));
+      border: 1.5px solid rgba(0, 143, 150, 0.35);
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.12), 0 0 25px rgba(0, 143, 150, 0.12);
+    }
+    body.light-theme .auth-gate-badge {
+      background: rgba(0, 143, 150, 0.1);
+      border-color: rgba(0, 143, 150, 0.3);
+      color: #008f96;
+    }
+    body.light-theme .auth-gate-card h2 {
+      color: #063d41;
+    }
+    body.light-theme .auth-gate-desc {
+      color: #475569;
+    }
+    body.light-theme .auth-gate-divider::before,
+    body.light-theme .auth-gate-divider::after {
+      border-bottom-color: rgba(0, 0, 0, 0.12);
+    }
+    body.light-theme .auth-gate-divider span {
+      color: #64748b;
+    }
+    body.light-theme .btn-gate-email {
+      background: rgba(0, 143, 150, 0.08);
+      color: #008f96;
+      border-color: rgba(0, 143, 150, 0.35);
+    }
+    body.light-theme .btn-gate-email:hover {
+      background: linear-gradient(135deg, #008f96, #00b4d8);
+      color: #ffffff;
+      box-shadow: 0 4px 15px rgba(0, 143, 150, 0.35);
+    }
+    body.light-theme .auth-gate-features {
+      background: rgba(240, 248, 250, 0.85);
+      border-color: rgba(0, 143, 150, 0.2);
+    }
+    body.light-theme .gate-feature-item {
+      color: #334155;
+    }
+    body.light-theme .feat-check {
+      color: #16a34a;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Menú Global Adaptativo de Multi Ideas Sv -->
+  <header id="global-header"></header>
+
+  <!-- Pantalla de Bloqueo / Registro Obligatorio para Acceder a Mini Widgets -->
+  <div id="widgets-auth-gate" class="widgets-auth-gate">
+    <div class="auth-gate-card">
+      <div class="auth-gate-badge">
+        <span>✨ WIDGETS DE JIKOKUN</span>
+      </div>
+      <div class="auth-gate-icon">
+        <span>🔐</span>
+      </div>
+      <h2>Los widgets ideales para tu OBS</h2>
+      <p class="auth-gate-desc">
+        Herramientas y overlays exclusivos para streaming creados y personalizados por <strong>Jikokun</strong>. Para hacer uso de ellos, configurar tus alertas interactivas y obtener tus enlaces listos para tu software de transmisión, es necesario registrarte o iniciar sesión con tu cuenta de Google.
+      </p>
+
+      <div class="auth-gate-actions">
+        <!-- Botón Único de Inicio y Registro Automático con Google -->
+        <button type="button" class="btn-gate-google" id="gate-btn-google" onclick="loginWithGoogleGate()">
+          <svg class="google-icon" viewBox="0 0 24 24" width="22" height="22">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span id="gate-google-text">Iniciar sesión / Registrarse con Google</span>
+        </button>
+      </div>
+
+      <div class="auth-gate-features">
+        <div class="gate-feature-item">
+          <span class="feat-check">✓</span>
+          <span>Widget Gratuitos y Personalizados</span>
+        </div>
+        <div class="gate-feature-item">
+          <span class="feat-check">✓</span>
+          <span>Sincronizados a tu cuenta kick o con Streamerbot</span>
+        </div>
+        <div class="gate-feature-item">
+          <span class="feat-check">✓</span>
+          <span>Compatibles con OBS, Meld, Prism y Stremerlab</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mini-widgets-container locked" id="widgets-container">
+
+    <div class="page-title-section">
+      <h1>✨ Generador y Configurador de Mini Widgets</h1>
+      <p class="subtitle">Personaliza los datos de tu canal de transmisión, prueba la vista previa interactiva en tiempo real y copia el enlace listo para pegar en OBS Studio.</p>
+    </div>
+
+    <!-- Banner de Estado de Usuario / Sincronización en la Nube -->
+    <div id="cloud-sync-banner" class="cloud-sync-banner">
+      <div class="sync-banner-content">
+        <div class="sync-icon-wrap">
+          <span id="sync-icon">☁️</span>
+        </div>
+        <div class="sync-text-wrap">
+          <h3 id="sync-title">Personalización en la Nube</h3>
+          <p id="sync-desc">Inicia sesión para guardar automáticamente tus usuarios, colores y configuraciones en tu perfil, y acceder a tus <strong>Widgets Favoritos de OBS</strong>.</p>
+        </div>
+      </div>
+      <div class="sync-actions" id="sync-actions">
+        <button type="button" class="btn-sync-action" id="btn-sync-login" onclick="openGlobalAuthModal()">
+          🔑 Iniciar Sesión / Registrarse
+        </button>
+      </div>
+    </div>
+
+    <div class="grid">
+
+      <!-- Card 1: Clima & Reloj -->
+      <div class="card" id="card-weather">
+        <div class="card-header-row">
+          <h2>🌤️ 1. Widget Clima & Reloj en Vivo</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-weather" onclick="toggleWidgetFavorite('widget_weather', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+        <div class="iframe-preview">
+          <iframe id="preview-weather" src="widget_clima_reloj.html"></iframe>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="weather-nobg" onchange="updateWeatherWidget()">
+            <span>Modo Transparente Sin Caja (Solo texto e ícono)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="weather-theme-light" onchange="updateWeatherWidget()">
+            <span>☀️ Tema Claro para Widget</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-weather', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 2: Contador Kick Live -->
+      <div class="card" id="card-kick">
+        <div class="card-header-row">
+          <h2>💚 2. Widget Contador Kick (Espectadores en Vivo)</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-kick" onclick="toggleWidgetFavorite('widget_kick', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+        <div class="iframe-preview">
+          <iframe id="preview-kick" src="widget_kick_counter.html?channel=jikokun"></iframe>
+        </div>
+        
+        <div class="form-group">
+          <label for="kick-channel-input">Nombre de Usuario de Kick:</label>
+          <input type="text" id="kick-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateKickWidget()">
+        </div>
+
+        <!-- Panel de Personalización Visual Elegante -->
+        <div class="color-customizer-panel">
+          <span class="color-panel-title">🎨 Personalización de Colores & Estilo</span>
+          
+          <!-- Fila 1: Estructura del Contenedor (3 columnas) -->
+          <div class="color-grid-row cols-3">
+            <div class="color-picker-item">
+              <label for="kick-bordercolor-input">🎨 Borde</label>
+              <input type="color" id="kick-bordercolor-input" class="color-picker-input" value="#53fc18" onchange="updateKickWidget()">
+            </div>
+            <div class="color-picker-item">
+              <label for="kick-glowcolor-input">✨ Resplandor</label>
+              <input type="color" id="kick-glowcolor-input" class="color-picker-input" value="#53fc18" onchange="updateKickWidget()">
+            </div>
+            <div class="color-picker-item">
+              <label for="kick-bgcolor-input">⬛ Fondo</label>
+              <input type="color" id="kick-bgcolor-input" class="color-picker-input" value="#03101a" onchange="updateKickWidget()">
+            </div>
+          </div>
+
+          <!-- Fila 2: Tipografía y Textos (3 columnas) -->
+          <div class="color-grid-row cols-3">
+            <div class="color-picker-item">
+              <label for="kick-usercolor-input">👤 Nombre</label>
+              <input type="color" id="kick-usercolor-input" class="color-picker-input" value="#ffffff" onchange="updateKickWidget()">
+            </div>
+            <div class="color-picker-item">
+              <label for="kick-textcolor-input">💬 Texto</label>
+              <input type="color" id="kick-textcolor-input" class="color-picker-input" value="#a0c0d8" onchange="updateKickWidget()">
+            </div>
+            <div class="color-picker-item">
+              <label for="kick-statcolor-input">🔢 Número</label>
+              <input type="color" id="kick-statcolor-input" class="color-picker-input" value="#53fc18" onchange="updateKickWidget()">
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-kick', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 3: Rotador Redes Sociales -->
+      <div class="card" id="card-social">
+        <div class="card-header-row">
+          <h2>📢 3. Widget Rotador de Redes Sociales</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-social" onclick="toggleWidgetFavorite('widget_social', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+        <div class="iframe-preview">
+          <iframe id="preview-social" src="widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv"></iframe>
+        </div>
+        
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <p class="section-subtitle" style="font-size: 0.85rem; color: #00f5d4; font-weight: 800; text-transform: uppercase;">Selecciona las redes que deseas mostrar:</p>
+        </div>
+
+        <label class="checkbox-group" style="margin-bottom: 4px;">
+          <input type="checkbox" class="custom-checkbox" id="social-theme-light" onchange="updateSocialWidget()">
+          <span>☀️ Tema Claro para Widget</span>
+        </label>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; max-height: 260px; overflow-y: auto; padding-right: 6px;" class="custom-scroll">
+          <!-- Kick -->
+          <div class="form-group social-box box-kick">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-kick" checked onchange="updateSocialWidget()">
+              <span style="color: #53fc18;">💚 Kick</span>
+            </label>
+            <input type="text" id="val-kick" class="input-field" value="jikokun" placeholder="Usuario Kick" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Discord -->
+          <div class="form-group social-box box-discord">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-discord" checked onchange="updateSocialWidget()">
+              <span style="color: #5865f2;">👾 Discord</span>
+            </label>
+            <input type="text" id="val-discord" class="input-field" value="discord.gg/jikokun" placeholder="Enlace Discord" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Instagram -->
+          <div class="form-group social-box box-instagram">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-instagram" checked onchange="updateSocialWidget()">
+              <span style="color: #e1306c;">📸 Instagram</span>
+            </label>
+            <input type="text" id="val-instagram" class="input-field" value="jikokun_official" placeholder="Usuario Insta" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Facebook -->
+          <div class="form-group social-box box-facebook">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-facebook" onchange="updateSocialWidget()">
+              <span style="color: #1877f2;">📘 Facebook</span>
+            </label>
+            <input type="text" id="val-facebook" class="input-field" value="jikokun_page" placeholder="Página Facebook" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Spotify -->
+          <div class="form-group social-box box-spotify">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-spotify" onchange="updateSocialWidget()">
+              <span style="color: #1db954;">🎧 Spotify</span>
+            </label>
+            <input type="text" id="val-spotify" class="input-field" value="Jikokun Playlist" placeholder="Playlist/Perfil" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- TikTok -->
+          <div class="form-group social-box box-tiktok">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-tiktok" checked onchange="updateSocialWidget()">
+              <span style="color: #00f2fe;">🎵 TikTok</span>
+            </label>
+            <input type="text" id="val-tiktok" class="input-field" value="jikokun_tv" placeholder="Usuario TikTok" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Telegram -->
+          <div class="form-group social-box box-telegram">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-telegram" onchange="updateSocialWidget()">
+              <span style="color: #0088cc;">✈️ Telegram</span>
+            </label>
+            <input type="text" id="val-telegram" class="input-field" value="t.me/jikokun" placeholder="Canal Telegram" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- YouTube -->
+          <div class="form-group social-box box-youtube">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-youtube" onchange="updateSocialWidget()">
+              <span style="color: #ff0000;">▶️ YouTube</span>
+            </label>
+            <input type="text" id="val-youtube" class="input-field" value="jikokun_yt" placeholder="Canal YouTube" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- Twitch -->
+          <div class="form-group social-box box-twitch">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-twitch" onchange="updateSocialWidget()">
+              <span style="color: #9146ff;">🟪 Twitch</span>
+            </label>
+            <input type="text" id="val-twitch" class="input-field" value="jikokun_tv" placeholder="Canal Twitch" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+
+          <!-- X (Twitter) -->
+          <div class="form-group social-box box-x">
+            <label class="checkbox-group">
+              <input type="checkbox" class="custom-checkbox" id="chk-x" checked onchange="updateSocialWidget()">
+              <span style="color: #f8fafc;">𝕏 X (Twitter)</span>
+            </label>
+            <input type="text" id="val-x" class="input-field" value="jikokun_x" placeholder="Usuario en X" oninput="updateSocialWidget()" style="margin-top: 6px;">
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-social', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 4: Cuenta Atrás -->
+      <div class="card" id="card-countdown">
+        <div class="card-header-row">
+          <h2>⏳ 4. Widget Cuenta Atrás de Stream</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-countdown" onclick="toggleWidgetFavorite('widget_countdown', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+        <div class="iframe-preview">
+          <iframe id="preview-countdown" src="widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar"></iframe>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+          <div class="form-group">
+            <label for="countdown-min">Minutos:</label>
+            <input type="number" id="countdown-min" class="input-field" value="5" min="1" max="120" oninput="updateCountdownWidget()">
+          </div>
+          <div class="form-group">
+            <label for="countdown-title-input">Título del Evento:</label>
+            <input type="text" id="countdown-title-input" class="input-field" value="Estamos Por Empezar" placeholder="Ej: Pausa / Volvemos" oninput="updateCountdownWidget()">
+          </div>
+        </div>
+
+        <label class="checkbox-group">
+          <input type="checkbox" class="custom-checkbox" id="countdown-theme-light" onchange="updateCountdownWidget()">
+          <span>☀️ Tema Claro para Widget</span>
+        </label>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-countdown', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 5: Reloj Digital -->
+      <div class="card" id="card-digital">
+        <div class="card-header-row">
+          <h2>⏱️ 5. Widget Reloj Digital Futurista</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-digital" onclick="toggleWidgetFavorite('widget_digital', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+        <div class="iframe-preview">
+          <iframe id="preview-digital" src="widget_reloj_digital.html"></iframe>
+        </div>
+        
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="digital-seconds" onchange="updateDigitalWidget()">
+            <span>Mostrar Segundos en Pantalla</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="digital-theme-light" onchange="updateDigitalWidget()">
+            <span>☀️ Tema Claro para Widget</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-digital', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 6: Chat en Vivo Kick -->
+      <div class="card" id="card-chat">
+        <div class="card-header-row">
+          <h2>💚 6. Widget Chat de Kick en Vivo</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-chat" onclick="toggleWidgetFavorite('widget_chat', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner" style="margin-bottom: 14px;">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Requisito de Conexión:</strong> Es necesario tener <strong>Streamer.bot</strong> abierto en tu PC con el servidor WebSocket activo (<strong>Puerto 4445</strong> por defecto) para transmitir y sincronizar los mensajes de chat en tiempo real durante tu directo.
+          </p>
+        </div>
+
+        <div class="iframe-preview">
+          <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&port=4445"></iframe>
+        </div>
+        
+        <div class="form-group">
+          <label for="chat-channel-input">Nombre de Usuario del Canal en Kick.com:</label>
+          <input type="text" id="chat-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateChatWidget()">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-fontsize-input">🔤 Tamaño de Letra (px):</label>
+            <input type="number" id="chat-fontsize-input" class="input-field" value="15" min="10" max="32" oninput="updateChatWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-textcolor-input">🎨 Color de Texto:</label>
+            <input type="color" id="chat-textcolor-input" class="input-field" value="#e2e8f0" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-bgcolor-input">🎨 Fondo de Burbuja:</label>
+            <input type="color" id="chat-bgcolor-input" class="input-field" value="#121214" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="chat-bordercolor-input">✨ Realce Izquierdo:</label>
+            <input type="color" id="chat-bordercolor-input" class="input-field" value="#53fc18" style="height: 38px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateChatWidget()">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="chat-fade-input">⏳ Desaparecer Burbujas tras (segundos):</label>
+          <input type="number" id="chat-fade-input" class="input-field" value="0" min="0" max="300" placeholder="0 = Siempre visibles (No desaparecen)" oninput="updateChatWidget()">
+        </div>
+
+        <div class="form-group">
+          <label for="chat-ignored-input">🚫 Usuarios o Bots a Ignorar (separados por coma):</label>
+          <input type="text" id="chat-ignored-input" class="input-field" value="botrix, nightbot, streamelements" placeholder="Ej: botrix, nightbot, bot_chat" oninput="updateChatWidget()">
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="chat-autoaccent" checked onchange="updateChatWidget()">
+            <span>🌈 Usar Color Automático de Usuario en Realce Izquierdo</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="chat-nobg" onchange="updateChatWidget()">
+            <span>Modo Transparente Sin Caja (Solo texto)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="chat-theme-light" onchange="updateChatWidget()">
+            <span>☀️ Tema Claro para Widget</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" style="background: linear-gradient(135deg, #53fc18 0%, #0077b6 100%); color: #02090f; margin-top: 4px;" onclick="testChatConnection()">
+          ⚡ Corroborar Conexión / Probar Chat
+        </button>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-chat', this)">
+          📋 Copiar Enlace para OBS
+        </button>
+      </div>
+
+      <!-- Card 7: Alertas Dinámicas Streamer.bot (Marco Fox WebM) -->
+      <div class="card" id="card-alerts">
+        <div class="card-header-row">
+          <h2>🔥 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h2>
+          <button type="button" class="btn-card-fav" id="fav-btn-alerts" onclick="toggleWidgetFavorite('widget_alerts', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Requisito de Conexión:</strong> Es necesario tener <strong>Streamer.bot</strong> abierto en tu PC con el servidor WebSocket activo (<strong>Puerto 4445</strong> por defecto) para recibir y mostrar las alertas en tiempo real durante tu directo.
+          </p>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label for="alert-model-select">🎭 Modelo / Estilo de Alerta:</label>
+          <select id="alert-model-select" class="input-field" style="font-weight: 700; background: rgba(15, 23, 42, 0.9);" onchange="updateAlertsWidget()">
+            <option value="alertas_kick_estrellas.html">✨ Alertas Cosmic Star (Kick API Nativa)</option>
+            <option value="alertas_rufus.html" selected>🦊 Alertas estilo Rufus5z</option>
+            <option value="alertas_kiphu.html">⚡ Alertas estilo Kiphu</option>
+            <option value="alertas_electrica.html">⚡ Alerta Eléctrica</option>
+          </select>
+        </div>
+
+        <div class="iframe-preview" style="height: 280px;">
+          <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true"></iframe>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="alert-port-input">🔌 Puerto WS:</label>
+            <input type="text" id="alert-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="alert-duration-input">⏱️ Duración (s):</label>
+            <input type="number" id="alert-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="alert-volume-input" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🔊 Volumen:</span>
+              <span id="alert-volume-val" style="font-weight: 800; color: #38bdf8;">85%</span>
+            </label>
+            <input type="range" id="alert-volume-input" class="input-field" min="0" max="100" value="85" oninput="document.getElementById('alert-volume-val').textContent = this.value + '%'; updateAlertsWidget();" style="height: 10px; padding: 0; cursor: pointer; accent-color: #0284c7;">
+          </div>
+        </div>
+
+        <!-- Botones de Prueba Directa de Alerta (Fila Completa arriba de Sonidos) -->
+        <div class="form-group" style="margin-bottom: 14px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: var(--neon-blue); text-transform: uppercase; margin-bottom: 6px; display: block;">
+            🧪 Probar Alerta en la Vista Previa:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech btn-test-follow" onclick="triggerAlertTest('follow')">💚 Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerAlertTest('sub')">⭐ Sub</button>
+            <button type="button" class="test-btn-tech btn-test-gift" onclick="triggerAlertTest('gift')">🎁 Gift</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerAlertTest('raid')">🚀 Raid</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerAlertTest('donation')">💎 Kicks</button>
+          </div>
+        </div>
+
+        <!-- Personalización de Sonidos por Alerta (Soporte MyInstants y Enlaces Directos .mp3) -->
+        <div class="alert-colors-container" style="margin-bottom: 14px; border-color: rgba(245, 158, 11, 0.35);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label class="alert-colors-title" style="margin: 0; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+              🎵 Sonidos Personalizados por Alerta:
+            </label>
+            <span style="font-size: 0.72rem; color: #f59e0b; background: rgba(245, 158, 11, 0.15); padding: 2px 8px; border-radius: 12px; border: 1px solid rgba(245, 158, 11, 0.3); font-weight: 800;">
+              MyInstants 🎵 & .mp3
+            </span>
+          </div>
+
+          <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 10px; line-height: 1.35; background: rgba(15, 23, 42, 0.75); padding: 7px 10px; border-radius: 8px; border-left: 3px solid #f59e0b;">
+            💡 <strong>Tip MyInstants:</strong> ¡Copia y pega cualquier enlace de <strong style="color:#53fc18;">MyInstants</strong>! (Ej: <code>https://www.myinstants.com/es/instant/...</code>) o un enlace directo <code>.mp3 / .wav</code>.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Follow Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-follow" style="font-size: 0.8rem; font-weight: 700; color: #22c55e;">💚 Sonido para Follow:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-follow" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Follow" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-follow')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Sub Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-sub" style="font-size: 0.8rem; font-weight: 700; color: #a855f7;">⭐ Sonido para Sub / Resub:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-sub" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-sub')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Gift Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-gift" style="font-size: 0.8rem; font-weight: 700; color: #ec4899;">🎁 Sonido para Gift Sub:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-gift" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Gift Sub" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-gift')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Raid Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-raid" style="font-size: 0.8rem; font-weight: 700; color: #f97316;">🚀 Sonido para Raid:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-raid" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Raid" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-raid')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Kicks / Donation Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="sound-kicks" style="font-size: 0.8rem; font-weight: 700; color: #f59e0b;">💎 Sonido para Donación / Kicks:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="sound-kicks" class="input-field" value="" placeholder="Pega enlace MyInstants o .mp3 para Kicks" oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('sound-kicks')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+
+            <!-- Global Default Sound -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="alert-sound-input" style="font-size: 0.8rem; font-weight: 700; color: #94a3b8;">🌐 Sonido Global (Respaldo general si no se asigna uno específico):</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="alert-sound-input" class="input-field" value="" placeholder="https://www.myinstants.com/es/instant/..." oninput="updateAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-audio" onclick="testSoundDirect('alert-sound-input')" title="Probar este audio">🔊 Probar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Personalización de Colores de Resplandor por Alerta -->
+        <div class="alert-colors-container">
+          <label class="alert-colors-title">
+            🎨 Colores de Resplandor por Alerta:
+          </label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 10px;">
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-follow" class="color-picker-label lbl-follow">💚 Follow</label>
+              <input type="color" id="color-follow" class="input-field" value="#16a34a" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-sub" class="color-picker-label lbl-sub">⭐ Sub</label>
+              <input type="color" id="color-sub" class="input-field" value="#9333ea" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-gift" class="color-picker-label lbl-gift">🎁 Gift Sub</label>
+              <input type="color" id="color-gift" class="input-field" value="#db2777" style="height: 36px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-raid" class="color-picker-label lbl-raid">🚀 Raid</label>
+              <input type="color" id="color-raid" class="input-field" value="#ea580c" style="height: 34px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+            <div class="form-group" style="margin-bottom: 0;">
+              <label for="color-kicks" class="color-picker-label lbl-kicks">💎 Kicks</label>
+              <input type="color" id="color-kicks" class="input-field" value="#d97706" style="height: 34px; padding: 2px; cursor: pointer; width: 100%;" onchange="updateAlertsWidget()">
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="alert-loop" checked onchange="updateAlertsWidget()">
+            <span>🔄 Modo Vista Previa Continua (Mantener alerta visible en bucle)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="alert-mute" onchange="updateAlertsWidget()">
+            <span>🔇 Silenciar Audio de Alertas (Modo Mute)</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Alertas para OBS
+        </button>
+      </div>
+
+      <!-- Card 8: Showcase / Visualizador Baraja de Alertas Kick (Jikokun Card Deck) -->
+      <div class="card" id="card-jikokun-deck" style="border-color: rgba(0, 242, 254, 0.45); background: rgba(3, 16, 26, 0.9);">
+        <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-bottom: 8px;">
+          <h2 style="color: #00f2fe; margin: 0;">🎴 8. Showcase: Baraja de Alertas 3D (Jikokun Edition)</h2>
+          <span style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(0, 242, 254, 0.15); color: #00f2fe; border: 1px solid rgba(0, 242, 254, 0.35);">
+            ✨ DEMO AUTOMÁTICA EN VIVO
+          </span>
+        </div>
+
+        <!-- Mensaje Informativo de Demostración -->
+        <div class="alert-info-banner" style="border-color: rgba(0, 242, 254, 0.35); background: rgba(0, 242, 254, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Simulador de Baraja 3D en Directo:</strong> Visualizador en bucle automático de las cartas cinemáticas de <strong>Kick</strong> (Follows, Subs, Gifts, Raids, Kicks y Tips). La carta frontal vuela hacia atrás automáticamente revelando cada evento.
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 440px; background: radial-gradient(circle at center, #0a111a 0%, #03060a 100%);">
+          <iframe id="preview-jikokun" src="alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
+        </div>
+
+        <!-- Botones de Prueba Directa para interactuar en la Demostración -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: #00f2fe; text-transform: uppercase; margin-bottom: 6px; display: block;">
+            🧪 Probar Cartas en Tiempo Real:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech btn-test-follow" onclick="triggerJikokunDeckTest('follow')">🟢 Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerJikokunDeckTest('sub')">🟣 Sub</button>
+            <button type="button" class="test-btn-tech btn-test-gift" onclick="triggerJikokunDeckTest('gift')">🎁 Gift</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerJikokunDeckTest('raid')">🚀 Raid</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerJikokunDeckTest('kicks')">💎 Kicks</button>
+            <button type="button" class="test-btn-tech" style="color: #10b981; border-color: rgba(16,185,129,0.4);" onclick="triggerJikokunDeckTest('tip')">💵 Tip</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 9: Showcase Alerta Eléctrica (Kick & Streamer.bot) -->
+      <div class="card" id="card-electric" style="border-color: rgba(255, 26, 64, 0.45); background: rgba(18, 8, 28, 0.92);">
+        <div class="card-header-row">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h2 style="color: #ff1a40; margin: 0;">⚡ 9. Showcase: Alerta Eléctrica</h2>
+            <span style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(255, 26, 64, 0.15); color: #ff1a40; border: 1px solid rgba(255, 26, 64, 0.35);">
+              ✨ RAYOS SVG + SINTETIZADOR WEB AUDIO
+            </span>
+          </div>
+          <button type="button" class="btn-card-fav" id="fav-btn-electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner" style="border-color: rgba(255, 26, 64, 0.35); background: rgba(255, 26, 64, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Efectos Procedurales y Audio Nativo:</strong> Overlay ultra-ligero con rayos caóticos generados en SVG (90 ms) y sonido sintetizado en tiempo real mediante <strong>Web Audio API</strong> (sin MP3 externos ni librerías pesadas). Conexión en vivo a <strong>Streamer.bot</strong> (Kick) con carga automática de tu foto de perfil de Kick.
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 380px; background: radial-gradient(circle at center, #1a0820 0%, #08020d 100%);">
+          <iframe id="preview-electric" src="alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
+        </div>
+
+        <!-- Botones de Prueba Directa -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label style="font-size: 0.85rem; font-weight: 800; color: #ff1a40; text-transform: uppercase; margin-bottom: 6px; display: block;">
+            🧪 Probar Alertas en la Vista Previa:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech" style="color: #ff1a40; border-color: rgba(255,26,64,0.4);" onclick="triggerElectricAlertTest('follow')">⚔️ Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerElectricAlertTest('sub')">⭐ Sub</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerElectricAlertTest('kicks')">💚 Kicks</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerElectricAlertTest('raid')">🚀 Raid</button>
+          </div>
+        </div>
+
+        <!-- Parámetros de configuración -->
+        <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="electric-channel-input">🟢 Canal Kick:</label>
+            <input type="text" id="electric-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateElectricAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="electric-port-input">🔌 Puerto WS:</label>
+            <input type="text" id="electric-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateElectricAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="electric-duration-input">⏱️ Duración (s):</label>
+            <input type="number" id="electric-duration-input" class="input-field" value="6" min="2" max="30" oninput="updateElectricAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="electric-volume-input" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🔊 Volumen:</span>
+              <span id="electric-volume-val" style="font-weight: 800; color: #ff4d6d;">85%</span>
+            </label>
+            <input type="range" id="electric-volume-input" class="input-field" min="0" max="100" value="85" oninput="document.getElementById('electric-volume-val').textContent = this.value + '%'; updateElectricAlertsWidget();" style="height: 10px; padding: 0; cursor: pointer; accent-color: #ff1a40;">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="electric-loop" checked onchange="updateElectricAlertsWidget()">
+            <span>🔄 Demostración Continua (Bucle de eventos en vista previa)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="electric-mute" onchange="updateElectricAlertsWidget()">
+            <span>🔇 Silenciar Sintetizador de Audio en OBS</span>
+          </label>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-electric', this)" style="margin-top: 8px; background: linear-gradient(135deg, #d90429, #800020);">
+          📋 Copiar Enlace de Alerta Eléctrica para OBS
+        </button>
+      </div>
+
+      <!-- Card 10: Marco de Cámara Neón (Webcam 16:9 & 1:1) -->
+      <div class="card" id="card-camframe" style="border-color: rgba(0, 245, 212, 0.45); background: rgba(3, 16, 26, 0.92);">
+        <div class="card-header-row">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h2 style="color: #00f5d4; margin: 0;">📷 10. Marco de Cámara Neón (Webcam)</h2>
+            <span style="font-size: 0.75rem; font-weight: 800; padding: 4px 10px; border-radius: 20px; background: rgba(0, 245, 212, 0.15); color: #00f5d4; border: 1px solid rgba(0, 245, 212, 0.35);">
+              ⚡ STREAMER.BOT + RITMO SPOTIFY
+            </span>
+          </div>
+          <button type="button" class="btn-card-fav" id="fav-btn-camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner" style="border-color: rgba(0, 245, 212, 0.35); background: rgba(0, 245, 212, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Marco Cyberpunk Reactivo:</strong> Soporta formato <strong>16:9</strong> (Panorámico) y <strong>1:1</strong> (Cuadrado), absorbe el ritmo y los colores de la música en tiempo real conectándose a <strong>Streamer.bot</strong> y <strong>Spotify</strong>, y monta tu etiqueta sobre el borde inferior.
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 380px; background: radial-gradient(circle at center, #061e30 0%, #020b12 100%);">
+          <iframe id="preview-camframe" src="marcocamara1.html?preview=true&obs=true"></iframe>
+        </div>
+
+        <!-- Opciones de Configuración -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-aspect-select">📐 Formato del Marco:</label>
+            <select id="camframe-aspect-select" class="input-field" onchange="updateCamFrameWidget()">
+              <option value="16:9" selected>16:9 Panorámico (Webcam)</option>
+              <option value="1:1">1:1 Cuadrado (Webcam)</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-tag-input">🏷️ Nombre / Etiqueta:</label>
+            <input type="text" id="camframe-tag-input" class="input-field" value="JIKOKUN" placeholder="Ej: JIKOKUN" oninput="updateCamFrameWidget()">
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 80px 1.4fr 1fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-icon-input">⚡ Icono:</label>
+            <input type="text" id="camframe-icon-input" class="input-field" value="⚡" maxlength="4" style="text-align: center;" oninput="updateCamFrameWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-spotify-input">🎧 Usuario Spotify:</label>
+            <input type="text" id="camframe-spotify-input" class="input-field" value="jikokun2" placeholder="Usuario Spotify" oninput="updateCamFrameWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="camframe-port-input">🔌 Puerto SB:</label>
+            <input type="text" id="camframe-port-input" class="input-field" value="4445" placeholder="4445" oninput="updateCamFrameWidget()">
+          </div>
+        </div>
+
+        <button class="btn-copy" onclick="copyWidgetUrl('url-camframe', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Marco de Cámara para OBS
+        </button>
+      </div>
+
+      <!-- Card 11: Alertas Kick Kawaii Cosmic Star (API Kick Nativa) -->
+      <div class="card" id="card-star-alerts">
+        <div class="card-header-row">
+          <div style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+            <h2 class="card-title-star">✨ 11. Alerta Estelar Animada (Kick API Nativa)</h2>
+            <span class="badge-star-tech">
+              🚀 KICK API NATIVA + PUSHER CLOUD
+            </span>
+          </div>
+          <button type="button" class="btn-card-fav" id="fav-btn-star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner banner-star-info">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Conexión 100% Nativa a Kick (Sin programas extra):</strong> Se conecta directamente a la nube de <strong>Kick Pusher</strong> y la <strong>API REST de Kick</strong> ingresando tu nombre de usuario. Diseño cósmico con píldora superior, rombo inferior, constelaciones curvas, estrellas flotantes y temas de color dinámicos según el tipo de evento (Followers, Subs, Gifts, Raids y Kicks).
+          </p>
+        </div>
+
+        <div class="iframe-preview" style="height: 340px;">
+          <iframe id="preview-star-alerts" src="alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true"></iframe>
+        </div>
+
+        <!-- Botones de Prueba Directa -->
+        <div class="form-group" style="margin-bottom: 12px;">
+          <label class="lbl-star-section-title">
+            🧪 Probar Alertas en la Vista Previa:
+          </label>
+          <div class="test-btn-group" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(85px, 1fr)); gap: 8px;">
+            <button type="button" class="test-btn-tech btn-test-follow" onclick="triggerStarAlertTest('follow')">💚 Follow</button>
+            <button type="button" class="test-btn-tech btn-test-sub" onclick="triggerStarAlertTest('sub')">⭐ Sub</button>
+            <button type="button" class="test-btn-tech btn-test-gift" onclick="triggerStarAlertTest('gift')">🎁 Gift</button>
+            <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerStarAlertTest('raid')">🚀 Raid</button>
+            <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerStarAlertTest('kicks')">💎 Kicks</button>
+          </div>
+        </div>
+
+        <!-- Parámetros de configuración -->
+        <div style="display: grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="star-channel-input">🟢 Canal de Kick:</label>
+            <input type="text" id="star-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateStarAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="star-duration-input">⏱️ Duración (s):</label>
+            <input type="number" id="star-duration-input" class="input-field" value="8.5" min="5" max="15" step="0.5" oninput="updateStarAlertsWidget()">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="star-volume-input" style="display: flex; justify-content: space-between; align-items: center;">
+              <span>🔊 Volumen:</span>
+              <span id="star-volume-val" style="font-weight: 800;">85%</span>
+            </label>
+            <input type="range" id="star-volume-input" class="input-field" min="0" max="100" value="85" oninput="document.getElementById('star-volume-val').textContent = this.value + '%'; updateStarAlertsWidget();" style="height: 10px; padding: 0; cursor: pointer; accent-color: #f472b6;">
+          </div>
+        </div>
+
+        <!-- Personalización de Textos y Variables Dinámicas -->
+        <div class="alert-colors-container star-text-panel">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label class="alert-colors-title star-text-title">
+              ✍️ Mensajes Personalizados ({variables}):
+            </label>
+            <span class="badge-kick-dynamic">
+              Kick Dinámico 🚀
+            </span>
+          </div>
+
+          <div class="star-tip-box">
+            💡 <strong>Variables dinámicas de Kick:</strong> Usa <code>{user}</code> para el nombre, <code>{meses}</code> para meses de suscripción, <code>{subs}</code> para subs regaladas, <code>{viewers}</code> para raid y <code>{kicks}</code> para los Kicks. El número se actualizará automáticamente en vivo.
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <!-- Follow Text -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 4px;">
+                <label for="star-txt-follow" class="lbl-star-follow">💚 Texto Seguidor:</label>
+                <div class="var-chips-row" style="margin: 0;">
+                  <span class="var-chips-label">Insertar:</span>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-follow', '{user}', 'follow')" title="Insertar nombre del nuevo seguidor">👤 {user}</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="star-txt-follow" class="input-field" value="Se ha unido a la tripulación" placeholder="Ej: Se ha unido a la tripulación" oninput="updateStarAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-mini" onclick="triggerStarAlertTest('follow')">▶ Probar</button>
+              </div>
+            </div>
+
+            <!-- Sub Text -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 4px;">
+                <label for="star-txt-sub" class="lbl-star-sub">⭐ Texto Suscriptor:</label>
+                <div class="var-chips-row" style="margin: 0;">
+                  <span class="var-chips-label">Insertar:</span>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-sub', '{meses}', 'sub')" title="Insertar cantidad de meses suscrito">📅 {meses}</button>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-sub', '{user}', 'sub')" title="Insertar nombre del suscriptor">👤 {user}</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="star-txt-sub" class="input-field" value="Lleva {meses} meses en la nave" placeholder="Ej: Lleva {meses} meses en la nave" oninput="updateStarAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-mini" onclick="triggerStarAlertTest('sub')">▶ Probar</button>
+              </div>
+            </div>
+
+            <!-- Gift Sub Text -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 4px;">
+                <label for="star-txt-gift" class="lbl-star-gift">🎁 Texto Sub Regalada:</label>
+                <div class="var-chips-row" style="margin: 0;">
+                  <span class="var-chips-label">Insertar:</span>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-gift', '{subs}', 'gift')" title="Insertar cantidad de subs regaladas">🎁 {subs}</button>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-gift', '{user}', 'gift')" title="Insertar quién regaló las subs">👤 {user}</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="star-txt-gift" class="input-field" value="Regaló {subs} suscripciones a la tripulación" placeholder="Ej: Regaló {subs} suscripciones a la tripulación" oninput="updateStarAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-mini" onclick="triggerStarAlertTest('gift')">▶ Probar</button>
+              </div>
+            </div>
+
+            <!-- Raid Text -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 4px;">
+                <label for="star-txt-raid" class="lbl-star-raid">🚀 Texto Raid:</label>
+                <div class="var-chips-row" style="margin: 0;">
+                  <span class="var-chips-label">Insertar:</span>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-raid', '{viewers}', 'raid')" title="Insertar número de espectadores en raid">👥 {viewers}</button>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-raid', '{user}', 'raid')" title="Insertar canal que hace la raid">👤 {user}</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="star-txt-raid" class="input-field" value="Aterrizó con {viewers} tripulantes" placeholder="Ej: Aterrizó con {viewers} tripulantes" oninput="updateStarAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-mini" onclick="triggerStarAlertTest('raid')">▶ Probar</button>
+              </div>
+            </div>
+
+            <!-- Kicks Text -->
+            <div class="form-group" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; flex-wrap: wrap; gap: 4px;">
+                <label for="star-txt-kicks" class="lbl-star-kicks">💎 Texto Kicks / Aporte:</label>
+                <div class="var-chips-row" style="margin: 0;">
+                  <span class="var-chips-label">Insertar:</span>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-kicks', '{kicks}', 'kicks')" title="Insertar cantidad de Kicks aportados">💎 {kicks}</button>
+                  <button type="button" class="var-badge" onclick="insertVariable('star-txt-kicks', '{user}', 'kicks')" title="Insertar quién aportó">👤 {user}</button>
+                </div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <input type="text" id="star-txt-kicks" class="input-field" value="Ha enviado {kicks} de combustible estelar" placeholder="Ej: Ha enviado {kicks} de combustible estelar" oninput="updateStarAlertsWidget()" style="font-size: 0.82rem;">
+                <button type="button" class="btn-test-mini" onclick="triggerStarAlertTest('kicks')">▶ Probar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="star-loop" checked onchange="updateStarAlertsWidget()">
+            <span>🔄 Demostración Continua (Bucle en vista previa)</span>
+          </label>
+          <label class="checkbox-group">
+            <input type="checkbox" class="custom-checkbox" id="star-mute" onchange="updateStarAlertsWidget()">
+            <span>🔇 Silenciar Campanillas Kawaii en OBS</span>
+          </label>
+        </div>
+
+        <button class="btn-copy btn-copy-star" onclick="copyWidgetUrl('url-star-alerts', this)">
+          📋 Copiar Enlace de Alerta Estelar para OBS
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <footer>
+    <p>&copy; 2026 Multi Ideas Sv. San Salvador, El Salvador. Todos los derechos reservados.</p>
+  </footer>
+
+  <!-- Toast de Notificación -->
+  <div class="toast" id="toast-notify">✅ ¡Enlace Copiado! Pégalo en tu Fuente Navegador de OBS</div>
+
+  <script src="../script.js"></script>
+
+  <script type="module">
+    import { auth, rtdb } from '../firebase-config.js';
+    import { 
+      onAuthStateChanged, 
+      GoogleAuthProvider, 
+      signInWithPopup, 
+      signInWithRedirect 
+    } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
+    import { ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+
+    const PRODUCTION_DOMAIN = "https://multiideassv.com/mini_widgets/";
+    const generatedUrls = {};
+    let currentUser = null;
+    let userWidgetsConfig = {};
+    const saveTimeouts = {};
+
+    function getAbsoluteUrl(relativePath) {
+      let base = window.location.origin + window.location.pathname;
+      if (!base.endsWith('/')) {
+        base = base.substring(0, base.lastIndexOf('/') + 1);
+      }
+      return new URL(relativePath, base).href;
+    }
+
+    // -----------------------------------------------------------------------
+    // FIREBASE AUTH & SINCRONIZACIÓN EN LA NUBE
+    // -----------------------------------------------------------------------
+    // Validación estricta: Solo usuarios registrados y autenticados con cuenta real (no anónimos)
+    function isVerifiedUser(user) {
+      return Boolean(user && !user.isAnonymous && (user.email || (user.providerData && user.providerData.length > 0)));
+    }
+
+    // Comprobar estado previo guardado para evitar bloqueos innecesarios al navegar entre páginas
+    if (localStorage.getItem('multiideas_user_authed') === 'true') {
+      const gateEl = document.getElementById('widgets-auth-gate');
+      const containerEl = document.getElementById('widgets-container');
+      if (gateEl) {
+        gateEl.classList.add('unlocked');
+        gateEl.style.display = 'none';
+      }
+      if (containerEl) {
+        containerEl.classList.remove('locked');
+      }
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      const validUser = isVerifiedUser(user) ? user : null;
+      currentUser = validUser;
+
+      if (validUser) {
+        try {
+          localStorage.setItem('multiideas_user_authed', 'true');
+          localStorage.setItem('multiideas_user_uid', validUser.uid);
+        } catch(e) {}
+        updateAuthGateUI(validUser);
+        updateSyncBannerUI(validUser);
+        await registerWidgetUserInFirebase(validUser);
+        await loadUserDataFromFirebase(validUser.uid);
+      } else {
+        try {
+          localStorage.removeItem('multiideas_user_authed');
+          localStorage.removeItem('multiideas_user_uid');
+        } catch(e) {}
+        updateAuthGateUI(null);
+        updateSyncBannerUI(null);
+        userWidgetsConfig = {};
+        resetFavoriteButtonsUI();
+      }
+    });
+
+    // Control de la pantalla de bloqueo (Auth Gate)
+    function updateAuthGateUI(user) {
+      const gate = document.getElementById('widgets-auth-gate');
+      const container = document.getElementById('widgets-container');
+      const isAuthed = isVerifiedUser(user);
+
+      if (isAuthed) {
+        if (gate) {
+          gate.classList.add('unlocked');
+          gate.style.display = 'none';
+        }
+        if (container) container.classList.remove('locked');
+      } else {
+        if (gate) {
+          gate.classList.remove('unlocked');
+          gate.style.display = 'flex';
+        }
+        if (container) container.classList.add('locked');
+      }
+    }
+
+    // Registro obligatorio de los usuarios de widgets en Firebase RTDB
+    async function registerWidgetUserInFirebase(user) {
+      if (!isVerifiedUser(user)) return;
+      try {
+        const now = Date.now();
+        const isGoogle = Boolean(
+          (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) ||
+          (user.email && user.email.toLowerCase().endsWith('@gmail.com'))
+        );
+        const displayName = user.displayName || (user.email ? user.email.split('@')[0] : "Streamer");
+
+        const widgetUserData = {
+          uid: user.uid,
+          displayName: displayName,
+          email: user.email || '',
+          photoURL: user.photoURL || '',
+          isGoogle: isGoogle,
+          registered_for_widgets: true,
+          last_widget_access: now
+        };
+
+        // 1. Actualizar en el perfil del usuario
+        await update(ref(rtdb, `users/${user.uid}/profile`), {
+          ...widgetUserData,
+          widgets_access_granted: true,
+          lastActiveAt: now
+        });
+
+        // 2. Guardar en la colección global de creadores y usuarios de mini-widgets
+        await update(ref(rtdb, `mini_widgets_users/${user.uid}`), {
+          ...widgetUserData,
+          updated_at: now
+        });
+
+        console.log("[Widgets Registry] Usuario registrado con éxito para uso de widgets:", user.uid);
+      } catch (e) {
+        console.warn("[Widgets Registry Warning]:", e);
+      }
+    }
+
+    // Inicio / Registro directo con Google desde la pantalla de bloqueo
+    window.loginWithGoogleGate = async function() {
+      const btn = document.getElementById('gate-btn-google');
+      const text = document.getElementById('gate-google-text');
+      if (btn) btn.disabled = true;
+      if (text) text.textContent = 'Conectando con Google...';
+
+      const activeAuth = auth || window.firebaseAuth;
+
+      try {
+        if (!activeAuth) {
+          throw new Error("Firebase Auth no disponible de inmediato");
+        }
+        const provider = new GoogleAuthProvider();
+        provider.setCustomParameters({
+          prompt: 'select_account'
+        });
+        const result = await signInWithPopup(activeAuth, provider);
+        const user = result.user;
+
+        if (isVerifiedUser(user)) {
+          if (text) text.textContent = '¡Bienvenido! Entrando...';
+          await registerWidgetUserInFirebase(user);
+          updateAuthGateUI(user);
+        } else {
+          updateAuthGateUI(null);
+          if (btn) btn.disabled = false;
+          if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+        }
+      } catch (error) {
+        console.error("Error autenticando con Google en Widgets Gate:", error);
+        if (btn) btn.disabled = false;
+        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+
+        // Asegurarse de mantener la pantalla completamente bloqueada
+        updateAuthGateUI(null);
+
+        if (error.code === 'auth/popup-blocked') {
+          try {
+            await signInWithRedirect(activeAuth, new GoogleAuthProvider());
+            return;
+          } catch (redirectErr) {
+            console.error("Error redirect fallback:", redirectErr);
+          }
+        }
+
+        // Si fue cancelado o cerrado por el usuario, permanecer bloqueado sin error molesto
+        if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+          console.log("[Auth Gate] Ventana de Google cerrada sin completar. Acceso protegido.");
+          return;
+        }
+
+        // Si falla por otro error imprevisto, ofrecer fallback
+        if (typeof window.openAuthModal === 'function') {
+          window.openAuthModal();
+        } else {
+          alert("No se pudo iniciar sesión con Google. Intenta nuevamente.");
+        }
+      }
+    };
+
+    function updateSyncBannerUI(user) {
+      const banner = document.getElementById('cloud-sync-banner');
+      const icon = document.getElementById('sync-icon');
+      const title = document.getElementById('sync-title');
+      const desc = document.getElementById('sync-desc');
+      const actions = document.getElementById('sync-actions');
+
+      if (!banner) return;
+
+      if (user) {
+        banner.classList.add('logged-in');
+        if (icon) icon.textContent = '☁️';
+        if (title) title.innerHTML = `Personalización Activa: <span class="sync-user-highlight">${user.displayName || user.email.split('@')[0]}</span>`;
+        if (desc) desc.innerHTML = `Tus cambios de colores, usuarios y enlaces se guardan automáticamente en tu perfil. Accede a tu resumen en <strong>Mis Widgets OBS</strong>.`;
+        if (actions) {
+          actions.innerHTML = `
+            <a href="mis_widgets.html" class="btn-sync-action">
+              🎴 Mis Widgets OBS
+            </a>
+          `;
+        }
+      } else {
+        banner.classList.remove('logged-in');
+        if (icon) icon.textContent = '☁️';
+        if (title) title.textContent = 'Personalización en la Nube';
+        if (desc) desc.innerHTML = 'Inicia sesión para guardar automáticamente tus usuarios, colores y configuraciones en tu perfil, y acceder a tus <strong>Widgets Favoritos de OBS</strong>.';
+        if (actions) {
+          actions.innerHTML = `
+            <button type="button" class="btn-sync-action" onclick="openGlobalAuthModal()">
+              🔑 Iniciar Sesión / Registrarse
+            </button>
+          `;
+        }
+      }
+    }
+
+    window.openGlobalAuthModal = function() {
+      if (typeof window.openAuthModal === 'function') {
+        window.openAuthModal();
+      } else {
+        const modal = document.getElementById('auth-modal');
+        if (modal) {
+          modal.removeAttribute('style');
+          modal.classList.add('active');
+        } else {
+          const authBtn = document.getElementById('auth-btn-desktop') || document.getElementById('auth-btn-mobile');
+          if (authBtn) authBtn.click();
+        }
+      }
+    };
+
+    // Cargar datos de Firebase y poblar inputs
+    async function loadUserDataFromFirebase(uid) {
+      try {
+        const userRef = ref(rtdb, `users/${uid}/widgets_config`);
+        const snapshot = await get(userRef);
+        if (snapshot.exists()) {
+          userWidgetsConfig = snapshot.val() || {};
+          applySavedConfigToInputs(userWidgetsConfig);
+        }
+      } catch (err) {
+        console.warn("[Firebase Widgets Load Error]:", err);
+      }
+    }
+
+    function applySavedConfigToInputs(config) {
+      if (!config) return;
+
+      // 1. Clima
+      if (config.widget_weather) {
+        const w = config.widget_weather;
+        if (w.nobg !== undefined) document.getElementById('weather-nobg').checked = !!w.nobg;
+        if (w.theme_light !== undefined) document.getElementById('weather-theme-light').checked = !!w.theme_light;
+        updateFavoriteButtonState('widget_weather', !!w.is_favorite);
+        updateWeatherWidget(false);
+      }
+
+      // 2. Kick
+      if (config.widget_kick) {
+        const k = config.widget_kick;
+        if (k.channel) document.getElementById('kick-channel-input').value = k.channel;
+        if (k.bordercolor) document.getElementById('kick-bordercolor-input').value = k.bordercolor.startsWith('#') ? k.bordercolor : '#' + k.bordercolor;
+        if (k.glowcolor) document.getElementById('kick-glowcolor-input').value = k.glowcolor.startsWith('#') ? k.glowcolor : '#' + k.glowcolor;
+        if (k.bgcolor) document.getElementById('kick-bgcolor-input').value = k.bgcolor.startsWith('#') ? k.bgcolor : '#' + k.bgcolor;
+        if (k.usercolor) document.getElementById('kick-usercolor-input').value = k.usercolor.startsWith('#') ? k.usercolor : '#' + k.usercolor;
+        if (k.statcolor) document.getElementById('kick-statcolor-input').value = k.statcolor.startsWith('#') ? k.statcolor : '#' + k.statcolor;
+        updateFavoriteButtonState('widget_kick', !!k.is_favorite);
+        updateKickWidget(false);
+      }
+
+      // 3. Social
+      if (config.widget_social) {
+        const s = config.widget_social;
+        const keys = ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch', 'x'];
+        keys.forEach(key => {
+          if (s[key] !== undefined) {
+            const chk = document.getElementById(`chk-${key}`);
+            const val = document.getElementById(`val-${key}`);
+            if (chk) chk.checked = typeof s[key] === 'object' ? !!s[key].enabled : true;
+            if (val) val.value = typeof s[key] === 'object' ? (s[key].value || '') : s[key];
+          }
+        });
+        if (s.theme_light !== undefined) document.getElementById('social-theme-light').checked = !!s.theme_light;
+        updateFavoriteButtonState('widget_social', !!s.is_favorite);
+        updateSocialWidget(false);
+      }
+
+      // 4. Countdown
+      if (config.widget_countdown) {
+        const c = config.widget_countdown;
+        if (c.min) document.getElementById('countdown-min').value = c.min;
+        if (c.title) document.getElementById('countdown-title-input').value = c.title;
+        if (c.theme_light !== undefined) document.getElementById('countdown-theme-light').checked = !!c.theme_light;
+        updateFavoriteButtonState('widget_countdown', !!c.is_favorite);
+        updateCountdownWidget(false);
+      }
+
+      // 5. Digital Clock
+      if (config.widget_digital) {
+        const d = config.widget_digital;
+        if (d.seconds !== undefined) document.getElementById('digital-seconds').checked = !!d.seconds;
+        if (d.theme_light !== undefined) document.getElementById('digital-theme-light').checked = !!d.theme_light;
+        updateFavoriteButtonState('widget_digital', !!d.is_favorite);
+        updateDigitalWidget(false);
+      }
+
+      // 6. Live Chat
+      if (config.widget_chat) {
+        const ch = config.widget_chat;
+        if (ch.channel) document.getElementById('chat-channel-input').value = ch.channel;
+        if (ch.fontsize) document.getElementById('chat-fontsize-input').value = ch.fontsize;
+        if (ch.textcolor) document.getElementById('chat-textcolor-input').value = ch.textcolor;
+        if (ch.bgcolor) document.getElementById('chat-bgcolor-input').value = ch.bgcolor;
+        if (ch.bordercolor) document.getElementById('chat-bordercolor-input').value = ch.bordercolor;
+        if (ch.fade !== undefined) document.getElementById('chat-fade-input').value = ch.fade;
+        if (ch.ignored !== undefined) document.getElementById('chat-ignored-input').value = ch.ignored;
+        if (ch.autoaccent !== undefined) document.getElementById('chat-autoaccent').checked = !!ch.autoaccent;
+        if (ch.nobg !== undefined) document.getElementById('chat-nobg').checked = !!ch.nobg;
+        if (ch.theme_light !== undefined) document.getElementById('chat-theme-light').checked = !!ch.theme_light;
+        updateFavoriteButtonState('widget_chat', !!ch.is_favorite);
+        updateChatWidget(false);
+      }
+
+      // 7. Alerts
+      if (config.widget_alerts) {
+        const a = config.widget_alerts;
+        if (a.model) document.getElementById('alert-model-select').value = a.model;
+        if (a.port) document.getElementById('alert-port-input').value = a.port;
+        if (a.duration) document.getElementById('alert-duration-input').value = a.duration;
+        if (a.volume) {
+          document.getElementById('alert-volume-input').value = a.volume;
+          const volLabel = document.getElementById('alert-volume-val');
+          if (volLabel) volLabel.textContent = a.volume + '%';
+        }
+        const soundKeys = ['follow', 'sub', 'gift', 'raid', 'kicks', 'tip'];
+        soundKeys.forEach(k => {
+          if (a[`sound_${k}`]) {
+            const input = document.getElementById(`sound-${k}-input`);
+            if (input) input.value = a[`sound_${k}`];
+          }
+        });
+        updateFavoriteButtonState('widget_alerts', !!a.is_favorite);
+        updateAlertsWidget(false);
+      }
+
+      // 9. Alerta Eléctrica
+      if (config.widget_alerts_electric) {
+        const ea = config.widget_alerts_electric;
+        if (ea.channel) document.getElementById('electric-channel-input').value = ea.channel;
+        if (ea.port) document.getElementById('electric-port-input').value = ea.port;
+        if (ea.duration) document.getElementById('electric-duration-input').value = ea.duration;
+        if (ea.volume) {
+          document.getElementById('electric-volume-input').value = ea.volume;
+          const volLabel = document.getElementById('electric-volume-val');
+          if (volLabel) volLabel.textContent = ea.volume + '%';
+        }
+        if (ea.mute !== undefined) document.getElementById('electric-mute').checked = !!ea.mute;
+        updateFavoriteButtonState('widget_alerts_electric', !!ea.is_favorite);
+        updateElectricAlertsWidget(false);
+      }
+
+      // 10. Marco de Cámara Neón
+      if (config.widget_camframe) {
+        const cf = config.widget_camframe;
+        if (cf.aspect) document.getElementById('camframe-aspect-select').value = cf.aspect;
+        if (cf.tag) document.getElementById('camframe-tag-input').value = cf.tag;
+        if (cf.icon) document.getElementById('camframe-icon-input').value = cf.icon;
+        if (cf.spotify) document.getElementById('camframe-spotify-input').value = cf.spotify;
+        if (cf.port) document.getElementById('camframe-port-input').value = cf.port;
+        updateFavoriteButtonState('widget_camframe', !!cf.is_favorite);
+        updateCamFrameWidget(false);
+      }
+
+      // 11. Alertas Cosmic Star (Kick API Nativa)
+      if (config.widget_alerts_star) {
+        const sa = config.widget_alerts_star;
+        if (sa.channel) document.getElementById('star-channel-input').value = sa.channel;
+        if (sa.duration) document.getElementById('star-duration-input').value = sa.duration;
+        if (sa.volume) {
+          document.getElementById('star-volume-input').value = sa.volume;
+          const volLabel = document.getElementById('star-volume-val');
+          if (volLabel) volLabel.textContent = sa.volume + '%';
+        }
+        if (sa.mute !== undefined) document.getElementById('star-mute').checked = !!sa.mute;
+        if (sa.txt_follow) document.getElementById('star-txt-follow').value = sa.txt_follow;
+        if (sa.txt_sub) document.getElementById('star-txt-sub').value = sa.txt_sub;
+        if (sa.txt_gift) document.getElementById('star-txt-gift').value = sa.txt_gift;
+        if (sa.txt_raid) document.getElementById('star-txt-raid').value = sa.txt_raid;
+        if (sa.txt_kicks) document.getElementById('star-txt-kicks').value = sa.txt_kicks;
+        updateFavoriteButtonState('widget_alerts_star', !!sa.is_favorite);
+        updateStarAlertsWidget(false);
+      }
+    }
+
+    // Guardado inteligente debounced en Firebase
+    function scheduleWidgetSync(widgetId, dataGetter) {
+      if (!currentUser) return; // Solo guardar si está autenticado
+
+      if (saveTimeouts[widgetId]) clearTimeout(saveTimeouts[widgetId]);
+      saveTimeouts[widgetId] = setTimeout(async () => {
+        try {
+          const data = dataGetter();
+          data.updated_at = Date.now();
+          if (userWidgetsConfig[widgetId]?.is_favorite !== undefined) {
+            data.is_favorite = userWidgetsConfig[widgetId].is_favorite;
+          }
+          userWidgetsConfig[widgetId] = { ...(userWidgetsConfig[widgetId] || {}), ...data };
+          await set(ref(rtdb, `users/${currentUser.uid}/widgets_config/${widgetId}`), userWidgetsConfig[widgetId]);
+          console.log(`[Cloud Sync] Sincronizado en cuenta: ${widgetId}`);
+        } catch (err) {
+          console.warn(`[Cloud Sync Error ${widgetId}]:`, err);
+        }
+      }, 500);
+    }
+
+    // Alternar Favorito
+    window.toggleWidgetFavorite = async function(widgetId, btn) {
+      if (!currentUser) {
+        showCustomToast("⭐ Inicia sesión para guardar este widget en tus Favoritos OBS.");
+        window.openGlobalAuthModal();
+        return;
+      }
+
+      const isFav = !(userWidgetsConfig[widgetId]?.is_favorite);
+      if (!userWidgetsConfig[widgetId]) userWidgetsConfig[widgetId] = {};
+      userWidgetsConfig[widgetId].is_favorite = isFav;
+      userWidgetsConfig[widgetId].updated_at = Date.now();
+
+      updateFavoriteButtonState(widgetId, isFav);
+
+      try {
+        await update(ref(rtdb, `users/${currentUser.uid}/widgets_config/${widgetId}`), {
+          is_favorite: isFav,
+          updated_at: Date.now()
+        });
+        if (isFav) {
+          showCustomToast("⭐ ¡Guardado en tus Favoritos de OBS! Puedes verlo en Mis Widgets.");
+        } else {
+          showCustomToast("Widget quitado de favoritos.");
+        }
+      } catch (err) {
+        console.warn("[Favorite Toggle Error]:", err);
+      }
+    };
+
+    function updateFavoriteButtonState(widgetId, isFav) {
+      const btnIdMap = {
+        widget_weather: 'fav-btn-weather',
+        widget_kick: 'fav-btn-kick',
+        widget_social: 'fav-btn-social',
+        widget_countdown: 'fav-btn-countdown',
+        widget_digital: 'fav-btn-digital',
+        widget_chat: 'fav-btn-chat',
+        widget_alerts: 'fav-btn-alerts',
+        widget_alerts_electric: 'fav-btn-electric',
+        widget_camframe: 'fav-btn-camframe',
+        widget_alerts_star: 'fav-btn-star'
+      };
+      const btnId = btnIdMap[widgetId];
+      if (!btnId) return;
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      const favText = btn.querySelector('.fav-text');
+      if (isFav) {
+        btn.classList.add('active');
+        if (favText) favText.textContent = 'Guardado';
+        btn.title = 'Quitar de Mis Favoritos';
+      } else {
+        btn.classList.remove('active');
+        if (favText) favText.textContent = 'Favorito';
+        btn.title = 'Guardar en Mis Favoritos';
+      }
+    }
+
+    function resetFavoriteButtonsUI() {
+      const btns = document.querySelectorAll('.btn-card-fav');
+      btns.forEach(btn => {
+        btn.classList.remove('active');
+        const text = btn.querySelector('.fav-text');
+        if (text) text.textContent = 'Favorito';
+        btn.title = 'Guardar en Mis Favoritos';
+      });
+    }
+
+    function showCustomToast(msg) {
+      const toast = document.getElementById('toast-notify');
+      if (!toast) return;
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3500);
+    }
+
+    // -----------------------------------------------------------------------
+    // FUNCIONES DE ACTUALIZACIÓN DE WIDGETS
+    // -----------------------------------------------------------------------
+
+    // 1. Clima & Reloj Widget Update
+    function updateWeatherWidget(shouldSync = true) {
+      const noBg = document.getElementById('weather-nobg').checked;
+      const isLight = document.getElementById('weather-theme-light').checked;
+      const params = new URLSearchParams();
+      if (noBg) params.set('nobg', 'true');
+      if (isLight) params.set('theme', 'light');
+
+      const path = `widget_clima_reloj.html${params.toString() ? '?' + params.toString() : ''}`;
+      document.getElementById('preview-weather').src = path;
+      generatedUrls['url-weather'] = getAbsoluteUrl(path);
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_weather', () => ({
+          title: 'Widget Clima & Reloj',
+          nobg: noBg,
+          theme_light: isLight,
+          obs_url: generatedUrls['url-weather']
+        }));
+      }
+    }
+    window.updateWeatherWidget = updateWeatherWidget;
+
+    // 2. Kick Widget Update
+    function updateKickWidget(shouldSync = true) {
+      const channel = document.getElementById('kick-channel-input').value.trim() || 'jikokun';
+      const borderInput = document.getElementById('kick-bordercolor-input');
+      const glowInput = document.getElementById('kick-glowcolor-input');
+      const bgInput = document.getElementById('kick-bgcolor-input');
+      const userInput = document.getElementById('kick-usercolor-input');
+      const statInput = document.getElementById('kick-statcolor-input');
+
+      const borderColor = borderInput ? borderInput.value.replace('#', '') : '53fc18';
+      const glowColor = glowInput ? glowInput.value.replace('#', '') : '53fc18';
+      const bgColor = bgInput ? bgInput.value.replace('#', '') : '03101a';
+      const userColor = userInput ? userInput.value.replace('#', '') : 'ffffff';
+      const statColor = statInput ? statInput.value.replace('#', '') : '53fc18';
+
+      const params = new URLSearchParams({ channel });
+      if (borderColor !== '53fc18') params.set('bordercolor', borderColor);
+      if (glowColor !== '53fc18') params.set('glowcolor', glowColor);
+      if (bgColor !== '03101a') params.set('bgcolor', bgColor);
+      if (userColor !== 'ffffff') params.set('usercolor', userColor);
+      if (statColor !== '53fc18') params.set('statcolor', statColor);
+
+      const path = `widget_kick_counter.html?${params.toString()}`;
+      document.getElementById('preview-kick').src = path;
+      generatedUrls['url-kick'] = getAbsoluteUrl(path);
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_kick', () => ({
+          title: 'Contador Kick Live',
+          channel,
+          bordercolor: borderColor,
+          glowcolor: glowColor,
+          bgcolor: bgColor,
+          usercolor: userColor,
+          statcolor: statColor,
+          obs_url: generatedUrls['url-kick']
+        }));
+      }
+    }
+    window.updateKickWidget = updateKickWidget;
+
+    // 3. Social Rotator Update
+    function updateSocialWidget(shouldSync = true) {
+      const keys = ['kick', 'discord', 'instagram', 'facebook', 'spotify', 'tiktok', 'telegram', 'youtube', 'twitch', 'x'];
+      const params = new URLSearchParams();
+      const socialSyncData = {};
+
+      keys.forEach(key => {
+        const chk = document.getElementById(`chk-${key}`);
+        const valInput = document.getElementById(`val-${key}`);
+        const isChecked = chk ? chk.checked : false;
+        const val = valInput ? valInput.value.trim() : '';
+
+        socialSyncData[key] = { enabled: isChecked, value: val };
+
+        if (isChecked && val) {
+          params.set(key, val);
+        }
+      });
+
+      const isLight = document.getElementById('social-theme-light').checked;
+      if (isLight) params.set('theme', 'light');
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const path = `widget_redes_sociales.html${queryString}`;
+      document.getElementById('preview-social').src = path;
+      generatedUrls['url-social'] = getAbsoluteUrl(path);
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_social', () => ({
+          title: 'Rotador Redes Sociales',
+          ...socialSyncData,
+          theme_light: isLight,
+          obs_url: generatedUrls['url-social']
+        }));
+      }
+    }
+    window.updateSocialWidget = updateSocialWidget;
+
+    // 4. Countdown Widget Update
+    function updateCountdownWidget(shouldSync = true) {
+      const min = document.getElementById('countdown-min').value || '5';
+      const title = document.getElementById('countdown-title-input').value || 'Estamos Por Empezar';
+      const isLight = document.getElementById('countdown-theme-light').checked;
+      const params = new URLSearchParams({ min, title });
+      if (isLight) params.set('theme', 'light');
+
+      const path = `widget_contador_cuenta_atras.html?${params.toString()}`;
+      document.getElementById('preview-countdown').src = path;
+      generatedUrls['url-countdown'] = getAbsoluteUrl(path);
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_countdown', () => ({
+          title: 'Cuenta Atrás',
+          min,
+          event_title: title,
+          theme_light: isLight,
+          obs_url: generatedUrls['url-countdown']
+        }));
+      }
+    }
+    window.updateCountdownWidget = updateCountdownWidget;
+
+    // 5. Digital Clock Update
+    function updateDigitalWidget(shouldSync = true) {
+      const seconds = document.getElementById('digital-seconds').checked;
+      const isLight = document.getElementById('digital-theme-light').checked;
+      const params = new URLSearchParams();
+      if (seconds) params.set('seconds', 'true');
+      if (isLight) params.set('theme', 'light');
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const path = `widget_reloj_digital.html${queryString}`;
+      document.getElementById('preview-digital').src = path;
+      generatedUrls['url-digital'] = getAbsoluteUrl(path);
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_digital', () => ({
+          title: 'Reloj Digital Futurista',
+          seconds,
+          theme_light: isLight,
+          obs_url: generatedUrls['url-digital']
+        }));
+      }
+    }
+    window.updateDigitalWidget = updateDigitalWidget;
+
+    // 6. Live Chat Widget Update (Kick.com)
+    function updateChatWidget(shouldSync = true) {
+      const channelInput = document.getElementById('chat-channel-input');
+      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const fontSize = document.getElementById('chat-fontsize-input') ? document.getElementById('chat-fontsize-input').value : '15';
+      const textColor = document.getElementById('chat-textcolor-input') ? document.getElementById('chat-textcolor-input').value : '#e2e8f0';
+      const bgColor = document.getElementById('chat-bgcolor-input') ? document.getElementById('chat-bgcolor-input').value : '#121214';
+      const borderColor = document.getElementById('chat-bordercolor-input') ? document.getElementById('chat-bordercolor-input').value : '#53fc18';
+      const autoAccent = document.getElementById('chat-autoaccent') ? document.getElementById('chat-autoaccent').checked : true;
+      const ignored = document.getElementById('chat-ignored-input') ? document.getElementById('chat-ignored-input').value.trim() : '';
+      const noBg = document.getElementById('chat-nobg') ? document.getElementById('chat-nobg').checked : false;
+      const isLight = document.getElementById('chat-theme-light') ? document.getElementById('chat-theme-light').checked : false;
+      const fadeTime = document.getElementById('chat-fade-input') ? document.getElementById('chat-fade-input').value : '0';
+
+      const params = new URLSearchParams({ channel, port: '4445' });
+      if (fontSize && fontSize !== '15') params.set('fontsize', fontSize);
+      if (textColor && textColor !== '#e2e8f0') params.set('textcolor', textColor);
+      if (bgColor && bgColor !== '#121214') params.set('bgcolor', bgColor);
+      if (borderColor && borderColor !== '#53fc18') params.set('bordercolor', borderColor);
+      if (!autoAccent) params.set('autoaccent', 'false');
+      if (fadeTime && parseInt(fadeTime) > 0) params.set('fade', fadeTime);
+      if (ignored) params.set('ignored', ignored);
+      if (noBg) params.set('nobg', 'true');
+      if (isLight) params.set('theme', 'light');
+
+      // URL limpia para OBS (sin preview)
+      const obsPath = `widget_chat_live.html?${params.toString()}`;
+      generatedUrls['url-chat'] = getAbsoluteUrl(obsPath);
+
+      // URL para el iframe de vista previa en la web (con mensajes de muestra)
+      params.set('preview', 'true');
+      const previewPath = `widget_chat_live.html?${params.toString()}`;
+      const previewIframe = document.getElementById('preview-chat');
+      if (previewIframe) previewIframe.src = previewPath;
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_chat', () => ({
+          title: 'Chat en Vivo Kick',
+          channel,
+          fontsize: fontSize,
+          textcolor: textColor,
+          bgcolor: bgColor,
+          bordercolor: borderColor,
+          autoaccent: autoAccent,
+          fade: fadeTime,
+          ignored,
+          nobg: noBg,
+          theme_light: isLight,
+          obs_url: generatedUrls['url-chat']
+        }));
+      }
+    }
+    window.updateChatWidget = updateChatWidget;
+
+    window.testChatConnection = async function() {
+      const channelInput = document.getElementById('chat-channel-input');
+      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const cleanSlug = channel.replace(/^@/, '').toLowerCase();
+
+      const toast = document.getElementById('toast-notify');
+      const originalText = toast.textContent;
+      toast.textContent = `⚡ Comprobando conexión con @${cleanSlug}...`;
+      toast.classList.add('show');
+
+      // Enviar mensaje de prueba al iframe de vista previa
+      const iframe = document.getElementById('preview-chat');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'SEND_TEST_CHAT',
+          username: cleanSlug,
+          message: `¡Conexión comprobada con éxito para @${cleanSlug}! 🎉 [emote:24074:LFG]`
+        }, '*');
+      }
+
+      try {
+        let chatroomId = null;
+        try {
+          const res = await fetch(`https://kick.com/api/v2/channels/${cleanSlug}`);
+          if (res.ok) {
+            const data = await res.json();
+            chatroomId = data.chatroom?.id;
+          }
+        } catch(e) {}
+
+        if (!chatroomId) {
+          try {
+            const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanSlug)}`);
+            if (resProxy.ok) {
+              const dataProxy = await resProxy.json();
+              chatroomId = dataProxy.chatroom?.id;
+            }
+          } catch(e) {}
+        }
+
+        if (chatroomId) {
+          toast.textContent = `🟢 ¡Conexión exitosa con @${cleanSlug}! (Chatroom ID: ${chatroomId})`;
+        } else {
+          toast.textContent = `⚡ Mensaje de prueba enviado al chat de @${cleanSlug}.`;
+        }
+      } catch (err) {
+        toast.textContent = `⚡ Mensaje de prueba enviado al chat.`;
+      }
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        toast.textContent = originalText;
+      }, 4500);
+    };
+
+    function parseAudioUrl(url) {
+      if (!url || typeof url !== 'string') return '';
+      let cleanUrl = url.trim();
+      if (!cleanUrl) return '';
+
+      // 1. Convertir URLs de páginas de MyInstants a su audio directo MP3
+      if (cleanUrl.includes('myinstants.com')) {
+        if (cleanUrl.includes('/media/sounds/')) {
+          return cleanUrl.split('?')[0];
+        }
+        const match = cleanUrl.match(/\/instant\/([a-zA-Z0-9_-]+)/i);
+        if (match && match[1]) {
+          const fullSlug = match[1];
+          const slugWithoutId = fullSlug.replace(/-\d+$/, '');
+          return `https://www.myinstants.com/media/sounds/${slugWithoutId}.mp3`;
+        }
+      }
+
+      return cleanUrl;
+    }
+
+    window.testSoundDirect = function(inputId) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const rawUrl = input.value.trim();
+      const parsedUrl = parseAudioUrl(rawUrl);
+
+      const toast = document.getElementById('toast-notify');
+      const volInput = document.getElementById('alert-volume-input');
+      const volumeVal = volInput ? (parseFloat(volInput.value) / 100) : 0.85;
+
+      if (!parsedUrl) {
+        if (toast) {
+          toast.textContent = "⚠️ Por favor, pega un enlace de MyInstants o una URL de audio .mp3 primero.";
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3500);
+        }
+        return;
+      }
+
+      if (toast) {
+        const isMyInstants = rawUrl.includes('myinstants');
+        toast.textContent = `🔊 Probando audio (${isMyInstants ? 'MyInstants Convertido 🎵' : 'Audio Directo'})... Vol: ${Math.round(volumeVal * 100)}%`;
+        toast.classList.add('show');
+      }
+
+      const audio = new Audio(parsedUrl);
+      audio.volume = volumeVal;
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.then(() => {
+          setTimeout(() => {
+            if (toast && toast.classList.contains('show') && !toast.textContent.includes('❌')) {
+              toast.classList.remove('show');
+            }
+          }, 3000);
+        }).catch(err => {
+          console.warn("[Audio Test Primary Error]:", err);
+          const fallbackUrl = getMyInstantsFallbackUrl(rawUrl);
+          if (fallbackUrl && fallbackUrl !== parsedUrl) {
+            const audio2 = new Audio(fallbackUrl);
+            audio2.volume = volumeVal;
+            audio2.play().then(() => {
+              setTimeout(() => {
+                if (toast && toast.classList.contains('show') && !toast.textContent.includes('❌')) {
+                  toast.classList.remove('show');
+                }
+              }, 3000);
+            }).catch(err2 => {
+              if (toast) {
+                toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+                setTimeout(() => toast.classList.remove('show'), 4000);
+              }
+            });
+          } else if (toast) {
+            toast.textContent = `❌ No se pudo reproducir el audio. Verifica el enlace introducido.`;
+            setTimeout(() => toast.classList.remove('show'), 4000);
+          }
+        });
+      }
+    };
+
+    // 7. Streamer.bot Dynamic Alerts Widget Update
+    function updateAlertsWidget(shouldSync = true) {
+      const portInput = document.getElementById('alert-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+      const durationSec = document.getElementById('alert-duration-input') ? document.getElementById('alert-duration-input').value : '6';
+      const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
+      const modelSelect = document.getElementById('alert-model-select');
+      const model = modelSelect ? modelSelect.value : 'alertas_rufus.html';
+      const volInput = document.getElementById('alert-volume-input');
+      const volumeVal = volInput ? volInput.value : '85';
+
+      // Capturar URLs de sonidos personalizados
+      const sounds = {
+        follow: parseAudioUrl(document.getElementById('sound-follow-input')?.value),
+        sub: parseAudioUrl(document.getElementById('sound-sub-input')?.value),
+        gift: parseAudioUrl(document.getElementById('sound-gift-input')?.value),
+        raid: parseAudioUrl(document.getElementById('sound-raid-input')?.value),
+        kicks: parseAudioUrl(document.getElementById('sound-kicks-input')?.value),
+        tip: parseAudioUrl(document.getElementById('sound-tip-input')?.value)
+      };
+
+      const obsParams = new URLSearchParams();
+      if (port && port !== '4445') obsParams.set('port', port);
+      if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
+      if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
+
+      Object.entries(sounds).forEach(([key, val]) => {
+        if (val) obsParams.set(`snd_${key}`, val);
+      });
+
+      const obsPath = `${model}${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
+      generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
+
+      // URL para el iframe de vista previa en la web
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+      previewParams.set('loop', 'true');
+
+      const previewPath = `${model}?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-alerts');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        } else if (previewIframe.contentWindow) {
+          previewIframe.contentWindow.postMessage({
+            type: 'SET_SOUNDS',
+            sounds: sounds,
+            volume: parseInt(volumeVal, 10) / 100
+          }, '*');
+        }
+      }
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_alerts', () => ({
+          title: 'Alertas Dinámicas Streamer.bot',
+          model,
+          port,
+          duration: durationSec,
+          volume: volumeVal,
+          sound_follow: document.getElementById('sound-follow-input')?.value || '',
+          sound_sub: document.getElementById('sound-sub-input')?.value || '',
+          sound_gift: document.getElementById('sound-gift-input')?.value || '',
+          sound_raid: document.getElementById('sound-raid-input')?.value || '',
+          sound_kicks: document.getElementById('sound-kicks-input')?.value || '',
+          sound_tip: document.getElementById('sound-tip-input')?.value || '',
+          obs_url: generatedUrls['url-alerts']
+        }));
+      }
+    }
+    window.updateAlertsWidget = updateAlertsWidget;
+    window.triggerAlertTest = function(alertType) {
+      window.triggerPreviewAlert(alertType);
+    };
+
+    window.triggerPreviewAlert = function(alertType) {
+      const iframe = document.getElementById('preview-alerts');
+      const soundInput = document.getElementById(`sound-${alertType === 'donation' ? 'tip' : alertType}-input`);
+      const customSoundUrl = soundInput ? parseAudioUrl(soundInput.value) : '';
+      const volInput = document.getElementById('alert-volume-input');
+      const volumeVal = volInput ? (parseFloat(volInput.value) / 100) : 0.85;
+
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow',
+          soundUrl: customSoundUrl,
+          volume: volumeVal
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+        toast.textContent = `⚡ Lanzando Alerta de Prueba: ${alertType}`;
+        toast.classList.add('show');
+        if (window._alertToastTimeout) clearTimeout(window._alertToastTimeout);
+        window._alertToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    };
+
+    // 8. Jikokun Card Deck Alerts Widget (Showcase Visualizador Automático)
+    function updateJikokunCardWidget() {
+      const previewIframe = document.getElementById('preview-jikokun');
+      if (previewIframe) {
+        const previewPath = 'alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true';
+        if (previewIframe.src !== previewPath && !previewIframe.src.includes('loop=true')) {
+          previewIframe.src = previewPath;
+        }
+      }
+    }
+    window.updateJikokunCardWidget = updateJikokunCardWidget;
+
+    window.triggerJikokunDeckTest = function(alertType) {
+      const iframe = document.getElementById('preview-jikokun');
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow'
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+        toast.textContent = `🎴 Baraja Jikokun: Revelando Alerta de ${alertType}`;
+        toast.classList.add('show');
+        if (window._jikokunToastTimeout) clearTimeout(window._jikokunToastTimeout);
+        window._jikokunToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    };
+
+    // 9. Alerta Eléctrica Widget
+    function updateElectricAlertsWidget(shouldSync = true) {
+      const channelInput = document.getElementById('electric-channel-input');
+      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const portInput = document.getElementById('electric-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+      const durationSec = document.getElementById('electric-duration-input') ? document.getElementById('electric-duration-input').value : '6';
+      const durationMs = (parseInt(durationSec, 10) || 6) * 1000;
+      const volInput = document.getElementById('electric-volume-input');
+      const volumeVal = volInput ? volInput.value : '85';
+      const muteCheck = document.getElementById('electric-mute');
+      const isMuted = muteCheck ? muteCheck.checked : false;
+      const loopCheck = document.getElementById('electric-loop');
+      const isLoop = loopCheck ? loopCheck.checked : true;
+
+      const obsParams = new URLSearchParams();
+      obsParams.set('channel', channel);
+      if (port && port !== '4445') obsParams.set('port', port);
+      if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
+      if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
+      if (isMuted) obsParams.set('mute', 'true');
+
+      const obsPath = `alertas_electrica.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
+      generatedUrls['url-electric'] = getAbsoluteUrl(obsPath);
+
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+      if (isLoop) previewParams.set('loop', 'true');
+      previewParams.set('hidecontrols', 'true');
+
+      const previewPath = `alertas_electrica.html?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-electric');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        } else if (previewIframe.contentWindow) {
+          previewIframe.contentWindow.postMessage({
+            type: 'SET_CHANNEL',
+            channel: channel
+          }, '*');
+        }
+      }
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_alerts_electric', () => ({
+          title: 'Alerta Eléctrica',
+          channel,
+          port,
+          duration: durationSec,
+          volume: volumeVal,
+          mute: isMuted,
+          obs_url: generatedUrls['url-electric']
+        }));
+      }
+    }
+    window.updateElectricAlertsWidget = updateElectricAlertsWidget;
+
+    window.triggerElectricAlertTest = function(alertType) {
+      const iframe = document.getElementById('preview-electric');
+      const volInput = document.getElementById('electric-volume-input');
+      const volumeVal = volInput ? (parseFloat(volInput.value) / 100) : 0.85;
+
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow',
+          volume: volumeVal
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+        toast.textContent = `⚡ Alerta Eléctrica: Disparando ${alertType}`;
+        toast.classList.add('show');
+        if (window._electricToastTimeout) clearTimeout(window._electricToastTimeout);
+        window._electricToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    };
+
+    // 10. Marco de Cámara Neón (Webcam 16:9 & 1:1)
+    function updateCamFrameWidget(shouldSync = true) {
+      const aspectSelect = document.getElementById('camframe-aspect-select');
+      const aspect = aspectSelect ? aspectSelect.value : '16:9';
+      const tagInput = document.getElementById('camframe-tag-input');
+      const tag = tagInput ? (tagInput.value.trim() || 'JIKOKUN') : 'JIKOKUN';
+      const iconInput = document.getElementById('camframe-icon-input');
+      const icon = iconInput ? (iconInput.value.trim() || '⚡') : '⚡';
+      const spotifyInput = document.getElementById('camframe-spotify-input');
+      const spotify = spotifyInput ? (spotifyInput.value.trim() || 'jikokun2') : 'jikokun2';
+      const portInput = document.getElementById('camframe-port-input');
+      const port = portInput ? (portInput.value.trim() || '4445') : '4445';
+
+      const obsParams = new URLSearchParams();
+      obsParams.set('aspect', aspect);
+      obsParams.set('tag', tag);
+      obsParams.set('icon', icon);
+      if (spotify && spotify !== 'jikokun2') obsParams.set('spotify', spotify);
+      if (port && port !== '4445') obsParams.set('port', port);
+      obsParams.set('obs', 'true');
+
+      const obsPath = `marcocamara1.html?${obsParams.toString()}`;
+      generatedUrls['url-camframe'] = getAbsoluteUrl(obsPath);
+
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+
+      const previewPath = `marcocamara1.html?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-camframe');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        }
+      }
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_camframe', () => ({
+          title: 'Marco de Cámara Neón',
+          aspect,
+          tag,
+          icon,
+          spotify,
+          port,
+          obs_url: generatedUrls['url-camframe']
+        }));
+      }
+    }
+    window.updateCamFrameWidget = updateCamFrameWidget;
+
+    // 11. Alerta Estelar Animada (Kick API Nativa)
+    function updateStarAlertsWidget(shouldSync = true) {
+      const channelInput = document.getElementById('star-channel-input');
+      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const durationSec = document.getElementById('star-duration-input') ? document.getElementById('star-duration-input').value : '8.5';
+      const volInput = document.getElementById('star-volume-input');
+      const volumeVal = volInput ? volInput.value : '85';
+      const isLoop = document.getElementById('star-loop') ? document.getElementById('star-loop').checked : true;
+      const isMute = document.getElementById('star-mute') ? document.getElementById('star-mute').checked : false;
+
+      // Textos personalizados con variables dinámicas
+      const txtFollow = document.getElementById('star-txt-follow')?.value || 'Se ha unido a la tripulación';
+      const txtSub = document.getElementById('star-txt-sub')?.value || 'Lleva {meses} meses en la nave';
+      const txtGift = document.getElementById('star-txt-gift')?.value || 'Regaló {subs} suscripciones a la tripulación';
+      const txtRaid = document.getElementById('star-txt-raid')?.value || 'Aterrizó con {viewers} tripulantes';
+      const txtKicks = document.getElementById('star-txt-kicks')?.value || 'Ha enviado {kicks} de combustible estelar';
+
+      const obsParams = new URLSearchParams();
+      if (channel && channel.toLowerCase() !== 'jikokun') obsParams.set('channel', channel);
+      if (durationSec && durationSec !== '8.5') obsParams.set('duration', durationSec);
+      if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
+      if (isMute) obsParams.set('mute', 'true');
+
+      if (txtFollow && txtFollow !== 'Se ha unido a la tripulación') obsParams.set('txt_follow', txtFollow);
+      if (txtSub && txtSub !== 'Lleva {meses} meses en la nave') obsParams.set('txt_sub', txtSub);
+      if (txtGift && txtGift !== 'Regaló {subs} suscripciones a la tripulación') obsParams.set('txt_gift', txtGift);
+      if (txtRaid && txtRaid !== 'Aterrizó con {viewers} tripulantes') obsParams.set('txt_raid', txtRaid);
+      if (txtKicks && txtKicks !== 'Ha enviado {kicks} de combustible estelar') obsParams.set('txt_kicks', txtKicks);
+
+      const obsPath = `alertas_kick_estrellas.html${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
+      generatedUrls['url-star-alerts'] = getAbsoluteUrl(obsPath);
+
+      // Previsualización interactiva con loop continuo
+      const previewParams = new URLSearchParams(obsParams);
+      previewParams.set('preview', 'true');
+      if (isLoop) previewParams.set('loop', 'true');
+
+      const previewPath = `alertas_kick_estrellas.html?${previewParams.toString()}`;
+      const previewIframe = document.getElementById('preview-star-alerts');
+      if (previewIframe) {
+        if (previewIframe.dataset.lastSrc !== previewPath) {
+          previewIframe.dataset.lastSrc = previewPath;
+          previewIframe.src = previewPath;
+        } else if (previewIframe.contentWindow) {
+          previewIframe.contentWindow.postMessage({
+            type: 'SET_LOOP_MODE',
+            isLoop: isLoop
+          }, '*');
+          previewIframe.contentWindow.postMessage({
+            type: 'SET_CUSTOM_TEXTS',
+            customTexts: {
+              follow: txtFollow,
+              sub: txtSub,
+              gift: txtGift,
+              raid: txtRaid,
+              kicks: txtKicks
+            }
+          }, '*');
+        }
+      }
+
+      if (shouldSync) {
+        scheduleWidgetSync('widget_alerts_star', () => ({
+          title: 'Alerta Estelar Animada',
+          channel,
+          duration: durationSec,
+          volume: volumeVal,
+          mute: isMute,
+          txt_follow: txtFollow,
+          txt_sub: txtSub,
+          txt_gift: txtGift,
+          txt_raid: txtRaid,
+          txt_kicks: txtKicks,
+          obs_url: generatedUrls['url-star-alerts']
+        }));
+      }
+    }
+    window.updateStarAlertsWidget = updateStarAlertsWidget;
+
+    window.triggerStarAlertTest = function(alertType) {
+      const iframe = document.getElementById('preview-star-alerts');
+      const volInput = document.getElementById('star-volume-input');
+      const volumeVal = volInput ? (parseFloat(volInput.value) / 100) : 0.85;
+
+      if (iframe && iframe.contentWindow) {
+        iframe.contentWindow.postMessage({
+          type: 'TRIGGER_TEST_ALERT',
+          alertType: alertType || 'follow',
+          volume: volumeVal
+        }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        const originalText = toast.dataset.originalText || toast.textContent;
+        if (!toast.dataset.originalText) toast.dataset.originalText = originalText;
+        toast.textContent = `✨ Alertas Cosmic Star: Disparando ${alertType}`;
+        toast.classList.add('show');
+        if (window._starToastTimeout) clearTimeout(window._starToastTimeout);
+        window._starToastTimeout = setTimeout(() => {
+          toast.classList.remove('show');
+          toast.textContent = toast.dataset.originalText;
+        }, 3500);
+      }
+    };
+
+    // Inserción interactiva de variables dinámicas en los campos de texto
+    window.insertVariable = function(inputId, variableTag, alertType) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+
+      const val = input.value;
+      const start = input.selectionStart !== undefined ? input.selectionStart : val.length;
+      const end = input.selectionEnd !== undefined ? input.selectionEnd : val.length;
+
+      // Insertar con espaciado natural si hace falta
+      const before = val.substring(0, start);
+      const after = val.substring(end);
+      const leadSpace = (before.length > 0 && !before.endsWith(' ')) ? ' ' : '';
+      const trailSpace = (after.length > 0 && !after.startsWith(' ')) ? ' ' : '';
+
+      input.value = before + leadSpace + variableTag + trailSpace + after;
+      input.focus();
+      
+      const newPos = start + leadSpace.length + variableTag.length + trailSpace.length;
+      if (input.setSelectionRange) {
+        input.setSelectionRange(newPos, newPos);
+      }
+
+      // Efecto visual de resplandor para confirmar inserción
+      input.style.borderColor = '#f472b6';
+      input.style.boxShadow = '0 0 14px rgba(244, 114, 182, 0.6)';
+      setTimeout(() => {
+        input.style.borderColor = '';
+        input.style.boxShadow = '';
+      }, 700);
+
+      updateStarAlertsWidget();
+
+      if (alertType) {
+        triggerStarAlertTest(alertType);
+      }
+    };
+
+    // Copy URL function with Toast and Button Animation
+    window.copyWidgetUrl = function(urlKey, btn) {
+      const urlText = generatedUrls[urlKey];
+      if (!urlText) return;
+
+      navigator.clipboard.writeText(urlText).then(() => {
+        const originalText = btn.innerHTML;
+        btn.classList.add('copied');
+        btn.innerHTML = '✅ ¡Enlace Copiado al Portapapeles!';
+
+        const toast = document.getElementById('toast-notify');
+        toast.textContent = "✅ ¡Enlace Copiado! Pégalo en tu Fuente Navegador de OBS";
+        toast.classList.add('show');
+
+        setTimeout(() => {
+          btn.classList.remove('copied');
+          btn.innerHTML = originalText;
+          toast.classList.remove('show');
+        }, 3000);
+      }).catch(err => {
+        console.error('Error al copiar al portapapeles:', err);
+      });
+    };
+
+    // Inicializar URLs al cargar
+    document.addEventListener('DOMContentLoaded', () => {
+      updateWeatherWidget(false);
+      updateKickWidget(false);
+      updateSocialWidget(false);
+      updateCountdownWidget(false);
+      updateDigitalWidget(false);
+      updateChatWidget(false);
+      updateAlertsWidget(false);
+      updateJikokunCardWidget();
+      updateElectricAlertsWidget(false);
+      updateCamFrameWidget(false);
+      updateStarAlertsWidget(false);
+    });
+  </script>
+
+</body>
+</html>
