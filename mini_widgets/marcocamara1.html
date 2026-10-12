@@ -27,6 +27,8 @@
       --dynamic-rgb: 0, 245, 212;
       --dynamic-color-sec: #00bbf9;
       --dynamic-rgb-sec: 0, 187, 249;
+      --dynamic-glow-color: #00f5d4;
+      --dynamic-glow-rgb: 0, 245, 212;
       --beat-duration: 1.5s;
       --stream-speed: 6.0s;
       --glow-intensity: 1;
@@ -105,8 +107,8 @@
         0 25px
       );
       box-shadow: 
-        0 0 16px rgba(var(--dynamic-rgb, 0, 245, 212), calc(0.25 * var(--glow-intensity, 1))),
-        inset 0 0 10px rgba(var(--dynamic-rgb, 0, 245, 212), calc(0.12 * var(--glow-intensity, 1)));
+        0 0 16px rgba(var(--dynamic-glow-rgb, var(--dynamic-rgb, 0, 245, 212)), calc(0.28 * var(--glow-intensity, 1))),
+        inset 0 0 14px rgba(var(--dynamic-glow-rgb, var(--dynamic-rgb, 0, 245, 212)), calc(0.22 * var(--glow-intensity, 1)));
       z-index: 12;
       transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1), height 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
       animation: bpmBeatPulse var(--beat-duration) ease-in-out infinite alternate;
@@ -738,6 +740,14 @@
         showTag: urlParams.get('tag') !== 'none' && urlParams.get('notag') !== '1'
       };
 
+      // Aplicar colores personalizados si vienen por URL
+      const paramColor = urlParams.get('color') || urlParams.get('maincolor');
+      const paramSecColor = urlParams.get('seccolor') || urlParams.get('flowcolor');
+      const paramGlow = urlParams.get('glow') || urlParams.get('glowcolor');
+      if (paramColor || paramSecColor || paramGlow) {
+        applyPaletteColors(paramColor || '#00f5d4', paramSecColor || '#00bbf9', paramGlow || (paramColor || '#00f5d4'));
+      }
+
       // Si se define modo limpio para OBS, ocultar el botón de ajustes
       if (config.clean) {
         document.body.classList.add('clean-mode');
@@ -882,12 +892,39 @@
         return `${r}, ${g}, ${b}`;
       }
 
-      function applyPaletteColors(mainHex, secHex) {
-        document.documentElement.style.setProperty('--dynamic-color', mainHex);
-        document.documentElement.style.setProperty('--dynamic-color-sec', secHex);
-        document.documentElement.style.setProperty('--dynamic-rgb', hexToRgb(mainHex));
-        document.documentElement.style.setProperty('--dynamic-rgb-sec', hexToRgb(secHex));
+      function applyPaletteColors(mainHex, secHex, glowHex) {
+        if (mainHex) {
+          document.documentElement.style.setProperty('--dynamic-color', mainHex);
+          document.documentElement.style.setProperty('--dynamic-rgb', hexToRgb(mainHex));
+        }
+        if (secHex) {
+          document.documentElement.style.setProperty('--dynamic-color-sec', secHex);
+          document.documentElement.style.setProperty('--dynamic-rgb-sec', hexToRgb(secHex));
+        }
+        const glowTarget = glowHex || mainHex;
+        if (glowTarget) {
+          document.documentElement.style.setProperty('--dynamic-glow-color', glowTarget);
+          document.documentElement.style.setProperty('--dynamic-glow-rgb', hexToRgb(glowTarget));
+        }
       }
+      window.applyPaletteColors = applyPaletteColors;
+
+      // Receptor de configuración en vivo para previsualización instantánea
+      window.addEventListener('message', (event) => {
+        if (!event.data) return;
+        if (event.data.type === 'SET_CAMFRAME_CONFIG') {
+          const d = event.data;
+          if (d.aspect && typeof window.setAspectRatio === 'function') {
+            window.setAspectRatio(d.aspect);
+          }
+          if (typeof d.tag !== 'undefined' && typeof updateCamTag === 'function') {
+            updateCamTag(d.tag, d.icon);
+          }
+          if (d.color || d.seccolor || d.glow) {
+            applyPaletteColors(d.color || '#00f5d4', d.seccolor || '#00bbf9', d.glow || (d.color || '#00f5d4'));
+          }
+        }
+      });
 
       window.applyCoverColors = function(imageUrl) {
         if (typeof Vibrant === 'undefined' || !imageUrl) return;
