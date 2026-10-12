@@ -162,19 +162,29 @@
             display: none !important;
         }
 
-        /* Panel de botones de prueba rápidos */
+        /* Panel de botones de prueba - Oculto por defecto, visible con clic/interacción */
         .test-bar {
             position: fixed;
             bottom: 15px;
             display: flex;
             gap: 8px;
-            background: rgba(15, 23, 42, 0.85);
+            background: rgba(15, 23, 42, 0.9);
             padding: 8px 14px;
             border-radius: 999px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            backdrop-filter: blur(10px);
-            z-index: 10;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(12px);
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .test-bar.hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(20px) !important;
         }
 
         .test-bar button {
@@ -194,27 +204,28 @@
             transform: translateY(-2px);
         }
 
-        .test-bar.hidden {
-            display: none !important;
-        }
-
-        /* Estado de conexión Kick Cloud en esquina */
+        /* Estado de conexión Kick Cloud - Oculto por defecto, visible con clic/interacción */
         .kick-status-indicator {
             position: fixed;
             top: 15px;
             right: 15px;
-            background: rgba(15, 23, 42, 0.8);
-            border: 1px solid rgba(83, 252, 24, 0.4);
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(83, 252, 24, 0.45);
             border-radius: 999px;
-            padding: 4px 12px;
+            padding: 5px 14px;
             font-size: 11px;
             font-weight: 700;
             color: #53fc18;
             display: flex;
             align-items: center;
             gap: 6px;
-            backdrop-filter: blur(8px);
-            z-index: 10;
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .kick-status-indicator .dot {
@@ -226,7 +237,9 @@
         }
 
         .kick-status-indicator.hidden {
-            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(-20px) !important;
         }
 
         /* Contenedor del Overlay (Transparente para OBS Studio) */
@@ -464,14 +477,14 @@
 </head>
 <body>
 
-    <!-- Indicador de Estado Kick Cloud (Esquina superior derecha) -->
-    <div class="kick-status-indicator" id="kickStatusBadge">
+    <!-- Indicador de Estado Kick Cloud (Oculto por defecto, visible con clic/interacción) -->
+    <div class="kick-status-indicator hidden" id="kickStatusBadge">
         <span class="dot" id="kickDot"></span>
         <span id="kickStatusText">Kick: Conectando...</span>
     </div>
 
-    <!-- Botonera de Pruebas de Alerta (Oculta en OBS, visible en pruebas o al hacer clic) -->
-    <div class="test-bar" id="testBar">
+    <!-- Botonera de Pruebas de Alerta (Oculta por defecto, visible con clic/interacción) -->
+    <div class="test-bar hidden" id="testBar">
         <button onclick="triggerAlertByType('follow')">💚 Follow</button>
         <button onclick="triggerAlertByType('sub')">⭐ Sub</button>
         <button onclick="triggerAlertByType('gift')">🎁 Gift</button>
@@ -577,10 +590,63 @@
             document.body.classList.add('with-bg');
         }
 
-        // Si se solicita ocultar controles (ej. en OBS o en iframes limpios)
+        // =====================================================================
+        // CONTROLES INTERACTIVOS (OCULTOS POR DEFECTO, VISIBLES AL DAR CLIC)
+        // =====================================================================
+        let controlsVisible = false;
+
+        function toggleControls(forceState) {
+            controlsVisible = typeof forceState === 'boolean' ? forceState : !controlsVisible;
+            const testBar = document.getElementById('testBar');
+            const statusBadge = document.getElementById('kickStatusBadge');
+
+            if (controlsVisible) {
+                testBar?.classList.remove('hidden');
+                statusBadge?.classList.remove('hidden');
+            } else {
+                testBar?.classList.add('hidden');
+                statusBadge?.classList.add('hidden');
+            }
+        }
+
+        // Alternar visibilidad al interactuar o hacer clic en la pantalla
+        window.addEventListener('click', (e) => {
+            // Si el clic fue dentro de los botones de prueba, no cerrar la barra
+            if (e.target.closest('#testBar') || e.target.closest('#kickStatusBadge')) {
+                return;
+            }
+            toggleControls();
+        });
+
+        // Si se fuerza ocultar por parámetro URL (ej. hidecontrols=true)
         if (hideControls) {
-            document.getElementById('testBar')?.classList.add('hidden');
-            document.getElementById('kickStatusBadge')?.classList.add('hidden');
+            toggleControls(false);
+        }
+
+        // =====================================================================
+        // PLANTILLAS DE TEXTOS PERSONALIZABLES CON VARIABLES DINÁMICAS
+        // =====================================================================
+        const customTexts = {
+            follow: urlParams.get('txt_follow') || 'Se ha unido a la tripulación',
+            sub: urlParams.get('txt_sub') || 'Lleva {meses} meses en la nave',
+            sub_new: urlParams.get('txt_newsub') || 'Ha abordado la nave estelar',
+            gift: urlParams.get('txt_gift') || 'Regaló {subs} suscripciones a la tripulación',
+            raid: urlParams.get('txt_raid') || 'Aterrizó con {viewers} tripulantes',
+            kicks: urlParams.get('txt_kicks') || 'Ha enviado {kicks} de combustible estelar'
+        };
+
+        function formatAlertSubtitle(template, vars = {}) {
+            let res = String(template || '');
+            const count = vars.count !== undefined ? vars.count : (vars.amount !== undefined ? vars.amount : (vars.months || vars.subs || vars.viewers || vars.kicks || 1));
+            
+            // Reemplazo flexible de variables tolerante a espacios y mayúsculas
+            res = res.replace(/\{\s*(meses|mes)\s*\}/gi, vars.months !== undefined ? vars.months : count);
+            res = res.replace(/\{\s*(subs|sub|regaladas)\s*\}/gi, vars.subs !== undefined ? vars.subs : count);
+            res = res.replace(/\{\s*(viewers|espectadores|raiders|personas)\s*\}/gi, vars.viewers !== undefined ? vars.viewers : count);
+            res = res.replace(/\{\s*(kicks|kick|gemas|monedas)\s*\}/gi, vars.kicks !== undefined ? vars.kicks : count);
+            res = res.replace(/\{\s*(cantidad|count|amount|n)\s*\}/gi, count);
+            res = res.replace(/\{\s*(user|usuario|streamer)\s*\}/gi, vars.user || '');
+            return res;
         }
 
         // =====================================================================
@@ -642,6 +708,7 @@
         const alertQueue = [];
         let isAlertActive = false;
         let alertTimeout = null;
+        let currentAlertData = null;
 
         const overlay = document.getElementById('overlay');
         const alertBox = document.getElementById('alertBox');
@@ -662,6 +729,7 @@
 
         function displayAlert(data) {
             isAlertActive = true;
+            currentAlertData = data;
 
             // 1. Limpiar temas anteriores y asignar el tema de color correspondiente
             document.body.className = document.body.className.replace(/\btheme-\S+/g, '').trim();
@@ -689,6 +757,7 @@
                     overlay.classList.remove('active');
                     overlay.classList.remove('exiting');
                     isAlertActive = false;
+                    currentAlertData = null;
 
                     // Si está en modo bucle continuo (para previsualización)
                     if (isLoopMode && alertQueue.length === 0) {
@@ -721,16 +790,19 @@
                     displayAlert({
                         type: 'follow',
                         title: '¡Nuevo Seguidor!',
-                        subtitle: 'Se ha unido a la tripulación',
+                        subtitle: formatAlertSubtitle(customTexts.follow, { user: randomName }),
                         username: randomName
                     });
                     break;
                 case 'sub':
                     const months = [1, 2, 3, 6, 12][Math.floor(Math.random() * 5)];
+                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
                     displayAlert({
                         type: 'sub',
+                        count: months,
+                        months: months,
                         title: '¡Nueva Suscripción!',
-                        subtitle: months > 1 ? `Lleva ${months} meses en la nave` : 'Ha abordado la nave estelar',
+                        subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: randomName }),
                         username: randomName
                     });
                     break;
@@ -738,8 +810,10 @@
                     const gifts = [1, 5, 10, 20][Math.floor(Math.random() * 4)];
                     displayAlert({
                         type: 'gift',
+                        count: gifts,
+                        subs: gifts,
                         title: '¡Sub Regalada!',
-                        subtitle: `Regaló ${gifts} suscripci${gifts > 1 ? 'ones' : 'ón'} estelar${gifts > 1 ? 'es' : ''}`,
+                        subtitle: formatAlertSubtitle(customTexts.gift, { subs: gifts, count: gifts, user: randomName }),
                         username: randomName
                     });
                     break;
@@ -747,8 +821,10 @@
                     const viewers = Math.floor(Math.random() * 200) + 15;
                     displayAlert({
                         type: 'raid',
+                        count: viewers,
+                        viewers: viewers,
                         title: '¡Raid Entrante!',
-                        subtitle: `Aterrizó con ${viewers} tripulantes`,
+                        subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: randomName }),
                         username: randomName
                     });
                     break;
@@ -756,8 +832,10 @@
                     const kicks = [100, 250, 500, 1000, 2500][Math.floor(Math.random() * 5)];
                     displayAlert({
                         type: 'kicks',
+                        count: kicks,
+                        kicks: kicks,
                         title: '¡Kicks Aportados!',
-                        subtitle: `Ha enviado ${kicks} de combustible estelar`,
+                        subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: kicks, count: kicks, user: randomName }),
                         username: randomName
                     });
                     break;
@@ -894,11 +972,12 @@
 
                 // A. Followers
                 channelSub.bind('App\\Events\\FollowersUpdated', (ev) => {
+                    const u = ev.username || 'Nuevo Seguidor';
                     queueAlert({
                         type: 'follow',
                         title: '¡Nuevo Seguidor!',
-                        subtitle: 'Se ha unido a la tripulación',
-                        username: ev.username || 'Nuevo Seguidor'
+                        subtitle: formatAlertSubtitle(customTexts.follow, { user: u }),
+                        username: u
                     });
                 });
 
@@ -906,11 +985,13 @@
                 channelSub.bind('App\\Events\\SubscriptionEvent', (ev) => {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const months = raw.months || 1;
+                    const u = raw.username || 'Suscriptor';
+                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
                     queueAlert({
                         type: 'sub',
                         title: '¡Nueva Suscripción!',
-                        subtitle: months > 1 ? `Lleva ${months} meses en la nave` : 'Ha abordado la nave estelar',
-                        username: raw.username || 'Suscriptor'
+                        subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
+                        username: u
                     });
                 });
 
@@ -918,11 +999,12 @@
                 channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', (ev) => {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const count = raw.gifted_usernames?.length || raw.count || 1;
+                    const u = raw.gifter_username || 'Amigo del Canal';
                     queueAlert({
                         type: 'gift',
                         title: '¡Sub Regalada!',
-                        subtitle: `Regaló ${count} suscripci${count > 1 ? 'ones' : 'ón'} a la tripulación`,
-                        username: raw.gifter_username || 'Amigo del Canal'
+                        subtitle: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
+                        username: u
                     });
                 });
 
@@ -930,11 +1012,12 @@
                 channelSub.bind('App\\Events\\StreamHostEvent', (ev) => {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const viewers = raw.number || raw.viewers || 0;
+                    const u = raw.host_username || 'Streamer Amigo';
                     queueAlert({
                         type: 'raid',
                         title: '¡Raid Entrante!',
-                        subtitle: `Aterrizó con ${viewers} tripulantes`,
-                        username: raw.host_username || 'Streamer Amigo'
+                        subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
+                        username: u
                     });
                 });
 
@@ -946,10 +1029,13 @@
                     const sender = raw.sender?.username || 'Espectador';
 
                     if (content.includes('!kick') || content.includes('kicks') || raw.type === 'tip') {
+                        let kicksNum = 100;
+                        const match = content.match(/\d+/);
+                        if (match) kicksNum = parseInt(match[0], 10);
                         queueAlert({
                             type: 'kicks',
                             title: '¡Kicks Aportados!',
-                            subtitle: 'Ha enviado combustible estelar',
+                            subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: kicksNum, count: kicksNum, user: sender }),
                             username: sender
                         });
                     }
@@ -982,6 +1068,27 @@
 
             if (event.data.type === 'TRIGGER_TEST_ALERT') {
                 triggerAlertByType(event.data.alertType || 'follow');
+            } else if (event.data.type === 'SET_CUSTOM_TEXTS') {
+                if (event.data.customTexts) {
+                    Object.assign(customTexts, event.data.customTexts);
+                    if (isAlertActive && currentAlertData) {
+                        const type = currentAlertData.type;
+                        let tpl = customTexts[type] || '';
+                        if (type === 'sub') {
+                            const m = currentAlertData.months || 1;
+                            tpl = (m === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
+                        }
+                        const count = currentAlertData.count || currentAlertData.months || currentAlertData.subs || currentAlertData.viewers || currentAlertData.kicks || 1;
+                        alertSubtitle.textContent = formatAlertSubtitle(tpl, {
+                            months: currentAlertData.months || count,
+                            subs: currentAlertData.subs || count,
+                            viewers: currentAlertData.viewers || count,
+                            kicks: currentAlertData.kicks || count,
+                            count: count,
+                            user: currentAlertData.username || ''
+                        });
+                    }
+                }
             } else if (event.data.type === 'SET_LOOP_MODE') {
                 isLoopMode = !!event.data.isLoop;
                 if (isLoopMode && !isAlertActive) {

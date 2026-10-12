@@ -486,7 +486,10 @@ function initCart() {
     // - index.html / la raíz
     // - productos.html / /productos
     // - servicios.html / /servicios
-    const isMainPage = path === '/' || path.endsWith('/index.html') || path.endsWith('/');
+    if (path.includes('/mini_widgets') || path.includes('/sensunshop')) {
+        return;
+    }
+    const isMainPage = path === '/' || path === '/index.html' || path.endsWith('/multi-ideas-sv/') || path.endsWith('/multi-ideas-sv/index.html') || (!path.includes('/') && (path === '' || path === 'index.html'));
     const isProductos = path.endsWith('/productos.html') || path.endsWith('/productos');
     const isServicios = path.endsWith('/servicios.html') || path.endsWith('/servicios');
     
@@ -845,8 +848,12 @@ function initProductsFilter() {
 // POPUP PROMOCIONAL DE SENSUN SHOP (index.html)
 // ==========================================================================
 function initPromoPopup() {
-    const pathname = window.location.pathname;
-    const isHomepage = pathname.endsWith("index.html") || pathname.endsWith("/") || pathname === "";
+    const pathname = window.location.pathname.toLowerCase();
+
+    // No mostrar en mini_widgets ni sensunshop ni otras subpáginas internacionales
+    if (pathname.includes('/mini_widgets') || pathname.includes('/sensunshop')) return;
+
+    const isHomepage = pathname === '/' || pathname === '/index.html' || pathname === '' || pathname.endsWith('/multi-ideas-sv/') || pathname.endsWith('/multi-ideas-sv/index.html') || (!pathname.includes('/') && (pathname === '' || pathname === 'index.html'));
 
     if (!isHomepage) return;
 
