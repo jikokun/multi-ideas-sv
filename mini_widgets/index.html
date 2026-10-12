@@ -19,8 +19,15 @@
       (function() {
           const savedTheme = localStorage.getItem('theme');
           if (savedTheme === 'light') {
-              document.querySelector('link[href*="../estilos.css"]').href = '../estilo_claro_multi.css?v=3';
-              document.body?.classList.add('light-theme');
+              const link = document.querySelector('link[href*="../estilos.css"]');
+              if (link) link.href = '../estilo_claro_multi.css?v=3';
+              if (document.body) {
+                  document.body.classList.add('light-theme');
+              } else {
+                  document.addEventListener('DOMContentLoaded', () => {
+                      document.body.classList.add('light-theme');
+                  });
+              }
           }
       })();
   </script>
@@ -1180,17 +1187,134 @@
     }
   
     /* ========================================================
-       NUEVA ARQUITECTURA DEL MOSTRADOR & MODAL DE WIDGETS
+       ARQUITECTURA Y ESTILO DE MIS WIDGETS
        ======================================================== */
-    .widgets-toolbar {
+    .my-widgets-container {
       width: 100%;
       max-width: 1350px;
-      margin-bottom: 28px;
+      margin: 0 auto;
+      padding: 20px 20px 80px 20px;
+    }
+
+    /* Hero del Perfil / Explorador */
+    .profile-hero {
+      background: rgba(3, 16, 26, 0.85);
+      border: 1px solid rgba(0, 245, 212, 0.3);
+      border-radius: 24px;
+      padding: 26px 32px;
+      margin-bottom: 26px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 25px rgba(0, 245, 212, 0.1);
+      -webkit-backdrop-filter: blur(15px);
+      backdrop-filter: blur(15px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-info-left {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .hero-avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      font-size: 1.9rem;
+      font-weight: 900;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 245, 212, 0.4);
+      flex-shrink: 0;
+    }
+
+    .hero-titles h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.65rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin-bottom: 5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      letter-spacing: -0.5px;
+    }
+
+    .hero-titles h1 span.gradient-text {
+      background: linear-gradient(135deg, #00f5d4 0%, #00b4d8 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-titles p {
+      font-size: 0.92rem;
+      color: #a0c0d8;
+      margin: 0;
+      line-height: 1.4;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn-action-hero {
+      padding: 10px 22px;
+      border-radius: 30px;
+      font-weight: 800;
+      font-size: 0.9rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      border: none;
+      transition: all 0.25s ease;
+    }
+
+    .btn-action-hero.btn-primary {
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      box-shadow: 0 4px 15px rgba(0, 245, 212, 0.35);
+    }
+    .btn-action-hero.btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 25px rgba(0, 245, 212, 0.5);
+    }
+
+    .btn-action-hero.btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(0, 245, 212, 0.35);
+      color: #00f5d4;
+    }
+    .btn-action-hero.btn-secondary:hover {
+      background: rgba(0, 245, 212, 0.15);
+      border-color: #00f5d4;
+      transform: translateY(-2px);
+    }
+
+    /* Barra Superior de Filtros y Búsqueda */
+    .favorites-header-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       flex-wrap: wrap;
       gap: 16px;
+      margin-bottom: 24px;
+      padding: 0 4px;
     }
 
     .filter-tabs-group {
@@ -1199,7 +1323,7 @@
       background: rgba(3, 16, 26, 0.85);
       border: 1px solid rgba(0, 245, 212, 0.25);
       border-radius: 16px;
-      padding: 5px;
+      padding: 4px;
       gap: 4px;
       backdrop-filter: blur(10px);
       box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
@@ -1207,18 +1331,18 @@
     }
 
     .filter-tab-btn {
-      padding: 8px 16px;
+      padding: 8px 15px;
       border-radius: 11px;
       border: none;
       background: transparent;
       color: #a0c0d8;
       font-family: 'Nunito', sans-serif;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
       font-weight: 800;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 6px;
       transition: all 0.2s ease;
       user-select: none;
     }
@@ -1242,19 +1366,19 @@
 
     .search-box-wrap {
       position: relative;
-      width: 320px;
+      width: 290px;
       max-width: 100%;
     }
 
     .search-input {
       width: 100%;
-      padding: 11px 38px 11px 38px;
+      padding: 10px 34px 10px 36px;
       background: rgba(2, 10, 18, 0.85);
       border: 1.5px solid rgba(0, 245, 212, 0.3);
       border-radius: 14px;
       color: #ffffff;
       font-family: 'Nunito', sans-serif;
-      font-size: 0.92rem;
+      font-size: 0.88rem;
       outline: none;
       transition: all 0.25s ease;
       box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
@@ -1262,36 +1386,36 @@
 
     .search-input:focus {
       border-color: #00f5d4;
-      box-shadow: 0 0 18px rgba(0, 245, 212, 0.35);
+      box-shadow: 0 0 16px rgba(0, 245, 212, 0.35);
       background: rgba(4, 18, 30, 0.95);
     }
 
     .search-box-wrap .search-icon {
       position: absolute;
-      left: 13px;
+      left: 12px;
       top: 50%;
       transform: translateY(-50%);
       color: #00f5d4;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
       pointer-events: none;
     }
 
     .search-clear-btn {
       position: absolute;
-      right: 11px;
+      right: 10px;
       top: 50%;
       transform: translateY(-50%);
       background: rgba(255, 255, 255, 0.1);
       border: none;
       color: #94a3b8;
-      width: 22px;
-      height: 22px;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       display: none;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      font-size: 0.75rem;
+      font-size: 0.7rem;
       transition: all 0.2s;
     }
     .search-clear-btn:hover {
@@ -1299,568 +1423,333 @@
       color: #ffffff;
     }
 
-    /* Grid de Mostrador */
+    /* Grid de Widgets (Idéntico a mis_widgets.html) */
     .widgets-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(295px, 1fr));
-      gap: 24px;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 25px;
       width: 100%;
-      max-width: 1350px;
-      margin-bottom: 40px;
     }
 
-    .widget-showcase-card {
-      background: rgba(4, 20, 32, 0.88);
-      border: 1.5px solid rgba(0, 245, 212, 0.28);
+    @media (max-width: 768px) {
+      .widgets-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Tarjeta de Widget Personalizado (Idéntica a mis_widgets.html) */
+    .my-widget-card {
+      background: rgba(3, 16, 26, 0.88);
+      border: 1.5px solid rgba(0, 245, 212, 0.25);
       border-radius: 20px;
-      overflow: hidden;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.55);
+      padding: 22px;
       display: flex;
       flex-direction: column;
-      cursor: pointer;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
+      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(10px);
+      transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
       position: relative;
     }
 
-    .widget-showcase-card:hover {
-      transform: translateY(-6px);
-      border-color: #00f5d4;
-      box-shadow: 0 18px 45px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 245, 212, 0.25);
-    }
-
-    .card-thumb {
-      height: 155px;
-      position: relative;
-      overflow: hidden;
-      background: radial-gradient(circle at center, #061928 0%, #02090f 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      border-bottom: 1px solid rgba(0, 245, 212, 0.15);
-    }
-
-    .thumb-badge-top {
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      z-index: 5;
-    }
-
-    .thumb-visual {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.4s ease;
-    }
-
-    .widget-showcase-card:hover .thumb-visual {
-      transform: scale(1.05);
-    }
-
-    .card-thumb-overlay {
-      position: absolute;
-      inset: 0;
-      background: rgba(2, 9, 15, 0.72);
-      backdrop-filter: blur(4px);
-      -webkit-backdrop-filter: blur(4px);
-      opacity: 0;
-      transition: opacity 0.25s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 10;
-    }
-
-    .widget-showcase-card:hover .card-thumb-overlay {
-      opacity: 1;
-    }
-
-    .btn-hover-config {
-      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
-      color: #02090f;
-      font-weight: 900;
-      font-size: 0.88rem;
-      padding: 10px 22px;
-      border-radius: 25px;
-      box-shadow: 0 4px 18px rgba(0, 245, 212, 0.45);
-      transform: translateY(10px);
-      transition: transform 0.25s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .widget-showcase-card:hover .btn-hover-config {
-      transform: translateY(0);
-    }
-
-    .card-main-content {
-      padding: 18px 20px 12px 20px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
+    .my-widget-card:hover {
+      transform: translateY(-4px);
+      border-color: rgba(0, 245, 212, 0.55);
+      box-shadow: 0 12px 35px rgba(0, 245, 212, 0.18);
     }
 
     .card-top-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
+      gap: 10px;
+      margin-bottom: 14px;
     }
 
-    .badge-type {
+    .card-title-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-title-group h3 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #ffffff;
+      margin: 0;
+    }
+
+    .card-badges {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .badge-tag {
       font-size: 0.72rem;
       font-weight: 800;
-      padding: 3px 9px;
-      border-radius: 6px;
+      padding: 3px 8px;
+      border-radius: 12px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       display: inline-flex;
       align-items: center;
-      gap: 5px;
-    }
-
-    .badge-free {
-      background: rgba(16, 185, 129, 0.15);
-      color: #10b981;
-      border: 1px solid rgba(16, 185, 129, 0.35);
-    }
-    .badge-kick-tag {
-      background: rgba(83, 252, 24, 0.15);
-      color: #53fc18;
-      border: 1px solid rgba(83, 252, 24, 0.35);
-    }
-    .badge-streamer {
-      background: rgba(56, 189, 248, 0.15);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.35);
-    }
-    .badge-special {
-      background: rgba(192, 132, 252, 0.15);
-      color: #c084fc;
-      border: 1px solid rgba(192, 132, 252, 0.35);
-    }
-
-    .card-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.05rem;
-      font-weight: 800;
-      color: #ffffff;
-      line-height: 1.35;
-      margin: 0;
-    }
-
-    .card-desc {
-      font-size: 0.85rem;
-      color: #a0c0d8;
-      line-height: 1.45;
-      margin: 0;
-      display: -webkit-box;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
-      overflow: hidden;
-      flex-grow: 1;
-    }
-
-    .card-footer-action {
-      padding: 12px 20px 16px 20px;
-      border-top: 1px solid rgba(255, 255, 255, 0.06);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: auto;
-    }
-
-    .card-tech-tag {
-      font-size: 0.74rem;
-      color: #94a3b8;
-      font-weight: 700;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    .btn-action-open {
-      font-size: 0.82rem;
-      font-weight: 800;
-      color: #00f5d4;
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      transition: transform 0.2s ease;
-    }
-
-    .widget-showcase-card:hover .btn-action-open {
-      transform: translateX(4px);
-    }
-
-    /* Mocks visuales de los thumbnails */
-    .thumb-mock {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      gap: 6px;
-      width: 85%;
-      padding: 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-    }
-    .mock-weather { background: linear-gradient(135deg, rgba(6, 44, 76, 0.8), rgba(2, 20, 34, 0.9)); border-color: rgba(56, 189, 248, 0.4); }
-    .mock-kick { background: linear-gradient(135deg, rgba(14, 40, 16, 0.8), rgba(3, 16, 5, 0.9)); border-color: rgba(83, 252, 24, 0.4); }
-    .mock-social { background: linear-gradient(135deg, rgba(30, 20, 60, 0.8), rgba(10, 5, 25, 0.9)); border-color: rgba(168, 85, 247, 0.4); }
-    .mock-countdown { background: linear-gradient(135deg, rgba(35, 25, 10, 0.8), rgba(15, 10, 3, 0.9)); border-color: rgba(245, 158, 11, 0.4); }
-    .mock-digital { background: linear-gradient(135deg, rgba(4, 30, 48, 0.8), rgba(2, 14, 24, 0.9)); border-color: rgba(0, 245, 212, 0.4); }
-    .mock-chat { background: linear-gradient(135deg, rgba(10, 35, 25, 0.8), rgba(3, 16, 10, 0.9)); border-color: rgba(52, 211, 153, 0.4); }
-    .mock-alerts { background: linear-gradient(135deg, rgba(40, 20, 15, 0.8), rgba(20, 8, 5, 0.9)); border-color: rgba(251, 146, 60, 0.4); }
-    .mock-deck { background: linear-gradient(135deg, rgba(6, 40, 50, 0.8), rgba(2, 18, 24, 0.9)); border-color: rgba(0, 242, 254, 0.4); }
-    .mock-electric { background: linear-gradient(135deg, rgba(50, 10, 20, 0.8), rgba(25, 4, 10, 0.9)); border-color: rgba(255, 26, 64, 0.4); }
-    .mock-camframe { background: linear-gradient(135deg, rgba(15, 30, 45, 0.8), rgba(4, 14, 24, 0.9)); border-color: rgba(0, 245, 212, 0.4); }
-    .mock-star { background: linear-gradient(135deg, rgba(35, 10, 45, 0.8), rgba(16, 4, 22, 0.9)); border-color: rgba(244, 114, 182, 0.4); }
-
-    .mock-time { font-family: 'Orbitron', monospace; font-size: 1.3rem; font-weight: 800; color: #00f5d4; }
-    .mock-weather-info { font-size: 0.78rem; color: #a0c0d8; font-weight: 700; }
-    .mock-stat-num { font-family: 'Orbitron', monospace; font-size: 1.4rem; font-weight: 900; color: #53fc18; }
-    .mock-stat-label { font-size: 0.76rem; color: #cbd5e1; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
-
-    /* Empty state */
-    .widgets-empty-state {
-      width: 100%;
-      padding: 60px 20px;
-      text-align: center;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      background: rgba(3, 16, 26, 0.6);
-      border: 1.5px dashed rgba(0, 245, 212, 0.3);
-      border-radius: 20px;
-      color: #a0c0d8;
-    }
-    .widgets-empty-state i {
-      font-size: 2.8rem;
-      color: #00f5d4;
-      opacity: 0.8;
-    }
-    .widgets-empty-state h3 {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.25rem;
-      color: #ffffff;
-      margin: 0;
-    }
-    .widgets-empty-state p {
-      font-size: 0.9rem;
-      margin: 0;
-      color: #94a3b8;
-    }
-
-    /* ========================================================
-       MODAL DE CONFIGURACIÓN SPLIT (50% / 50%)
-       ======================================================== */
-    .config-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 99999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
-      transition: opacity 0.3s ease, visibility 0.3s ease;
-    }
-
-    .config-modal.open {
-      opacity: 1;
-      visibility: visible;
-      pointer-events: auto;
-    }
-
-    .config-modal-backdrop {
-      position: absolute;
-      inset: 0;
-      background: rgba(2, 9, 15, 0.82);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-    }
-
-    .config-modal-dialog {
-      position: relative;
-      z-index: 10;
-      width: 100%;
-      max-width: 1240px;
-      height: 88vh;
-      max-height: 880px;
-      background: linear-gradient(145deg, rgba(4, 20, 32, 0.98), rgba(6, 26, 40, 0.98));
-      border: 1.5px solid rgba(0, 245, 212, 0.45);
-      border-radius: 24px;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 45px rgba(0, 245, 212, 0.25);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      transform: scale(0.95);
-      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .config-modal.open .config-modal-dialog {
-      transform: scale(1);
-    }
-
-    .config-modal-close {
-      position: absolute;
-      top: 16px;
-      right: 16px;
-      z-index: 60;
-      width: 38px;
-      height: 38px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #cbd5e1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-size: 1.05rem;
-    }
-
-    .config-modal-close:hover {
-      background: rgba(239, 68, 68, 0.25);
-      border-color: #ef4444;
-      color: #ef4444;
-      transform: rotate(90deg);
-    }
-
-    .widget-modal-pane {
-      display: none;
-      width: 100%;
-      height: 100%;
-      flex-direction: row;
-      overflow: hidden;
-    }
-
-    .widget-modal-pane.active {
-      display: flex;
-    }
-
-    /* Columna Izquierda: Vista Previa */
-    .modal-left-col {
-      width: 50%;
-      min-width: 0;
-      padding: 28px;
-      background: rgba(2, 12, 20, 0.65);
-      border-right: 1px solid rgba(0, 245, 212, 0.2);
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      overflow-y: auto;
-    }
-
-    .modal-header-info {
-      display: flex;
-      flex-direction: column;
       gap: 4px;
     }
 
-    .modal-header-info .modal-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 0.74rem;
-      font-weight: 800;
-      padding: 3px 10px;
-      border-radius: 6px;
-      width: fit-content;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 2px;
+    .badge-tag.fav {
+      background: rgba(255, 183, 3, 0.15);
+      color: #ffb703;
+      border: 1px solid rgba(255, 183, 3, 0.35);
     }
 
-    .modal-header-info h2.modal-title {
-      font-family: 'Orbitron', sans-serif;
-      font-size: 1.35rem;
-      color: #ffffff;
-      margin: 0;
-      line-height: 1.3;
+    .badge-tag.custom {
+      background: rgba(0, 245, 212, 0.12);
+      color: #00f5d4;
+      border: 1px solid rgba(0, 245, 212, 0.3);
     }
 
-    .modal-header-info p.modal-desc {
-      font-size: 0.88rem;
-      color: #a0c0d8;
-      margin: 0;
-      line-height: 1.45;
-    }
-
-    .modal-preview-box {
-      flex: 1;
-      min-height: 280px;
+    /* Vista Previa de Iframe */
+    .card-iframe-container {
+      width: 100%;
+      height: 200px;
+      background: rgba(2, 6, 12, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 14px;
-      border: 1.5px dashed rgba(0, 245, 212, 0.35);
       overflow: hidden;
+      margin-bottom: 16px;
       position: relative;
-      background: radial-gradient(circle at center, #061928 0%, #02090f 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
-    .modal-preview-box iframe {
+    .card-iframe-container iframe {
       width: 100%;
       height: 100%;
       border: none;
       background: transparent;
+      pointer-events: auto;
     }
 
-    .preview-tag-bottom {
-      position: absolute;
-      bottom: 8px;
-      font-size: 0.72rem;
+    /* Resumen de Ajustes Personalizados */
+    .config-tags-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 18px;
+      min-height: 28px;
+    }
+
+    .config-tag {
+      font-size: 0.78rem;
+      padding: 3px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       color: #94a3b8;
-      background: rgba(2, 9, 15, 0.85);
-      padding: 4px 12px;
-      border-radius: 20px;
-      border: 1px solid rgba(0, 245, 212, 0.2);
-      backdrop-filter: blur(8px);
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      font-weight: 700;
-      pointer-events: none;
+      gap: 5px;
     }
 
-    /* Columna Derecha: Opciones y Ajustes */
-    .modal-right-col {
-      width: 50%;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      background: rgba(3, 16, 26, 0.95);
-      position: relative;
-      overflow: hidden;
+    .config-tag strong {
+      color: #e2e8f0;
     }
 
-    .modal-settings-scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 26px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+    .config-tag .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      border: 1px solid rgba(255,255,255,0.4);
     }
 
-    .settings-title-row {
-      padding-bottom: 8px;
-      border-bottom: 1px solid rgba(0, 245, 212, 0.2);
-      margin-bottom: 4px;
-    }
-
-    .settings-title-row h3 {
-      font-size: 0.84rem;
-      font-weight: 800;
-      color: #00f5d4;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      margin: 0;
-      display: flex;
-      align-items: center;
+    /* Botones de Acción de Tarjeta */
+    .card-actions-grid {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
       gap: 8px;
+      margin-top: auto;
     }
 
-    .modal-footer {
-      padding: 16px 28px;
-      background: rgba(2, 10, 18, 0.95);
-      border-top: 1px solid rgba(0, 245, 212, 0.25);
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    .modal-footer-tip {
-      font-size: 0.76rem;
-      color: #94a3b8;
-      margin: 0;
-      text-align: center;
-      display: flex;
+    .btn-card-copy {
+      padding: 10px 14px;
+      background: linear-gradient(135deg, #00f5d4 0%, #0077b6 100%);
+      color: #02090f;
+      font-weight: 800;
+      font-size: 0.88rem;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 6px;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
 
-    .modal-footer-actions {
+    .btn-card-copy:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 15px rgba(0, 245, 212, 0.4);
+    }
+
+    .btn-card-copy.copied {
+      background: linear-gradient(135deg, #53fc18 0%, #00b4d8 100%);
+    }
+
+    .btn-card-icon-action {
+      width: 40px;
+      height: 40px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: center;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      font-size: 1rem;
     }
 
-    .modal-footer-actions .btn-copy {
-      flex: 1;
-      margin-top: 0;
+    .btn-card-icon-action:hover {
+      background: rgba(0, 245, 212, 0.15);
+      border-color: #00f5d4;
+      color: #00f5d4;
+      transform: scale(1.05);
     }
 
-    /* Adaptación Responsiva para móviles */
-    @media (max-width: 900px) {
-      .widgets-toolbar {
-        flex-direction: column;
-        align-items: stretch;
-      }
-      .filter-tabs-group {
-        width: 100%;
-        overflow-x: auto;
-      }
-      .search-box-wrap {
-        width: 100%;
-      }
-      .config-modal-dialog {
-        height: 92vh;
-        max-height: none;
-        border-radius: 18px;
-      }
-      .widget-modal-pane.active {
-        flex-direction: column;
-        overflow-y: auto;
-      }
-      .modal-left-col {
-        width: 100%;
-        border-right: none;
-        border-bottom: 1px solid rgba(0, 245, 212, 0.2);
-        padding: 20px;
-        overflow-y: visible;
-        flex-shrink: 0;
-      }
-      .modal-preview-box {
-        min-height: 220px;
-        height: 220px;
-      }
-      .modal-right-col {
-        width: 100%;
-        overflow: visible;
-        flex: none;
-      }
-      .modal-settings-scroll {
-        padding: 20px;
-        overflow-y: visible;
-      }
-      .modal-footer {
-        position: sticky;
-        bottom: 0;
-        padding: 14px 20px;
-        z-index: 20;
-      }
+    .btn-card-icon-action.active,
+    .btn-card-icon-action.btn-fav-active {
+      background: rgba(255, 183, 3, 0.2);
+      border-color: #ffb703;
+      color: #ffb703;
     }
 
-    /* Adaptación al Modo Claro (body.light-theme) */
+    /* Drawer de Configuración Desplegable dentro de la Tarjeta */
+    .card-settings-drawer {
+      display: none;
+      margin-top: 18px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(0, 245, 212, 0.2);
+      flex-direction: column;
+      gap: 14px;
+      animation: drawerFadeIn 0.3s ease;
+    }
+
+    .my-widget-card.settings-expanded .card-settings-drawer {
+      display: flex;
+    }
+
+    @keyframes drawerFadeIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .drawer-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      padding-bottom: 6px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+    }
+
+    .drawer-header h4 {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: #00f5d4;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-close-drawer {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #94a3b8;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .btn-close-drawer:hover {
+      color: #ffffff;
+      background: rgba(255, 255, 255, 0.12);
+      border-color: #00f5d4;
+    }
+
+    /* Estado Vacío de Búsqueda */
+    .empty-search-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 50px 20px;
+      background: rgba(3, 16, 26, 0.7);
+      border: 1.5px dashed rgba(0, 245, 212, 0.3);
+      border-radius: 20px;
+      color: #a0c0d8;
+    }
+    .empty-search-state i {
+      font-size: 2.5rem;
+      color: #00f5d4;
+      margin-bottom: 10px;
+    }
+
+    /* ========================================================
+       ADAPTACIÓN ARMÓNICA AL MODO CLARO (body.light-theme)
+       ======================================================== */
+    body.light-theme .profile-hero {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1.5px solid rgba(0, 143, 150, 0.35) !important;
+      box-shadow: 0 10px 35px rgba(0, 143, 150, 0.1) !important;
+    }
+
+    body.light-theme .hero-avatar {
+      background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 0 18px rgba(0, 143, 150, 0.35) !important;
+    }
+
+    body.light-theme .hero-titles h1 {
+      color: #063d41 !important;
+    }
+
+    body.light-theme .hero-titles h1 span.gradient-text {
+      background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
+      -webkit-background-clip: text !important;
+      background-clip: text !important;
+      -webkit-text-fill-color: transparent !important;
+    }
+
+    body.light-theme .hero-titles p {
+      color: #475569 !important;
+    }
+
+    body.light-theme .btn-action-hero.btn-primary {
+      background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 15px rgba(0, 143, 150, 0.3) !important;
+    }
+    body.light-theme .btn-action-hero.btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(0, 143, 150, 0.45) !important;
+    }
+
+    body.light-theme .btn-action-hero.btn-secondary {
+      background: rgba(0, 143, 150, 0.08) !important;
+      border-color: rgba(0, 143, 150, 0.35) !important;
+      color: #008f96 !important;
+    }
+    body.light-theme .btn-action-hero.btn-secondary:hover {
+      background: rgba(0, 143, 150, 0.16) !important;
+      border-color: #008f96 !important;
+    }
+
     body.light-theme .filter-tabs-group {
       background: rgba(240, 245, 250, 0.9) !important;
       border-color: rgba(0, 143, 150, 0.25) !important;
@@ -1878,6 +1767,7 @@
       color: #ffffff !important;
       box-shadow: 0 2px 10px rgba(0, 143, 150, 0.3) !important;
     }
+
     body.light-theme .search-input {
       background: rgba(255, 255, 255, 0.95) !important;
       border-color: rgba(0, 143, 150, 0.3) !important;
@@ -1891,80 +1781,86 @@
     body.light-theme .search-box-wrap .search-icon {
       color: #008f96 !important;
     }
-    body.light-theme .widget-showcase-card {
-      background: rgba(255, 255, 255, 0.92) !important;
-      border-color: rgba(0, 143, 150, 0.25) !important;
-      box-shadow: 0 10px 30px rgba(0, 143, 150, 0.08) !important;
+
+    body.light-theme .my-widget-card {
+      background: rgba(255, 255, 255, 0.95) !important;
+      border: 1.5px solid rgba(0, 143, 150, 0.25) !important;
+      box-shadow: 0 8px 30px rgba(0, 143, 150, 0.08) !important;
     }
-    body.light-theme .widget-showcase-card:hover {
+    body.light-theme .my-widget-card:hover {
       border-color: #008f96 !important;
-      box-shadow: 0 16px 40px rgba(0, 143, 150, 0.2) !important;
+      box-shadow: 0 12px 35px rgba(0, 143, 150, 0.18) !important;
     }
-    body.light-theme .card-thumb {
-      background: radial-gradient(circle at center, #e6f7f7 0%, #d4f0f0 100%) !important;
-      border-bottom-color: rgba(0, 143, 150, 0.15) !important;
-    }
-    body.light-theme .card-title {
+
+    body.light-theme .card-title-group h3 {
       color: #063d41 !important;
     }
-    body.light-theme .card-desc {
-      color: #475569 !important;
-    }
-    body.light-theme .card-footer-action {
-      border-top-color: rgba(0, 0, 0, 0.06) !important;
-    }
-    body.light-theme .btn-action-open {
-      color: #008f96 !important;
-    }
-    body.light-theme .config-modal-dialog {
-      background: linear-gradient(145deg, #ffffff, #f0fdfa) !important;
-      border-color: rgba(0, 143, 150, 0.35) !important;
-      box-shadow: 0 25px 70px rgba(0, 143, 150, 0.18) !important;
-    }
-    body.light-theme .modal-left-col {
-      background: #f8fafc !important;
-      border-right-color: rgba(0, 143, 150, 0.2) !important;
-    }
-    body.light-theme .modal-header-info h2.modal-title {
-      color: #063d41 !important;
-    }
-    body.light-theme .modal-header-info p.modal-desc {
-      color: #475569 !important;
-    }
-    body.light-theme .modal-preview-box {
-      border-color: rgba(0, 143, 150, 0.3) !important;
+
+    body.light-theme .card-iframe-container {
       background: radial-gradient(circle at center, #e6f7f7 0%, #d4f0f0 100%) !important;
+      border-color: rgba(0, 143, 150, 0.25) !important;
     }
-    body.light-theme .preview-tag-bottom {
-      background: rgba(255, 255, 255, 0.9) !important;
-      color: #475569 !important;
+
+    body.light-theme .config-tag {
+      background: rgba(0, 143, 150, 0.08) !important;
       border-color: rgba(0, 143, 150, 0.2) !important;
+      color: #475569 !important;
     }
-    body.light-theme .modal-right-col {
-      background: #ffffff !important;
+    body.light-theme .config-tag strong {
+      color: #063d41 !important;
     }
-    body.light-theme .settings-title-row {
-      border-bottom-color: rgba(0, 143, 150, 0.2) !important;
+
+    body.light-theme .btn-card-copy {
+      background: linear-gradient(135deg, #008f96 0%, #00b4d8 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 4px 15px rgba(0, 143, 150, 0.3) !important;
     }
-    body.light-theme .settings-title-row h3 {
+    body.light-theme .btn-card-copy:hover {
+      box-shadow: 0 6px 20px rgba(0, 143, 150, 0.45) !important;
+    }
+
+    body.light-theme .btn-card-icon-action {
+      background: rgba(0, 0, 0, 0.04) !important;
+      border-color: rgba(0, 0, 0, 0.12) !important;
+      color: #475569 !important;
+    }
+    body.light-theme .btn-card-icon-action:hover {
+      background: rgba(0, 143, 150, 0.15) !important;
+      border-color: #008f96 !important;
       color: #008f96 !important;
     }
-    body.light-theme .modal-footer {
-      background: #f1f5f9 !important;
+    body.light-theme .btn-card-icon-action.btn-fav-active,
+    body.light-theme .btn-card-icon-action.active {
+      background: rgba(255, 183, 3, 0.22) !important;
+      border-color: #ffb703 !important;
+      color: #b45309 !important;
+    }
+
+    body.light-theme .card-settings-drawer {
       border-top-color: rgba(0, 143, 150, 0.2) !important;
     }
-    body.light-theme .modal-footer-tip {
-      color: #64748b !important;
+    body.light-theme .drawer-header {
+      border-bottom-color: rgba(0, 0, 0, 0.08) !important;
     }
-    body.light-theme .config-modal-close {
-      background: rgba(0, 0, 0, 0.05) !important;
+    body.light-theme .drawer-header h4 {
+      color: #008f96 !important;
+    }
+    body.light-theme .btn-close-drawer {
+      background: rgba(0, 0, 0, 0.04) !important;
       border-color: rgba(0, 0, 0, 0.1) !important;
       color: #475569 !important;
     }
-    body.light-theme .config-modal-close:hover {
-      background: rgba(239, 68, 68, 0.15) !important;
-      border-color: #ef4444 !important;
-      color: #ef4444 !important;
+    body.light-theme .btn-close-drawer:hover {
+      color: #063d41 !important;
+      border-color: #008f96 !important;
+    }
+    body.light-theme .empty-search-state {
+      background: rgba(255, 255, 255, 0.9) !important;
+      border-color: rgba(0, 143, 150, 0.3) !important;
+      color: #475569 !important;
+    }
+    body.light-theme .empty-search-state i {
+      color: #008f96 !important;
     }
 
   </style>
@@ -1989,7 +1885,6 @@
       </p>
 
       <div class="auth-gate-actions">
-        <!-- Botón Único de Inicio y Registro Automático con Google -->
         <button type="button" class="btn-gate-google" id="gate-btn-google" onclick="loginWithGoogleGate()">
           <svg class="google-icon" viewBox="0 0 24 24" width="22" height="22">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -2018,34 +1913,26 @@
     </div>
   </div>
 
-  <div class="mini-widgets-container locked" id="widgets-container">
+  <div class="my-widgets-container locked" id="widgets-container">
 
-    <div class="page-title-section">
-      <h1>✨ Generador y Configurador de Mini Widgets</h1>
-      <p class="subtitle">Personaliza los datos de tu canal de transmisión, prueba la vista previa interactiva en tiempo real y copia el enlace listo para pegar en OBS Studio.</p>
-    </div>
-
-    <!-- Banner de Estado de Usuario / Sincronización en la Nube -->
-    <div id="cloud-sync-banner" class="cloud-sync-banner">
-      <div class="sync-banner-content">
-        <div class="sync-icon-wrap">
-          <span id="sync-icon">☁️</span>
-        </div>
-        <div class="sync-text-wrap">
-          <h3 id="sync-title">Personalización en la Nube</h3>
-          <p id="sync-desc">Inicia sesión para guardar automáticamente tus usuarios, colores y configuraciones en tu perfil, y acceder a tus <strong>Widgets Favoritos de OBS</strong>.</p>
+    <!-- Hero del Perfil / Configurador (Idéntico a mis_widgets.html) -->
+    <div class="profile-hero" id="profile-hero">
+      <div class="hero-info-left">
+        <div class="hero-avatar" id="hero-avatar-char">I</div>
+        <div class="hero-titles">
+          <h1 id="hero-user-title">Widgets de <span class="gradient-text">Jikokun</span></h1>
+          <p id="hero-user-subtitle">Tus overlays favoritos sincronizados en tu cuenta, listos para personalizar y usar en OBS Studio.</p>
         </div>
       </div>
-      <div class="sync-actions" id="sync-actions">
-        <button type="button" class="btn-sync-action" id="btn-sync-login" onclick="openGlobalAuthModal()">
-          🔑 Iniciar Sesión / Registrarse
-        </button>
+      <div class="hero-actions">
+        <a href="mis_widgets.html" class="btn-action-hero btn-secondary">
+          ⭐ Ver Mis Favoritos
+        </a>
       </div>
     </div>
 
-    
-    <!-- Controles y Filtros de la Galería -->
-    <div class="widgets-toolbar">
+    <!-- Barra de Filtros y Búsqueda -->
+    <div class="favorites-header-bar">
       <div class="filter-tabs-group" id="filter-tabs">
         <button type="button" class="filter-tab-btn active" data-filter="all" onclick="filterWidgets('all')">
           <i class="fa-solid fa-border-all"></i> Todos <span class="tab-count">(11)</span>
@@ -2066,449 +1953,61 @@
 
       <div class="search-box-wrap">
         <i class="fa-solid fa-search search-icon"></i>
-        <input type="text" id="widget-search-input" class="search-input" placeholder="Buscar widget por nombre o función..." oninput="handleSearchWidgets(this.value)">
+        <input type="text" id="widget-search-input" class="search-input" placeholder="Buscar widget por nombre..." oninput="handleSearchWidgets(this.value)">
         <button type="button" id="search-clear-btn" class="search-clear-btn" onclick="clearSearch()" title="Limpiar búsqueda">
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
     </div>
 
-    <!-- Grid de Mostrador de Widgets -->
+    <!-- Grid de Tarjetas (Idéntico a mis_widgets.html) -->
     <div class="widgets-grid" id="widgets-grid">
 
-      <div class="widget-showcase-card" data-widget="widget_weather" data-category="utilidad" onclick="openWidgetModal('widget_weather')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-free">Gratis • Utilidad</span>
+      <!-- Tarjeta: 1. Widget Clima & Reloj en Vivo -->
+      <div class="my-widget-card" id="card-weather" data-widget="widget_weather" data-category="utilidad">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">🌤️</span>
+            <h3>1. Widget Clima & Reloj en Vivo</h3>
           </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-weather">
-              <span class="mock-time">10:46 AM</span><span class="mock-weather-info"><i class="fa-solid fa-sun" style="color: #facc15;"></i> 28°C San Salvador</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_weather" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_weather', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
+          <div class="card-badges">
+            <span class="badge-tag custom">Gratis</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_weather" onclick="toggleWidgetFavorite('widget_weather', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
             </button>
           </div>
-          <h3 class="card-title">🌤️ 1. Widget Clima & Reloj en Vivo</h3>
-          <p class="card-desc">Hora local y temperatura en tiempo real con íconos dinámicos y tema transparente para escenas Just Chatting o inicios de stream.</p>
         </div>
 
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_kick" data-category="kick" onclick="openWidgetModal('widget_kick')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-kick-tag">Gratis • Kick Live</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-kick">
-              <span class="mock-stat-num">1,420</span><span class="mock-stat-label"><i class="fa-solid fa-circle text-xs" style="color: #53fc18;"></i> Espectadores Kick</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_kick" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_kick', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">💚 2. Widget Contador Kick (Espectadores en Vivo)</h3>
-          <p class="card-desc">Muestra en directo la cantidad de espectadores de tu stream en Kick con diseño gamer neón y colores 100% personalizables.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_social" data-category="utilidad" onclick="openWidgetModal('widget_social')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-free">Gratis • Utilidad</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-social">
-              <div style="display: flex; gap: 8px; font-size: 1.1rem;"><span style="color: #53fc18;"><i class="fa-brands fa-kickstarter-k"></i></span><span style="color: #5865f2;"><i class="fa-brands fa-discord"></i></span><span style="color: #e1306c;"><i class="fa-brands fa-instagram"></i></span><span style="color: #00f2fe;"><i class="fa-brands fa-tiktok"></i></span></div><span class="mock-stat-label">@jikokun_official</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_social" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_social', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">📢 3. Widget Rotador de Redes Sociales</h3>
-          <p class="card-desc">Rotador dinámico de tus redes (Kick, Discord, Insta, TikTok, YouTube, Spotify y más) para fidelizar y crecer tu audiencia.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_countdown" data-category="utilidad" onclick="openWidgetModal('widget_countdown')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-free">Gratis • Utilidad</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-countdown">
-              <span class="mock-time" style="color: #f59e0b;">04:59</span><span class="mock-stat-label">Estamos Por Empezar</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_countdown" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_countdown', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">⏳ 4. Widget Cuenta Atrás de Stream</h3>
-          <p class="card-desc">Temporizador con cuenta regresiva personalizable y título de evento para tus pantallas de 'Ya Comenzamos' o pausas.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_digital" data-category="utilidad" onclick="openWidgetModal('widget_digital')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-free">Gratis • Utilidad</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-digital">
-              <span class="mock-time">12:48:35</span><span class="mock-stat-label">OBS Cyber Reloj</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_digital" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_digital', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">🕒 5. Widget Reloj Digital Futurista</h3>
-          <p class="card-desc">Reloj digital limpio con tipografía tecnológica neón y opción de segundos para mantener la noción del tiempo en stream.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_chat" data-category="kick" onclick="openWidgetModal('widget_chat')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-kick-tag">Gratis • Kick Live</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-chat">
-              <div style="font-size: 0.76rem; text-align: left; background: rgba(0,0,0,0.5); padding: 5px 8px; border-radius: 6px; border-left: 2px solid #53fc18; width: 100%;"><strong style="color: #53fc18;">@Jiko:</strong> ¡Bienvenidos al stream! 🎉</div>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_chat" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_chat', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">💬 6. Widget Chat de Kick en Vivo</h3>
-          <p class="card-desc">Overlay de chat en tiempo real para Kick.com con insignias, emotes oficiales y personalización completa de fuentes y colores.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_alerts" data-category="alertas" onclick="openWidgetModal('widget_alerts')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-streamer">Gratis • Alertas</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-alerts">
-              <span style="font-size: 1.3rem;">🦊</span><span class="mock-stat-label" style="color: #fb923c; font-weight: 800;">¡NUEVO SEGUIDOR!</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_alerts', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">📢 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h3>
-          <p class="card-desc">Alertas conectadas a Streamer.bot con animaciones interactivas, sonidos personalizados de MyInstants o .mp3 y resplandores por evento.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_jikokun_deck" data-category="alertas" onclick="openWidgetModal('widget_jikokun_deck')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-special">Showcase • Alertas 3D</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-deck">
-              <span style="font-size: 1.3rem;">🎴</span><span class="mock-stat-label" style="color: #00f2fe; font-weight: 800;">Baraja 3D Kick</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_jikokun_deck" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_jikokun_deck', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">🎴 8. Showcase: Baraja de Alertas 3D (Jikokun Edition)</h3>
-          <p class="card-desc">Visualizador cinemático en bucle de la baraja de cartas 3D de Kick (Follows, Subs, Gifts, Raids, Kicks y Tips).</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_alerts_electric" data-category="alertas" onclick="openWidgetModal('widget_alerts_electric')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-streamer">Gratis • Alertas</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-electric">
-              <span style="font-size: 1.3rem; color: #ff1a40;">⚡</span><span class="mock-stat-label" style="color: #ff4d6d; font-weight: 800;">¡ALERTA RELÁMPAGO!</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts_electric" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">⚡ 9. Showcase: Alerta Eléctrica (Kick & Streamer.bot)</h3>
-          <p class="card-desc">Alerta electrizante con rayos SVG y sintetizador Web Audio de alto impacto para transmisiones llenas de energía.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_camframe" data-category="utilidad" onclick="openWidgetModal('widget_camframe')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-free">Gratis • Webcam</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-camframe">
-              <span class="mock-stat-label" style="color: #00f5d4; font-weight: 800; border: 1px solid #00f5d4; padding: 3px 8px; border-radius: 4px;">📷 WEBCAM 16:9 • 🎵</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_camframe" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">📷 10. Marco de Cámara Neón (Webcam)</h3>
-          <p class="card-desc">Marco cyberpunk reactivo con soporte 16:9 y 1:1, sincronización con el ritmo de Spotify y tu nombre personalizado.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <div class="widget-showcase-card" data-widget="widget_alerts_star" data-category="alertas kick" onclick="openWidgetModal('widget_alerts_star')">
-        <div class="card-thumb">
-          <div class="thumb-badge-top">
-            <span class="badge-type badge-special">Kick Nativo • Alertas</span>
-          </div>
-          <div class="thumb-visual">
-            <div class="thumb-mock mock-star">
-              <span style="font-size: 1.3rem;">✨</span><span class="mock-stat-label" style="color: #f472b6; font-weight: 800;">¡NUEVA ESTRELLA!</span>
-            </div>
-          </div>
-          <div class="card-thumb-overlay">
-            <span class="btn-hover-config">
-              <i class="fa-solid fa-sliders"></i> Configurar <i class="fa-solid fa-arrow-right"></i>
-            </span>
-          </div>
-        </div>
-
-        <div class="card-main-content">
-          <div class="card-top-row">
-            <span class="card-tech-tag"><i class="fa-solid fa-circle-check" style="color: #00f5d4;"></i> OBS Listo</span>
-            <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts_star" onclick="event.stopPropagation(); toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
-              <span class="fav-icon">⭐</span>
-              <span class="fav-text">Favorito</span>
-            </button>
-          </div>
-          <h3 class="card-title">✨ 11. Alerta Estelar Animada (Kick API Nativa)</h3>
-          <p class="card-desc">Alerta cósmica con conexión 100% nativa a Kick Pusher Cloud (sin programas externos), estrellas y mensajes personalizables con variables.</p>
-        </div>
-
-        <div class="card-footer-action">
-          <span class="card-tech-tag"><i class="fa-solid fa-wand-magic-sparkles"></i> Personalizable</span>
-          <span class="btn-action-open">Configurar <i class="fa-solid fa-chevron-right"></i></span>
-        </div>
-      </div>
-
-      <!-- Estado vacío cuando no hay resultados de búsqueda -->
-      <div id="widgets-empty-state" class="widgets-empty-state" style="display: none; grid-column: 1 / -1;">
-        <i class="fa-solid fa-magnifying-glass"></i>
-        <h3>No se encontraron widgets</h3>
-        <p>Prueba con otro término de búsqueda o selecciona la categoría "Todos".</p>
-      </div>
-    </div>
-
-    <!-- Modal de Configuración Split (50% Vista Previa / 50% Opciones) -->
-    <div id="config-modal" class="config-modal hidden" role="dialog" aria-modal="true">
-      <div class="config-modal-backdrop" onclick="closeWidgetModal()"></div>
-      <div class="config-modal-dialog" id="config-modal-dialog">
-        <button type="button" class="config-modal-close" onclick="closeWidgetModal()" title="Cerrar modal (Esc)">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-
-        <!-- Panel para widget_weather -->
-        <div id="modal-pane-widget_weather" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-free">Gratis • Utilidad</span>
-            <h2 class="modal-title">🌤️ 1. Widget Clima & Reloj en Vivo</h2>
-            <p class="modal-desc">Hora local y temperatura en tiempo real con íconos dinámicos y tema transparente para escenas Just Chatting o inicios de stream.</p>
-          </div>
-
-          
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 200px;">
           <iframe id="preview-weather" src="widget_clima_reloj.html"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Tipo:</strong> Reloj & Clima</span><span class="config-tag"><strong>Modo:</strong> Transparente Opcional</span><span class="config-tag"><strong>Estilo:</strong> Tiempo Real</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-weather', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-weather')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_weather" onclick="toggleWidgetFavorite('widget_weather', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-weather">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-weather')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
           <label class="checkbox-group">
             <input type="checkbox" class="custom-checkbox" id="weather-nobg" onchange="updateWeatherWidget()">
             <span>Modo Transparente Sin Caja (Solo texto e ícono)</span>
@@ -2523,58 +2022,58 @@
       </div>
 
       <!-- Card 2: Contador Kick Live -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-weather', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_weather" onclick="toggleWidgetFavorite('widget_weather', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 2. Contador Kick Live -->
+      <div class="my-widget-card" id="card-kick" data-widget="widget_kick" data-category="kick">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">💚</span>
+            <h3>2. Contador Kick Live</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Kick Live</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_kick" onclick="toggleWidgetFavorite('widget_kick', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_kick -->
-        <div id="modal-pane-widget_kick" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-kick-tag">Gratis • Kick Live</span>
-            <h2 class="modal-title">💚 2. Widget Contador Kick (Espectadores en Vivo)</h2>
-            <p class="modal-desc">Muestra en directo la cantidad de espectadores de tu stream en Kick con diseño gamer neón y colores 100% personalizables.</p>
-          </div>
 
-          
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 200px;">
           <iframe id="preview-kick" src="widget_kick_counter.html?channel=jikokun"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Canal:</strong> @jikokun</span><span class="config-tag"><strong>Borde:</strong> <span class="color-dot" style="background: #53fc18;"></span> #53fc18</span><span class="config-tag"><strong>Fondo:</strong> <span class="color-dot" style="background: #03101a;"></span> #03101a</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-kick', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-kick')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_kick" onclick="toggleWidgetFavorite('widget_kick', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-kick">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-kick')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <div class="form-group">
+          <div class="form-group">
           <label for="kick-channel-input">Nombre de Usuario de Kick:</label>
           <input type="text" id="kick-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateKickWidget()">
         </div>
@@ -2620,58 +2119,58 @@
       </div>
 
       <!-- Card 3: Rotador Redes Sociales -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-kick', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_kick" onclick="toggleWidgetFavorite('widget_kick', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 3. Rotador Redes Sociales -->
+      <div class="my-widget-card" id="card-social" data-widget="widget_social" data-category="utilidad">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">📢</span>
+            <h3>3. Rotador Redes Sociales</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Social</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_social" onclick="toggleWidgetFavorite('widget_social', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_social -->
-        <div id="modal-pane-widget_social" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-free">Gratis • Utilidad</span>
-            <h2 class="modal-title">📢 3. Widget Rotador de Redes Sociales</h2>
-            <p class="modal-desc">Rotador dinámico de tus redes (Kick, Discord, Insta, TikTok, YouTube, Spotify y más) para fidelizar y crecer tu audiencia.</p>
-          </div>
 
-          
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 200px;">
           <iframe id="preview-social" src="widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Redes:</strong> 5 activas</span><span class="config-tag"><strong>Animación:</strong> Bucle 3D</span><span class="config-tag"><strong>Modo:</strong> Auto rotación</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-social', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-social')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_social" onclick="toggleWidgetFavorite('widget_social', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-social">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-social')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
           <p class="section-subtitle" style="font-size: 0.85rem; color: #00f5d4; font-weight: 800; text-transform: uppercase;">Selecciona las redes que deseas mostrar:</p>
         </div>
 
@@ -2776,58 +2275,58 @@
       </div>
 
       <!-- Card 4: Cuenta Atrás -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-social', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_social" onclick="toggleWidgetFavorite('widget_social', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 4. Cuenta Atrás de Stream -->
+      <div class="my-widget-card" id="card-countdown" data-widget="widget_countdown" data-category="utilidad">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">⏳</span>
+            <h3>4. Cuenta Atrás de Stream</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Temporizador</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_countdown" onclick="toggleWidgetFavorite('widget_countdown', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_countdown -->
-        <div id="modal-pane-widget_countdown" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-free">Gratis • Utilidad</span>
-            <h2 class="modal-title">⏳ 4. Widget Cuenta Atrás de Stream</h2>
-            <p class="modal-desc">Temporizador con cuenta regresiva personalizable y título de evento para tus pantallas de 'Ya Comenzamos' o pausas.</p>
-          </div>
 
-          
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 200px;">
           <iframe id="preview-countdown" src="widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Minutos:</strong> 5 min</span><span class="config-tag"><strong>Evento:</strong> Estamos Por Empezar</span><span class="config-tag"><strong>Tema:</strong> Neón</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-countdown', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-countdown')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_countdown" onclick="toggleWidgetFavorite('widget_countdown', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-countdown">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-countdown')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 10px;">
           <div class="form-group">
             <label for="countdown-min">Minutos:</label>
             <input type="number" id="countdown-min" class="input-field" value="5" min="1" max="120" oninput="updateCountdownWidget()">
@@ -2847,58 +2346,58 @@
       </div>
 
       <!-- Card 5: Reloj Digital -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-countdown', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_countdown" onclick="toggleWidgetFavorite('widget_countdown', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 5. Reloj Digital Futurista -->
+      <div class="my-widget-card" id="card-digital" data-widget="widget_digital" data-category="utilidad">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">🕒</span>
+            <h3>5. Reloj Digital Futurista</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Reloj OBS</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_digital" onclick="toggleWidgetFavorite('widget_digital', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_digital -->
-        <div id="modal-pane-widget_digital" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-free">Gratis • Utilidad</span>
-            <h2 class="modal-title">🕒 5. Widget Reloj Digital Futurista</h2>
-            <p class="modal-desc">Reloj digital limpio con tipografía tecnológica neón y opción de segundos para mantener la noción del tiempo en stream.</p>
-          </div>
 
-          
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 200px;">
           <iframe id="preview-digital" src="widget_reloj_digital.html"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Formato:</strong> Digital Neón</span><span class="config-tag"><strong>Segundos:</strong> Configurable</span><span class="config-tag"><strong>Estilo:</strong> Cyber</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-digital', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-digital')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_digital" onclick="toggleWidgetFavorite('widget_digital', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-digital">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-digital')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
           <label class="checkbox-group">
             <input type="checkbox" class="custom-checkbox" id="digital-seconds" onchange="updateDigitalWidget()">
             <span>Mostrar Segundos en Pantalla</span>
@@ -2913,67 +2412,65 @@
       </div>
 
       <!-- Card 6: Chat en Vivo Kick -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-digital', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_digital" onclick="toggleWidgetFavorite('widget_digital', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 6. Chat de Kick en Vivo -->
+      <div class="my-widget-card" id="card-chat" data-widget="widget_chat" data-category="kick">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">💬</span>
+            <h3>6. Chat de Kick en Vivo</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Kick Live</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_chat" onclick="toggleWidgetFavorite('widget_chat', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
+
+        <div class="card-iframe-container" style="height: 220px;">
+          <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&port=4445"></iframe>
         </div>
-    
-        <!-- Panel para widget_chat -->
-        <div id="modal-pane-widget_chat" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-kick-tag">Gratis • Kick Live</span>
-            <h2 class="modal-title">💬 6. Widget Chat de Kick en Vivo</h2>
-            <p class="modal-desc">Overlay de chat en tiempo real para Kick.com con insignias, emotes oficiales y personalización completa de fuentes y colores.</p>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Canal:</strong> @jikokun</span><span class="config-tag"><strong>Acento:</strong> <span class="color-dot" style="background: #53fc18;"></span> #53fc18</span><span class="config-tag"><strong>Puerto:</strong> 4445 Streamerbot</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-chat', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-chat')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_chat" onclick="toggleWidgetFavorite('widget_chat', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-chat">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-chat')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          <div class="alert-info-banner" style="margin-bottom: 14px;">
+          <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner" style="margin-bottom: 14px;">
           <span style="font-size: 1.4rem;">💡</span>
           <p>
             <strong>Requisito de Conexión:</strong> Es necesario tener <strong>Streamer.bot</strong> abierto en tu PC con el servidor WebSocket activo (<strong>Puerto 4445</strong> por defecto) para transmitir y sincronizar los mensajes de chat en tiempo real durante tu directo.
           </p>
         </div>
 
-          <div class="modal-preview-box">
-            
-          <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&port=4445"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
-          </div>
-
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <!-- Mensaje Informativo de Requisito de Streamer.bot -->
-        
-
-        
-        
         <div class="form-group">
           <label for="chat-channel-input">Nombre de Usuario del Canal en Kick.com:</label>
           <input type="text" id="chat-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateChatWidget()">
@@ -3034,64 +2531,64 @@
       </div>
 
       <!-- Card 7: Alertas Dinámicas Streamer.bot (Marco Fox WebM) -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
           <button class="btn-copy" onclick="copyWidgetUrl('url-chat', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_chat" onclick="toggleWidgetFavorite('widget_chat', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          📋 Copiar Enlace para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 7. Alertas Dinámicas Fox -->
+      <div class="my-widget-card" id="card-alerts" data-widget="widget_alerts" data-category="alertas">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">🔥</span>
+            <h3>7. Alertas Dinámicas Fox</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Streamer.bot</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts" onclick="toggleWidgetFavorite('widget_alerts', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
+
+        <div class="card-iframe-container" style="height: 250px;">
+          <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true"></iframe>
         </div>
-    
-        <!-- Panel para widget_alerts -->
-        <div id="modal-pane-widget_alerts" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-streamer">Gratis • Alertas</span>
-            <h2 class="modal-title">📢 7. Widget Alertas Dinámicas Streamer.bot (Marco Fox Animado)</h2>
-            <p class="modal-desc">Alertas conectadas a Streamer.bot con animaciones interactivas, sonidos personalizados de MyInstants o .mp3 y resplandores por evento.</p>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Modelo:</strong> Rufus5z 🦊</span><span class="config-tag"><strong>Audio:</strong> MyInstants & .mp3</span><span class="config-tag"><strong>Glow:</strong> Multicolor</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-alerts', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-alerts')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts" onclick="toggleWidgetFavorite('widget_alerts', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-alerts">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-alerts')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          <div class="alert-info-banner">
+          <!-- Mensaje Informativo de Requisito de Streamer.bot -->
+        <div class="alert-info-banner">
           <span style="font-size: 1.4rem;">💡</span>
           <p>
             <strong>Requisito de Conexión:</strong> Es necesario tener <strong>Streamer.bot</strong> abierto en tu PC con el servidor WebSocket activo (<strong>Puerto 4445</strong> por defecto) para recibir y mostrar las alertas en tiempo real durante tu directo.
           </p>
         </div>
-
-          <div class="modal-preview-box">
-            
-          <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
-          </div>
-
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <!-- Mensaje Informativo de Requisito de Streamer.bot -->
-        
 
         <div class="form-group" style="margin-bottom: 12px;">
           <label for="alert-model-select">🎭 Modelo / Estilo de Alerta:</label>
@@ -3103,8 +2600,6 @@
           </select>
         </div>
 
-        
-        
         <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
             <label for="alert-port-input">🔌 Puerto WS:</label>
@@ -3253,53 +2748,67 @@
       </div>
 
       <!-- Card 8: Showcase / Visualizador Baraja de Alertas Kick (Jikokun Card Deck) -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
-          <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
+          <button class="btn-copy" onclick="copyWidgetUrl('url-alerts', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Alertas para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 8. Baraja de Alertas 3D Jikokun -->
+      <div class="my-widget-card" id="card-jikokun-deck" data-widget="widget_jikokun_deck" data-category="alertas">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">🎴</span>
+            <h3>8. Baraja de Alertas 3D Jikokun</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Showcase 3D</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_jikokun_deck" onclick="toggleWidgetFavorite('widget_jikokun_deck', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
+          </div>
+        </div>
+
+        <div class="card-iframe-container" style="height: 300px;">
+          <iframe id="preview-jikokun" src="alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Efecto:</strong> Cartas 3D Holográficas</span><span class="config-tag"><strong>Eventos:</strong> Follow, Sub, Raid, Kicks</span><span class="config-tag"><strong>Loop:</strong> Cinemático</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <a href="la_jikoteca_integrada.html" class="btn-card-copy" style="text-decoration: none;">
+              🎴 Ver Baraja Integrada
+            </a>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-jikokun-deck')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
           </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts" onclick="toggleWidgetFavorite('widget_alerts', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
-          </div>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_jikokun_deck" onclick="toggleWidgetFavorite('widget_jikokun_deck', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_jikokun_deck -->
-        <div id="modal-pane-widget_jikokun_deck" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-special">Showcase • Alertas 3D</span>
-            <h2 class="modal-title">🎴 8. Showcase: Baraja de Alertas 3D (Jikokun Edition)</h2>
-            <p class="modal-desc">Visualizador cinemático en bucle de la baraja de cartas 3D de Kick (Follows, Subs, Gifts, Raids, Kicks y Tips).</p>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-jikokun-deck">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-jikokun-deck')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          <div class="alert-info-banner" style="border-color: rgba(0, 242, 254, 0.35); background: rgba(0, 242, 254, 0.08);">
+          <!-- Mensaje Informativo de Demostración -->
+        <div class="alert-info-banner" style="border-color: rgba(0, 242, 254, 0.35); background: rgba(0, 242, 254, 0.08);">
           <span style="font-size: 1.4rem;">💡</span>
           <p>
             <strong>Simulador de Baraja 3D en Directo:</strong> Visualizador en bucle automático de las cartas cinemáticas de <strong>Kick</strong> (Follows, Subs, Gifts, Raids, Kicks y Tips). La carta frontal vuela hacia atrás automáticamente revelando cada evento.
           </p>
         </div>
 
-          <div class="modal-preview-box">
-            
-          <iframe id="preview-jikokun" src="alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 0;">
+        <!-- Botones de Prueba Directa para interactuar en la Demostración -->
+        <div class="form-group" style="margin-bottom: 0;">
           <label style="font-size: 0.85rem; font-weight: 800; color: #00f2fe; text-transform: uppercase; margin-bottom: 6px; display: block;">
             🧪 Probar Cartas en Tiempo Real:
           </label>
@@ -3312,72 +2821,74 @@
             <button type="button" class="test-btn-tech" style="color: #10b981; border-color: rgba(16,185,129,0.4);" onclick="triggerJikokunDeckTest('tip')">💵 Tip</button>
           </div>
         </div>
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <!-- Mensaje Informativo de Demostración -->
-        
-
-        
-
-        <!-- Botones de Prueba Directa para interactuar en la Demostración -->
-        
       </div>
 
       <!-- Card 9: Showcase Alerta Eléctrica (Kick & Streamer.bot) -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
-          <a href="la_jikoteca_integrada.html" class="btn-copy" style="text-decoration: none; text-align: center;">
-            <i class="fa-solid fa-layer-group"></i> Ver Baraja Integrada en Pantalla Completa
-          </a>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_jikokun_deck" onclick="toggleWidgetFavorite('widget_jikokun_deck', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
-          </div>
-        </div>
-    
-        </div>
-    
-        <!-- Panel para widget_alerts_electric -->
-        <div id="modal-pane-widget_alerts_electric" class="widget-modal-pane">
           
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-streamer">Gratis • Alertas</span>
-            <h2 class="modal-title">⚡ 9. Showcase: Alerta Eléctrica (Kick & Streamer.bot)</h2>
-            <p class="modal-desc">Alerta electrizante con rayos SVG y sintetizador Web Audio de alto impacto para transmisiones llenas de energía.</p>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 9. Alerta Kick Relámpago Rojo -->
+      <div class="my-widget-card" id="card-electric" data-widget="widget_alerts_electric" data-category="alertas">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">⚡</span>
+            <h3>9. Alerta Kick Relámpago Rojo</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Web Audio</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts_electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
+          </div>
+        </div>
+
+        <div class="card-iframe-container" style="height: 260px;">
+          <iframe id="preview-electric" src="alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Canal:</strong> @jikokun</span><span class="config-tag"><strong>Efecto:</strong> Rayos SVG</span><span class="config-tag"><strong>Audio:</strong> Sintetizador Web Audio</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-electric', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-electric')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts_electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-electric">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-electric')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          <div class="alert-info-banner" style="border-color: rgba(255, 26, 64, 0.35); background: rgba(255, 26, 64, 0.08);">
+          <button type="button" class="btn-card-fav" id="fav-btn-electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner" style="border-color: rgba(255, 26, 64, 0.35); background: rgba(255, 26, 64, 0.08);">
           <span style="font-size: 1.4rem;">💡</span>
           <p>
             <strong>Efectos Procedurales y Audio Nativo:</strong> Overlay ultra-ligero con rayos caóticos generados en SVG (90 ms) y sonido sintetizado en tiempo real mediante <strong>Web Audio API</strong> (sin MP3 externos ni librerías pesadas). Conexión en vivo a <strong>Streamer.bot</strong> (Kick) con carga automática de tu foto de perfil de Kick.
           </p>
         </div>
 
-          <div class="modal-preview-box">
-            
-          <iframe id="preview-electric" src="alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
+        <!-- Botones de Prueba Directa -->
+        <div class="form-group" style="margin-bottom: 12px;">
           <label style="font-size: 0.85rem; font-weight: 800; color: #ff1a40; text-transform: uppercase; margin-bottom: 6px; display: block;">
             🧪 Probar Alertas en la Vista Previa:
           </label>
@@ -3388,28 +2899,6 @@
             <button type="button" class="test-btn-tech btn-test-raid" onclick="triggerElectricAlertTest('raid')">🚀 Raid</button>
           </div>
         </div>
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <button type="button" class="btn-card-fav" id="fav-btn-electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
-            <span class="fav-icon">⭐</span>
-            <span class="fav-text">Favorito</span>
-          </button>
-        </div>
-
-        <!-- Banner informativo -->
-        
-
-        
-
-        <!-- Botones de Prueba Directa -->
-        
 
         <!-- Parámetros de configuración -->
         <div style="display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
@@ -3449,72 +2938,70 @@
       </div>
 
       <!-- Card 10: Marco de Cámara Neón (Webcam 16:9 & 1:1) -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
-          <button class="btn-copy" onclick="copyWidgetUrl('url-electric', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts_electric" onclick="toggleWidgetFavorite('widget_alerts_electric', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
+          <button class="btn-copy" onclick="copyWidgetUrl('url-electric', this)" style="margin-top: 8px; background: linear-gradient(135deg, #d90429, #800020);">
+          📋 Copiar Enlace de Alerta Eléctrica para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 10. Marco de Cámara Neón (Webcam) -->
+      <div class="my-widget-card" id="card-camframe" data-widget="widget_camframe" data-category="utilidad">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">📷</span>
+            <h3>10. Marco de Cámara Neón (Webcam)</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Webcam</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
           </div>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_camframe -->
-        <div id="modal-pane-widget_camframe" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-free">Gratis • Webcam</span>
-            <h2 class="modal-title">📷 10. Marco de Cámara Neón (Webcam)</h2>
-            <p class="modal-desc">Marco cyberpunk reactivo con soporte 16:9 y 1:1, sincronización con el ritmo de Spotify y tu nombre personalizado.</p>
-          </div>
 
-          <div class="alert-info-banner" style="border-color: rgba(0, 245, 212, 0.35); background: rgba(0, 245, 212, 0.08);">
-          <span style="font-size: 1.4rem;">💡</span>
-          <p>
-            <strong>Marco Cyberpunk Reactivo:</strong> Soporta formato <strong>16:9</strong> (Panorámico) y <strong>1:1</strong> (Cuadrado), absorbe el ritmo y los colores de la música en tiempo real conectándose a <strong>Streamer.bot</strong> y <strong>Spotify</strong>, y monta tu etiqueta sobre el borde inferior.
-          </p>
-        </div>
-
-          <div class="modal-preview-box">
-            
+        <div class="card-iframe-container" style="height: 260px;">
           <iframe id="preview-camframe" src="marcocamara1.html?preview=true&obs=true"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Aspecto:</strong> 16:9 Panorámico</span><span class="config-tag"><strong>Etiqueta:</strong> JIKOKUN ⚡</span><span class="config-tag"><strong>Audio:</strong> Ritmo Spotify</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-camframe', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-camframe')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
+          </button>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
+        </div>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-camframe">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-camframe')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <button type="button" class="btn-card-fav" id="fav-btn-camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
+          <button type="button" class="btn-card-fav" id="fav-btn-camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
             <span class="fav-icon">⭐</span>
             <span class="fav-text">Favorito</span>
           </button>
         </div>
 
         <!-- Banner informativo -->
-        
-
-        
+        <div class="alert-info-banner" style="border-color: rgba(0, 245, 212, 0.35); background: rgba(0, 245, 212, 0.08);">
+          <span style="font-size: 1.4rem;">💡</span>
+          <p>
+            <strong>Marco Cyberpunk Reactivo:</strong> Soporta formato <strong>16:9</strong> (Panorámico) y <strong>1:1</strong> (Cuadrado), absorbe el ritmo y los colores de la música en tiempo real conectándose a <strong>Streamer.bot</strong> y <strong>Spotify</strong>, y monta tu etiqueta sobre el borde inferior.
+          </p>
+        </div>
 
         <!-- Opciones de Configuración -->
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
@@ -3550,53 +3037,73 @@
       </div>
 
       <!-- Card 11: Alertas Kick Kawaii Cosmic Star (API Kick Nativa) -->
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
-          <button class="btn-copy" onclick="copyWidgetUrl('url-camframe', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
+          <button class="btn-copy" onclick="copyWidgetUrl('url-camframe', this)" style="margin-top: 8px;">
+          📋 Copiar Enlace de Marco de Cámara para OBS
+        </button>
+        </div>
+      </div>
+
+      <!-- Tarjeta: 11. Alerta Estelar Kick Nativa -->
+      <div class="my-widget-card" id="card-star-alerts" data-widget="widget_alerts_star" data-category="alertas kick">
+        <div class="card-top-row">
+          <div class="card-title-group">
+            <span style="font-size: 1.35rem;">✨</span>
+            <h3>11. Alerta Estelar Kick Nativa</h3>
+          </div>
+          <div class="card-badges">
+            <span class="badge-tag custom">Kick Pusher</span>
+            <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts_star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos" style="width: 32px; height: 32px; font-size: 0.85rem;">
+              ⭐
+            </button>
+          </div>
+        </div>
+
+        <div class="card-iframe-container" style="height: 280px;">
+          <iframe id="preview-star-alerts" src="alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true"></iframe>
+        </div>
+
+        <div class="config-tags-list">
+          <span class="config-tag"><strong>Conexión:</strong> 100% Nativa Kick</span><span class="config-tag"><strong>Canal:</strong> @jikokun</span><span class="config-tag"><strong>Variables:</strong> {user}, {meses}, {subs}</span>
+        </div>
+
+        <div class="card-actions-grid">
+          <button type="button" class="btn-card-copy" onclick="copyWidgetUrl('url-star-alerts', this)">
+              📋 Copiar Enlace OBS
+            </button>
+          <button type="button" class="btn-card-icon-action btn-toggle-config" onclick="toggleCardSettings('card-star-alerts')" title="Personalizar y Configurar Widget">
+            <i class="fa-solid fa-sliders"></i>
           </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_camframe" onclick="toggleWidgetFavorite('widget_camframe', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
-          </div>
+          <button type="button" class="btn-card-icon-action btn-fav-action" data-fav-widget="widget_alerts_star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
+            ⭐
+          </button>
         </div>
-    
-        </div>
-    
-        <!-- Panel para widget_alerts_star -->
-        <div id="modal-pane-widget_alerts_star" class="widget-modal-pane">
-          
-        <div class="modal-left-col custom-scroll">
-          <div class="modal-header-info">
-            <span class="modal-badge badge-special">Kick Nativo • Alertas</span>
-            <h2 class="modal-title">✨ 11. Alerta Estelar Animada (Kick API Nativa)</h2>
-            <p class="modal-desc">Alerta cósmica con conexión 100% nativa a Kick Pusher Cloud (sin programas externos), estrellas y mensajes personalizables con variables.</p>
+
+        <!-- Drawer Desplegable con Todos los Controles y Formularios -->
+        <div class="card-settings-drawer" id="drawer-card-star-alerts">
+          <div class="drawer-header">
+            <h4><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h4>
+            <button type="button" class="btn-close-drawer" onclick="toggleCardSettings('card-star-alerts')">
+              <i class="fa-solid fa-chevron-up"></i> Ocultar
+            </button>
           </div>
 
-          <div class="alert-info-banner banner-star-info">
+          <button type="button" class="btn-card-fav" id="fav-btn-star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
+            <span class="fav-icon">⭐</span>
+            <span class="fav-text">Favorito</span>
+          </button>
+        </div>
+
+        <!-- Banner informativo -->
+        <div class="alert-info-banner banner-star-info">
           <span style="font-size: 1.4rem;">💡</span>
           <p>
             <strong>Conexión 100% Nativa a Kick (Sin programas extra):</strong> Se conecta directamente a la nube de <strong>Kick Pusher</strong> y la <strong>API REST de Kick</strong> ingresando tu nombre de usuario. Diseño cósmico con píldora superior, rombo inferior, constelaciones curvas, estrellas flotantes y temas de color dinámicos según el tipo de evento (Followers, Subs, Gifts, Raids y Kicks).
           </p>
         </div>
 
-          <div class="modal-preview-box">
-            
-          <iframe id="preview-star-alerts" src="alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true"></iframe>
-        
-            <div class="preview-tag-bottom">
-              <i class="fa-solid fa-eye" style="color: #00f5d4;"></i> Vista Previa Interactiva en Vivo
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 12px;">
+        <!-- Botones de Prueba Directa -->
+        <div class="form-group" style="margin-bottom: 12px;">
           <label class="lbl-star-section-title">
             🧪 Probar Alertas en la Vista Previa:
           </label>
@@ -3608,28 +3115,6 @@
             <button type="button" class="test-btn-tech btn-test-kicks" onclick="triggerStarAlertTest('kicks')">💎 Kicks</button>
           </div>
         </div>
-        </div>
-    
-          
-        <div class="modal-right-col">
-          <div class="modal-settings-scroll custom-scroll">
-            <div class="settings-title-row">
-              <h3><i class="fa-solid fa-sliders"></i> Opciones de Personalización</h3>
-            </div>
-
-            <button type="button" class="btn-card-fav" id="fav-btn-star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
-            <span class="fav-icon">⭐</span>
-            <span class="fav-text">Favorito</span>
-          </button>
-        </div>
-
-        <!-- Banner informativo -->
-        
-
-        
-
-        <!-- Botones de Prueba Directa -->
-        
 
         <!-- Parámetros de configuración -->
         <div style="display: grid; grid-template-columns: 1.4fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
@@ -3757,32 +3242,23 @@
             <span>🔇 Silenciar Campanillas Kawaii en OBS</span>
           </label>
         </div>
-          </div>
 
-          <div class="modal-footer">
-            <p class="modal-footer-tip"><i class="fa-solid fa-circle-info"></i> Ajusta las opciones arriba. Tu enlace de OBS se actualizará automáticamente.</p>
-            <div class="modal-footer-actions">
-              
-          <button class="btn-copy" onclick="copyWidgetUrl('url-star-alerts', this)">
-            <i class="fa-solid fa-link"></i> Copiar Enlace para OBS
-          </button>
-        
-              <button type="button" class="btn-card-fav" data-fav-widget="widget_alerts_star" onclick="toggleWidgetFavorite('widget_alerts_star', this)" title="Guardar en Favoritos">
-                <span class="fav-icon">⭐</span>
-                <span class="fav-text">Favorito</span>
-              </button>
-            </div>
-          </div>
+          <button class="btn-copy btn-copy-star" onclick="copyWidgetUrl('url-star-alerts', this)">
+          📋 Copiar Enlace de Alerta Estelar para OBS
+        </button>
         </div>
-    
-        </div>
-    
+      </div>
+
+      <!-- Estado Vacío cuando no hay resultados de búsqueda -->
+      <div id="empty-search-state" class="empty-search-state" style="display: none;">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <h3>No se encontraron widgets</h3>
+        <p>Prueba buscando con otra palabra clave o selecciona la categoría "Todos".</p>
       </div>
     </div>
-
   </div>
 
-  <footer>
+<footer>
     <p>&copy; 2026 Multi Ideas Sv. San Salvador, El Salvador. Todos los derechos reservados.</p>
   </footer>
 
@@ -3808,49 +3284,25 @@
     const saveTimeouts = {};
 
     // -----------------------------------------------------------------------
-    // CONTROLADOR DEL MODAL Y MOSTRADOR DE WIDGETS
+    // CONTROLADOR DE DRAWER Y FILTROS ESTILO MIS_WIDGETS
     // -----------------------------------------------------------------------
     let currentCategory = 'all';
     let currentSearchQuery = '';
 
-    window.openWidgetModal = function(widgetId) {
-      const modal = document.getElementById('config-modal');
-      if (!modal) return;
-
-      // Desactivar otros paneles
-      document.querySelectorAll('.widget-modal-pane').forEach(p => p.classList.remove('active'));
-
-      // Activar panel seleccionado
-      const pane = document.getElementById(`modal-pane-${widgetId}`);
-      if (!pane) return;
-      pane.classList.add('active');
-
-      modal.classList.remove('hidden');
-      requestAnimationFrame(() => {
-        modal.classList.add('open');
-      });
-
-      document.body.style.overflow = 'hidden';
-    };
-
-    window.closeWidgetModal = function() {
-      const modal = document.getElementById('config-modal');
-      if (!modal) return;
-
-      modal.classList.remove('open');
-      setTimeout(() => {
-        modal.classList.add('hidden');
-        document.querySelectorAll('.widget-modal-pane').forEach(p => p.classList.remove('active'));
-        document.body.style.overflow = 'auto';
-      }, 280);
-    };
-
-    // Cerrar modal con tecla Escape
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        window.closeWidgetModal();
+    window.toggleCardSettings = function(cardId) {
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      const isExpanded = card.classList.contains('settings-expanded');
+      card.classList.toggle('settings-expanded');
+      const toggleBtn = card.querySelector('.btn-toggle-config');
+      if (toggleBtn) {
+        toggleBtn.classList.toggle('active', !isExpanded);
       }
-    });
+      if (!isExpanded) {
+        // Desplazamiento suave para centrar la tarjeta si es necesario
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    };
 
     // Filtrar por categorías
     window.filterWidgets = function(cat) {
@@ -3878,7 +3330,7 @@
     };
 
     function applyShowcaseFilters() {
-      const cards = document.querySelectorAll('.widget-showcase-card');
+      const cards = document.querySelectorAll('.my-widget-card');
       let visibleCount = 0;
 
       cards.forEach(card => {
@@ -3886,7 +3338,6 @@
         const widgetId = card.getAttribute('data-widget') || '';
         const textContent = (card.textContent || '').toLowerCase();
 
-        // Categoría
         let matchCat = false;
         if (currentCategory === 'all') {
           matchCat = true;
@@ -3896,7 +3347,6 @@
           matchCat = cat.includes(currentCategory);
         }
 
-        // Búsqueda
         const matchSearch = !currentSearchQuery || textContent.includes(currentSearchQuery);
 
         if (matchCat && matchSearch) {
@@ -3907,9 +3357,9 @@
         }
       });
 
-      const emptyEl = document.getElementById('widgets-empty-state');
+      const emptyEl = document.getElementById('empty-search-state');
       if (emptyEl) {
-        emptyEl.style.display = visibleCount === 0 ? 'flex' : 'none';
+        emptyEl.style.display = visibleCount === 0 ? 'block' : 'none';
       }
     }
 
@@ -3963,6 +3413,13 @@
         } catch(e) {}
         updateAuthGateUI(validUser);
         updateSyncBannerUI(validUser);
+        const displayName = validUser.displayName || validUser.email.split('@')[0];
+        const avatarEl = document.getElementById('hero-avatar-char');
+        if (avatarEl) avatarEl.textContent = displayName.charAt(0).toUpperCase();
+        const heroTitleEl = document.getElementById('hero-user-title');
+        if (heroTitleEl) heroTitleEl.innerHTML = `Widgets de <span class="gradient-text">${displayName}</span>`;
+        const heroSubEl = document.getElementById('hero-user-subtitle');
+        if (heroSubEl) heroSubEl.textContent = `Tus overlays favoritos sincronizados en tu cuenta (${validUser.email}).`;
         await registerWidgetUserInFirebase(validUser);
         await loadUserDataFromFirebase(validUser.uid);
       } else {
@@ -4158,7 +3615,6 @@
         if (snapshot.exists()) {
           userWidgetsConfig = snapshot.val() || {};
           applySavedConfigToInputs(userWidgetsConfig);
-          updateFavCountBadge();
         }
       } catch (err) {
         console.warn("[Firebase Widgets Load Error]:", err);
@@ -4311,6 +3767,17 @@
         if (sa.txt_kicks) document.getElementById('star-txt-kicks').value = sa.txt_kicks;
         updateFavoriteButtonState('widget_alerts_star', !!sa.is_favorite);
         updateStarAlertsWidget(false);
+      // Auto-abrir tarjeta si viene desde ancla de Mis Widgets (#card-kick, #card-chat, etc.)
+      if (window.location.hash) {
+        const targetId = window.location.hash.substring(1);
+        setTimeout(() => {
+          const card = document.getElementById(targetId);
+          if (card) {
+            window.toggleCardSettings(targetId);
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      }
       }
     }
 
@@ -4368,14 +3835,11 @@
     function updateFavoriteButtonState(widgetId, isFav) {
       const btns = document.querySelectorAll(`[data-fav-widget="${widgetId}"]`);
       btns.forEach(btn => {
-        const favText = btn.querySelector('.fav-text');
         if (isFav) {
-          btn.classList.add('active');
-          if (favText) favText.textContent = 'Guardado';
+          btn.classList.add('btn-fav-active', 'active');
           btn.title = 'Quitar de Mis Favoritos';
         } else {
-          btn.classList.remove('active');
-          if (favText) favText.textContent = 'Favorito';
+          btn.classList.remove('btn-fav-active', 'active');
           btn.title = 'Guardar en Mis Favoritos';
         }
       });
@@ -4386,11 +3850,8 @@
     }
 
     function resetFavoriteButtonsUI() {
-      const btns = document.querySelectorAll('.btn-card-fav');
-      btns.forEach(btn => {
-        btn.classList.remove('active');
-        const text = btn.querySelector('.fav-text');
-        if (text) text.textContent = 'Favorito';
+      document.querySelectorAll('.btn-fav-action').forEach(btn => {
+        btn.classList.remove('btn-fav-active', 'active');
         btn.title = 'Guardar en Mis Favoritos';
       });
       updateFavCountBadge();
@@ -5208,6 +4669,17 @@
       updateElectricAlertsWidget(false);
       updateCamFrameWidget(false);
       updateStarAlertsWidget(false);
+      // Auto-abrir tarjeta si viene desde ancla de Mis Widgets (#card-kick, #card-chat, etc.)
+      if (window.location.hash) {
+        const targetId = window.location.hash.substring(1);
+        setTimeout(() => {
+          const card = document.getElementById(targetId);
+          if (card) {
+            window.toggleCardSettings(targetId);
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      }
     });
   </script>
 
