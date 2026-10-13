@@ -328,13 +328,13 @@
       position: relative;
     }
     #modal-settings-container {
-      flex: 1 1 0% !important;
+      flex: 1 1 auto !important;
       min-height: 0 !important;
-      height: 0 !important;
+      height: 100% !important;
       max-height: 100% !important;
-      overflow-y: scroll !important;
+      overflow-y: auto !important;
       overscroll-behavior-y: contain !important;
-      padding: 1.5rem 1.5rem 8rem 1.5rem !important;
+      padding: 1.25rem 1.25rem 6rem 1.25rem !important;
       scroll-behavior: smooth;
       scrollbar-width: thin;
       scrollbar-color: rgba(56, 189, 248, 0.5) rgba(15, 23, 42, 0.6);
@@ -732,6 +732,11 @@
       background: #fee2e2 !important;
       color: #ef4444 !important;
       border-color: #fca5a5 !important;
+    }
+    body.light-theme #modal-premium-notice {
+      background: rgba(168, 85, 247, 0.12) !important;
+      border-color: rgba(168, 85, 247, 0.35) !important;
+      color: #7e22ce !important;
     }
     body.light-theme #modal-title {
       color: #0f172a !important;
@@ -1748,11 +1753,14 @@
           </div>
         </div>
 
-        <!-- Botón Principal Copiar Enlace para OBS -->
+        <!-- Botón Principal Copiar Enlace para OBS o Aviso Premium -->
         <div class="pt-2">
           <button type="button" id="modal-btn-copy-obs" class="w-full bg-sky-500 hover:bg-sky-600 text-white font-bold py-3 px-4 rounded-xl shadow-lg shadow-sky-500/25 transition-all flex items-center justify-center gap-2 text-sm">
             <i class="fa-solid fa-link"></i> 📋 Copiar Enlace para OBS
           </button>
+          <div id="modal-premium-notice" class="hidden w-full py-3 px-4 rounded-xl bg-purple-500/15 border border-purple-500/35 text-purple-300 font-bold text-center text-xs flex items-center justify-center gap-2 shadow-sm">
+            <i class="fa-solid fa-crown text-amber-400 text-sm"></i> Widget Exclusivo Premium &bull; Modo Exhibición e Interacción
+          </div>
         </div>
       </div>
 
@@ -2202,10 +2210,7 @@
           </div>
         </div>
       </div>
-
-      <!-- Card 9: Showcase Alerta Eléctrica (Kick & Streamer.bot) -->
-          </div>
-        </div>
+    </div>
 
         <!-- Panel de Configuración Específica: Alerta Eléctrica -->
         <div id="panel-settings-electric" class="widget-settings-panel hidden space-y-4">
@@ -4439,6 +4444,11 @@
 
     // Copy URL function with Toast and Button Animation
     window.copyWidgetUrl = function(urlKey, btn) {
+      for (const meta of Object.values(window.WIDGETS_METADATA || {})) {
+        if (meta.urlKey === urlKey && meta.type === 'premium') {
+          return;
+        }
+      }
       const urlText = generatedUrls[urlKey];
       if (!urlText) return;
 
@@ -4475,13 +4485,6 @@
       updateCamFrameWidget(false);
       updateStarAlertsWidget(false);
       updateChatKickWidget(false);
-
-      const sc = document.getElementById('modal-settings-container');
-      if (sc) {
-        sc.addEventListener('wheel', (e) => {
-          e.stopPropagation();
-        }, { passive: true });
-      }
     });
   
 
@@ -4516,6 +4519,10 @@
       if (activePanel) {
         activePanel.classList.remove('hidden');
       }
+      const settingsContainer = document.getElementById('modal-settings-container');
+      if (settingsContainer) {
+        settingsContainer.scrollTop = 0;
+      }
 
       // 3. Cargar el iframe interactivo con la URL calculada en tiempo real (siempre silenciada para el modal)
       const modalIframe = document.getElementById('modal-live-iframe');
@@ -4532,12 +4539,29 @@
         modalIframe.src = currentUrl;
       }
 
-      // 4. Configurar el botón principal de Copiar Enlace OBS
+      // 4. Configurar el botón principal de Copiar Enlace OBS o Aviso de Widget Premium
       const copyBtn = document.getElementById('modal-btn-copy-obs');
+      const premiumNotice = document.getElementById('modal-premium-notice');
+      const isPremium = meta.type === 'premium';
+
       if (copyBtn) {
-        copyBtn.onclick = function() {
-          window.copyWidgetUrl(meta.urlKey, copyBtn);
-        };
+        if (isPremium) {
+          copyBtn.classList.add('hidden');
+          copyBtn.onclick = null;
+        } else {
+          copyBtn.classList.remove('hidden');
+          copyBtn.onclick = function() {
+            window.copyWidgetUrl(meta.urlKey, copyBtn);
+          };
+        }
+      }
+
+      if (premiumNotice) {
+        if (isPremium) {
+          premiumNotice.classList.remove('hidden');
+        } else {
+          premiumNotice.classList.add('hidden');
+        }
       }
 
       // 5. Bloqueo estricto del scroll de fondo para que no se mueva la pantalla trasera
