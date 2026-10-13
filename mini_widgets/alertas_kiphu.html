@@ -474,7 +474,9 @@
     const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
     const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
     let alertVolume = Math.max(0, Math.min(1, parseFloat(urlParams.get('vol') || urlParams.get('volume') || '85') / 100));
-    const isMuted = urlParams.get('mute') === 'true';
+    // Sonido silenciado por defecto para evitar ruido simultáneo a menos que el usuario lo active
+    const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+    let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoopMode || !hasExplicitSound;
     const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
     const testModeParam = urlParams.get('test');
     let isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('permanent') === 'true';
@@ -560,6 +562,11 @@
           isLoopMode = event.data.loop;
         }
         if (event.data.type === 'TRIGGER_TEST_ALERT') {
+          if (event.data.volume !== undefined && event.data.volume > 0) {
+            const prevMuted = isMuted;
+            isMuted = false;
+            setTimeout(() => { isMuted = prevMuted; }, 2500);
+          }
           triggerTestAlert(event.data.alertType || 'follow');
         } else if (event.data.type === 'SET_LOOP_MODE') {
           isLoopMode = !!event.data.isLoop;

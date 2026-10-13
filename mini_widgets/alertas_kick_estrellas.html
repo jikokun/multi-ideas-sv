@@ -571,7 +571,8 @@
         const kickChannel = (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').trim().toLowerCase().replace(/^@/, '');
         const isPreview = urlParams.get('preview') === 'true';
         let isLoopMode = urlParams.get('loop') === 'true';
-        const isMuted = urlParams.get('mute') === 'true';
+        const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+        let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoopMode || !hasExplicitSound;
         const hideControls = urlParams.get('hidecontrols') === 'true';
         const withBg = urlParams.get('bg') === 'true';
         
@@ -1067,7 +1068,13 @@
             if (!event.data) return;
 
             if (event.data.type === 'TRIGGER_TEST_ALERT') {
+                const prevMute = isMuted;
+                if (typeof event.data.volume === 'number' && event.data.volume > 0) {
+                    alertVolume = event.data.volume;
+                    isMuted = false;
+                }
                 triggerAlertByType(event.data.alertType || 'follow');
+                setTimeout(() => { isMuted = prevMute; }, 2500);
             } else if (event.data.type === 'SET_CUSTOM_TEXTS') {
                 if (event.data.customTexts) {
                     Object.assign(customTexts, event.data.customTexts);

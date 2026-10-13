@@ -689,7 +689,8 @@
       const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
       const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
       const isLoop = urlParams.get('loop') === 'true';
-      const isMuted = urlParams.get('mute') === 'true';
+      const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+      let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoop || !hasExplicitSound;
       const hideControls = urlParams.get('hidecontrols') === 'true';
       const kickChannel = urlParams.get('channel') || urlParams.get('canal') || urlParams.get('user') || 'jikokun';
       let masterVolume = parseFloat(urlParams.get('volume') || '85') / 100;
@@ -1474,11 +1475,14 @@
           if (event.data.soundUrl) {
             customSounds[mappedType] = event.data.soundUrl;
           }
-          if (typeof event.data.volume === 'number') {
+          const prevMute = isMuted;
+          if (typeof event.data.volume === 'number' && event.data.volume > 0) {
             masterVolume = event.data.volume;
+            isMuted = false;
           }
 
           window.testAlert(mappedType);
+          setTimeout(() => { isMuted = prevMute; }, 2500);
         } else if (event.data.type === 'SET_CUSTOM_TEXTS') {
           if (event.data.customTexts) {
             Object.assign(customTexts, event.data.customTexts);

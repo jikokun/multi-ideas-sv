@@ -473,11 +473,14 @@
     const sbPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
     const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
     let alertVolume = Math.max(0, Math.min(1, parseFloat(urlParams.get('vol') || urlParams.get('volume') || '85') / 100));
-    const isMuted = urlParams.get('mute') === 'true';
     const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
     const testModeParam = urlParams.get('test');
     let isLoopMode = urlParams.get('loop') === 'true' || urlParams.get('permanent') === 'true';
     let currentAlertTimeout = null;
+
+    // Sonido silenciado por defecto para evitar ruido simultáneo a menos que el usuario lo active
+    const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+    let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoopMode || !hasExplicitSound;
 
     // Almacenar URLs originales y convertidas por Tipo de Alerta
     const rawSoundUrls = {
@@ -559,7 +562,13 @@
           isLoopMode = event.data.loop;
         }
         if (event.data.type === 'TRIGGER_TEST_ALERT') {
+          const prevMute = isMuted;
+          if (typeof event.data.volume === 'number' && event.data.volume > 0) {
+            alertVolume = event.data.volume;
+            isMuted = false;
+          }
           triggerTestAlert(event.data.alertType || 'follow');
+          setTimeout(() => { isMuted = prevMute; }, 2500);
         } else if (event.data.type === 'SET_LOOP_MODE') {
           isLoopMode = !!event.data.isLoop;
           const stage = document.getElementById('alert-stage');

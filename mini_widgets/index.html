@@ -1429,7 +1429,7 @@
           <!-- Contenedor Superior de Previsualización Escalado (Muestra el widget completo sin recortes) -->
           <div class="card-preview-stage">
             <div class="card-iframe-scaler" style="width: 480px; height: 280px; transform: translate(-50%, -50%) scale(0.54);">
-              <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true" scrolling="no" loading="lazy"></iframe>
+              <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true&mute=true" scrolling="no" loading="lazy"></iframe>
             </div>
             <div class="card-hover-overlay group-hover:opacity-100">
               <span class="btn-hover-config">
@@ -2177,8 +2177,8 @@
             <span class="text-xs">🔄 Modo Vista Previa Continua (Mantener alerta visible en bucle)</span>
           </label>
           <label class="checkbox-group">
-            <input type="checkbox" class="custom-checkbox" id="alert-mute" onchange="updateAlertsWidget()">
-            <span class="text-xs">🔇 Silenciar Audio de Alertas (Modo Mute)</span>
+            <input type="checkbox" class="custom-checkbox" id="alert-sound" onchange="updateAlertsWidget()">
+            <span class="text-xs">🔊 Activar Sonido en Alertas (Desactivado por defecto)</span>
           </label>
         </div>
           </div>
@@ -2378,8 +2378,8 @@
                 <span class="text-xs">🔄 Demostración Continua (Bucle de eventos en vista previa)</span>
               </label>
               <label class="checkbox-group">
-                <input type="checkbox" class="custom-checkbox" id="electric-mute" onchange="updateElectricAlertsWidget()">
-                <span class="text-xs">🔇 Silenciar Sintetizador de Audio en OBS</span>
+                <input type="checkbox" class="custom-checkbox" id="electric-sound" onchange="updateElectricAlertsWidget()">
+                <span class="text-xs">🔊 Activar Sonido en Alertas (Desactivado por defecto)</span>
               </label>
             </div>
           </div>
@@ -2622,8 +2622,8 @@
                 <span class="text-xs">🔄 Demostración Continua (Bucle en vista previa)</span>
               </label>
               <label class="checkbox-group">
-                <input type="checkbox" class="custom-checkbox" id="star-mute" onchange="updateStarAlertsWidget()">
-                <span class="text-xs">🔇 Silenciar Campanillas Kawaii en OBS</span>
+                <input type="checkbox" class="custom-checkbox" id="star-sound" onchange="updateStarAlertsWidget()">
+                <span class="text-xs">🔊 Activar Sonido en Alertas (Desactivado por defecto)</span>
               </label>
             </div>
           </div>
@@ -3152,6 +3152,7 @@
             if (input) input.value = a[`sound_${k}`];
           }
         });
+        if (a.sound !== undefined) document.getElementById('alert-sound').checked = !!a.sound;
         updateFavoriteButtonState('widget_alerts', !!a.is_favorite);
         updateAlertsWidget(false);
       }
@@ -3167,7 +3168,7 @@
           const volLabel = document.getElementById('electric-volume-val');
           if (volLabel) volLabel.textContent = ea.volume + '%';
         }
-        if (ea.mute !== undefined) document.getElementById('electric-mute').checked = !!ea.mute;
+        if (ea.sound !== undefined) document.getElementById('electric-sound').checked = !!ea.sound;
         updateFavoriteButtonState('widget_alerts_electric', !!ea.is_favorite);
         updateElectricAlertsWidget(false);
       }
@@ -3210,7 +3211,7 @@
           const volLabel = document.getElementById('star-volume-val');
           if (volLabel) volLabel.textContent = sa.volume + '%';
         }
-        if (sa.mute !== undefined) document.getElementById('star-mute').checked = !!sa.mute;
+        if (sa.sound !== undefined) document.getElementById('star-sound').checked = !!sa.sound;
         if (sa.txt_follow) document.getElementById('star-txt-follow').value = sa.txt_follow;
         if (sa.txt_sub) document.getElementById('star-txt-sub').value = sa.txt_sub;
         if (sa.txt_gift) document.getElementById('star-txt-gift').value = sa.txt_gift;
@@ -3721,10 +3722,18 @@
         tip: parseAudioUrl(document.getElementById('sound-tip-input')?.value)
       };
 
+      const soundCheck = document.getElementById('alert-sound');
+      const hasSound = soundCheck ? soundCheck.checked : false;
+
       const obsParams = new URLSearchParams();
       if (port && port !== '4445') obsParams.set('port', port);
       if (durationMs !== 6000) obsParams.set('duration', durationMs.toString());
       if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
+      if (hasSound) {
+        obsParams.set('sound', 'true');
+      } else {
+        obsParams.set('mute', 'true');
+      }
 
       Object.entries(sounds).forEach(([key, val]) => {
         if (val) obsParams.set(`snd_${key}`, val);
@@ -3734,10 +3743,11 @@
       generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
         window.syncModalIframeLive('alerts', generatedUrls['url-alerts']);
 
-      // URL para el iframe de vista previa en la web
+      // URL para el iframe de vista previa en la web (siempre silenciada para evitar ruido)
       const previewParams = new URLSearchParams(obsParams);
       previewParams.set('preview', 'true');
       previewParams.set('loop', 'true');
+      previewParams.set('mute', 'true');
 
       const previewPath = `${model}?${previewParams.toString()}`;
       const previewIframe = document.getElementById('preview-alerts');
@@ -3761,6 +3771,7 @@
           port,
           duration: durationSec,
           volume: volumeVal,
+          sound: hasSound,
           sound_follow: document.getElementById('sound-follow-input')?.value || '',
           sound_sub: document.getElementById('sound-sub-input')?.value || '',
           sound_gift: document.getElementById('sound-gift-input')?.value || '',
@@ -3852,8 +3863,8 @@
       const durationMs = (parseFloat(durationSec) || 6) * 1000;
       const volInput = document.getElementById('electric-volume-input');
       const volumeVal = volInput ? volInput.value : '85';
-      const muteCheck = document.getElementById('electric-mute');
-      const isMuted = muteCheck ? muteCheck.checked : false;
+      const soundCheck = document.getElementById('electric-sound');
+      const hasSound = soundCheck ? soundCheck.checked : false;
       const loopCheck = document.getElementById('electric-loop');
       const isLoop = loopCheck ? loopCheck.checked : true;
 
@@ -3868,7 +3879,11 @@
       if (channel && channel.toLowerCase() !== 'jikokun') obsParams.set('channel', channel);
       if (durationSec && durationSec !== '6') obsParams.set('duration', durationMs.toString());
       if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
-      if (isMuted) obsParams.set('mute', 'true');
+      if (hasSound) {
+        obsParams.set('sound', 'true');
+      } else {
+        obsParams.set('mute', 'true');
+      }
 
       if (txtFollow && txtFollow !== '¡Bienvenido a la comunidad!') obsParams.set('txt_follow', txtFollow);
       if (txtSub && txtSub !== '¡Ha renovado su suscripción por {meses} meses!') obsParams.set('txt_sub', txtSub);
@@ -3884,6 +3899,7 @@
       previewParams.set('preview', 'true');
       if (isLoop) previewParams.set('loop', 'true');
       previewParams.set('hidecontrols', 'true');
+      previewParams.set('mute', 'true');
 
       const previewPath = `alertas_electrica.html?${previewParams.toString()}`;
       const previewIframe = document.getElementById('preview-electric');
@@ -3924,7 +3940,7 @@
           channel,
           duration: durationSec,
           volume: volumeVal,
-          mute: isMuted,
+          sound: hasSound,
           txt_follow: txtFollow,
           txt_sub: txtSub,
           txt_gift: txtGift,
@@ -4052,7 +4068,8 @@
       const volInput = document.getElementById('star-volume-input');
       const volumeVal = volInput ? volInput.value : '85';
       const isLoop = document.getElementById('star-loop') ? document.getElementById('star-loop').checked : true;
-      const isMute = document.getElementById('star-mute') ? document.getElementById('star-mute').checked : false;
+      const soundCheck = document.getElementById('star-sound');
+      const hasSound = soundCheck ? soundCheck.checked : false;
 
       // Textos personalizados con variables dinámicas
       const txtFollow = document.getElementById('star-txt-follow')?.value || 'Se ha unido a la tripulación';
@@ -4065,7 +4082,11 @@
       if (channel && channel.toLowerCase() !== 'jikokun') obsParams.set('channel', channel);
       if (durationSec && durationSec !== '8.5') obsParams.set('duration', durationSec);
       if (volumeVal && volumeVal !== '85') obsParams.set('volume', volumeVal);
-      if (isMute) obsParams.set('mute', 'true');
+      if (hasSound) {
+        obsParams.set('sound', 'true');
+      } else {
+        obsParams.set('mute', 'true');
+      }
 
       if (txtFollow && txtFollow !== 'Se ha unido a la tripulación') obsParams.set('txt_follow', txtFollow);
       if (txtSub && txtSub !== 'Lleva {meses} meses en la nave') obsParams.set('txt_sub', txtSub);
@@ -4077,10 +4098,11 @@
       generatedUrls['url-star-alerts'] = getAbsoluteUrl(obsPath);
         window.syncModalIframeLive('star-alerts', generatedUrls['url-star-alerts']);
 
-      // Previsualización interactiva con loop continuo
+      // Previsualización interactiva con loop continuo (siempre silenciada para evitar ruido)
       const previewParams = new URLSearchParams(obsParams);
       previewParams.set('preview', 'true');
       if (isLoop) previewParams.set('loop', 'true');
+      previewParams.set('mute', 'true');
 
       const previewPath = `alertas_kick_estrellas.html?${previewParams.toString()}`;
       const previewIframe = document.getElementById('preview-star-alerts');
@@ -4112,7 +4134,7 @@
           channel,
           duration: durationSec,
           volume: volumeVal,
-          mute: isMute,
+          sound: hasSound,
           txt_follow: txtFollow,
           txt_sub: txtSub,
           txt_gift: txtGift,
@@ -4466,7 +4488,7 @@
     // -----------------------------------------------------------------------
     // CONTROLADOR DE MODAL Y GALERÍA (CON BLOQUEO DE SCROLL Y FILTRO STREAMER.BOT)
     // -----------------------------------------------------------------------
-    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Clima & Reloj en Vivo", "desc": "Reloj digital con pronóstico del clima y temperatura en tiempo real para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador de Espectadores", "desc": "Muestra en tiempo real tu avatar, canal y número de espectadores en vivo conectados a tu directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Presenta tus redes sociales con transiciones elegantes y diseño moderno para tu stream.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Regresiva", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Neón", "desc": "Reloj con estética neón, fecha completa y formato 12/24 horas para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat Clásico en Vivo", "desc": "Overlay de chat translúcido con insignias de usuario y animación fluida para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun&port=4445", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas", "desc": "Alertas dinámicas interactivas con marco animado y banners publicitarios para eventos en directo.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir eventos en pantalla.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica", "desc": "Alerta de alta intensidad con relámpagos neón, sintetizador de audio y animaciones dinámicas.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón", "desc": "Borde neón para tu cámara con selector de relación de aspecto 16:9 y 1:1, y resplandor personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar", "desc": "Animación espacial con estrellas luminosas y avisos para seguidores, suscripciones, donaciones y raids.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante", "desc": "Burbujas modernas con insignias oficiales, color de usuario, stickers animados y diseño limpio para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}};
+    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Clima & Reloj en Vivo", "desc": "Reloj digital con pronóstico del clima y temperatura en tiempo real para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador de Espectadores", "desc": "Muestra en tiempo real tu avatar, canal y número de espectadores en vivo conectados a tu directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Presenta tus redes sociales con transiciones elegantes y diseño moderno para tu stream.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Regresiva", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Neón", "desc": "Reloj con estética neón, fecha completa y formato 12/24 horas para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat Clásico en Vivo", "desc": "Overlay de chat translúcido con insignias de usuario y animación fluida para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun&port=4445", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas", "desc": "Alertas dinámicas interactivas con marco animado y banners publicitarios para eventos en directo.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true&mute=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir eventos en pantalla.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica", "desc": "Alerta de alta intensidad con relámpagos neón, sintetizador de audio y animaciones dinámicas.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón", "desc": "Borde neón para tu cámara con selector de relación de aspecto 16:9 y 1:1, y resplandor personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar", "desc": "Animación espacial con estrellas luminosas y avisos para seguidores, suscripciones, donaciones y raids.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante", "desc": "Burbujas modernas con insignias oficiales, color de usuario, stickers animados y diseño limpio para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}};
     window.currentActiveModalWidget = null;
 
     window.openWidgetConfigModal = function(widgetId) {
@@ -4495,16 +4517,17 @@
         activePanel.classList.remove('hidden');
       }
 
-      // 3. Cargar el iframe interactivo con la URL calculada en tiempo real
+      // 3. Cargar el iframe interactivo con la URL calculada en tiempo real (siempre silenciada para el modal)
       const modalIframe = document.getElementById('modal-live-iframe');
       let currentUrl = generatedUrls[meta.urlKey] || meta.defaultUrl;
-      if (widgetId === 'chat-kick') {
-        try {
-          const u = new URL(currentUrl, window.location.href);
+      try {
+        const u = new URL(currentUrl, window.location.href);
+        u.searchParams.set('mute', 'true'); // Vista previa en modal siempre en silencio
+        if (widgetId === 'chat-kick') {
           u.searchParams.set('preview', 'true');
-          currentUrl = u.toString();
-        } catch(e) {}
-      }
+        }
+        currentUrl = u.toString();
+      } catch(e) {}
       if (modalIframe) {
         modalIframe.src = currentUrl;
       }

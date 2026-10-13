@@ -897,8 +897,10 @@
       const urlParams = new URLSearchParams(window.location.search);
       const customPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
       const alertDuration = parseInt(urlParams.get('duration') || '6500', 10);
-      const isMuted = urlParams.get('mute') === 'true';
       const isPreview = urlParams.get('preview') === 'true';
+      const isLoop = urlParams.get('loop') === 'true';
+      const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+      let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoop || !hasExplicitSound;
 
       // -----------------------------------------------------------------------
       // 2. SISTEMA DE AUDIO (Web Audio API & SFX Sintetizado de Calidad)
@@ -1538,6 +1540,8 @@
         }
 
         if (event.data.type === 'TRIGGER_TEST_ALERT') {
+          const prevMute = isMuted;
+          isMuted = false;
           const aType = event.data.alertType || 'follow';
           if (event.data.colors && event.data.colors[aType]) {
             THEMES[aType].color = event.data.colors[aType];
@@ -1565,6 +1569,7 @@
           }
 
           triggerAlert(aType, testData);
+          setTimeout(() => { isMuted = prevMute; }, 2500);
         }
       });
 
