@@ -2737,9 +2737,34 @@
             <!-- Canal de Kick & Estilo de Burbuja -->
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div class="form-group mb-0">
-                <label for="chat-kick-channel-input" class="text-xs font-semibold mb-1.5 block">🟢 Canal de Kick (Usuario):</label>
-                <input type="text" id="chat-kick-channel-input" class="input-field" value="jikokun" placeholder="Ej: jikokun" oninput="updateChatKickWidget()">
-                <span class="text-[0.7rem] text-slate-400 mt-1 block">El canal al que el widget se conectará en vivo.</span>
+                <div class="flex items-center justify-between mb-1.5">
+                  <label for="chat-kick-channel-input" class="text-xs font-semibold block">🟢 Canal de Kick (Usuario):</label>
+                  <span id="chat-kick-status-badge" class="text-[0.68rem] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">
+                    <i class="fa-solid fa-check"></i> ID: 1866891
+                  </span>
+                </div>
+                <div class="relative">
+                  <input type="text" id="chat-kick-channel-input" class="input-field pr-24" value="jikokun" placeholder="Ej: jikokun" oninput="onKickChannelChanged()">
+                  <button type="button" class="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-[0.7rem] font-bold rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/30 transition-all" onclick="autoDetectKickChatId()" title="Verificar y auto-detectar ID de Kick">
+                    <i class="fa-solid fa-magnifying-glass"></i> Detectar
+                  </button>
+                </div>
+                <div class="flex items-center justify-between text-[0.7rem] text-slate-400 mt-1.5">
+                  <span id="chat-kick-channel-hint">Conexión directa activa para @jikokun.</span>
+                  <a href="#" class="text-sky-400 hover:underline" onclick="toggleKickManualId(event)">
+                    <i class="fa-solid fa-sliders"></i> ID Chatroom
+                  </a>
+                </div>
+                <!-- Campo de auxilio opcional si el usuario tiene un canal nuevo y Cloudflare bloquea -->
+                <div id="chat-kick-manual-box" class="hidden mt-2 p-2.5 rounded-lg bg-slate-900/90 border border-slate-700/60 text-xs">
+                  <label class="text-[0.7rem] text-slate-300 block mb-1 font-semibold">ID numérico de Chatroom (Garantía 100% inmediata):</label>
+                  <div class="flex gap-2">
+                    <input type="number" id="chat-kick-manual-input" value="1866891" class="input-field text-xs py-1" placeholder="Ej: 1866891" oninput="updateChatKickWidget()">
+                    <a id="chat-kick-open-api-btn" href="https://kick.com/api/v2/channels/jikokun" target="_blank" class="px-2.5 py-1 text-[0.7rem] font-bold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 flex items-center gap-1 whitespace-nowrap" title="Ver el ID en Kick">
+                      Ver en Kick <i class="fa-solid fa-arrow-up-right-from-square text-[0.6rem]"></i>
+                    </a>
+                  </div>
+                </div>
               </div>
               <div class="form-group mb-0">
                 <label for="chat-kick-theme-select" class="text-xs font-semibold mb-1.5 block">🎨 Estilo Visual:</label>
@@ -4485,10 +4510,114 @@
       }
     };
 
+    // Mapa de Canales Kick Verificados para respuesta instantánea
+    const KNOWN_KICK_MAP = {
+      'jikokun': 1866891,
+      'xqc': 668,
+      'westcol': 669512,
+      'ibai': 8211,
+      'auronplay': 56413,
+      'rubius': 18554,
+      'elxokas': 132166375,
+      'spreen': 5287882,
+      'robles': 142451,
+      'davoo': 139233,
+      'coscu': 28110061,
+      'juansguarnizo': 128934275,
+      'aldo_geo': 128809885,
+      'arigameplays': 132693028,
+      'knekro': 132159284,
+      'illojuan': 64620
+    };
+
+    function toggleKickManualId(e) {
+      if (e) e.preventDefault();
+      const box = document.getElementById('chat-kick-manual-box');
+      if (box) box.classList.toggle('hidden');
+    }
+
+    async function autoDetectKickChatId() {
+      const channelInput = document.getElementById('chat-kick-channel-input');
+      const clean = (channelInput ? channelInput.value : '').toLowerCase().trim().replace(/^@/, '') || 'jikokun';
+      const badge = document.getElementById('chat-kick-status-badge');
+      const hint = document.getElementById('chat-kick-channel-hint');
+      const manualInput = document.getElementById('chat-kick-manual-input');
+      const openBtn = document.getElementById('chat-kick-open-api-btn');
+
+      if (openBtn) openBtn.href = `https://kick.com/api/v2/channels/${clean}`;
+      if (hint) hint.textContent = `Detectando ID de @${clean}...`;
+
+      if (KNOWN_KICK_MAP[clean]) {
+        const id = KNOWN_KICK_MAP[clean];
+        if (manualInput) manualInput.value = id;
+        if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${id}`; }
+        if (hint) hint.textContent = `Canal verificado (ID: ${id})`;
+        updateChatKickWidget();
+        return;
+      }
+
+      // Probar auto-detección mediante proxies en paralelo
+      const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
+      const proxies = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV2)}`,
+        `https://api.allorigins.win/get?url=${encodeURIComponent(targetV2)}`,
+        `https://corsproxy.org/?${encodeURIComponent(targetV2)}`
+      ];
+
+      for (const p of proxies) {
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 3500);
+          const res = await fetch(p, { signal: controller.signal });
+          clearTimeout(t);
+          if (res.ok) {
+            const raw = await res.json();
+            let parsed = raw;
+            if (raw.contents) try { parsed = JSON.parse(raw.contents); } catch(e) {}
+            const chatroomId = parsed?.chatroom?.id || parsed?.id;
+            if (chatroomId) {
+              if (manualInput) manualInput.value = chatroomId;
+              if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${chatroomId}`; }
+              if (hint) hint.textContent = `Canal detectado (ID: ${chatroomId})`;
+              try { localStorage.setItem(`kick_chat_cache_${clean}`, JSON.stringify({ chatroomId, slug: clean })); } catch(e) {}
+              updateChatKickWidget();
+              return;
+            }
+          }
+        } catch(e) {}
+      }
+
+      if (hint) hint.textContent = `Conexión por nombre para @${clean}`;
+      updateChatKickWidget();
+    }
+
+    function onKickChannelChanged() {
+      const channelInput = document.getElementById('chat-kick-channel-input');
+      const clean = (channelInput ? channelInput.value : '').toLowerCase().trim().replace(/^@/, '') || 'jikokun';
+      const openBtn = document.getElementById('chat-kick-open-api-btn');
+      if (openBtn) openBtn.href = `https://kick.com/api/v2/channels/${clean}`;
+      const badge = document.getElementById('chat-kick-status-badge');
+      const manualInput = document.getElementById('chat-kick-manual-input');
+      const hint = document.getElementById('chat-kick-channel-hint');
+
+      if (KNOWN_KICK_MAP[clean]) {
+        const id = KNOWN_KICK_MAP[clean];
+        if (manualInput) manualInput.value = id;
+        if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${id}`; }
+        if (hint) hint.textContent = `Canal verificado (ID: ${id})`;
+      } else {
+        if (manualInput && clean !== 'jikokun') manualInput.value = '';
+        if (badge) badge.classList.add('hidden');
+        if (hint) hint.textContent = `Conexión automática por nombre para @${clean}`;
+      }
+      updateChatKickWidget();
+    }
+
     // 12. Chat Flotante Kick (API Nativa)
     function updateChatKickWidget(shouldSync = true) {
       const channelInput = document.getElementById('chat-kick-channel-input');
-      const channel = channelInput ? (channelInput.value.trim() || 'jikokun') : 'jikokun';
+      const channel = channelInput ? (channelInput.value.trim().toLowerCase().replace(/^@/, '') || 'jikokun') : 'jikokun';
+      const manualChatId = document.getElementById('chat-kick-manual-input')?.value.trim() || '';
       const font = document.getElementById('chat-kick-font-select')?.value || 'Rajdhani';
       const size = document.getElementById('chat-kick-size-input')?.value || '16';
       const duration = document.getElementById('chat-kick-duration-select')?.value || '10';
@@ -4502,6 +4631,7 @@
 
       const obsParams = new URLSearchParams();
       obsParams.set('channel', channel);
+      if (manualChatId) obsParams.set('chatroom_id', manualChatId);
       if (font !== 'Rajdhani') obsParams.set('font', font);
       if (size !== '16') obsParams.set('size', size);
       if (duration !== '10') obsParams.set('duration', duration);
@@ -4527,6 +4657,8 @@
         if (!win) return;
         win.postMessage({
           type: 'SET_CHAT_CONFIG',
+          channel,
+          chatroomId: manualChatId,
           font,
           fontSize: size,
           duration,
@@ -4542,7 +4674,11 @@
 
       const modalIframe = document.getElementById('modal-live-iframe');
       if (modalIframe && window.currentActiveModalWidget === 'chat-kick') {
-        if (!modalIframe.src || modalIframe.src === 'about:blank' || !modalIframe.src.includes('widget_chat_kick_live.html')) {
+        const lastChan = modalIframe.dataset.lastChannel;
+        const lastCid = modalIframe.dataset.lastCid;
+        if (!modalIframe.src || modalIframe.src === 'about:blank' || !modalIframe.src.includes('widget_chat_kick_live.html') || lastChan !== channel || lastCid !== manualChatId) {
+          modalIframe.dataset.lastChannel = channel;
+          modalIframe.dataset.lastCid = manualChatId;
           modalIframe.src = previewPath;
         } else {
           postConfig(modalIframe.contentWindow);

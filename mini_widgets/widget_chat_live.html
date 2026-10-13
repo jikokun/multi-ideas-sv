@@ -112,11 +112,118 @@
       border-left-color: #f87171;
       color: #ffffff;
     }
+
+    /* --------------------------------------------------
+       SIMULADOR EN MODO INTERACTUAR DE OBS (#test-controls)
+       -------------------------------------------------- */
+    #test-controls {
+      position: fixed;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10000;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1.5px solid rgba(83, 252, 24, 0.45);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 6px 14px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(83, 252, 24, 0.2);
+      transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+      pointer-events: auto;
+      max-width: 95vw;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    #test-controls.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translate(-50%, 25px);
+    }
+
+    .test-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      color: #94a3b8;
+      padding: 3px 8px;
+      background: rgba(3, 7, 18, 0.65);
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-right: 2px;
+      white-space: nowrap;
+    }
+
+    .test-btn {
+      background: rgba(30, 41, 59, 0.9);
+      color: #f8fafc;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-family: inherit;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+    }
+
+    .test-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .test-btn.btn-msg:hover { background: #0284c7; color: #fff; border-color: #38bdf8; }
+    .test-btn.btn-sub:hover { background: #16a34a; color: #fff; border-color: #53fc18; }
+    .test-btn.btn-mod:hover { background: #7c3aed; color: #fff; border-color: #a78bfa; }
+
+    .close-test-btn {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #ef4444;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 900;
+      margin-left: 2px;
+      transition: all 0.2s ease;
+    }
+    .close-test-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+    }
   </style>
 </head>
 <body>
 
   <div id="chat-container"></div>
+
+  <!-- Panel de Pruebas Flotante (Se muestra al hacer Clic / Modo Interactuar de OBS) -->
+  <div id="test-controls" class="hidden">
+    <div class="test-status-pill">
+      <span style="width:7px; height:7px; border-radius:50%; background:#10b981; box-shadow:0 0 6px #10b981; display:inline-block;"></span>
+      <span>Simulador OBS</span>
+    </div>
+    <button type="button" class="test-btn btn-msg" onclick="triggerTestMsg('msg'); event.stopPropagation();">💬 Mensaje</button>
+    <button type="button" class="test-btn btn-sub" onclick="triggerTestMsg('sub'); event.stopPropagation();">⭐ Sub</button>
+    <button type="button" class="test-btn btn-mod" onclick="triggerTestMsg('mod'); event.stopPropagation();">🛡️ Mod</button>
+    <button type="button" class="close-test-btn" onclick="toggleTestPanel(false); event.stopPropagation();" title="Cerrar Simulador">✕</button>
+  </div>
 
   <script>
     const urlParams = new URLSearchParams(window.location.search);
@@ -250,35 +357,133 @@
       try {
         let chatroomId = null;
 
-        // 1. Fallback verificado inmediato para jikokun
-        if (clean === 'jikokun') {
-          chatroomId = 1866891;
+        // 1. Override manual por parámetro URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id') || urlParams.get('cid');
+        if (urlChatId) {
+          chatroomId = parseInt(urlChatId, 10);
         }
 
-        // 2. Proxies CORS actualizados si no es jikokun
+        // 2. Caché local
+        const cacheKey = `kick_chat_cache_${clean}`;
+        if (!chatroomId) {
+          try {
+            const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+            if (cached && (cached.chatroomId || cached.id)) {
+              chatroomId = cached.chatroomId || cached.id;
+            }
+          } catch(e) {}
+        }
+
+        // 3. Diccionario verificado
+        const KNOWN_MAP = {
+          'jikokun': 1866891, 'xqc': 668, 'westcol': 669512, 'ibai': 8211,
+          'auronplay': 56413, 'rubius': 18554, 'elxokas': 132166375, 'spreen': 5287882,
+          'robles': 142451, 'davoo': 139233, 'coscu': 28110061, 'juansguarnizo': 128934275,
+          'aldo_geo': 128809885, 'arigameplays': 132693028, 'knekro': 132159284, 'illojuan': 64620
+        };
+        if (!chatroomId && KNOWN_MAP[clean]) {
+          chatroomId = KNOWN_MAP[clean];
+        }
+
+        // 4. Proxies CORS en paralelo
         if (!chatroomId) {
           const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
           const proxyList = [
-            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
             `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+            `https://corsproxy.org/?${encodeURIComponent(targetUrl)}`,
+            `https://kick.com/api/v1/channels/${clean}`,
             targetUrl
           ];
-          for (const pUrl of proxyList) {
-            try {
-              const res = await fetch(pUrl);
-              if (res.ok) {
-                const pData = await res.json();
-                if (pData?.chatroom?.id) {
-                  chatroomId = pData.chatroom.id;
-                  break;
-                }
-              }
-            } catch(e) {}
-          }
+
+          const promises = proxyList.map(pUrl => {
+            return new Promise((res, rej) => {
+              const c = new AbortController();
+              const to = setTimeout(() => c.abort(), 4000);
+              fetch(pUrl, { signal: c.signal })
+                .then(r => { clearTimeout(to); return r.json(); })
+                .then(d => {
+                  let parsed = d;
+                  if (d && d.contents) try { parsed = JSON.parse(d.contents); } catch(e) {}
+                  if (parsed && (parsed.chatroom?.id || parsed.id)) {
+                    res(parsed.chatroom?.id || parsed.id);
+                  } else { rej(); }
+                })
+                .catch(() => { clearTimeout(to); rej(); });
+            });
+          });
+
+          try {
+            chatroomId = await new Promise((resolve, reject) => {
+              let fails = 0;
+              promises.forEach(p => p.then(id => resolve(id)).catch(() => {
+                fails++;
+                if (fails >= promises.length) reject();
+              }));
+            });
+            if (chatroomId) {
+              try { localStorage.setItem(cacheKey, JSON.stringify({ chatroomId, slug: clean })); } catch(e) {}
+            }
+          } catch(e) {}
         }
 
         if (!chatroomId) return;
 
+        // 1. Conexión Oficial Kick Realtime Centrifugo
+        try {
+          const guestId = '019488a0-' + Math.random().toString(36).substring(2, 6) + '-7000-8000-' + Date.now().toString(16).slice(-12);
+          const authRes = await fetch('https://web.kick.com/api/v1/realtime/auth/connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: guestId })
+          });
+          if (authRes.ok) {
+            const authJson = await authRes.json();
+            const token = authJson?.data?.token;
+            if (token) {
+              const ws = new WebSocket('wss://realtime.us-east-1.platform.kick.com/connection/websocket');
+              ws.onopen = () => {
+                ws.send(JSON.stringify({ id: 1, connect: { token: token } }));
+              };
+              ws.onmessage = (event) => {
+                try {
+                  const msg = JSON.parse(event.data);
+                  if (msg.id === 1 && msg.connect) {
+                    if (!streamerBotConnected) {
+                      displayStatus(`🟢 Conectado a Kick Realtime para @${channel}`);
+                    }
+                    ws.send(JSON.stringify({ id: 2, subscribe: { channel: `chatrooms.${chatroomId}.v2` } }));
+                    setInterval(() => {
+                      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id: 999, ping: true }));
+                    }, 25000);
+                  }
+                  if (msg.push && msg.push.pub) {
+                    const pub = msg.push.pub;
+                    let eventData = pub.data?.data;
+                    if (typeof eventData === 'string') {
+                      try { eventData = JSON.parse(eventData); } catch(e) {}
+                    }
+                    if (eventData && eventData.content) {
+                      const sender = eventData.sender || {};
+                      renderChatMessage({
+                        username: sender.username || sender.slug || 'Usuario',
+                        color: sender.identity?.color || '#53fc18',
+                        text: eventData.content || '',
+                        badges: (sender.identity?.badges || []).map(b => (b.type || '').toUpperCase())
+                      });
+                    }
+                  }
+                } catch(e) {}
+              };
+              return;
+            }
+          }
+        } catch(centrifugoErr) {
+          console.warn("[Kick Centrifugo] Falló conexión directa, intentando Pusher:", centrifugoErr);
+        }
+
+        // 2. Respaldo Pusher en caso de contingencia
         const PUSHER_KEY = "32cbd69e4b950bf97679";
         const PUSHER_CLUSTER = "us2";
 
@@ -327,7 +532,7 @@
         });
 
       } catch (err) {
-        console.warn("[Kick Pusher Backup] Error:", err);
+        console.warn("[Kick Realtime Backup] Error:", err);
       }
     }
 
@@ -432,7 +637,60 @@
     }
 
     // -----------------------------------------------------------------------
-    // MODO VISTA PREVIA (Mensajes de demostración para el configurador web)
+    // MODO INTERACTUAR DE OBS STUDIO (#test-controls)
+    // -----------------------------------------------------------------------
+    function toggleTestPanel(forceState) {
+      const panel = document.getElementById('test-controls');
+      if (!panel) return;
+      if (typeof forceState === 'boolean') {
+        if (forceState) panel.classList.remove('hidden');
+        else panel.classList.add('hidden');
+      } else {
+        panel.classList.toggle('hidden');
+      }
+    }
+    window.toggleTestPanel = toggleTestPanel;
+
+    document.addEventListener('click', (e) => {
+      const panel = document.getElementById('test-controls');
+      if (panel && !panel.contains(e.target)) {
+        toggleTestPanel();
+      }
+    });
+
+    function triggerTestMsg(type) {
+      if (type === 'sub') {
+        renderChatMessage({
+          username: 'EstrellaFan',
+          color: '#53fc18',
+          text: '¡Llevo 6 meses suscrito al canal con esta comunidad increíble! ⭐',
+          badges: ['SUB ⭐']
+        });
+      } else if (type === 'mod') {
+        renderChatMessage({
+          username: 'ComandanteMod',
+          color: '#70a1ff',
+          text: '¡Bienvenidos a todos! No olviden dejar su follow y divertirse en el directo 🛡️',
+          badges: ['MOD 🛡️']
+        });
+      } else {
+        const msgs = [
+          '¡El overlay de chat se ve perfecto en OBS! 🔥',
+          'Probando conexión y estilo en vivo 🚀',
+          'Saludos a toda la comunidad desde el stream ⚡'
+        ];
+        renderChatMessage({
+          username: 'KickUser',
+          color: '#00f5d4',
+          text: msgs[Math.floor(Math.random() * msgs.length)],
+          badges: ['VIP 💎']
+        });
+      }
+    }
+    window.triggerTestMsg = triggerTestMsg;
+
+    // -----------------------------------------------------------------------
+    // MODO VISTA PREVIA (Mensajes de demostración para el configurador web y OBS)
     // -----------------------------------------------------------------------
     const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top;
 
@@ -457,6 +715,16 @@
           badges: ['MOD 🛡️']
         });
       }, 150);
+    } else {
+      // Mostrar 2 mensajes iniciales en OBS para verificar que el overlay esté listo
+      setTimeout(() => {
+        renderChatMessage({
+          username: channelName,
+          color: '#53fc18',
+          text: `¡Chat de Kick conectado para @${channelName}! Haz clic en pantalla en OBS para probar.`,
+          badges: ['STREAMER 👑']
+        });
+      }, 300);
     }
 
     // Escuchar mensajes de prueba del configurador (postMessage)

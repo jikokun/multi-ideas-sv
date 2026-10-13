@@ -495,40 +495,73 @@ function initLiveChatWidget() {
   initKickWidget(slug);
 
   async function getKickChatroomId(channelSlug) {
-    // Intento 1: Directo (Kick API v2)
-    try {
-      const response = await fetch(`https://kick.com/api/v2/channels/${channelSlug}`);
-      if (response.ok) {
-        const channelData = await response.json();
-        if (channelData && channelData.chatroom && channelData.chatroom.id) {
-          return channelData.chatroom.id;
-        }
-      }
-    } catch (err) {
-      console.warn(`[Kick API] Direct fetch error for "${channelSlug}". Probando proxies CORS...`, err);
-    }
+    const clean = (channelSlug || 'jikokun').toLowerCase().trim().replace(/^@/, '');
 
-    // Intento 2: Proxy AllOrigins
-    try {
-      const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channelSlug)}`);
-      if (resProxy.ok) {
-        const dataProxy = await resProxy.json();
-        if (dataProxy && dataProxy.chatroom && dataProxy.chatroom.id) {
-          return dataProxy.chatroom.id;
-        }
-      }
-    } catch (errProxy) {}
+    // 1. URL Parameter override
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id') || urlParams.get('cid');
+    if (urlChatId) return parseInt(urlChatId, 10);
 
-    // Intento 3: Proxy CorsProxy.io
+    // 2. Caché local
+    const cacheKey = `kick_chat_cache_${clean}`;
     try {
-      const resProxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v2/channels/' + channelSlug)}`);
-      if (resProxy2.ok) {
-        const dataProxy2 = await resProxy2.json();
-        if (dataProxy2 && dataProxy2.chatroom && dataProxy2.chatroom.id) {
-          return dataProxy2.chatroom.id;
-        }
+      const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+      if (cached && (cached.chatroomId || cached.id)) {
+        return cached.chatroomId || cached.id;
       }
-    } catch (errProxy2) {}
+    } catch(e) {}
+
+    // 3. Diccionario verificado
+    const KNOWN_MAP = {
+      'jikokun': 1866891, 'xqc': 668, 'westcol': 669512, 'ibai': 8211,
+      'auronplay': 56413, 'rubius': 18554, 'elxokas': 132166375, 'spreen': 5287882,
+      'robles': 142451, 'davoo': 139233, 'coscu': 28110061, 'juansguarnizo': 128934275,
+      'aldo_geo': 128809885, 'arigameplays': 132693028, 'knekro': 132159284, 'illojuan': 64620
+    };
+    if (KNOWN_MAP[clean]) return KNOWN_MAP[clean];
+
+    // 4. Proxies en paralelo
+    const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
+    const targetV1 = `https://kick.com/api/v1/channels/${clean}`;
+    const proxyList = [
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV2)}`,
+      `https://api.allorigins.win/get?url=${encodeURIComponent(targetV2)}`,
+      `https://corsproxy.org/?${encodeURIComponent(targetV2)}`,
+      targetV1,
+      targetV2
+    ];
+
+    const promises = proxyList.map(url => {
+      return new Promise((resolve, reject) => {
+        const c = new AbortController();
+        const t = setTimeout(() => c.abort(), 4000);
+        fetch(url, { signal: c.signal })
+          .then(r => r.json())
+          .then(d => {
+            clearTimeout(t);
+            let parsed = d;
+            if (d && d.contents) try { parsed = JSON.parse(d.contents); } catch(e) {}
+            const cid = parsed?.chatroom?.id || parsed?.id;
+            if (cid) resolve(cid);
+            else reject();
+          })
+          .catch(() => { clearTimeout(t); reject(); });
+      });
+    });
+
+    try {
+      const foundId = await new Promise((resolve, reject) => {
+        let fails = 0;
+        promises.forEach(p => p.then(id => resolve(id)).catch(() => {
+          fails++;
+          if (fails >= promises.length) reject();
+        }));
+      });
+      if (foundId) {
+        try { localStorage.setItem(cacheKey, JSON.stringify({ chatroomId: foundId, slug: clean })); } catch(e) {}
+        return foundId;
+      }
+    } catch(e) {}
 
     return null;
   }
