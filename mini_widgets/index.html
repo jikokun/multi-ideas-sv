@@ -2042,6 +2042,17 @@
         <!-- Panel de Configuración Específica: Alertas Patrocinadas (Streamer.bot) -->
         <div id="panel-settings-alerts" class="widget-settings-panel hidden space-y-4">
           <div class="panel-form-controls">
+            <!-- Selector de Modelo / Estilo de Alerta -->
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="alert-model-select" class="text-xs font-bold text-sky-400 uppercase tracking-wider flex items-center gap-1.5">
+                <i class="fa-solid fa-layer-group"></i> Modelo / Estilo de Alerta:
+              </label>
+              <select id="alert-model-select" class="input-field" style="font-weight: 700;" onchange="updateAlertsWidget()">
+                <option value="alertas_rufus.html" selected>🦊 Alertas Rufus</option>
+                <option value="alertas_kiphu.html">⚡ Alertas Kiphu</option>
+              </select>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 10px; margin-bottom: 12px;">
           <div class="form-group" style="margin-bottom: 0;">
             <label for="alert-port-input">🔌 Puerto WS:</label>
@@ -3746,7 +3757,6 @@
 
       const obsPath = `${model}${obsParams.toString() ? '?' + obsParams.toString() : ''}`;
       generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
-        window.syncModalIframeLive('alerts', generatedUrls['url-alerts']);
 
       // URL para el iframe de vista previa en la web (siempre silenciada para evitar ruido)
       const previewParams = new URLSearchParams(obsParams);
@@ -3755,6 +3765,7 @@
       previewParams.set('mute', 'true');
 
       const previewPath = `${model}?${previewParams.toString()}`;
+      window.syncModalIframeLive('alerts', getAbsoluteUrl(previewPath));
       const previewIframe = document.getElementById('preview-alerts');
       if (previewIframe) {
         if (previewIframe.dataset.lastSrc !== previewPath) {
@@ -4530,8 +4541,9 @@
       try {
         const u = new URL(currentUrl, window.location.href);
         u.searchParams.set('mute', 'true'); // Vista previa en modal siempre en silencio
-        if (widgetId === 'chat-kick') {
+        if (widgetId === 'chat-kick' || widgetId === 'alerts') {
           u.searchParams.set('preview', 'true');
+          u.searchParams.set('loop', 'true');
         }
         currentUrl = u.toString();
       } catch(e) {}
