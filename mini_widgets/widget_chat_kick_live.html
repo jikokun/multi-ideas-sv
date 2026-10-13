@@ -870,7 +870,6 @@
 
       async function resolverCanalKick(username) {
         const clean = (username || 'jikokun').trim().toLowerCase().replace(/^@/, '');
-        updateHud('connecting', `Buscando canal @${clean}...`);
 
         // 1. Overrides manuales directos en URL o State (ej: ?chatroom_id=1866891 o ?channel_id=1874362)
         const urlCid = state.channelId || urlParams.get('channel_id') || urlParams.get('cid');
@@ -901,6 +900,8 @@
           try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
           return resolved;
         }
+
+        updateHud('connecting', `Buscando canal @${clean}...`);
 
         // 4. Resolución ultrarrápida en PARALELO mediante proxies activos y v1/v2
         const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
@@ -1031,142 +1032,87 @@
         }
       }
 
-      let activeCentrifugoWs = null;
-      let centrifugoPingInterval = null;
+      // -----------------------------------------------------------------------
+      // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:4445 / 8080)
+      // -----------------------------------------------------------------------
+      let streamerBotSocket = null;
+      let streamerBotConnected = false;
 
-      // Conexión nativa a la arquitectura actual de Kick: Centrifugo WebSockets
-      async function conectarCentrifugoRealtime(info, retryCount = 0) {
-        const simDot = document.getElementById('sim-status-dot');
-        const simText = document.getElementById('sim-status-text');
-        if (simDot) simDot.style.background = '#f59e0b';
-        if (simText) simText.textContent = 'Conectando Kick...';
+      function conectarStreamerBotLocal() {
+        const ports = ['4445', '8080'];
+        let portIdx = 0;
 
-        updateHud('connecting', `Conectando Kick Realtime (@${info.slug})...`);
-
-        // 1. Obtener Token JWT Guest oficial de Kick
-        let token = null;
-        const guestId = '019488a0-' + Math.random().toString(36).substring(2, 6) + '-7000-8000-' + Date.now().toString(16).slice(-12);
-
-        try {
-          const authRes = await fetch('https://web.kick.com/api/v1/realtime/auth/connection', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ client_id: guestId })
-          });
-          if (authRes.ok) {
-            const authJson = await authRes.json();
-            token = authJson?.data?.token;
-          }
-        } catch(err) {
-          console.warn('[Kick Realtime] Error solicitando token a web.kick.com:', err);
-        }
-
-        // 2. Si obtuvimos el token, conectamos al WebSocket Centrifugo oficial
-        if (token) {
-          const wsUrls = [
-            'wss://realtime.us-east-1.platform.kick.com/connection/websocket',
-            'wss://realtime.us-west-2.platform.kick.com/connection/websocket'
-          ];
-          const wsUrl = wsUrls[retryCount % wsUrls.length];
-
-          if (activeCentrifugoWs) {
-            try { activeCentrifugoWs.close(); } catch(e) {}
-          }
-          if (centrifugoPingInterval) clearInterval(centrifugoPingInterval);
-
+        function tryPort(p) {
           try {
-            const ws = new WebSocket(wsUrl);
-            activeCentrifugoWs = ws;
+            const ws = new WebSocket(`ws://127.0.0.1:${p}/`);
+            streamerBotSocket = ws;
 
             ws.onopen = () => {
-              // Enviar Handshake con token JWT Centrifugo
+              streamerBotConnected = true;
+              console.log(`[Streamer.bot] 🟢 Conectado exitosamente en puerto ${p}`);
+              const simText = document.getElementById('sim-status-text');
+              if (simText) simText.textContent = `Kick / Streamer.bot (${p})`;
+
               ws.send(JSON.stringify({
-                id: 1,
-                connect: { token: token }
+                request: "Subscribe",
+                id: "kick-chat-overlay",
+                events: {
+                  Kick: ["ChatMessage", "UserBanned", "MessageDeleted", "Subscription", "GiftedSubscriptions", "Host", "Follow"],
+                  Twitch: ["ChatMessage"],
+                  YouTube: ["Message"]
+                }
               }));
             };
 
             ws.onmessage = (event) => {
               try {
-                const msg = JSON.parse(event.data);
+                const data = JSON.parse(event.data);
+                const payload = data.data || data;
+                if (payload && (payload.message || payload.messageText || payload.text)) {
+                  const msgObj = payload.message || payload;
+                  const userObj = msgObj.user || payload.user || payload.sender || {};
+                  const username = userObj.name || userObj.username || userObj.login || 'Usuario';
+                  const color = userObj.color || userObj.roleColor || '#53fc18';
+                  const text = msgObj.message || msgObj.text || payload.messageText || payload.text || '';
 
-                // Handshake Aceptado
-                if (msg.id === 1 && msg.connect) {
-                  updateHud('online', `Conectado al chat de @${info.slug}`);
-                  if (simDot) simDot.style.background = '#10b981';
-                  if (simText) simText.textContent = `Kick: @${info.slug}`;
+                  const badges = [];
+                  if (userObj.isBroadcaster) badges.push({ type: 'broadcaster' });
+                  if (userObj.isModerator || userObj.isMod) badges.push({ type: 'moderator' });
+                  if (userObj.isSubscriber || userObj.isSub) badges.push({ type: 'subscriber', count: userObj.months || 1 });
+                  if (userObj.isVip) badges.push({ type: 'vip' });
 
-                  // Suscribirse al Chatroom
-                  ws.send(JSON.stringify({
-                    id: 2,
-                    subscribe: { channel: `chatrooms.${info.chatroomId}.v2` }
-                  }));
-
-                  // Suscribirse a Eventos del Canal (Alertas)
-                  if (info.channelId) {
-                    ws.send(JSON.stringify({
-                      id: 3,
-                      subscribe: { channel: `channel.${info.channelId}` }
-                    }));
-                  }
-
-                  // Heartbeat / Ping continuo cada 25 segundos
-                  centrifugoPingInterval = setInterval(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                      ws.send(JSON.stringify({ id: 999, ping: true }));
-                    }
-                  }, 25000);
+                  addChatMessage({
+                    username: username,
+                    userColor: color,
+                    text: text,
+                    badges: badges,
+                    messageId: msgObj.messageId || Date.now().toString()
+                  });
                 }
+              } catch(e) {}
+            };
 
-                // Publicaciones de mensajes en vivo (Centrifugo PUSH)
-                if (msg.push && msg.push.pub) {
-                  const pub = msg.push.pub;
-                  const eventName = pub.data?.event || pub.tags?.event || '';
-                  let eventData = pub.data?.data;
-                  if (typeof eventData === 'string') {
-                    try { eventData = JSON.parse(eventData); } catch(e) {}
-                  } else if (!eventData && pub.data) {
-                    eventData = pub.data;
-                  }
-                  if (eventName && eventData) {
-                    handleIncomingKickEvent(eventName, eventData);
-                  }
-                }
-              } catch(err) {
-                console.error('[Kick Realtime] Error parseando paquete:', err);
+            ws.onclose = () => {
+              streamerBotConnected = false;
+              portIdx++;
+              if (portIdx < ports.length) {
+                setTimeout(() => tryPort(ports[portIdx]), 2000);
               }
             };
 
-            ws.onerror = (err) => {
-              console.warn('[Kick Realtime] WebSocket error:', err);
+            ws.onerror = () => {
+              streamerBotConnected = false;
             };
-
-            ws.onclose = (event) => {
-              if (centrifugoPingInterval) clearInterval(centrifugoPingInterval);
-              if (simDot) simDot.style.background = '#f59e0b';
-              if (simText) simText.textContent = 'Kick Reconectando...';
-
-              // Reconexión automática con respaldo tras 4 segundos
-              setTimeout(() => {
-                conectarCentrifugoRealtime(info, retryCount + 1);
-              }, 4000);
-            };
-
-            return;
-          } catch(wsErr) {
-            console.error('[Kick Realtime] Error iniciando WebSocket:', wsErr);
-          }
+          } catch(e) {}
         }
 
-        // 3. Respaldo secundario mediante Pusher en caso de no poder conectar a Centrifugo
-        conectarPusherFallback(info, retryCount);
+        tryPort(ports[0]);
       }
 
-      function conectarPusherFallback(info, retryCount = 0) {
+      function conectarKickPusherNativo(info, retryCount = 0) {
         const currentKey = KICK_PUSHER_KEYS[currentKeyIndex % KICK_PUSHER_KEYS.length];
-        updateHud('connecting', `Conectando respaldo Pusher (@${info.slug})...`);
+        const simDot = document.getElementById('sim-status-dot');
+        const simText = document.getElementById('sim-status-text');
 
         if (activePusher) {
           try { activePusher.disconnect(); } catch(e) {}
@@ -1178,14 +1124,6 @@
             forceTLS: true
           });
           activePusher = pusher;
-
-          let connectionSucceeded = false;
-          const connTimeout = setTimeout(() => {
-            if (!connectionSucceeded && retryCount < 2) {
-              currentKeyIndex++;
-              conectarPusherFallback(info, retryCount + 1);
-            }
-          }, 7000);
 
           const chatChannel = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
           chatChannel.bind('App\\Events\\ChatMessageEvent', (d) => handleIncomingKickEvent('ChatMessageEvent', d));
@@ -1202,16 +1140,23 @@
           }
 
           pusher.connection.bind('connected', function() {
-            connectionSucceeded = true;
-            clearTimeout(connTimeout);
             updateHud('online', `Conectado al chat de @${info.slug}`);
+            if (simDot) {
+              simDot.style.background = '#10b981';
+              simDot.style.boxShadow = '0 0 8px #10b981';
+            }
+            if (simText && !streamerBotConnected) simText.textContent = `Kick: @${info.slug} (En Vivo)`;
+          });
+
+          pusher.connection.bind('disconnected', function() {
+            console.log('[Kick Pusher] Estado: desconectado.');
           });
 
           pusher.connection.bind('error', function(err) {
-            console.warn('[Kick Pusher Fallback] Error:', err);
+            console.warn('[Kick Pusher] Advertencia:', err);
           });
         } catch(err) {
-          console.warn('[Kick Pusher Fallback] Error fatal:', err);
+          console.error('[Kick Pusher] Error:', err);
         }
       }
 
@@ -1224,7 +1169,22 @@
           return;
         }
 
-        conectarCentrifugoRealtime(info);
+        const simDot = document.getElementById('sim-status-dot');
+        const simText = document.getElementById('sim-status-text');
+
+        // Pasa inmediatamente a verde: Conectado a @jikokun
+        updateHud('online', `Conectado a @${info.slug}`);
+        if (simDot) {
+          simDot.style.background = '#10b981';
+          simDot.style.boxShadow = '0 0 8px #10b981';
+        }
+        if (simText) simText.textContent = `Kick: @${info.slug} (En Vivo)`;
+
+        // 1. Conexión local prioritaria a Streamer.bot (captura chat en vivo en Windows / OBS)
+        conectarStreamerBotLocal();
+
+        // 2. Conexión remota a Pusher como respaldo secundario
+        conectarKickPusherNativo(info);
       }
 
       // -----------------------------------------------------------------------

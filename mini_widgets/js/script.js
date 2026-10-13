@@ -473,6 +473,7 @@ function sanitizeHTML(str) {
 }
 
 function initLiveChatWidget() {
+  if (typeof window.initChatWidget === 'function') return;
   const container = document.getElementById('chat-messages-box') || document.getElementById('chat-container') || document.getElementById('chat-messages');
   if (!container) return;
 

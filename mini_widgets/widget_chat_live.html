@@ -6,7 +6,6 @@
   <title>Kick / Streamer.bot Live Chat Overlay</title>
   <!-- Cliente Pusher JS para respaldo WebSocket de Kick -->
   <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
-  <script src="js/script.js"></script>
   <style>
     * { box-sizing: border-box; }
     body, html {
@@ -251,6 +250,15 @@
     initChatWidget();
 
     function initChatWidget() {
+      // Estado verde inmediato en el simulador
+      const simDot = document.querySelector('#test-controls .test-status-pill span');
+      const simText = document.querySelector('#test-controls .test-status-pill span:last-child');
+      if (simDot) {
+        simDot.style.background = '#10b981';
+        simDot.style.boxShadow = '0 0 6px #10b981';
+      }
+      if (simText) simText.textContent = `Kick: @${channelName}`;
+
       // 1. Conectar a Streamer.bot Local (Puerto 4445 por defecto, o 8080)
       connectStreamerBot(sbPort);
 
@@ -276,6 +284,13 @@
             streamerBotConnected = true;
             console.log(`[Streamer.bot] 🟢 Conectado exitosamente en puerto ${p}`);
             displayStatus(`🟢 Conectado a Streamer.bot Local (Puerto ${p})`);
+            const simDot = document.querySelector('#test-controls .test-status-pill span');
+            const simText = document.querySelector('#test-controls .test-status-pill span:last-child');
+            if (simDot) {
+              simDot.style.background = '#10b981';
+              simDot.style.boxShadow = '0 0 6px #10b981';
+            }
+            if (simText) simText.textContent = `Streamer.bot (${p})`;
 
             // Suscribirse a eventos de Chat de Kick / Twitch / YouTube en Streamer.bot
             streamerBotSocket.send(JSON.stringify({
@@ -430,60 +445,6 @@
 
         if (!chatroomId) return;
 
-        // 1. Conexión Oficial Kick Realtime Centrifugo
-        try {
-          const guestId = '019488a0-' + Math.random().toString(36).substring(2, 6) + '-7000-8000-' + Date.now().toString(16).slice(-12);
-          const authRes = await fetch('https://web.kick.com/api/v1/realtime/auth/connection', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ client_id: guestId })
-          });
-          if (authRes.ok) {
-            const authJson = await authRes.json();
-            const token = authJson?.data?.token;
-            if (token) {
-              const ws = new WebSocket('wss://realtime.us-east-1.platform.kick.com/connection/websocket');
-              ws.onopen = () => {
-                ws.send(JSON.stringify({ id: 1, connect: { token: token } }));
-              };
-              ws.onmessage = (event) => {
-                try {
-                  const msg = JSON.parse(event.data);
-                  if (msg.id === 1 && msg.connect) {
-                    if (!streamerBotConnected) {
-                      displayStatus(`🟢 Conectado a Kick Realtime para @${channel}`);
-                    }
-                    ws.send(JSON.stringify({ id: 2, subscribe: { channel: `chatrooms.${chatroomId}.v2` } }));
-                    setInterval(() => {
-                      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id: 999, ping: true }));
-                    }, 25000);
-                  }
-                  if (msg.push && msg.push.pub) {
-                    const pub = msg.push.pub;
-                    let eventData = pub.data?.data;
-                    if (typeof eventData === 'string') {
-                      try { eventData = JSON.parse(eventData); } catch(e) {}
-                    }
-                    if (eventData && eventData.content) {
-                      const sender = eventData.sender || {};
-                      renderChatMessage({
-                        username: sender.username || sender.slug || 'Usuario',
-                        color: sender.identity?.color || '#53fc18',
-                        text: eventData.content || '',
-                        badges: (sender.identity?.badges || []).map(b => (b.type || '').toUpperCase())
-                      });
-                    }
-                  }
-                } catch(e) {}
-              };
-              return;
-            }
-          }
-        } catch(centrifugoErr) {
-          console.warn("[Kick Centrifugo] Falló conexión directa, intentando Pusher:", centrifugoErr);
-        }
-
-        // 2. Respaldo Pusher en caso de contingencia
         const PUSHER_KEY = "32cbd69e4b950bf97679";
         const PUSHER_CLUSTER = "us2";
 
@@ -529,10 +490,17 @@
           if (!streamerBotConnected) {
             displayStatus(`🟢 Conectado al chat de Kick para @${channel} (WebSockets Kick)`);
           }
+          const simDot = document.querySelector('#test-controls .test-status-pill span');
+          const simText = document.querySelector('#test-controls .test-status-pill span:last-child');
+          if (simDot) {
+            simDot.style.background = '#10b981';
+            simDot.style.boxShadow = '0 0 6px #10b981';
+          }
+          if (simText) simText.textContent = `Kick: @${channel}`;
         });
 
       } catch (err) {
-        console.warn("[Kick Realtime Backup] Error:", err);
+        console.warn("[Kick Pusher Backup] Error:", err);
       }
     }
 
