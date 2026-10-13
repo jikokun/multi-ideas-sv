@@ -259,10 +259,13 @@
       }
       if (simText) simText.textContent = `Kick: @${channelName}`;
 
-      // 1. Conectar a Streamer.bot Local (Puerto 4445 por defecto, o 8080)
-      connectStreamerBot(sbPort);
+      // 1. Conectar a Streamer.bot Local solo si se activa o solicita (?streamerbot=true o ?sb=true o ?port=...)
+      const useStreamerBot = urlParams.get('streamerbot') === 'true' || urlParams.get('sb') === 'true' || urlParams.has('port');
+      if (useStreamerBot) {
+        connectStreamerBot(sbPort);
+      }
 
-      // 2. Conectar a Kick Pusher como respaldo remoto
+      // 2. Conectar a Kick Cloud API de forma independiente sin depender de localhost
       initKickPusher(channelName.toLowerCase().trim());
     }
 
@@ -322,8 +325,6 @@
             currentPortIndex++;
             if (currentPortIndex < portsToTry.length) {
               setTimeout(() => tryConnectPort(portsToTry[currentPortIndex]), 1500);
-            } else {
-              setTimeout(() => tryConnectPort(portsToTry[0]), 5000);
             }
           };
         } catch(e) {
@@ -392,7 +393,7 @@
 
         // 3. Diccionario verificado
         const KNOWN_MAP = {
-          'jikokun': 1866891, 'xqc': 668, 'westcol': 669512, 'ibai': 8211,
+          'jikokun': 1866891, 'sensun': 1866891, 'xqc': 668, 'westcol': 669512, 'ibai': 8211,
           'auronplay': 56413, 'rubius': 18554, 'elxokas': 132166375, 'spreen': 5287882,
           'robles': 142451, 'davoo': 139233, 'coscu': 28110061, 'juansguarnizo': 128934275,
           'aldo_geo': 128809885, 'arigameplays': 132693028, 'knekro': 132159284, 'illojuan': 64620
@@ -445,17 +446,38 @@
 
         if (!chatroomId) return;
 
-        const PUSHER_KEY = "32cbd69e4b950bf97679";
-        const PUSHER_CLUSTER = "us2";
+        // Motor de consulta Kick Cloud seguro contra CORS para el navegador
+        async function fetchKickChatMessages(cid) {
+          if (!cid) return [];
+          const target = `https://web.kick.com/api/v1/chat/${cid}/history`;
+          const endpoints = [
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+            `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`,
+            target
+          ];
+          for (const url of endpoints) {
+            try {
+              const controller = new AbortController();
+              const timer = setTimeout(() => controller.abort(), 4000);
+              const res = await fetch(url, { signal: controller.signal });
+              clearTimeout(timer);
+              if (res.ok) {
+                const json = await res.json();
+                let d = json;
+                if (json && json.contents) {
+                  try { d = JSON.parse(json.contents); } catch(e) {}
+                }
+                const msgs = d.data?.messages || d.messages || [];
+                if (Array.isArray(msgs)) return msgs;
+              }
+            } catch(e) {}
+          }
+          return [];
+        }
 
-        const pusher = new Pusher(PUSHER_KEY, {
-          cluster: PUSHER_CLUSTER,
-          forceTLS: true
-        });
+        const processedIds = new Set();
 
-        const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
-
-        const handleKickPusherMsg = function(raw) {
+        const handleKickChatMsg = function(raw) {
           if (streamerBotConnected) return;
 
           let data = raw;
@@ -471,36 +493,60 @@
           }
 
           if (!data || !data.content) return;
+          const msgId = data.id || (data.created_at ? `${data.sender?.username || 'user'}_${data.created_at}` : null);
+          if (msgId) {
+            if (processedIds.has(msgId)) return;
+            processedIds.add(msgId);
+          }
+
           const sender = data.sender || {};
-          
+          const badges = [];
+          (sender.identity?.badges || []).forEach(b => {
+            if (b.type === 'broadcaster') badges.push('STREAMER 👑');
+            else if (b.type === 'moderator') badges.push('MOD 🛡️');
+            else if (b.type === 'subscriber') badges.push('SUB ⭐');
+            else if (b.type === 'vip') badges.push('VIP 💎');
+          });
+
           renderChatMessage({
             username: sender.username || sender.slug || 'Usuario',
             color: sender.identity?.color || '#53fc18',
             text: data.content || '',
-            badges: []
+            badges: badges
           });
         };
 
-        pusherChannel.bind('App\\Events\\ChatMessageEvent', handleKickPusherMsg);
-        pusherChannel.bind_global(function(ev, d) {
-          if (ev && ev.includes('ChatMessage')) handleKickPusherMsg(d);
-        });
-
-        pusher.connection.bind('connected', function() {
+        // 1. Cargar historial reciente de Kick
+        try {
+          const msgs = await fetchKickChatMessages(chatroomId);
+          if (msgs.length > 0) {
+            msgs.slice(-10).forEach(m => handleKickChatMsg(m));
+          }
           if (!streamerBotConnected) {
-            displayStatus(`🟢 Conectado al chat de Kick para @${channel} (WebSockets Kick)`);
+            displayStatus(`🟢 Conectado al chat de Kick para @${channel} (Kick Cloud API)`);
+            const simDot = document.querySelector('#test-controls .test-status-pill span');
+            const simText = document.querySelector('#test-controls .test-status-pill span:last-child');
+            if (simDot) {
+              simDot.style.background = '#10b981';
+              simDot.style.boxShadow = '0 0 6px #10b981';
+            }
+            if (simText) simText.textContent = `Kick: @${channel}`;
           }
-          const simDot = document.querySelector('#test-controls .test-status-pill span');
-          const simText = document.querySelector('#test-controls .test-status-pill span:last-child');
-          if (simDot) {
-            simDot.style.background = '#10b981';
-            simDot.style.boxShadow = '0 0 6px #10b981';
-          }
-          if (simText) simText.textContent = `Kick: @${channel}`;
-        });
+        } catch(e) {}
+
+        // 2. Polling continuo cada 2.5s para nuevos mensajes
+        setInterval(async () => {
+          if (streamerBotConnected) return;
+          try {
+            const msgs = await fetchKickChatMessages(chatroomId);
+            if (msgs.length > 0) {
+              msgs.forEach(m => handleKickChatMsg(m));
+            }
+          } catch(e) {}
+        }, 2500);
 
       } catch (err) {
-        console.warn("[Kick Pusher Backup] Error:", err);
+        console.warn("[Kick Cloud Engine] Error:", err);
       }
     }
 

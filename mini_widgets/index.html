@@ -612,10 +612,12 @@
       padding: 20px;
       transition: opacity 0.35s ease, visibility 0.35s ease;
     }
-    .widgets-auth-gate.hidden-gate {
+    .widgets-auth-gate.hidden-gate,
+    .widgets-auth-gate.unlocked {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+      display: none !important;
     }
 
     /* =======================================================================
@@ -1070,8 +1072,24 @@
         </svg>
         <span id="gate-google-text">Continuar con Google</span>
       </button>
+
+      <button type="button" class="mt-3 w-full py-2.5 px-4 rounded-xl border border-slate-700/80 hover:border-sky-500/50 bg-slate-800/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition-all flex items-center justify-center gap-2 shadow-sm" onclick="dismissAuthGateAndExplore()">
+        <i class="fa-solid fa-eye text-sky-400"></i> Explorar Galería y Probar Widgets
+      </button>
     </div>
   </div>
+  <script>
+    function dismissAuthGateAndExplore() {
+      var gate = document.getElementById('widgets-auth-gate');
+      var container = document.getElementById('widgets-container');
+      if (gate) { gate.classList.add('unlocked'); gate.style.display = 'none'; }
+      if (container) { container.classList.remove('locked'); }
+      try { localStorage.setItem('multiideas_guest_explored', 'true'); } catch(e) {}
+    }
+    if (localStorage.getItem('multiideas_guest_explored') === 'true' || localStorage.getItem('multiideas_user_authed') === 'true') {
+      dismissAuthGateAndExplore();
+    }
+  </script>
 
   <main class="flex-grow pb-16">
     <!-- Título Principal y Presentación -->
@@ -1381,7 +1399,7 @@
           <!-- Contenedor Superior de Previsualización Escalado (Muestra el widget completo sin recortes) -->
           <div class="card-preview-stage">
             <div class="card-iframe-scaler" style="width: 440px; height: 280px; transform: translate(-50%, -50%) scale(0.55);">
-              <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&port=4445" scrolling="no" loading="lazy"></iframe>
+              <iframe id="preview-chat" src="widget_chat_live.html?channel=jikokun&preview=true" scrolling="no" loading="lazy"></iframe>
             </div>
             <div class="card-hover-overlay group-hover:opacity-100">
               <span class="btn-hover-config">
@@ -2693,6 +2711,76 @@
           </div>
         </div>
 
+        <script>
+          // Handlers inmediatos globales para asegurar 0 ReferenceError independientemente del tiempo de carga de módulos
+          window.KNOWN_KICK_MAP = window.KNOWN_KICK_MAP || {
+            'jikokun': 1866891,
+            'sensun': 1866891,
+            'xqc': 668,
+            'westcol': 669512,
+            'ibai': 8211,
+            'auronplay': 56413,
+            'rubius': 18554,
+            'elxokas': 132166375,
+            'spreen': 5287882,
+            'robles': 142451,
+            'davoo': 139233,
+            'coscu': 28110061,
+            'juansguarnizo': 128934275,
+            'aldo_geo': 128809885,
+            'arigameplays': 132693028,
+            'knekro': 132159284,
+            'illojuan': 64620
+          };
+
+          window.toggleKickManualId = function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const box = document.getElementById('chat-kick-manual-box');
+            if (box) box.classList.toggle('hidden');
+          };
+
+          window.onKickChannelChanged = function() {
+            const channelInput = document.getElementById('chat-kick-channel-input');
+            const clean = (channelInput ? channelInput.value : '').toLowerCase().trim().replace(/^@/, '') || 'jikokun';
+            const openBtn = document.getElementById('chat-kick-open-api-btn');
+            if (openBtn) openBtn.href = `https://kick.com/api/v2/channels/${clean}`;
+            const badge = document.getElementById('chat-kick-status-badge');
+            const manualInput = document.getElementById('chat-kick-manual-input');
+            const hint = document.getElementById('chat-kick-channel-hint');
+
+            if (window.KNOWN_KICK_MAP[clean]) {
+              const id = window.KNOWN_KICK_MAP[clean];
+              if (manualInput) manualInput.value = id;
+              if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${id}`; }
+              if (hint) hint.textContent = `Canal verificado (ID: ${id})`;
+              if (typeof window.updateChatKickWidget === 'function') window.updateChatKickWidget();
+              return;
+            }
+
+            try {
+              const cached = JSON.parse(localStorage.getItem(`kick_chat_cache_${clean}`) || 'null');
+              if (cached && (cached.chatroomId || cached.id)) {
+                const cid = cached.chatroomId || cached.id;
+                if (manualInput) manualInput.value = cid;
+                if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${cid}`; }
+                if (hint) hint.textContent = `Canal verificado (ID: ${cid})`;
+                if (typeof window.updateChatKickWidget === 'function') window.updateChatKickWidget();
+                return;
+              }
+            } catch(e) {}
+
+            if (manualInput && clean !== 'jikokun') manualInput.value = '';
+            if (badge) badge.classList.add('hidden');
+            if (hint) hint.textContent = `Buscando canal @${clean}...`;
+
+            clearTimeout(window._kickDetectDebounce);
+            window._kickDetectDebounce = setTimeout(() => {
+              if (typeof window.updateChatKickWidget === 'function') window.updateChatKickWidget();
+              if (typeof window.autoDetectKickChatId === 'function') window.autoDetectKickChatId();
+            }, 350);
+          };
+        </script>
+
         <!-- Panel de Configuración Específica: Chat Flotante Kick (API Nativa) -->
         <div id="panel-settings-chat-kick" class="widget-settings-panel hidden space-y-6">
           <div class="panel-form-controls space-y-5">
@@ -3100,7 +3188,7 @@
     }
 
     // Comprobar estado previo guardado para evitar bloqueos innecesarios al navegar entre páginas
-    if (localStorage.getItem('multiideas_user_authed') === 'true') {
+    if (localStorage.getItem('multiideas_user_authed') === 'true' || localStorage.getItem('multiideas_guest_explored') === 'true') {
       const gateEl = document.getElementById('widgets-auth-gate');
       const containerEl = document.getElementById('widgets-container');
       if (gateEl) {
@@ -3111,6 +3199,19 @@
         containerEl.classList.remove('locked');
       }
     }
+
+    window.dismissAuthGateAndExplore = function() {
+      const gate = document.getElementById('widgets-auth-gate');
+      const container = document.getElementById('widgets-container');
+      if (gate) {
+        gate.classList.add('unlocked');
+        gate.style.display = 'none';
+      }
+      if (container) {
+        container.classList.remove('locked');
+      }
+      try { localStorage.setItem('multiideas_guest_explored', 'true'); } catch(e) {}
+    };
 
     onAuthStateChanged(auth, async (user) => {
       const validUser = isVerifiedUser(user) ? user : null;
@@ -3130,7 +3231,8 @@
           localStorage.removeItem('multiideas_user_authed');
           localStorage.removeItem('multiideas_user_uid');
         } catch(e) {}
-        updateAuthGateUI(null);
+        const isGuest = localStorage.getItem('multiideas_guest_explored') === 'true';
+        if (!isGuest) updateAuthGateUI(null);
         updateSyncBannerUI(null);
         userWidgetsConfig = {};
         resetFavoriteButtonsUI();
@@ -3142,8 +3244,9 @@
       const gate = document.getElementById('widgets-auth-gate');
       const container = document.getElementById('widgets-container');
       const isAuthed = isVerifiedUser(user);
+      const isGuest = localStorage.getItem('multiideas_guest_explored') === 'true';
 
-      if (isAuthed) {
+      if (isAuthed || isGuest) {
         if (gate) {
           gate.classList.add('unlocked');
           gate.style.display = 'none';
@@ -3811,7 +3914,7 @@
       const isLight = document.getElementById('chat-theme-light') ? document.getElementById('chat-theme-light').checked : false;
       const fadeTime = document.getElementById('chat-fade-input') ? document.getElementById('chat-fade-input').value : '0';
 
-      const params = new URLSearchParams({ channel, port: '4445' });
+      const params = new URLSearchParams({ channel });
       if (fontSize && fontSize !== '15') params.set('fontsize', fontSize);
       if (textColor && textColor !== '#e2e8f0') params.set('textcolor', textColor);
       if (bgColor && bgColor !== '#121214') params.set('bgcolor', bgColor);
@@ -4513,6 +4616,7 @@
     // Mapa de Canales Kick Verificados para respuesta instantánea
     const KNOWN_KICK_MAP = {
       'jikokun': 1866891,
+      'sensun': 1866891,
       'xqc': 668,
       'westcol': 669512,
       'ibai': 8211,
@@ -4535,6 +4639,9 @@
       const box = document.getElementById('chat-kick-manual-box');
       if (box) box.classList.toggle('hidden');
     }
+    window.toggleKickManualId = toggleKickManualId;
+
+    let kickDetectDebounce = null;
 
     async function autoDetectKickChatId() {
       const channelInput = document.getElementById('chat-kick-channel-input');
@@ -4545,7 +4652,6 @@
       const openBtn = document.getElementById('chat-kick-open-api-btn');
 
       if (openBtn) openBtn.href = `https://kick.com/api/v2/channels/${clean}`;
-      if (hint) hint.textContent = `Detectando ID de @${clean}...`;
 
       if (KNOWN_KICK_MAP[clean]) {
         const id = KNOWN_KICK_MAP[clean];
@@ -4556,40 +4662,82 @@
         return;
       }
 
-      // Probar auto-detección mediante proxies en paralelo
+      // Comprobar caché local
+      try {
+        const cached = JSON.parse(localStorage.getItem(`kick_chat_cache_${clean}`) || 'null');
+        if (cached && (cached.chatroomId || cached.id)) {
+          const cid = cached.chatroomId || cached.id;
+          if (manualInput) manualInput.value = cid;
+          if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${cid}`; }
+          if (hint) hint.textContent = `Canal verificado (ID: ${cid})`;
+          updateChatKickWidget();
+          return;
+        }
+      } catch(e) {}
+
+      if (hint) hint.textContent = `Detectando ID de @${clean}...`;
+
+      // Probar auto-detección mediante v1 y v2 en paralelo
+      const targetV1 = `https://kick.com/api/v1/channels/${clean}`;
       const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
-      const proxies = [
+      const endpoints = [
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV1)}`,
         `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV2)}`,
         `https://api.allorigins.win/get?url=${encodeURIComponent(targetV2)}`,
-        `https://corsproxy.org/?${encodeURIComponent(targetV2)}`
+        targetV1,
+        targetV2
       ];
 
-      for (const p of proxies) {
-        try {
-          const controller = new AbortController();
-          const t = setTimeout(() => controller.abort(), 3500);
-          const res = await fetch(p, { signal: controller.signal });
-          clearTimeout(t);
-          if (res.ok) {
-            const raw = await res.json();
-            let parsed = raw;
-            if (raw.contents) try { parsed = JSON.parse(raw.contents); } catch(e) {}
-            const chatroomId = parsed?.chatroom?.id || parsed?.id;
-            if (chatroomId) {
-              if (manualInput) manualInput.value = chatroomId;
-              if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${chatroomId}`; }
-              if (hint) hint.textContent = `Canal detectado (ID: ${chatroomId})`;
-              try { localStorage.setItem(`kick_chat_cache_${clean}`, JSON.stringify({ chatroomId, slug: clean })); } catch(e) {}
-              updateChatKickWidget();
-              return;
-            }
-          }
-        } catch(e) {}
-      }
+      const checkEndpoint = (url) => new Promise((resolve, reject) => {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 4000);
+        fetch(url, { signal: controller.signal })
+          .then(res => {
+            clearTimeout(t);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return res.text();
+          })
+          .then(text => {
+            try {
+              let parsed = JSON.parse(text);
+              if (parsed && parsed.contents) {
+                try { parsed = JSON.parse(parsed.contents); } catch(e) {}
+              }
+              const cid = parsed?.chatroom?.id || parsed?.id;
+              if (cid) resolve(cid);
+              else reject();
+            } catch(e) { reject(); }
+          })
+          .catch(() => { clearTimeout(t); reject(); });
+      });
+
+      try {
+        const chatroomId = await new Promise((resolve, reject) => {
+          let fails = 0;
+          endpoints.forEach(ep => {
+            checkEndpoint(ep)
+              .then(cid => resolve(cid))
+              .catch(() => {
+                fails++;
+                if (fails >= endpoints.length) reject();
+              });
+          });
+        });
+
+        if (chatroomId) {
+          if (manualInput) manualInput.value = chatroomId;
+          if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${chatroomId}`; }
+          if (hint) hint.textContent = `Canal verificado (ID: ${chatroomId})`;
+          try { localStorage.setItem(`kick_chat_cache_${clean}`, JSON.stringify({ chatroomId, slug: clean })); } catch(e) {}
+          updateChatKickWidget();
+          return;
+        }
+      } catch(e) {}
 
       if (hint) hint.textContent = `Conexión por nombre para @${clean}`;
       updateChatKickWidget();
     }
+    window.autoDetectKickChatId = autoDetectKickChatId;
 
     function onKickChannelChanged() {
       const channelInput = document.getElementById('chat-kick-channel-input');
@@ -4605,13 +4753,35 @@
         if (manualInput) manualInput.value = id;
         if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${id}`; }
         if (hint) hint.textContent = `Canal verificado (ID: ${id})`;
-      } else {
-        if (manualInput && clean !== 'jikokun') manualInput.value = '';
-        if (badge) badge.classList.add('hidden');
-        if (hint) hint.textContent = `Conexión automática por nombre para @${clean}`;
+        updateChatKickWidget();
+        return;
       }
-      updateChatKickWidget();
+
+      // Probar si está en caché
+      try {
+        const cached = JSON.parse(localStorage.getItem(`kick_chat_cache_${clean}`) || 'null');
+        if (cached && (cached.chatroomId || cached.id)) {
+          const cid = cached.chatroomId || cached.id;
+          if (manualInput) manualInput.value = cid;
+          if (badge) { badge.classList.remove('hidden'); badge.innerHTML = `<i class="fa-solid fa-check"></i> ID: ${cid}`; }
+          if (hint) hint.textContent = `Canal verificado (ID: ${cid})`;
+          updateChatKickWidget();
+          return;
+        }
+      } catch(e) {}
+
+      if (manualInput && clean !== 'jikokun') manualInput.value = '';
+      if (badge) badge.classList.add('hidden');
+      if (hint) hint.textContent = `Buscando canal @${clean}...`;
+
+      // Auto-detección y actualización con debounce para fluidez al escribir
+      clearTimeout(kickDetectDebounce);
+      kickDetectDebounce = setTimeout(() => {
+        updateChatKickWidget();
+        autoDetectKickChatId();
+      }, 350);
     }
+    window.onKickChannelChanged = onKickChannelChanged;
 
     // 12. Chat Flotante Kick (API Nativa)
     function updateChatKickWidget(shouldSync = true) {
@@ -4674,20 +4844,20 @@
 
       const modalIframe = document.getElementById('modal-live-iframe');
       if (modalIframe && window.currentActiveModalWidget === 'chat-kick') {
-        const lastChan = modalIframe.dataset.lastChannel;
-        const lastCid = modalIframe.dataset.lastCid;
-        if (!modalIframe.src || modalIframe.src === 'about:blank' || !modalIframe.src.includes('widget_chat_kick_live.html') || lastChan !== channel || lastCid !== manualChatId) {
+        if (!modalIframe.src || modalIframe.src === 'about:blank' || !modalIframe.src.includes('widget_chat_kick_live.html')) {
           modalIframe.dataset.lastChannel = channel;
           modalIframe.dataset.lastCid = manualChatId;
           modalIframe.src = previewPath;
         } else {
+          modalIframe.dataset.lastChannel = channel;
+          modalIframe.dataset.lastCid = manualChatId;
           postConfig(modalIframe.contentWindow);
         }
       }
 
       const previewIframe = document.getElementById('preview-chat-kick');
       if (previewIframe) {
-        if (!previewIframe.src || previewIframe.dataset.lastSrc !== previewPath) {
+        if (!previewIframe.src || previewIframe.src === 'about:blank' || !previewIframe.src.includes('widget_chat_kick_live.html')) {
           previewIframe.dataset.lastSrc = previewPath;
           previewIframe.src = previewPath;
         } else {
@@ -5016,7 +5186,7 @@
     // -----------------------------------------------------------------------
     // CONTROLADOR DE MODAL Y GALERÍA (CON BLOQUEO DE SCROLL Y FILTRO STREAMER.BOT)
     // -----------------------------------------------------------------------
-    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Clima & Reloj en Vivo", "desc": "Reloj digital con pronóstico del clima y temperatura en tiempo real para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador de Espectadores", "desc": "Muestra en tiempo real tu avatar, canal y número de espectadores en vivo conectados a tu directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Presenta tus redes sociales con transiciones elegantes y diseño moderno para tu stream.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Regresiva", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Neón", "desc": "Reloj con estética neón, fecha completa y formato 12/24 horas para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat Clásico en Vivo", "desc": "Overlay de chat translúcido con insignias de usuario y animación fluida para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun&port=4445", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas", "desc": "Alertas dinámicas interactivas con marco animado y banners publicitarios para eventos en directo.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true&mute=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir eventos en pantalla.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica", "desc": "Alerta de alta intensidad con relámpagos neón, sintetizador de audio y animaciones dinámicas.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón", "desc": "Borde neón para tu cámara con selector de relación de aspecto 16:9 y 1:1, y resplandor personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar", "desc": "Animación espacial con estrellas luminosas y avisos para seguidores, suscripciones, donaciones y raids.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante", "desc": "Burbujas modernas con insignias oficiales, color de usuario, stickers animados y diseño limpio para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}, "bunny-alerts": {"id": "bunny-alerts", "number": "13", "title": "Alerta Conejita", "desc": "Animación kawaii con conejitas en SVG, expresiones dinámicas según el evento y mensajes interactivos para Kick.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-heart", "badgeClass": "bg-pink-500/15 text-pink-400 border border-pink-500/30", "badgeClassLight": "bg-pink-100 text-pink-700 border border-pink-200", "defaultUrl": "alertas_conejita.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-bunny-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}};
+    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Clima & Reloj en Vivo", "desc": "Reloj digital con pronóstico del clima y temperatura en tiempo real para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador de Espectadores", "desc": "Muestra en tiempo real tu avatar, canal y número de espectadores en vivo conectados a tu directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Presenta tus redes sociales con transiciones elegantes y diseño moderno para tu stream.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Regresiva", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Neón", "desc": "Reloj con estética neón, fecha completa y formato 12/24 horas para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat Clásico en Vivo", "desc": "Overlay de chat translúcido con insignias de usuario y animación fluida para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas", "desc": "Alertas dinámicas interactivas con marco animado y banners publicitarios para eventos en directo.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true&mute=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir eventos en pantalla.", "type": "premium", "category": "alertas", "streamerbot": false, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica", "desc": "Alerta de alta intensidad con relámpagos neón, sintetizador de audio y animaciones dinámicas.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón", "desc": "Borde neón para tu cámara con selector de relación de aspecto 16:9 y 1:1, y resplandor personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar", "desc": "Animación espacial con estrellas luminosas y avisos para seguidores, suscripciones, donaciones y raids.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante", "desc": "Burbujas modernas con insignias oficiales, color de usuario, stickers animados y diseño limpio para OBS Studio.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}, "bunny-alerts": {"id": "bunny-alerts", "number": "13", "title": "Alerta Conejita", "desc": "Animación kawaii con conejitas en SVG, expresiones dinámicas según el evento y mensajes interactivos para Kick.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-heart", "badgeClass": "bg-pink-500/15 text-pink-400 border border-pink-500/30", "badgeClassLight": "bg-pink-100 text-pink-700 border border-pink-200", "defaultUrl": "alertas_conejita.html?channel=jikokun&preview=true&loop=true&mute=true", "urlKey": "url-bunny-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}};
     window.currentActiveModalWidget = null;
 
     window.openWidgetConfigModal = function(widgetId) {
@@ -5055,7 +5225,7 @@
       try {
         const u = new URL(currentUrl, window.location.href);
         u.searchParams.set('mute', 'true'); // Vista previa en modal siempre en silencio
-        if (widgetId === 'chat-kick' || widgetId === 'alerts' || widgetId === 'star-alerts' || widgetId === 'bunny-alerts') {
+        if (widgetId === 'chat' || widgetId === 'chat-kick' || widgetId === 'alerts' || widgetId === 'star-alerts' || widgetId === 'bunny-alerts') {
           u.searchParams.set('preview', 'true');
           u.searchParams.set('loop', 'true');
         }
@@ -5128,8 +5298,21 @@
     window.syncModalIframeLive = function(widgetId, newUrl) {
       if (window.currentActiveModalWidget === widgetId) {
         const modalIframe = document.getElementById('modal-live-iframe');
-        if (modalIframe && modalIframe.src !== newUrl) {
-          modalIframe.src = newUrl;
+        if (modalIframe) {
+          try {
+            const u = new URL(newUrl, window.location.href);
+            u.searchParams.set('mute', 'true');
+            if (widgetId === 'chat' || widgetId === 'chat-kick' || widgetId === 'alerts' || widgetId === 'star-alerts' || widgetId === 'bunny-alerts') {
+              u.searchParams.set('preview', 'true');
+              u.searchParams.set('loop', 'true');
+            }
+            const modalUrl = u.toString();
+            if (modalIframe.src !== modalUrl) {
+              modalIframe.src = modalUrl;
+            }
+          } catch(e) {
+            if (modalIframe.src !== newUrl) modalIframe.src = newUrl;
+          }
         }
       }
     };

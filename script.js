@@ -2250,8 +2250,9 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
 
     containers.forEach(container => {
         if (user) {
-            const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-            const displayName = user.displayName || user.email.split('@')[0];
+            const rawName = user.displayName || user.email || user.phoneNumber || 'Usuario';
+            const initials = rawName.charAt(0).toUpperCase();
+            const displayName = user.displayName || (user.email ? user.email.split('@')[0] : (user.phoneNumber || 'Usuario'));
 
             container.innerHTML = `
                 <div class="user-profile-menu" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">

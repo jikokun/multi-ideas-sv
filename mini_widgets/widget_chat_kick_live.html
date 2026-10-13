@@ -802,6 +802,7 @@
       // -----------------------------------------------------------------------
       const KNOWN_KICK_CHANNELS = {
         'jikokun': { channelId: 1874362, chatroomId: 1866891, slug: 'jikokun' },
+        'sensun': { channelId: 1866891, chatroomId: 1866891, slug: 'sensun' },
         'xqc': { channelId: 668, chatroomId: 668, slug: 'xqc' },
         'westcol': { channelId: 669746, chatroomId: 669512, slug: 'westcol' },
         'ibai': { channelId: 8212, chatroomId: 8211, slug: 'ibai' },
@@ -901,18 +902,14 @@
           }
         } catch(e) {}
 
-        updateHud('connecting', `Buscando canal @${clean}...`);
-
-        // 4. Resolución ultrarrápida en PARALELO mediante proxies activos y v1/v2
-        const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
+        // 4. Resolución ultrarrápida en PARALELO mediante endpoints y proxies activos
         const targetV1 = `https://kick.com/api/v1/channels/${clean}`;
+        const targetV2 = `https://kick.com/api/v2/channels/${clean}`;
 
         const proxyCandidates = [
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV2)}`,
-          `https://api.allorigins.win/get?url=${encodeURIComponent(targetV2)}`,
           `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV1)}`,
-          `https://corsproxy.org/?${encodeURIComponent(targetV2)}`,
-          `https://cors.eu.org/${targetV2}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetV2)}`,
+          targetV1,
           targetV2
         ];
 
@@ -1058,59 +1055,83 @@
         if (simText) simText.textContent = `Kick: @${slug} (En Vivo)`;
       }
 
-      // Carga inmediata del historial de chat para mostrar los mensajes recientes al abrir el widget
-      async function hidratarHistorialKick(info) {
-        if (!info) return;
-        const targetIds = [info.channelId, info.chatroomId].filter(Boolean);
-        for (const cid of targetIds) {
+      // Consultor de historial y mensajes de chat de Kick libre de bloqueos CORS para el navegador
+      async function fetchKickChatMessages(cid) {
+        if (!cid) return [];
+        const target = `https://web.kick.com/api/v1/chat/${cid}/history`;
+        const endpoints = [
+          target,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(target)}`,
+          `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`
+        ];
+        for (const url of endpoints) {
           try {
-            const res = await fetch(`https://web.kick.com/api/v1/chat/${cid}/history`, {
-              headers: {
-                'Accept': 'application/json',
-                'x-app-platform': 'web',
-                'Referer': 'https://kick.com'
-              }
-            });
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timer);
             if (res.ok) {
               const json = await res.json();
-              const msgs = json.data?.messages || [];
-              if (msgs.length > 0) {
-                info.activeChatId = cid;
-                const recientes = msgs.slice(-10);
-                recientes.forEach(m => handleIncomingKickEvent('ChatMessageEvent', m));
-                marcarKickConectado(info.slug);
-                break;
+              let d = json;
+              if (json && json.contents) {
+                try { d = JSON.parse(json.contents); } catch(e) {}
               }
+              const msgs = d.data?.messages || d.messages || [];
+              if (Array.isArray(msgs)) return msgs;
             }
           } catch(e) {}
         }
+        return [];
       }
 
-      // Motor de lectura continua del stream de Kick para OBS Studio y navegadores
+      function mostrarMensajeCanalListo(slug) {
+        if (processedMessageIds.size > 0) return;
+        addChatMessage({
+          username: slug,
+          userColor: '#53fc18',
+          text: `¡Chat en vivo listo para @${slug}! Esperando mensajes en el directo... 💬✨`,
+          badges: [{ type: 'broadcaster' }]
+        });
+      }
+
+      // Carga inmediata del historial de chat para mostrar los mensajes recientes al abrir el widget
+      async function hidratarHistorialKick(info) {
+        if (!info) return;
+        const targetIds = [info.chatroomId, info.channelId].filter(Boolean);
+        for (const cid of targetIds) {
+          try {
+            const msgs = await fetchKickChatMessages(cid);
+            if (msgs.length > 0) {
+              info.activeChatId = cid;
+              const recientes = msgs.slice(-10);
+              recientes.forEach(m => handleIncomingKickEvent('ChatMessageEvent', m));
+              marcarKickConectado(info.slug);
+              return;
+            }
+          } catch(e) {}
+        }
+        // Si el chatroom aún no tiene mensajes archivados, confirmar conexión activa
+        marcarKickConectado(info.slug);
+        mostrarMensajeCanalListo(info.slug);
+      }
+
+      // Motor de lectura continua del stream de Kick para OBS Studio, navegadores y vitrinas públicas
       function iniciarKickStreamPoll(info) {
         if (kickStreamPollTimer) return;
-        const activeId = info.activeChatId || info.channelId || info.chatroomId;
+        const activeId = info.activeChatId || info.chatroomId || info.channelId;
         console.log(`[Kick Chat] 📡 Canal de datos en vivo activo para @${info.slug} (ID: ${activeId}).`);
         kickStreamPollTimer = setInterval(async () => {
           try {
-            const res = await fetch(`https://web.kick.com/api/v1/chat/${activeId}/history`, {
-              headers: {
-                'Accept': 'application/json',
-                'x-app-platform': 'web',
-                'Referer': 'https://kick.com'
-              }
-            });
-            if (res.ok) {
-              const json = await res.json();
-              const msgs = json.data?.messages || [];
+            const msgs = await fetchKickChatMessages(activeId);
+            if (msgs.length > 0) {
               msgs.forEach(m => handleIncomingKickEvent('ChatMessageEvent', m));
               marcarKickConectado(info.slug);
             }
           } catch(e) {}
-        }, 1500);
+        }, 2500);
       }
 
-      // Conexión principal nativa a los WebSockets de Kick
+      // Conexión principal nativa a los WebSockets y APIs de Kick
       async function conectarWebSocketKick() {
         if (!state.channel) return;
 
@@ -1179,7 +1200,6 @@
                 try {
                   const msg = JSON.parse(event.data);
                   if (msg.connect) {
-                    // Suscribirse a la sala de chat y al canal de eventos
                     ws.send(JSON.stringify({
                       id: msgId++,
                       subscribe: { channel: `chatrooms.${info.chatroomId}.v2` }
@@ -1413,12 +1433,13 @@
             const cleanNew = d.channel.toLowerCase().trim().replace(/^@/, '');
             if (cleanNew && cleanNew !== state.channel) {
               state.channel = cleanNew;
+              if (d.chatroomId === undefined) state.chatroomId = null;
               needsReconnect = true;
             }
           }
-          if (d.chatroomId) {
-            const newChatId = parseInt(d.chatroomId, 10);
-            if (newChatId && newChatId !== state.chatroomId) {
+          if (d.chatroomId !== undefined) {
+            const newChatId = d.chatroomId ? parseInt(d.chatroomId, 10) : null;
+            if (newChatId !== state.chatroomId) {
               state.chatroomId = newChatId;
               needsReconnect = true;
             }
@@ -1433,13 +1454,17 @@
           if (d.textColor) state.textColor = d.textColor;
           if (d.filterBots !== undefined) state.filterBots = !!d.filterBots;
           if (d.filterCommands !== undefined) state.filterCommands = !!d.filterCommands;
-          if (d.blockedUsers) {
-            state.blockedUsers = d.blockedUsers.split(',').map(u => u.trim().toLowerCase()).filter(Boolean);
+          if (d.showBadges !== undefined) state.showBadges = !!d.showBadges;
+          if (d.showAlerts !== undefined) state.showAlerts = !!d.showAlerts;
+          if (d.blockedUsers !== undefined) {
+            state.blockedUsers = (d.blockedUsers || '').split(',').map(u => u.trim().toLowerCase()).filter(Boolean);
           }
           if (d.align) state.align = d.align;
           applyStyles();
 
           if (needsReconnect) {
+            chatWrapper.innerHTML = '';
+            processedMessageIds.clear();
             conectarWebSocketKick();
           }
         }
@@ -1456,11 +1481,9 @@
         if (p) p.style.display = 'none';
       }
 
-      if (state.preview) {
-        setTimeout(iniciarDemoPreview, 250);
-      } else {
-        // En OBS o ventana directa: mensaje de bienvenida solo si el canal no tiene mensajes previos tras 2.5s
-        setTimeout(mostrarMensajesIniciales, 2500);
+      // Solo ejecutar simulación ficticia continua si se solicita explícitamente (?demo=true)
+      if (urlParams.get('demo') === 'true') {
+        setTimeout(iniciarDemoPreview, 1200);
       }
 
     })();
