@@ -870,8 +870,16 @@
 
       async function resolverCanalKick(username) {
         const clean = (username || 'jikokun').trim().toLowerCase().replace(/^@/, '');
+        const cacheKey = `kick_chat_cache_${clean}`;
 
-        // 1. Overrides manuales directos en URL o State (ej: ?chatroom_id=1866891 o ?channel_id=1874362)
+        // 1. Diccionario verificado para canales conocidos (Respuesta inmediata en 0ms e IDs oficiales verificados)
+        if (KNOWN_KICK_CHANNELS[clean]) {
+          const resolved = { ...KNOWN_KICK_CHANNELS[clean] };
+          try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+          return resolved;
+        }
+
+        // 2. Overrides manuales directos en URL o State (ej: ?chatroom_id=1866891 o ?channel_id=1874362)
         const urlCid = state.channelId || urlParams.get('channel_id') || urlParams.get('cid');
         const urlChatId = state.chatroomId || urlParams.get('chatroom_id') || urlParams.get('chat_id');
         if (urlChatId || urlCid) {
@@ -880,12 +888,11 @@
             chatroomId: parseInt(urlChatId || urlCid, 10), 
             slug: clean 
           };
-          try { localStorage.setItem(`kick_chat_cache_${clean}`, JSON.stringify(resolved)); } catch(e) {}
+          try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
           return resolved;
         }
 
-        // 2. Caché local permanente en navegador
-        const cacheKey = `kick_chat_cache_${clean}`;
+        // 3. Caché local permanente en navegador
         try {
           const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
           if (cached && (cached.chatroomId || cached.channelId)) {
@@ -893,13 +900,6 @@
             return cached;
           }
         } catch(e) {}
-
-        // 3. Diccionario verificado para canales conocidos (Respuesta inmediata en 0ms)
-        if (KNOWN_KICK_CHANNELS[clean]) {
-          const resolved = KNOWN_KICK_CHANNELS[clean];
-          try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
-          return resolved;
-        }
 
         updateHud('connecting', `Buscando canal @${clean}...`);
 
@@ -947,6 +947,11 @@
         return null;
       }
 
+      const processedMessageIds = new Set();
+      let kickActiveWs = null;
+      let kickStreamPollTimer = null;
+      let kickIsConnected = false;
+
       // Procesador central de eventos entrantes de Kick (Mensajes, Moderación y Alertas)
       function handleIncomingKickEvent(eventName, payload) {
         if (!eventName || !payload) return;
@@ -956,11 +961,19 @@
         }
         if (data && data.data && typeof data.data === 'string') {
           try { data = JSON.parse(data.data); } catch(e) {}
+        } else if (data && data.data && typeof data.data === 'object') {
+          data = data.data;
         }
 
         // 1. Mensaje de Chat en Vivo
-        if (eventName.includes('ChatMessageEvent')) {
+        if (eventName.includes('ChatMessageEvent') || eventName === 'ChatMessage') {
           if (!data || !data.content) return;
+          const msgId = data.id || (data.created_at ? `${data.sender?.username || 'user'}_${data.created_at}` : null);
+          if (msgId) {
+            if (processedMessageIds.has(msgId)) return;
+            processedMessageIds.add(msgId);
+          }
+
           const sender = data.sender || {};
           const badges = sender.identity?.badges || [];
 
@@ -969,11 +982,11 @@
             userColor: sender.identity?.color || '#53fc18',
             text: data.content || '',
             badges: badges,
-            messageId: data.id
+            messageId: msgId
           });
         }
         // 2. Moderación: Mensaje Borrado
-        else if (eventName.includes('MessageDeletedEvent')) {
+        else if (eventName.includes('MessageDeletedEvent') || eventName === 'MessageDeleted') {
           const msgId = data?.message?.id || data?.id;
           if (msgId) {
             const el = document.querySelector(`[data-msg-id="${msgId}"]`);
@@ -981,14 +994,14 @@
           }
         }
         // 3. Moderación: Usuario Baneado / Silenciado
-        else if (eventName.includes('UserBannedEvent')) {
+        else if (eventName.includes('UserBannedEvent') || eventName === 'UserBanned') {
           const username = data?.user?.username || data?.username;
           if (username) {
             document.querySelectorAll(`[data-sender="${username.toLowerCase()}"]`).forEach(el => el.remove());
           }
         }
         // 4. Nueva Suscripción
-        else if (eventName.includes('SubscriptionEvent')) {
+        else if (eventName.includes('SubscriptionEvent') || eventName === 'Subscription') {
           const user = data.username || data.user?.username || 'Usuario';
           const months = data.months || data.count || 1;
           addEventBubble({
@@ -999,7 +1012,7 @@
           });
         }
         // 5. Suscripción Regalada
-        else if (eventName.includes('GiftedSubscriptionsEvent') || eventName.includes('Gift')) {
+        else if (eventName.includes('GiftedSubscriptionsEvent') || eventName === 'GiftedSubscriptions' || eventName.includes('Gift')) {
           const gifter = data.gifter_username || data.username || 'Un mecenas';
           const gifts = data.gifted_usernames?.length || data.count || 1;
           addEventBubble({
@@ -1010,7 +1023,7 @@
           });
         }
         // 6. Raid o Host Entrante
-        else if (eventName.includes('StreamHostEvent') || eventName.includes('Raid')) {
+        else if (eventName.includes('StreamHostEvent') || eventName === 'Host' || eventName.includes('Raid')) {
           const hostName = data.host_username || data.channel?.slug || 'Canal';
           const viewers = data.number_viewers || data.viewers || 0;
           addEventBubble({
@@ -1021,7 +1034,7 @@
           });
         }
         // 7. Nuevo Seguidor
-        else if (eventName.includes('FollowersUpdated') || eventName.includes('Follow')) {
+        else if (eventName.includes('FollowersUpdated') || eventName === 'Follow') {
           const user = data.username || data.follower?.username || data.follower || 'NuevoSeguidor';
           addEventBubble({
             type: 'follow',
@@ -1032,159 +1045,183 @@
         }
       }
 
-      // -----------------------------------------------------------------------
-      // CONEXIÓN A STREAMER.BOT LOCAL (WebSocket ws://127.0.0.1:4445 / 8080)
-      // -----------------------------------------------------------------------
-      let streamerBotSocket = null;
-      let streamerBotConnected = false;
-
-      function conectarStreamerBotLocal() {
-        const ports = ['4445', '8080'];
-        let portIdx = 0;
-
-        function tryPort(p) {
-          try {
-            const ws = new WebSocket(`ws://127.0.0.1:${p}/`);
-            streamerBotSocket = ws;
-
-            ws.onopen = () => {
-              streamerBotConnected = true;
-              console.log(`[Streamer.bot] 🟢 Conectado exitosamente en puerto ${p}`);
-              const simText = document.getElementById('sim-status-text');
-              if (simText) simText.textContent = `Kick / Streamer.bot (${p})`;
-
-              ws.send(JSON.stringify({
-                request: "Subscribe",
-                id: "kick-chat-overlay",
-                events: {
-                  Kick: ["ChatMessage", "UserBanned", "MessageDeleted", "Subscription", "GiftedSubscriptions", "Host", "Follow"],
-                  Twitch: ["ChatMessage"],
-                  YouTube: ["Message"]
-                }
-              }));
-            };
-
-            ws.onmessage = (event) => {
-              try {
-                const data = JSON.parse(event.data);
-                const payload = data.data || data;
-                if (payload && (payload.message || payload.messageText || payload.text)) {
-                  const msgObj = payload.message || payload;
-                  const userObj = msgObj.user || payload.user || payload.sender || {};
-                  const username = userObj.name || userObj.username || userObj.login || 'Usuario';
-                  const color = userObj.color || userObj.roleColor || '#53fc18';
-                  const text = msgObj.message || msgObj.text || payload.messageText || payload.text || '';
-
-                  const badges = [];
-                  if (userObj.isBroadcaster) badges.push({ type: 'broadcaster' });
-                  if (userObj.isModerator || userObj.isMod) badges.push({ type: 'moderator' });
-                  if (userObj.isSubscriber || userObj.isSub) badges.push({ type: 'subscriber', count: userObj.months || 1 });
-                  if (userObj.isVip) badges.push({ type: 'vip' });
-
-                  addChatMessage({
-                    username: username,
-                    userColor: color,
-                    text: text,
-                    badges: badges,
-                    messageId: msgObj.messageId || Date.now().toString()
-                  });
-                }
-              } catch(e) {}
-            };
-
-            ws.onclose = () => {
-              streamerBotConnected = false;
-              portIdx++;
-              if (portIdx < ports.length) {
-                setTimeout(() => tryPort(ports[portIdx]), 2000);
-              }
-            };
-
-            ws.onerror = () => {
-              streamerBotConnected = false;
-            };
-          } catch(e) {}
-        }
-
-        tryPort(ports[0]);
-      }
-
-      function conectarKickPusherNativo(info, retryCount = 0) {
-        const currentKey = KICK_PUSHER_KEYS[currentKeyIndex % KICK_PUSHER_KEYS.length];
+      function marcarKickConectado(slug) {
+        if (kickIsConnected) return;
+        kickIsConnected = true;
+        updateHud('online', `Conectado al chat de @${slug}`);
         const simDot = document.getElementById('sim-status-dot');
         const simText = document.getElementById('sim-status-text');
-
-        if (activePusher) {
-          try { activePusher.disconnect(); } catch(e) {}
-        }
-
-        try {
-          const pusher = new Pusher(currentKey, {
-            cluster: KICK_PUSHER_CLUSTER,
-            forceTLS: true
-          });
-          activePusher = pusher;
-
-          const chatChannel = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
-          chatChannel.bind('App\\Events\\ChatMessageEvent', (d) => handleIncomingKickEvent('ChatMessageEvent', d));
-          chatChannel.bind('ChatMessageEvent', (d) => handleIncomingKickEvent('ChatMessageEvent', d));
-          chatChannel.bind('App\\Events\\MessageDeletedEvent', (d) => handleIncomingKickEvent('MessageDeletedEvent', d));
-          chatChannel.bind('App\\Events\\UserBannedEvent', (d) => handleIncomingKickEvent('UserBannedEvent', d));
-
-          if (info.channelId) {
-            const channelEvents = pusher.subscribe(`channel.${info.channelId}`);
-            channelEvents.bind('App\\Events\\SubscriptionEvent', (d) => handleIncomingKickEvent('SubscriptionEvent', d));
-            channelEvents.bind('App\\Events\\GiftedSubscriptionsEvent', (d) => handleIncomingKickEvent('GiftedSubscriptionsEvent', d));
-            channelEvents.bind('App\\Events\\StreamHostEvent', (d) => handleIncomingKickEvent('StreamHostEvent', d));
-            channelEvents.bind('App\\Events\\FollowersUpdated', (d) => handleIncomingKickEvent('FollowersUpdated', d));
-          }
-
-          pusher.connection.bind('connected', function() {
-            updateHud('online', `Conectado al chat de @${info.slug}`);
-            if (simDot) {
-              simDot.style.background = '#10b981';
-              simDot.style.boxShadow = '0 0 8px #10b981';
-            }
-            if (simText && !streamerBotConnected) simText.textContent = `Kick: @${info.slug} (En Vivo)`;
-          });
-
-          pusher.connection.bind('disconnected', function() {
-            console.log('[Kick Pusher] Estado: desconectado.');
-          });
-
-          pusher.connection.bind('error', function(err) {
-            console.warn('[Kick Pusher] Advertencia:', err);
-          });
-        } catch(err) {
-          console.error('[Kick Pusher] Error:', err);
-        }
-      }
-
-      async function conectarWebSocketKick() {
-        if (!state.channel) return;
-        const info = await resolverCanalKick(state.channel);
-        if (!info || !info.chatroomId) {
-          updateHud('error', `Canal @${state.channel} no encontrado`);
-          console.warn("[Kick Chat] No se pudo resolver el canal. Iniciando modo simulación.");
-          return;
-        }
-
-        const simDot = document.getElementById('sim-status-dot');
-        const simText = document.getElementById('sim-status-text');
-
-        // Pasa inmediatamente a verde: Conectado a @jikokun
-        updateHud('online', `Conectado a @${info.slug}`);
         if (simDot) {
           simDot.style.background = '#10b981';
           simDot.style.boxShadow = '0 0 8px #10b981';
         }
-        if (simText) simText.textContent = `Kick: @${info.slug} (En Vivo)`;
+        if (simText) simText.textContent = `Kick: @${slug} (En Vivo)`;
+      }
 
-        // 1. Conexión local prioritaria a Streamer.bot (captura chat en vivo en Windows / OBS)
-        conectarStreamerBotLocal();
+      // Carga inmediata del historial de chat para mostrar los mensajes recientes al abrir el widget
+      async function hidratarHistorialKick(info) {
+        if (!info) return;
+        const targetIds = [info.channelId, info.chatroomId].filter(Boolean);
+        for (const cid of targetIds) {
+          try {
+            const res = await fetch(`https://web.kick.com/api/v1/chat/${cid}/history`, {
+              headers: {
+                'Accept': 'application/json',
+                'x-app-platform': 'web',
+                'Referer': 'https://kick.com'
+              }
+            });
+            if (res.ok) {
+              const json = await res.json();
+              const msgs = json.data?.messages || [];
+              if (msgs.length > 0) {
+                info.activeChatId = cid;
+                const recientes = msgs.slice(-10);
+                recientes.forEach(m => handleIncomingKickEvent('ChatMessageEvent', m));
+                marcarKickConectado(info.slug);
+                break;
+              }
+            }
+          } catch(e) {}
+        }
+      }
 
-        // 2. Conexión remota a Pusher como respaldo secundario
-        conectarKickPusherNativo(info);
+      // Motor de lectura continua del stream de Kick para OBS Studio y navegadores
+      function iniciarKickStreamPoll(info) {
+        if (kickStreamPollTimer) return;
+        const activeId = info.activeChatId || info.channelId || info.chatroomId;
+        console.log(`[Kick Chat] 📡 Canal de datos en vivo activo para @${info.slug} (ID: ${activeId}).`);
+        kickStreamPollTimer = setInterval(async () => {
+          try {
+            const res = await fetch(`https://web.kick.com/api/v1/chat/${activeId}/history`, {
+              headers: {
+                'Accept': 'application/json',
+                'x-app-platform': 'web',
+                'Referer': 'https://kick.com'
+              }
+            });
+            if (res.ok) {
+              const json = await res.json();
+              const msgs = json.data?.messages || [];
+              msgs.forEach(m => handleIncomingKickEvent('ChatMessageEvent', m));
+              marcarKickConectado(info.slug);
+            }
+          } catch(e) {}
+        }, 1500);
+      }
+
+      // Conexión principal nativa a los WebSockets de Kick
+      async function conectarWebSocketKick() {
+        if (!state.channel) return;
+
+        // Limpiar conexiones activas previas
+        if (kickActiveWs) {
+          try { kickActiveWs.close(); } catch(e) {}
+          kickActiveWs = null;
+        }
+        if (kickStreamPollTimer) {
+          clearInterval(kickStreamPollTimer);
+          kickStreamPollTimer = null;
+        }
+        kickIsConnected = false;
+
+        const simDot = document.getElementById('sim-status-dot');
+        const simText = document.getElementById('sim-status-text');
+        if (simDot) {
+          simDot.style.background = '#f59e0b';
+          simDot.style.boxShadow = '0 0 6px #f59e0b';
+        }
+        if (simText) simText.textContent = `Buscando @${state.channel}...`;
+
+        updateHud('connecting', `Buscando canal @${state.channel}...`);
+
+        const info = await resolverCanalKick(state.channel);
+        if (!info || (!info.chatroomId && !info.channelId)) {
+          updateHud('error', `Canal @${state.channel} no encontrado`);
+          if (simDot) {
+            simDot.style.background = '#ef4444';
+            simDot.style.boxShadow = '0 0 6px #ef4444';
+          }
+          if (simText) simText.textContent = `Canal @${state.channel} no encontrado`;
+          console.warn("[Kick Chat] No se pudo resolver el canal.");
+          return;
+        }
+
+        updateHud('connecting', `Conectando con @${info.slug}...`);
+        if (simText) simText.textContent = `Conectando: @${info.slug}...`;
+
+        // 1. Cargar historial reciente de la sala de chat en Kick
+        await hidratarHistorialKick(info);
+
+        // 2. Conectar al WebSocket oficial de Kick (Centrifugo Cloud)
+        try {
+          const clientId = crypto.randomUUID();
+          const authRes = await fetch('https://web.kick.com/api/v1/realtime/auth/connection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: clientId })
+          });
+
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            const token = authData.data?.token;
+
+            if (token) {
+              const ws = new WebSocket('wss://realtime.us-east-1.platform.kick.com/connection/websocket');
+              kickActiveWs = ws;
+              let msgId = 1;
+
+              ws.onopen = () => {
+                ws.send(JSON.stringify({ id: msgId++, connect: { token } }));
+              };
+
+              ws.onmessage = (event) => {
+                try {
+                  const msg = JSON.parse(event.data);
+                  if (msg.connect) {
+                    // Suscribirse a la sala de chat y al canal de eventos
+                    ws.send(JSON.stringify({
+                      id: msgId++,
+                      subscribe: { channel: `chatrooms.${info.chatroomId}.v2` }
+                    }));
+                    if (info.channelId) {
+                      ws.send(JSON.stringify({
+                        id: msgId++,
+                        subscribe: { channel: `channel.${info.channelId}` }
+                      }));
+                    }
+                    marcarKickConectado(info.slug);
+
+                    // Keep-alive heartbeat cada 25 segundos
+                    setInterval(() => {
+                      if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({}));
+                    }, 25000);
+                  } else if (msg.push && msg.push.pub && msg.push.pub.data) {
+                    const ev = msg.push.pub.data;
+                    handleIncomingKickEvent(ev.event, ev.data);
+                  }
+                } catch(e) {}
+              };
+
+              ws.onerror = () => {
+                iniciarKickStreamPoll(info);
+              };
+
+              ws.onclose = () => {
+                iniciarKickStreamPoll(info);
+              };
+            } else {
+              iniciarKickStreamPoll(info);
+            }
+          } else {
+            iniciarKickStreamPoll(info);
+          }
+        } catch(e) {
+          iniciarKickStreamPoll(info);
+        }
+
+        // 3. Garantizar flujo en tiempo real ininterrumpido sin bloqueos de navegador
+        iniciarKickStreamPoll(info);
       }
 
       // -----------------------------------------------------------------------
@@ -1283,26 +1320,23 @@
       }
       window.triggerTestEvent = triggerTestEvent;
 
-      // Mensajes iniciales informativos en OBS para que NUNCA aparezca la pantalla en blanco
+      // Mensaje informativo en OBS únicamente si el canal no tiene ningún mensaje previo en Kick
       function mostrarMensajesIniciales() {
+        if (processedMessageIds.size > 0) return;
         const welcomeMsgs = [
           {
             username: state.channel,
             userColor: '#53fc18',
-            text: `¡Chat de Kick conectado para @${state.channel}! 🎉 Haz clic derecho > "Interactuar" en OBS para probar eventos.`,
+            text: `¡Chat de Kick listo para @${state.channel}! Esperando mensajes en vivo... 💬✨`,
             badges: [{ type: 'broadcaster' }]
-          },
-          {
-            username: 'KickBot',
-            userColor: '#00f5d4',
-            text: `Modo OBS activo. Haz clic en pantalla para abrir el panel de simulación flotante 💬⚙️`,
-            badges: [{ type: 'moderator' }]
           }
         ];
 
         welcomeMsgs.forEach((m, idx) => {
           setTimeout(() => {
-            addChatMessage(m);
+            if (processedMessageIds.size === 0) {
+              addChatMessage(m);
+            }
           }, (idx + 1) * 350);
         });
       }
@@ -1425,8 +1459,8 @@
       if (state.preview) {
         setTimeout(iniciarDemoPreview, 250);
       } else {
-        // En OBS o ventana directa: mostrar mensajes iniciales de bienvenida para verificar render
-        setTimeout(mostrarMensajesIniciales, 300);
+        // En OBS o ventana directa: mensaje de bienvenida solo si el canal no tiene mensajes previos tras 2.5s
+        setTimeout(mostrarMensajesIniciales, 2500);
       }
 
     })();
