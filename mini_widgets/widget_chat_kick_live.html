@@ -682,63 +682,81 @@
       // -----------------------------------------------------------------------
       // 7. CONEXIÓN DIRECTA A LA API DE KICK Y PUSHER WEBSOCKETS
       // -----------------------------------------------------------------------
-      const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
+      const KNOWN_KICK_CHANNELS = {
+        'jikokun': { channelId: 1874362, chatroomId: 1866891, slug: 'jikokun' }
+      };
+      const KICK_PUSHER_KEYS = ["32cbd69e4b950bf97679", "eb1d5f28b619a93b7726"];
       const KICK_PUSHER_CLUSTER = "us2";
+      let activePusher = null;
+      let currentKeyIndex = 0;
 
       async function resolverCanalKick(username) {
-        const clean = username.trim().toLowerCase().replace(/^@/, '');
+        const clean = (username || 'jikokun').trim().toLowerCase().replace(/^@/, '');
         updateHud('connecting', `Buscando canal @${clean}...`);
 
+        // 1. Overrides manuales directos en URL (ej: ?channel_id=1874362&chatroom_id=1866891)
+        const urlCid = urlParams.get('channel_id') || urlParams.get('cid');
+        const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id');
+        if (urlCid) {
+          return { channelId: parseInt(urlCid, 10), chatroomId: parseInt(urlChatId || urlCid, 10), slug: clean };
+        }
+
+        // 2. Caché local en navegador
         const cacheKey = `kick_chat_cache_${clean}`;
         try {
           const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-          if (cached && cached.chatroomId) {
-            console.log(`[Kick Chat Cache] Usando ID en caché para @${clean}:`, cached);
+          if (cached && (cached.chatroomId || cached.channelId)) {
+            console.log(`[Kick Chat] Usando ID de caché para @${clean}:`, cached);
             return cached;
           }
         } catch(e) {}
 
-        const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-        let data = null;
-
-        // Intento 1: Fetch directo
-        try {
-          const res = await fetch(targetUrl);
-          if (res.ok) data = await res.json();
-        } catch(e) {}
-
-        // Intento 2: Proxy AllOrigins
-        if (!data) {
-          try {
-            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-            if (res.ok) data = await res.json();
-          } catch(e) {}
-        }
-
-        // Intento 3: Proxy CORSProxy
-        if (!data) {
-          try {
-            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-            if (res.ok) data = await res.json();
-          } catch(e) {}
-        }
-
-        if (data && (data.chatroom?.id || data.id)) {
-          const resolved = {
-            channelId: data.id,
-            chatroomId: data.chatroom?.id || data.id,
-            slug: data.slug || clean
-          };
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(resolved));
-          } catch(e) {}
+        // 3. Diccionario verificado para canales conocidos (jikokun por defecto)
+        if (KNOWN_KICK_CHANNELS[clean]) {
+          const resolved = KNOWN_KICK_CHANNELS[clean];
+          try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
           return resolved;
+        }
+
+        // 4. Proxies CORS públicos activos (sin corsproxy.io que entrega error 403)
+        const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+        const proxyUrls = [
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+          `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+          `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+          targetUrl
+        ];
+
+        for (const pUrl of proxyUrls) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3500);
+            const res = await fetch(pUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const data = await res.json();
+              if (data && (data.chatroom?.id || data.id)) {
+                const resolved = {
+                  channelId: data.id,
+                  chatroomId: data.chatroom?.id || data.id,
+                  slug: data.slug || clean
+                };
+                try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+                return resolved;
+              }
+            }
+          } catch(e) {}
+        }
+
+        // 5. Respaldo definitivo si es jikokun
+        if (clean === 'jikokun') {
+          return KNOWN_KICK_CHANNELS['jikokun'];
         }
 
         return null;
       }
 
-      async function conectarWebSocketKick() {
+      async function conectarWebSocketKick(retryCount = 0) {
         if (!state.channel) return;
 
         const info = await resolverCanalKick(state.channel);
@@ -749,23 +767,33 @@
           return;
         }
 
+        const currentKey = KICK_PUSHER_KEYS[currentKeyIndex % KICK_PUSHER_KEYS.length];
         updateHud('connecting', `Conectando WebSocket para @${info.slug}...`);
 
+        if (activePusher) {
+          try { activePusher.disconnect(); } catch(e) {}
+        }
+
         try {
-          const pusher = new Pusher(KICK_PUSHER_KEY, {
+          const pusher = new Pusher(currentKey, {
             cluster: KICK_PUSHER_CLUSTER,
-            wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
-            wsPort: 443,
-            wssPort: 443,
-            enabledTransports: ['ws', 'wss'],
             forceTLS: true
           });
+          activePusher = pusher;
+
+          let connectionSucceeded = false;
+          const connTimeout = setTimeout(() => {
+            if (!connectionSucceeded && retryCount < 2) {
+              console.warn("[Kick Chat] Tiempo de espera agotado, probando clave alternativa...");
+              currentKeyIndex++;
+              conectarWebSocketKick(retryCount + 1);
+            }
+          }, 8000);
 
           // 1. Suscripción al Chatroom de Kick (chatrooms.{id}.v2)
           const chatChannel = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
 
-          // Evento de Mensaje de Chat
-          chatChannel.bind('App\\Events\\ChatMessageEvent', function(payload) {
+          function handleChatMessage(payload) {
             let data = payload;
             if (typeof data === 'string') {
               try { data = JSON.parse(data); } catch(e) {}
@@ -789,31 +817,39 @@
               badges: badges,
               messageId: data.id
             });
-          });
+          }
+
+          // Enlace redundante para compatibilidad con todas las versiones de Pusher
+          chatChannel.bind('App\\Events\\ChatMessageEvent', handleChatMessage);
+          chatChannel.bind('ChatMessageEvent', handleChatMessage);
 
           // Moderación: Mensaje Borrado
-          chatChannel.bind('App\\Events\\MessageDeletedEvent', function(payload) {
+          function handleDeleted(payload) {
             const msgId = payload?.message?.id || payload?.id;
             if (msgId) {
               const el = document.querySelector(`[data-msg-id="${msgId}"]`);
               if (el) el.remove();
             }
-          });
+          }
+          chatChannel.bind('App\\Events\\MessageDeletedEvent', handleDeleted);
+          chatChannel.bind('MessageDeletedEvent', handleDeleted);
 
           // Moderación: Usuario Baneado / Silenciado
-          chatChannel.bind('App\\Events\\UserBannedEvent', function(payload) {
+          function handleBanned(payload) {
             const username = payload?.user?.username || payload?.username;
             if (username) {
               document.querySelectorAll(`[data-sender="${username.toLowerCase()}"]`).forEach(el => el.remove());
             }
-          });
+          }
+          chatChannel.bind('App\\Events\\UserBannedEvent', handleBanned);
+          chatChannel.bind('UserBannedEvent', handleBanned);
 
           // 2. Suscripción a Eventos del Canal (channel.{channelId}) para alertas integradas
           if (info.channelId) {
             const channelEvents = pusher.subscribe(`channel.${info.channelId}`);
 
             // Nueva Suscripción
-            channelEvents.bind('App\\Events\\SubscriptionEvent', function(payload) {
+            function handleSub(payload) {
               let data = payload;
               if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
               const user = data.username || data.user?.username || 'Usuario';
@@ -824,10 +860,12 @@
                 title: `⭐ ${user} se ha suscrito`,
                 extra: `${months} ${months === 1 ? 'mes' : 'meses'}`
               });
-            });
+            }
+            channelEvents.bind('App\\Events\\SubscriptionEvent', handleSub);
+            channelEvents.bind('SubscriptionEvent', handleSub);
 
             // Suscripción Regalada
-            channelEvents.bind('App\\Events\\GiftedSubscriptionsEvent', function(payload) {
+            function handleGift(payload) {
               let data = payload;
               if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
               const gifter = data.gifter_username || data.username || 'Un mecenas';
@@ -838,10 +876,12 @@
                 title: `🎁 ${gifter} regaló ${gifts} ${gifts === 1 ? 'suscripción' : 'suscripciones'}`,
                 extra: `${gifts} subs`
               });
-            });
+            }
+            channelEvents.bind('App\\Events\\GiftedSubscriptionsEvent', handleGift);
+            channelEvents.bind('GiftedSubscriptionsEvent', handleGift);
 
             // Raid o Host Entrante
-            channelEvents.bind('App\\Events\\StreamHostEvent', function(payload) {
+            function handleRaid(payload) {
               let data = payload;
               if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
               const hostName = data.host_username || data.channel?.slug || 'Canal';
@@ -852,10 +892,12 @@
                 title: `🚀 ¡Raid de ${hostName}!`,
                 extra: `${viewers} viewers`
               });
-            });
+            }
+            channelEvents.bind('App\\Events\\StreamHostEvent', handleRaid);
+            channelEvents.bind('StreamHostEvent', handleRaid);
 
             // Nuevo Seguidor (FollowersUpdated)
-            channelEvents.bind('App\\Events\\FollowersUpdated', function(payload) {
+            function handleFollow(payload) {
               let data = payload;
               if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
               const user = data.username || data.follower?.username || data.follower || 'NuevoSeguidor';
@@ -865,11 +907,15 @@
                 title: `💙 ¡${user} comenzó a seguirte!`,
                 message: '¡Bienvenido a la comunidad del canal!'
               });
-            });
+            }
+            channelEvents.bind('App\\Events\\FollowersUpdated', handleFollow);
+            channelEvents.bind('FollowersUpdated', handleFollow);
           }
 
           // Conexión exitosa
           pusher.connection.bind('connected', function() {
+            connectionSucceeded = true;
+            clearTimeout(connTimeout);
             updateHud('online', `Conectado al chat de @${info.slug}`);
           });
 
@@ -877,8 +923,15 @@
             updateHud('connecting', 'Reconectando con Kick...');
           });
 
-          pusher.connection.bind('error', function() {
-            updateHud('error', 'Error en WebSocket de Kick');
+          pusher.connection.bind('error', function(err) {
+            console.warn('[Kick Pusher] Error:', err);
+            if (!connectionSucceeded && retryCount < 2) {
+              clearTimeout(connTimeout);
+              currentKeyIndex++;
+              conectarWebSocketKick(retryCount + 1);
+            } else {
+              updateHud('error', 'Error en WebSocket de Kick');
+            }
           });
 
         } catch(err) {

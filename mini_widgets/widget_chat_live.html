@@ -246,37 +246,44 @@
     // -----------------------------------------------------------------------
     async function initKickPusher(channel) {
       if (!channel) return;
+      const clean = channel.toLowerCase().trim().replace(/^@/, '');
       try {
         let chatroomId = null;
-        try {
-          const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
-          if (directRes.ok) {
-            const directData = await directRes.json();
-            chatroomId = directData.chatroom?.id;
-          }
-        } catch(e) {}
 
+        // 1. Fallback verificado inmediato para jikokun
+        if (clean === 'jikokun') {
+          chatroomId = 1866891;
+        }
+
+        // 2. Proxies CORS actualizados si no es jikokun
         if (!chatroomId) {
-          try {
-            const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
-            if (proxyRes.ok) {
-              const proxyData = await proxyRes.json();
-              chatroomId = proxyData.chatroom?.id;
-            }
-          } catch(e) {}
+          const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+          const proxyList = [
+            `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+            targetUrl
+          ];
+          for (const pUrl of proxyList) {
+            try {
+              const res = await fetch(pUrl);
+              if (res.ok) {
+                const pData = await res.json();
+                if (pData?.chatroom?.id) {
+                  chatroomId = pData.chatroom.id;
+                  break;
+                }
+              }
+            } catch(e) {}
+          }
         }
 
         if (!chatroomId) return;
 
-        const PUSHER_KEY = "eb1d5f28b619a93b7726";
+        const PUSHER_KEY = "32cbd69e4b950bf97679";
         const PUSHER_CLUSTER = "us2";
 
         const pusher = new Pusher(PUSHER_KEY, {
           cluster: PUSHER_CLUSTER,
-          wsHost: `ws-${PUSHER_CLUSTER}.pusher.com`,
-          wsPort: 443,
-          wssPort: 443,
-          enabledTransports: ['ws', 'wss'],
           forceTLS: true
         });
 

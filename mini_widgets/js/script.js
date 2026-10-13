@@ -304,31 +304,39 @@ function initKickLiveCounter() {
   }
 
   async function fetchKickData() {
-    try {
-      const res = await fetch(`https://kick.com/api/v2/channels/${channel}`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data) {
-          if (avatarEl && data.user && data.user.profile_pic) {
-            avatarEl.src = data.user.profile_pic;
-          }
-          if (followersEl && data.followersCount !== undefined) {
-            followersEl.textContent = Number(data.followersCount).toLocaleString('es-SV');
-          }
-          if (data.livestream) {
-            if (viewersEl) viewersEl.textContent = Number(data.livestream.viewer_count || 0).toLocaleString('es-SV');
-            if (liveBadgeEl) liveBadgeEl.style.display = 'inline-block';
-          } else {
-            if (viewersEl) viewersEl.textContent = '0';
-            if (liveBadgeEl) liveBadgeEl.style.display = 'none';
-          }
+    const targetUrl = `https://kick.com/api/v2/channels/${channel}`;
+    const proxyUrls = [
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+      `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+      targetUrl
+    ];
+    let data = null;
+    for (const pUrl of proxyUrls) {
+      try {
+        const res = await fetch(pUrl);
+        if (res.ok) {
+          data = await res.json();
+          if (data) break;
         }
+      } catch(e) {}
+    }
+
+    if (data) {
+      if (avatarEl && data.user && data.user.profile_pic) {
+        avatarEl.src = data.user.profile_pic;
       }
-    } catch (e) {
-      console.warn("[MiniWidget Kick] Usando valores simulados para Kick:", e);
-      if (followersEl) followersEl.textContent = '1,450';
-      if (viewersEl) viewersEl.textContent = '84';
-      if (liveBadgeEl) liveBadgeEl.style.display = 'inline-block';
+      if (followersEl && data.followersCount !== undefined) {
+        followersEl.textContent = Number(data.followersCount).toLocaleString('es-SV');
+      }
+      if (data.livestream) {
+        if (viewersEl) viewersEl.textContent = Number(data.livestream.viewer_count || 0).toLocaleString('es-SV');
+        if (liveBadgeEl) liveBadgeEl.style.display = 'inline-block';
+      } else {
+        if (viewersEl) viewersEl.textContent = '0';
+        if (liveBadgeEl) liveBadgeEl.style.display = 'none';
+      }
+    } else {
+      console.warn("[MiniWidget Kick] No se pudo obtener datos en vivo, manteniendo valores actuales.");
       if (avatarEl && !avatarEl.src) avatarEl.src = 'https://files.kick.com/images/user/default_avatar.png';
     }
   }

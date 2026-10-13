@@ -1,6 +1,6 @@
 # Manual de Uso: Variables Dinámicas y Configuración de Alertas
 
-¡Bienvenido al sistema de alertas interactivas para creadores de contenido! Este manual te guiará paso a paso para personalizar los mensajes de tus alertas (**Alerta Estelar**, **Alerta Eléctrica** y más), integrar variables dinámicas y conectarlas a OBS Studio en pocos segundos.
+¡Bienvenido al sistema de alertas interactivas para creadores de contenido! Este manual te guiará paso a paso para personalizar los mensajes de tus alertas (**Alerta Estelar**, **Alerta Conejita**, **Alerta Eléctrica** y más), integrar variables dinámicas y conectarlas a OBS Studio en pocos segundos.
 
 ---
 
@@ -16,11 +16,11 @@ Al escribir tu mensaje personalizado, solo debes colocar la variable donde desea
 
 | Variable | Descripción | Eventos recomendados | Ejemplo de resultado |
 | :--- | :--- | :--- | :--- |
-| **`{user}`** | Nombre del usuario que activa la alerta. | Todos (Follow, Sub, Gift, Raid, Kicks) | *EstrellaFugaz_99*, *CyberGamer* |
+| **`{user}`** | Nombre del usuario que activa la alerta. | Todos (Follow, Sub, Gift, Raid, Kicks) | *EstrellaFugaz_99*, *ConejitoKawaii* |
 | **`{meses}`** | Número de meses acumulados o renovados de suscripción. | Suscripción | *3*, *12* |
 | **`{subs}`** | Cantidad de suscripciones de regalo entregadas. | Sub Regalada (Gift) | *5*, *20* |
 | **`{viewers}`** | Número de espectadores que acompañan la incursión (Raid). | Incursión / Raid | *45*, *120* |
-| **`{kicks}`** | Cantidad de Kicks (gemas de apoyo) donadas en el chat. | Apoyo con Kicks | *500*, *2500* |
+| **`{kicks}`** | Cantidad de Kicks (gemas o monedas de apoyo) donadas en el chat. | Apoyo con Kicks | *500*, *2500* |
 
 ---
 
@@ -29,33 +29,33 @@ Al escribir tu mensaje personalizado, solo debes colocar la variable donde desea
 Puedes copiar cualquiera de estos ejemplos y pegarlo directamente en los campos de configuración de tu widget:
 
 ### 🌟 Nuevo Seguidor
-- `¡{user} se ha unido a la tripulación!`
+- `¡{user} se ha unido a la tripulación!` *(Estelar)*
+- `¡{user} se unió a la madriguera!` *(Conejita Kawaii)*
 - `Bienvenido al canal, {user}. ¡Ponte cómodo!`
-- `¡Nuevo recluta a bordo: {user}!`
 - `¡Gracias por el follow, {user}! Bienvenido a la comunidad.`
 
 ### ⭐ Suscriptor
 - `{user} lleva {meses} meses apoyando el canal`
+- `¡{user} ahora es un conejito VIP!` *(Conejita Kawaii)*
 - `¡{user} renueva su pase estelar por {meses} meses!`
 - `¡{meses} meses de puro apoyo con {user} en la nave!`
-- `{user} acaba de unirse a los miembros VIP.`
 
 ### 🎁 Sub Regalada (Gift)
 - `¡{user} regaló {subs} suscripciones a la comunidad!`
+- `¡{user} ha regalado {subs} zanahorias a la madriguera!` *(Conejita Kawaii)*
 - `¡Lluvia de regalos! {user} repartió {subs} pases a la tripulación`
 - `¡{user} acaba de bendecir el chat con {subs} suscripciones!`
-- `{user} repartió {subs} regalos. ¡Agradezcan en el chat!`
 
 ### 🚀 Incursión / Raid
 - `¡Invasión épica de {user} con {viewers} espectadores!`
+- `¡{user} trajo una estampida de {viewers} conejitos!` *(Conejita Kawaii)*
 - `¡{user} llega con una flota de {viewers} personas a bordo!`
 - `¡{viewers} tripulantes aterrizan junto a {user}!`
-- `¡Gracias por el raid, {user}! Bienvenidos los {viewers} espectadores.`
 
 ### 💎 Kicks / Apoyo
+- `¡{user} nos envió {kicks} Kicks mágicos!` *(Conejita Kawaii)*
 - `¡{user} envió {kicks} Kicks de pura energía!`
 - `¡Poder para el directo! {user} aportó {kicks} gemas`
-- `¡Impacto brillante de {user} con {kicks} Kicks!`
 - `¡Gracias por tu apoyo, {user}! ({kicks} Kicks)`
 
 ---

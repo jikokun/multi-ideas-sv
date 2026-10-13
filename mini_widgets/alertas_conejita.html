@@ -1,0 +1,1093 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alerta Conejita Kawaii — Kick API Nativa</title>
+    
+    <!-- Tipografía Kawaii Nunito -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;800;900&display=swap" rel="stylesheet">
+
+    <!-- Cliente Oficial Pusher JS (Soporte nativo WSS de Kick sin restricciones CORS) -->
+    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+
+    <style>
+        :root {
+            /* Colores de Fondo de Página para Previsualización */
+            --bg-page-start: #ffe6f2;
+            --bg-page-end: #fff0e6;
+            
+            /* Colores de Alerta - Dinámicos por Tipo de Evento */
+            --theme-color: #ffb3c6; /* Rosa pastel por defecto */
+            --theme-color-dark: #ff8fab;
+            
+            /* Caja de Alerta */
+            --alert-bg: #ffffff;
+            --text-dark: #5c4a4d;
+            --text-light: #9a8c8e;
+            
+            /* Elementos Decorativos */
+            --accent-white: #ffffff;
+            --blush-color: #ff99bb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Nunito', sans-serif;
+            user-select: none;
+        }
+
+        /* Fondo completamente transparente para OBS Studio por defecto */
+        body {
+            background: transparent !important;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Si se activa modo fondo (para pruebas directas en navegador o previsualizaciones) */
+        body.with-bg {
+            background: radial-gradient(circle at center, var(--bg-page-start), var(--bg-page-end)) !important;
+        }
+
+        /* =====================================================================
+           INDICADOR DE ESTADO KICK CLOUD Y PANEL DE PRUEBAS
+           ===================================================================== */
+        .kick-status-indicator {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border: 2px solid var(--theme-color);
+            border-radius: 999px;
+            padding: 5px 14px;
+            font-size: 11px;
+            font-weight: 800;
+            color: var(--text-dark);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            backdrop-filter: blur(8px);
+            z-index: 1000;
+            box-shadow: 0 4px 14px rgba(255, 179, 198, 0.4);
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .kick-status-indicator .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #53fc18;
+            box-shadow: 0 0 8px #53fc18;
+        }
+
+        .kick-status-indicator.hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(-20px) !important;
+        }
+
+        .test-bar {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.92);
+            padding: 8px 16px;
+            border-radius: 999px;
+            border: 2px solid var(--theme-color);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            box-shadow: 0 8px 24px rgba(255, 179, 198, 0.4);
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+            transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .test-bar.hidden {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transform: translateY(20px) !important;
+        }
+
+        .trigger-btn {
+            padding: 8px 16px;
+            font-size: 13px;
+            font-weight: 800;
+            color: white;
+            background: var(--theme-color);
+            border: 2px solid white;
+            border-radius: 99px;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-follow { background: #ffb3c6; color: white; }
+        .btn-sub { background: #aed9e0; color: white; }
+        .btn-gift { background: #fdfd96; color: #5c4a4d; }
+        .btn-kicks { background: #c1e1c1; color: #5c4a4d; }
+        .btn-raid { background: #c8b6ff; color: white; }
+
+        .trigger-btn:hover {
+            transform: scale(1.08) translateY(-2px);
+            filter: brightness(1.04);
+        }
+
+        /* =====================================================================
+           ESTRUCTURA DE ALERTA OVERLAY Y CAJA
+           ===================================================================== */
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.35s ease;
+            z-index: 100;
+        }
+
+        body.with-bg .overlay {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(4px);
+        }
+
+        .overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .alert-box {
+            width: 90%;
+            max-width: 500px;
+            height: 160px;
+            background: var(--alert-bg);
+            border-radius: 30px;
+            position: relative;
+            box-shadow: 0 20px 45px rgba(255, 179, 198, 0.35), inset 0 -6px 0 rgba(0,0,0,0.03);
+            transform: scale(0.5) translateY(50px);
+            opacity: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            text-align: center;
+            border: 4px solid var(--theme-color);
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .overlay.active .alert-box {
+            animation: popIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .overlay.exiting .alert-box {
+            animation: popOut 0.45s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.5) translateY(50px); opacity: 0; }
+            100% { transform: scale(1) translateY(0); opacity: 1; }
+        }
+
+        @keyframes popOut {
+            0% { transform: scale(1) translateY(0); opacity: 1; }
+            100% { transform: scale(0.7) translateY(40px); opacity: 0; }
+        }
+
+        /* Píldora Superior */
+        .top-pill {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 30px;
+            background: var(--theme-color);
+            border-radius: 999px;
+            border: 4px solid white;
+            box-shadow: 0 6px 14px rgba(0,0,0,0.1);
+            z-index: 5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s;
+            white-space: nowrap;
+        }
+
+        .top-pill h2 {
+            font-size: 18px;
+            font-weight: 900;
+            color: white;
+            margin: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            text-shadow: 1px 2px 0px rgba(0,0,0,0.15);
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
+        .content {
+            z-index: 5;
+            color: var(--text-dark);
+            padding: 0 40px;
+            margin-top: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+        }
+
+        .content p {
+            font-size: 16px;
+            color: var(--text-light);
+            margin-bottom: 2px;
+            font-weight: 700;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .username {
+            color: var(--theme-color-dark);
+            font-weight: 900;
+            font-size: 32px;
+            letter-spacing: 0px;
+            display: block;
+            margin-top: 0px;
+            text-shadow: 2px 2px 0px rgba(0,0,0,0.05);
+            transition: color 0.3s;
+            max-width: 90%;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .deco {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        /* =====================================================================
+           ESTILOS Y ANIMACIONES DE CONEJITOS SVG
+           ===================================================================== */
+        .bunny-container {
+            position: absolute;
+            z-index: 6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .bunny-container svg {
+            width: 100%;
+            height: 100%;
+            filter: drop-shadow(0 6px 8px rgba(0,0,0,0.08));
+        }
+
+        .bunny-left {
+            top: -45px;
+            left: -35px;
+            width: 140px;
+            height: 140px;
+            transform-origin: bottom center;
+            animation: floatLeft 4s ease-in-out infinite;
+        }
+
+        .bunny-right {
+            bottom: -35px;
+            right: -30px;
+            width: 110px;
+            height: 110px;
+            transform-origin: bottom center;
+            animation: floatRight 3.5s ease-in-out infinite;
+        }
+
+        /* Clases base para estilizar las partes de los SVGs inyectados */
+        .bunny-skin { fill: var(--theme-color); transition: fill 0.3s; }
+        .bunny-inner-ear { fill: #ffffff; opacity: 0.8; }
+        .bunny-line { fill: none; stroke: var(--text-dark); stroke-width: 2.5; stroke-linecap: round; }
+        .bunny-dark { fill: var(--text-dark); }
+        .bunny-blush { fill: var(--blush-color); opacity: 0.7; }
+        .bunny-white { fill: #ffffff; }
+
+        .shape-small { 
+            width: 20px; 
+            height: 20px; 
+            animation: popBubble 2s ease-in-out infinite;
+            fill: var(--theme-color);
+            opacity: 0.8;
+            transition: fill 0.3s;
+        }
+        .s-1 { bottom: -15px; left: 15%; width: 25px; height: 25px; animation-delay: 0.1s;}
+        .s-2 { top: 20px; right: -15px; width: 18px; height: 18px; animation-delay: 0.5s;}
+        .s-3 { top: -20px; left: 25%; width: 15px; height: 15px; animation-delay: 0.8s;}
+        .s-4 { bottom: 10px; right: 20%; width: 22px; height: 22px; animation-delay: 0.3s;}
+
+        @keyframes floatLeft {
+            0% { transform: translateY(0) rotate(-10deg); }
+            50% { transform: translateY(-10px) rotate(-15deg); }
+            100% { transform: translateY(0) rotate(-10deg); }
+        }
+
+        @keyframes floatRight {
+            0% { transform: translateY(0) rotate(15deg); }
+            50% { transform: translateY(-8px) rotate(10deg); }
+            100% { transform: translateY(0) rotate(15deg); }
+        }
+
+        @keyframes popBubble {
+            0% { transform: scale(0.8) translateY(0); opacity: 0.5; }
+            50% { transform: scale(1.2) translateY(-10px); opacity: 1; }
+            100% { transform: scale(0.8) translateY(0); opacity: 0.5; }
+        }
+
+        /* Ajustes responsivos */
+        @media (max-width: 600px) {
+            .alert-box { height: 150px; margin: 0 20px; }
+            .bunny-left { width: 110px; height: 110px; left: -15px; top: -35px;}
+            .bunny-right { width: 90px; height: 90px; right: -10px; bottom: -25px;}
+            .top-pill { padding: 6px 20px; top: -20px;}
+            .top-pill h2 { font-size: 15px; }
+            .username { font-size: 26px; }
+            .test-bar { bottom: 15px; }
+            .trigger-btn { padding: 6px 12px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Indicador de Estado Kick Cloud (Oculto por defecto, visible con clic/interacción) -->
+    <div class="kick-status-indicator hidden" id="kickStatusBadge">
+        <span class="dot" id="kickDot"></span>
+        <span id="kickStatusText">Kick: Conectando...</span>
+    </div>
+
+    <!-- Botonera de Pruebas Kawaii (Oculta por defecto, visible con clic/interacción) -->
+    <div class="test-bar hidden" id="testBar">
+        <button class="trigger-btn btn-follow" data-type="follow">💚 Follow</button>
+        <button class="trigger-btn btn-sub" data-type="sub">⭐ Sub</button>
+        <button class="trigger-btn btn-gift" data-type="gift">🎁 Gift</button>
+        <button class="trigger-btn btn-kicks" data-type="kicks">💎 Kicks</button>
+        <button class="trigger-btn btn-raid" data-type="raid">🚀 Raid</button>
+    </div>
+
+    <!-- Contenedor Principal de la Alerta -->
+    <div class="overlay" id="overlay">
+        <div class="alert-box" id="alertBox">
+            
+            <div class="top-pill">
+                <h2 id="alertTitle">¡Nuevo Seguidor!</h2>
+            </div>
+
+            <!-- Contenedores dinámicos para inyectar los conejitos -->
+            <div id="bunnyLeft" class="deco bunny-container bunny-left"></div>
+            <div id="bunnyRight" class="deco bunny-container bunny-right"></div>
+
+            <!-- Círculo decorativo 1 -->
+            <svg class="deco shape-small s-1" viewBox="0 0 50 50"><circle cx="25" cy="25" r="25"/></svg>
+            <!-- Corazón decorativo 2 -->
+            <svg class="deco shape-small s-2" viewBox="0 0 50 50">
+                <path d="M 25 45 C 25 45 5 30 5 15 C 5 5 20 5 25 15 C 30 5 45 5 45 15 C 45 30 25 45 25 45 Z"/>
+            </svg>
+            <!-- Círculo decorativo 3 -->
+            <svg class="deco shape-small s-3" viewBox="0 0 50 50"><circle cx="25" cy="25" r="25"/></svg>
+            <!-- Corazón decorativo 4 -->
+            <svg class="deco shape-small s-4" viewBox="0 0 50 50">
+                <path d="M 25 45 C 25 45 5 30 5 15 C 5 5 20 5 25 15 C 30 5 45 5 45 15 C 45 30 25 45 25 45 Z"/>
+            </svg>
+
+            <div class="content">
+                <p id="alertDesc">se unió a la madriguera</p>
+                <span id="followerName" class="username">Usuario123</span>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // =====================================================================
+        // PARÁMETROS URL Y CONFIGURACIÓN GENERAL
+        // =====================================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const kickChannel = (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').trim().toLowerCase().replace(/^@/, '');
+        const isPreview = urlParams.get('preview') === 'true';
+        let isLoopMode = urlParams.get('loop') === 'true';
+        const hasExplicitSound = urlParams.get('sound') === 'true' || urlParams.get('audio') === 'true' || urlParams.get('mute') === 'false';
+        let isMuted = urlParams.get('mute') === 'true' || isPreview || isLoopMode || !hasExplicitSound;
+        const hideControls = urlParams.get('hidecontrols') === 'true';
+        const withBg = urlParams.get('bg') === 'true';
+        
+        const durationParam = parseFloat(urlParams.get('duration'));
+        const alertDuration = (!isNaN(durationParam) && durationParam >= 2 && durationParam <= 20) 
+            ? durationParam * 1000 
+            : 5000;
+
+        let alertVolume = 0.85;
+        const volParam = parseFloat(urlParams.get('volume'));
+        if (!isNaN(volParam)) {
+            alertVolume = volParam > 1 ? volParam / 100 : volParam;
+        }
+
+        if (withBg) {
+            document.body.classList.add('with-bg');
+        }
+
+        // =====================================================================
+        // CONTROLES INTERACTIVOS (OCULTOS POR DEFECTO, VISIBLES AL DAR CLIC)
+        // =====================================================================
+        let controlsVisible = false;
+
+        function toggleControls(forceState) {
+            controlsVisible = typeof forceState === 'boolean' ? forceState : !controlsVisible;
+            const testBar = document.getElementById('testBar');
+            const statusBadge = document.getElementById('kickStatusBadge');
+
+            if (controlsVisible) {
+                testBar?.classList.remove('hidden');
+                statusBadge?.classList.remove('hidden');
+            } else {
+                testBar?.classList.add('hidden');
+                statusBadge?.classList.add('hidden');
+            }
+        }
+
+        window.addEventListener('click', (e) => {
+            if (e.target.closest('#testBar') || e.target.closest('#kickStatusBadge')) {
+                return;
+            }
+            toggleControls();
+        });
+
+        if (hideControls) {
+            toggleControls(false);
+        }
+
+        // =====================================================================
+        // SVGS DE CONEJITOS KAWAII POR CADA TIPO DE EVENTO
+        // =====================================================================
+        const svgs = {
+            // FOLLOW: Conejitos saludando y asomándose felices
+            followLeft: `<svg viewBox="0 0 100 100"><ellipse cx="25" cy="35" rx="10" ry="24" class="bunny-skin" transform="rotate(-30 25 35)"/><ellipse cx="25" cy="35" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(-30 25 35)"/><ellipse cx="60" cy="20" rx="10" ry="26" class="bunny-skin" transform="rotate(10 60 20)"/><ellipse cx="60" cy="20" rx="5" ry="18" class="bunny-inner-ear" transform="rotate(10 60 20)"/><circle cx="45" cy="65" r="32" class="bunny-skin" /><ellipse cx="23" cy="66" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="67" cy="66" rx="6" ry="3.5" class="bunny-blush"/><circle cx="33" cy="60" r="4.5" class="bunny-dark" /><circle cx="57" cy="60" r="4.5" class="bunny-dark" /><circle cx="32" cy="58" r="1.5" class="bunny-white" /><circle cx="56" cy="58" r="1.5" class="bunny-white" /><path d="M 40 67 Q 45 72 50 67 Q 55 72 60 67" class="bunny-line"/><ellipse cx="28" cy="92" rx="8" ry="10" class="bunny-skin" transform="rotate(-15 28 92)"/><ellipse cx="62" cy="92" rx="8" ry="10" class="bunny-skin" transform="rotate(15 62 92)"/></svg>`,
+            followRight: `<svg viewBox="0 0 100 100"><ellipse cx="40" cy="25" rx="10" ry="26" class="bunny-skin" transform="rotate(-15 40 25)"/><ellipse cx="40" cy="25" rx="5" ry="18" class="bunny-inner-ear" transform="rotate(-15 40 25)"/><ellipse cx="75" cy="30" rx="10" ry="24" class="bunny-skin" transform="rotate(25 75 30)"/><ellipse cx="75" cy="30" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(25 75 30)"/><ellipse cx="85" cy="50" rx="8" ry="18" class="bunny-skin" transform="rotate(45 85 50)"/><path d="M 87 40 L 92 45" class="bunny-line" stroke-width="1.5"/><circle cx="55" cy="65" r="32" class="bunny-skin" /><ellipse cx="33" cy="66" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="77" cy="66" rx="6" ry="3.5" class="bunny-blush"/><path d="M 31 62 Q 35 57 39 62" class="bunny-line"/><path d="M 61 62 Q 65 57 69 62" class="bunny-line"/><path d="M 46 68 Q 50 78 54 68 Z" class="bunny-dark"/><path d="M 48 71 Q 50 74 52 71 Z" fill="#ff7da9"/></svg>`,
+            
+            // SUB: Abrazando un corazón y saltando de felicidad
+            subLeft: `<svg viewBox="0 0 100 100"><ellipse cx="32" cy="28" rx="12" ry="26" class="bunny-skin" transform="rotate(-10 32 28)"/><ellipse cx="32" cy="28" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(-10 32 28)"/><ellipse cx="68" cy="28" rx="12" ry="26" class="bunny-skin" transform="rotate(10 68 28)"/><ellipse cx="68" cy="28" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(10 68 28)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><circle cx="37" cy="58" r="6" class="bunny-dark" /><circle cx="63" cy="58" r="6" class="bunny-dark" /><circle cx="35" cy="56" r="2.5" class="bunny-white" /><circle cx="39" cy="60" r="1" class="bunny-white" /><circle cx="61" cy="56" r="2.5" class="bunny-white" /><circle cx="65" cy="60" r="1" class="bunny-white" /><path d="M 47 67 Q 50 72 53 67" class="bunny-line"/><path d="M 50 95 C 20 75 30 50 50 65 C 70 50 80 75 50 95" fill="#ff4d6d"/><ellipse cx="38" cy="75" rx="6" ry="10" class="bunny-skin" transform="rotate(-45 38 75)"/><ellipse cx="62" cy="75" rx="6" ry="10" class="bunny-skin" transform="rotate(45 62 75)"/></svg>`,
+            subRight: `<svg viewBox="0 0 100 100"><ellipse cx="25" cy="30" rx="10" ry="24" class="bunny-skin" transform="rotate(-25 25 30)"/><ellipse cx="25" cy="30" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(-25 25 30)"/><ellipse cx="75" cy="30" rx="10" ry="24" class="bunny-skin" transform="rotate(25 75 30)"/><ellipse cx="75" cy="30" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(25 75 30)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><ellipse cx="28" cy="64" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="72" cy="64" rx="6" ry="3.5" class="bunny-blush"/><path d="M 32 60 Q 36 55 40 60 L 36 62 Z" class="bunny-dark"/><path d="M 60 60 Q 64 55 68 60 L 64 62 Z" class="bunny-dark"/><path d="M 42 66 Q 50 80 58 66 Z" class="bunny-dark"/><path d="M 45 70 Q 50 75 55 70 Z" fill="#ff7da9"/><path d="M 20 40 L 23 48 L 31 50 L 25 55 L 26 63 L 20 58 L 14 63 L 15 55 L 9 50 L 17 48 Z" fill="#ffe66d" transform="scale(0.6) translate(-10, -10)"/><path d="M 80 30 L 83 38 L 91 40 L 85 45 L 86 53 L 80 48 L 74 53 L 75 45 L 69 40 L 77 38 Z" fill="#ffe66d" transform="scale(0.5) translate(80, 0)"/></svg>`,
+
+            // GIFT: Con regalo y lagrimitas de felicidad
+            giftLeft: `<svg viewBox="0 0 100 100"><ellipse cx="20" cy="50" rx="10" ry="24" class="bunny-skin" transform="rotate(-60 20 50)"/><ellipse cx="20" cy="50" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(-60 20 50)"/><ellipse cx="80" cy="50" rx="10" ry="24" class="bunny-skin" transform="rotate(60 80 50)"/><ellipse cx="80" cy="50" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(60 80 50)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><ellipse cx="28" cy="66" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="72" cy="66" rx="6" ry="3.5" class="bunny-blush"/><circle cx="36" cy="62" r="4" class="bunny-dark" /><circle cx="64" cy="62" r="4" class="bunny-dark" /><circle cx="35" cy="60" r="1.5" class="bunny-white" /><circle cx="63" cy="60" r="1.5" class="bunny-white" /><path d="M 46 69 Q 50 67 54 69" class="bunny-line"/><rect x="35" y="75" width="30" height="25" fill="#ff99bb" rx="2"/><rect x="47" y="75" width="6" height="25" fill="#fff"/><rect x="35" y="85" width="30" height="6" fill="#fff"/><path d="M 50 75 Q 40 65 48 70 Q 50 75 50 75" fill="#fff"/><path d="M 50 75 Q 60 65 52 70 Q 50 75 50 75" fill="#fff"/><ellipse cx="32" cy="85" rx="6" ry="8" class="bunny-skin" transform="rotate(-20 32 85)"/><ellipse cx="68" cy="85" rx="6" ry="8" class="bunny-skin" transform="rotate(20 68 85)"/></svg>`,
+            giftRight: `<svg viewBox="0 0 100 100"><ellipse cx="32" cy="28" rx="12" ry="26" class="bunny-skin" transform="rotate(-15 32 28)"/><ellipse cx="32" cy="28" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(-15 32 28)"/><ellipse cx="68" cy="28" rx="12" ry="26" class="bunny-skin" transform="rotate(15 68 28)"/><ellipse cx="68" cy="28" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(15 68 28)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><ellipse cx="25" cy="65" rx="7" ry="4" class="bunny-blush"/><ellipse cx="75" cy="65" rx="7" ry="4" class="bunny-blush"/><path d="M 32 58 Q 37 54 42 58" class="bunny-line"/><path d="M 58 58 Q 63 54 68 58" class="bunny-line"/><path d="M 44 65 Q 50 75 56 65 Z" class="bunny-dark"/><path d="M 37 62 Q 35 80 37 90 Q 40 80 42 62 Z" fill="#aed9e0" opacity="0.8"/><path d="M 63 62 Q 61 80 63 90 Q 66 80 68 62 Z" fill="#aed9e0" opacity="0.8"/><ellipse cx="28" cy="72" rx="7" ry="10" class="bunny-skin" transform="rotate(30 28 72)"/><ellipse cx="72" cy="72" rx="7" ry="10" class="bunny-skin" transform="rotate(-30 72 72)"/></svg>`,
+
+            // KICKS: Lentes cool de sol y loco por las monedas verdes
+            kicksLeft: `<svg viewBox="0 0 100 100"><ellipse cx="30" cy="30" rx="11" ry="25" class="bunny-skin" transform="rotate(-20 30 30)"/><ellipse cx="30" cy="30" rx="5" ry="17" class="bunny-inner-ear" transform="rotate(-20 30 30)"/><ellipse cx="70" cy="30" rx="11" ry="25" class="bunny-skin" transform="rotate(20 70 30)"/><ellipse cx="70" cy="30" rx="5" ry="17" class="bunny-inner-ear" transform="rotate(20 70 30)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><ellipse cx="28" cy="70" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="72" cy="70" rx="6" ry="3.5" class="bunny-blush"/><path d="M 45 74 Q 50 77 55 74" class="bunny-line"/><circle cx="36" cy="60" r="9" fill="#111" /><circle cx="64" cy="60" r="9" fill="#111" /><path d="M 45 60 L 55 60" stroke="#111" stroke-width="3"/><path d="M 38 56 L 33 63" stroke="#fff" stroke-width="2" opacity="0.6"/><path d="M 66 56 L 61 63" stroke="#fff" stroke-width="2" opacity="0.6"/><ellipse cx="80" cy="75" rx="6" ry="14" class="bunny-skin" transform="rotate(-40 80 75)"/></svg>`,
+            kicksRight: `<svg viewBox="0 0 100 100"><ellipse cx="32" cy="25" rx="12" ry="26" class="bunny-skin" transform="rotate(-15 32 25)"/><ellipse cx="32" cy="25" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(-15 32 25)"/><ellipse cx="68" cy="25" rx="12" ry="26" class="bunny-skin" transform="rotate(15 68 25)"/><ellipse cx="68" cy="25" rx="6" ry="18" class="bunny-inner-ear" transform="rotate(15 68 25)"/><circle cx="50" cy="62" r="32" class="bunny-skin" /><ellipse cx="28" cy="64" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="72" cy="64" rx="6" ry="3.5" class="bunny-blush"/><path d="M 38 52 L 41 57 L 46 58 L 41 59 L 38 64 L 35 59 L 30 58 L 35 57 Z" fill="#53c253"/><path d="M 62 52 L 65 57 L 70 58 L 65 59 L 62 64 L 59 59 L 54 58 L 59 57 Z" fill="#53c253"/><path d="M 45 68 Q 50 78 55 68 Z" class="bunny-dark"/><path d="M 52 72 Q 54 78 52 82 Q 50 78 48 72 Z" fill="#aed9e0" opacity="0.7"/><circle cx="50" cy="85" r="14" fill="#53c253" stroke="#fff" stroke-width="2"/><text x="50" y="90" font-family="Arial" font-weight="900" font-size="14" fill="#fff" text-anchor="middle">K</text><ellipse cx="33" cy="82" rx="7" ry="10" class="bunny-skin" transform="rotate(-30 33 82)"/><ellipse cx="67" cy="82" rx="7" ry="10" class="bunny-skin" transform="rotate(30 67 82)"/></svg>`,
+
+            // RAID: Shock/Sorpresa y estampida de conejitos corriendo
+            raidLeft: `<svg viewBox="0 0 100 100"><ellipse cx="35" cy="20" rx="10" ry="28" class="bunny-skin" transform="rotate(-5 35 20)"/><ellipse cx="35" cy="20" rx="5" ry="20" class="bunny-inner-ear" transform="rotate(-5 35 20)"/><ellipse cx="65" cy="20" rx="10" ry="28" class="bunny-skin" transform="rotate(5 65 20)"/><ellipse cx="65" cy="20" rx="5" ry="20" class="bunny-inner-ear" transform="rotate(5 65 20)"/><circle cx="50" cy="65" r="32" class="bunny-skin" /><ellipse cx="28" cy="67" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="72" cy="67" rx="6" ry="3.5" class="bunny-blush"/><circle cx="36" cy="58" r="6" class="bunny-dark" /><circle cx="36" cy="58" r="2.5" class="bunny-white" /><circle cx="64" cy="58" r="6" class="bunny-dark" /><circle cx="64" cy="58" r="2.5" class="bunny-white" /><path d="M 30 48 Q 36 45 42 48" class="bunny-line" stroke-width="1.5"/><path d="M 58 48 Q 64 45 70 48" class="bunny-line" stroke-width="1.5"/><ellipse cx="50" cy="68" rx="4" ry="6" class="bunny-dark"/><ellipse cx="43" cy="75" rx="6" ry="10" class="bunny-skin" transform="rotate(20 43 75)"/><ellipse cx="57" cy="75" rx="6" ry="10" class="bunny-skin" transform="rotate(-20 57 75)"/></svg>`,
+            raidRight: `<svg viewBox="0 0 100 100"><ellipse cx="20" cy="40" rx="10" ry="26" class="bunny-skin" transform="rotate(-70 20 40)"/><ellipse cx="20" cy="40" rx="5" ry="18" class="bunny-inner-ear" transform="rotate(-70 20 40)"/><ellipse cx="15" cy="55" rx="10" ry="24" class="bunny-skin" transform="rotate(-80 15 55)"/><ellipse cx="15" cy="55" rx="5" ry="16" class="bunny-inner-ear" transform="rotate(-80 15 55)"/><circle cx="55" cy="65" r="32" class="bunny-skin" /><ellipse cx="35" cy="68" rx="6" ry="3.5" class="bunny-blush"/><ellipse cx="75" cy="68" rx="6" ry="3.5" class="bunny-blush"/><path d="M 35 57 L 42 61 L 35 65" class="bunny-line"/><path d="M 75 57 L 68 61 L 75 65" class="bunny-line"/><path d="M 50 68 L 60 68 L 55 75 Z" class="bunny-dark"/><path d="M 5 60 L 25 60 M 10 70 L 30 70 M 2 50 L 15 50" stroke="var(--theme-color-dark)" stroke-width="3" stroke-linecap="round" stroke-dasharray="8 4"/><ellipse cx="85" cy="80" rx="8" ry="14" class="bunny-skin" transform="rotate(-30 85 80)"/></svg>`
+        };
+
+        // =====================================================================
+        // PLANTILLAS DE TEXTOS PERSONALIZABLES CON VARIABLES DINÁMICAS
+        // =====================================================================
+        const customTexts = {
+            follow: urlParams.get('txt_follow') || 'se unió a la madriguera',
+            sub: urlParams.get('txt_sub') || 'ahora es un conejito VIP',
+            sub_new: urlParams.get('txt_newsub') || 'es un nuevo conejito VIP',
+            gift: urlParams.get('txt_gift') || 'ha regalado {subs} zanahorias',
+            raid: urlParams.get('txt_raid') || 'trajo una estampida de {viewers} conejitos',
+            kicks: urlParams.get('txt_kicks') || 'nos envió {kicks} Kicks!'
+        };
+
+        function formatAlertSubtitle(template, vars = {}) {
+            let res = String(template || '');
+            const count = vars.count !== undefined ? vars.count : (vars.amount !== undefined ? vars.amount : (vars.months || vars.subs || vars.viewers || vars.kicks || 1));
+            
+            // Reemplazo flexible de variables tolerante a espacios y mayúsculas
+            res = res.replace(/\{\s*(meses|mes)\s*\}/gi, vars.months !== undefined ? vars.months : count);
+            res = res.replace(/\{\s*(subs|sub|regaladas|zanahorias)\s*\}/gi, vars.subs !== undefined ? vars.subs : count);
+            res = res.replace(/\{\s*(viewers|espectadores|raiders|conejitos|personas)\s*\}/gi, vars.viewers !== undefined ? vars.viewers : count);
+            res = res.replace(/\{\s*(kicks|kick|gemas|monedas)\s*\}/gi, vars.kicks !== undefined ? vars.kicks : count);
+            res = res.replace(/\{\s*(cantidad|count|amount|n)\s*\}/gi, count);
+            res = res.replace(/\{\s*(user|usuario|streamer)\s*\}/gi, vars.user || '');
+            return res;
+        }
+
+        // =====================================================================
+        // SINTETIZADOR DE AUDIO KAWAII (Web Audio API)
+        // Campanitas dulces y arpegios armónicos
+        // =====================================================================
+        let audioCtx = null;
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            return audioCtx;
+        }
+
+        function playKawaiiSound(type) {
+            if (isMuted) return;
+            try {
+                const ctx = getAudioContext();
+                const now = ctx.currentTime;
+                const masterGain = ctx.createGain();
+                masterGain.gain.setValueAtTime(0.35 * alertVolume, now);
+                masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+                masterGain.connect(ctx.destination);
+
+                // Notas pentatónicas dulces y luminosas
+                let freqs = [587.33, 739.99, 880.00, 1174.66]; // D5, F#5, A5, D6 (Follow Dulce)
+                if (type === 'sub') freqs = [659.25, 830.61, 987.77, 1318.51, 1661.22]; // E5, G#5, B5, E6, G#6 (Sub VIP)
+                else if (type === 'gift') freqs = [698.46, 880.00, 1046.50, 1318.51, 1567.98]; // F5, A5, C6, E6, G6 (Regalos Mágicos)
+                else if (type === 'raid') freqs = [523.25, 659.25, 783.99, 1046.50, 1318.51, 1567.98]; // C5 Mayor (Fanfarria Estampida)
+                else if (type === 'kicks') freqs = [783.99, 987.77, 1174.66, 1479.98, 1567.98]; // G5 Brillante (Moneditas Kicks)
+
+                freqs.forEach((freq, idx) => {
+                    const osc = ctx.createOscillator();
+                    const noteGain = ctx.createGain();
+                    const startTime = now + (idx * 0.08);
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(freq, startTime);
+
+                    noteGain.gain.setValueAtTime(0.001, startTime);
+                    noteGain.gain.linearRampToValueAtTime(0.3, startTime + 0.015);
+                    noteGain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.75);
+
+                    osc.connect(noteGain);
+                    noteGain.connect(masterGain);
+
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.8);
+                });
+            } catch(e) {
+                console.warn("[Kawaii Audio Error]:", e);
+            }
+        }
+
+        // =====================================================================
+        // CONFIGURACIÓN DE COLORES Y ELEMENTOS POR TIPO DE ALERTA
+        // =====================================================================
+        const alertConfigs = {
+            follow: {
+                title: "¡Nuevo Seguidor!",
+                color: "#ffb3c6", // Pastel Pink
+                colorDark: "#ff8fab",
+                user: "ConejitoKawaii",
+                left: svgs.followLeft,
+                right: svgs.followRight
+            },
+            sub: {
+                title: "¡Nueva Suscripción!",
+                color: "#aed9e0", // Pastel Blue / Mint
+                colorDark: "#85c4cf",
+                user: "ZanahoriaMaster",
+                left: svgs.subLeft,
+                right: svgs.subRight
+            },
+            gift: {
+                title: "¡Sub Regalada!",
+                color: "#fdfd96", // Pastel Yellow
+                colorDark: "#e5e56e",
+                user: "SrOrejas",
+                left: svgs.giftLeft,
+                right: svgs.giftRight
+            },
+            kicks: {
+                title: "¡Kicks Recibidos!",
+                color: "#c1e1c1", // Pastel Green
+                colorDark: "#9dcc9d",
+                user: "Saltarin99",
+                left: svgs.kicksLeft,
+                right: svgs.kicksRight
+            },
+            raid: {
+                title: "¡Raid Entrante!",
+                color: "#c8b6ff", // Pastel Purple
+                colorDark: "#a88ff3",
+                user: "ReinaMochi",
+                left: svgs.raidLeft,
+                right: svgs.raidRight
+            }
+        };
+
+        // =====================================================================
+        // COLA DE ALERTAS FIFO Y CONTROL VISUAL
+        // =====================================================================
+        const alertQueue = [];
+        let isAlertActive = false;
+        let alertTimeout = null;
+        let currentAlertData = null;
+
+        const overlay = document.getElementById('overlay');
+        const alertBox = document.getElementById('alertBox');
+        const alertTitle = document.getElementById('alertTitle');
+        const alertDesc = document.getElementById('alertDesc');
+        const followerName = document.getElementById('followerName');
+        const bunnyLeft = document.getElementById('bunnyLeft');
+        const bunnyRight = document.getElementById('bunnyRight');
+
+        function queueAlert(data) {
+            alertQueue.push(data);
+            processQueue();
+        }
+
+        function processQueue() {
+            if (isAlertActive || alertQueue.length === 0) return;
+            const current = alertQueue.shift();
+            displayAlert(current);
+        }
+
+        function displayAlert(data) {
+            isAlertActive = true;
+            currentAlertData = data;
+            const config = alertConfigs[data.type] || alertConfigs.follow;
+
+            // 1. Limpiar estado visual anterior
+            overlay.classList.remove('active', 'exiting');
+
+            // 2. Actualizar variables CSS dinámicas de color pastel
+            alertBox.style.setProperty('--theme-color', config.color);
+            alertBox.style.setProperty('--theme-color-dark', config.colorDark);
+
+            // 3. Inyectar los conejitos correspondientes
+            bunnyLeft.innerHTML = config.left;
+            bunnyRight.innerHTML = config.right;
+
+            // 4. Actualizar textos dinámicos
+            alertTitle.textContent = data.title || config.title;
+            alertDesc.textContent = data.desc || data.subtitle || 'se unió a la madriguera';
+            followerName.textContent = data.username || config.user;
+
+            // 5. Ajustar contraste de texto en pill para amarillo / verde claro
+            if (data.type === 'gift' || data.type === 'kicks') {
+                alertTitle.style.color = "var(--text-dark)";
+                alertTitle.style.textShadow = "none";
+            } else {
+                alertTitle.style.color = "white";
+                alertTitle.style.textShadow = "1px 2px 0px rgba(0,0,0,0.15)";
+            }
+
+            // 6. Reproducir audio kawaii
+            playKawaiiSound(data.type);
+
+            // 7. Forzar reflow para reiniciar animación popIn de forma limpia
+            void overlay.offsetWidth;
+            overlay.classList.add('active');
+
+            // 8. Temporizador de visibilidad y salida fluida
+            const visibleDuration = Math.max(2500, alertDuration - 500);
+
+            if (alertTimeout) clearTimeout(alertTimeout);
+            alertTimeout = setTimeout(() => {
+                overlay.classList.add('exiting');
+                setTimeout(() => {
+                    overlay.classList.remove('active');
+                    overlay.classList.remove('exiting');
+                    isAlertActive = false;
+                    currentAlertData = null;
+
+                    // Si está en modo bucle continuo (para previsualización)
+                    if (isLoopMode && alertQueue.length === 0) {
+                        setTimeout(() => {
+                            triggerRandomTest();
+                        }, 1200);
+                    } else {
+                        processQueue();
+                    }
+                }, 450);
+            }, visibleDuration);
+        }
+
+        // =====================================================================
+        // DISPARADORES DE PRUEBA
+        // =====================================================================
+        const mockUsers = ["ConejitoKawaii", "ZanahoriaMaster", "SrOrejas", "Saltarin99", "ReinaMochi", "MallowBunny", "Jikokun"];
+
+        function triggerAlertByType(type) {
+            if (alertTimeout) {
+                clearTimeout(alertTimeout);
+                alertTimeout = null;
+            }
+            isAlertActive = false;
+
+            const randomName = mockUsers[Math.floor(Math.random() * mockUsers.length)];
+
+            switch(type) {
+                case 'follow':
+                    displayAlert({
+                        type: 'follow',
+                        title: '¡Nuevo Seguidor!',
+                        desc: formatAlertSubtitle(customTexts.follow, { user: randomName }),
+                        username: randomName
+                    });
+                    break;
+                case 'sub':
+                    const months = [1, 2, 3, 6, 12][Math.floor(Math.random() * 5)];
+                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'es un nuevo conejito VIP') ? customTexts.sub_new : customTexts.sub;
+                    displayAlert({
+                        type: 'sub',
+                        count: months,
+                        months: months,
+                        title: '¡Nueva Suscripción!',
+                        desc: formatAlertSubtitle(subTpl, { months: months, count: months, user: randomName }),
+                        username: randomName
+                    });
+                    break;
+                case 'gift':
+                    const gifts = [1, 5, 10, 20][Math.floor(Math.random() * 4)];
+                    displayAlert({
+                        type: 'gift',
+                        count: gifts,
+                        subs: gifts,
+                        title: '¡Sub Regalada!',
+                        desc: formatAlertSubtitle(customTexts.gift, { subs: gifts, count: gifts, user: randomName }),
+                        username: randomName
+                    });
+                    break;
+                case 'kicks':
+                    const kicks = [100, 250, 500, 1000, 2500][Math.floor(Math.random() * 5)];
+                    displayAlert({
+                        type: 'kicks',
+                        count: kicks,
+                        kicks: kicks,
+                        title: '¡Kicks Recibidos!',
+                        desc: formatAlertSubtitle(customTexts.kicks, { kicks: kicks, count: kicks, user: randomName }),
+                        username: randomName
+                    });
+                    break;
+                case 'raid':
+                    const viewers = Math.floor(Math.random() * 150) + 15;
+                    displayAlert({
+                        type: 'raid',
+                        count: viewers,
+                        viewers: viewers,
+                        title: '¡Raid Entrante!',
+                        desc: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: randomName }),
+                        username: randomName
+                    });
+                    break;
+            }
+        }
+
+        function triggerRandomTest() {
+            const types = ['follow', 'sub', 'gift', 'kicks', 'raid'];
+            const randomType = types[Math.floor(Math.random() * types.length)];
+            triggerAlertByType(randomType);
+        }
+
+        // Asignar eventos a la barra de botones
+        document.querySelectorAll('.trigger-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const type = e.currentTarget.getAttribute('data-type');
+                triggerAlertByType(type);
+            });
+        });
+
+        // =====================================================================
+        // CONEXIÓN NATIVA CON KICK PUSHER CLOUD Y RESOLUCIÓN REST
+        // =====================================================================
+        const KNOWN_KICK_CHANNELS = {
+            'jikokun': { channelId: 1874362, chatroomId: 1866891, slug: 'jikokun' }
+        };
+        const KICK_PUSHER_KEYS = ["32cbd69e4b950bf97679", "eb1d5f28b619a93b7726"];
+        const KICK_PUSHER_CLUSTER = "us2";
+        let activePusher = null;
+        let currentKeyIndex = 0;
+
+        async function resolverCanalKick(username) {
+            const clean = (username || 'jikokun').trim().toLowerCase().replace(/^@/, '');
+            const statusText = document.getElementById('kickStatusText');
+            const statusDot = document.getElementById('kickDot');
+
+            // 0. Overrides manuales directos en URL (ej: ?channel_id=1874362&chatroom_id=1866891)
+            const urlCid = urlParams.get('channel_id') || urlParams.get('cid');
+            const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id');
+            if (urlCid) {
+                return { channelId: parseInt(urlCid, 10), chatroomId: parseInt(urlChatId || urlCid, 10), slug: clean };
+            }
+
+            // 1. Caché local en navegador
+            const cacheKey = `kick_channel_cache_${clean}`;
+            try {
+                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
+                if (cached && cached.channelId && cached.chatroomId) {
+                    console.log(`[Kick Cache] Canal @${clean} cargado desde caché.`);
+                    return cached;
+                }
+            } catch(e) {}
+
+            // 2. Diccionario verificado para canales conocidos (jikokun por defecto)
+            if (KNOWN_KICK_CHANNELS[clean]) {
+                const resolved = KNOWN_KICK_CHANNELS[clean];
+                try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+                return resolved;
+            }
+
+            if (statusText) statusText.textContent = `Kick: Buscando @${clean}...`;
+
+            // 3. Proxies CORS públicos activos (sin corsproxy.io que entrega error 403)
+            const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
+            const proxyUrls = [
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+                targetUrl
+            ];
+
+            for (const pUrl of proxyUrls) {
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res = await fetch(pUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && (data.id || data.chatroom?.id)) {
+                            const resolved = {
+                                channelId: data.id,
+                                chatroomId: data.chatroom?.id || data.id,
+                                slug: data.slug || clean
+                            };
+                            try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+                            return resolved;
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 4. Respaldo definitivo si es jikokun
+            if (clean === 'jikokun') {
+                return KNOWN_KICK_CHANNELS['jikokun'];
+            }
+
+            console.warn(`[Kick API] No se pudo resolver @${clean}. Funcionando en modo autónomo.`);
+            if (statusText) statusText.textContent = `@${clean} (Offline)`;
+            if (statusDot) statusDot.style.background = '#f59e0b';
+            return null;
+        }
+
+        async function conectarKickCloud(retryCount = 0) {
+            const info = await resolverCanalKick(kickChannel);
+            if (!info) return;
+
+            const statusText = document.getElementById('kickStatusText');
+            const statusDot = document.getElementById('kickDot');
+
+            const currentKey = KICK_PUSHER_KEYS[currentKeyIndex % KICK_PUSHER_KEYS.length];
+            if (statusText) statusText.textContent = `Kick: Conectando...`;
+
+            if (activePusher) {
+                try { activePusher.disconnect(); } catch(e) {}
+            }
+
+            try {
+                const pusher = new Pusher(currentKey, {
+                    cluster: KICK_PUSHER_CLUSTER,
+                    forceTLS: true
+                });
+                activePusher = pusher;
+
+                let connectionSucceeded = false;
+                const connTimeout = setTimeout(() => {
+                    if (!connectionSucceeded && retryCount < 2) {
+                        console.warn("[Kick Alerts Conejita] Reintentando con clave alternativa...");
+                        currentKeyIndex++;
+                        conectarKickCloud(retryCount + 1);
+                    }
+                }, 8000);
+
+                // Suscripción al Canal (Follows, Subs, Gifts, Raids)
+                const channelSub = pusher.subscribe(`channel.${info.channelId}`);
+
+                // A. Followers
+                function handleFollow(ev) {
+                    const u = ev.username || 'Nuevo Seguidor';
+                    queueAlert({
+                        type: 'follow',
+                        title: '¡Nuevo Seguidor!',
+                        desc: formatAlertSubtitle(customTexts.follow, { user: u }),
+                        username: u
+                    });
+                }
+                channelSub.bind('App\\Events\\FollowersUpdated', handleFollow);
+                channelSub.bind('FollowersUpdated', handleFollow);
+
+                // B. Suscripciones
+                function handleSub(ev) {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const months = raw.months || 1;
+                    const u = raw.username || 'Suscriptor';
+                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'es un nuevo conejito VIP') ? customTexts.sub_new : customTexts.sub;
+                    queueAlert({
+                        type: 'sub',
+                        title: '¡Nueva Suscripción!',
+                        desc: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
+                        username: u
+                    });
+                }
+                channelSub.bind('App\\Events\\SubscriptionEvent', handleSub);
+                channelSub.bind('SubscriptionEvent', handleSub);
+
+                // C. Suscripciones Regaladas
+                function handleGift(ev) {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const count = raw.gifted_usernames?.length || raw.count || 1;
+                    const u = raw.gifter_username || 'Amigo del Canal';
+                    queueAlert({
+                        type: 'gift',
+                        title: '¡Sub Regalada!',
+                        desc: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
+                        username: u
+                    });
+                }
+                channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', handleGift);
+                channelSub.bind('GiftedSubscriptionsEvent', handleGift);
+
+                // D. Raids
+                function handleRaid(ev) {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const viewers = raw.number || raw.viewers || 0;
+                    const u = raw.host_username || 'Streamer Amigo';
+                    queueAlert({
+                        type: 'raid',
+                        title: '¡Raid Entrante!',
+                        desc: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
+                        username: u
+                    });
+                }
+                channelSub.bind('App\\Events\\StreamHostEvent', handleRaid);
+                channelSub.bind('StreamHostEvent', handleRaid);
+
+                // Suscripción al Chatroom (Kicks, tips, cheers)
+                const chatSub = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
+                function handleChat(ev) {
+                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
+                    const content = (raw.content || '').toLowerCase();
+                    const sender = raw.sender?.username || 'Espectador';
+
+                    if (content.includes('!kick') || content.includes('kicks') || raw.type === 'tip') {
+                        let kicksNum = 100;
+                        const match = content.match(/\d+/);
+                        if (match) kicksNum = parseInt(match[0], 10);
+                        queueAlert({
+                            type: 'kicks',
+                            title: '¡Kicks Recibidos!',
+                            desc: formatAlertSubtitle(customTexts.kicks, { kicks: kicksNum, count: kicksNum, user: sender }),
+                            username: sender
+                        });
+                    }
+                }
+                chatSub.bind('App\\Events\\ChatMessageEvent', handleChat);
+                chatSub.bind('ChatMessageEvent', handleChat);
+
+                pusher.connection.bind('connected', () => {
+                    connectionSucceeded = true;
+                    clearTimeout(connTimeout);
+                    console.log(`[Kick Cloud] Conejita conectada a @${info.slug}`);
+                    if (statusText) statusText.textContent = `Kick: @${info.slug} (En Vivo)`;
+                    if (statusDot) {
+                        statusDot.style.background = '#53fc18';
+                        statusDot.style.boxShadow = '0 0 8px #53fc18';
+                    }
+                });
+
+                pusher.connection.bind('disconnected', () => {
+                    if (statusText) statusText.textContent = `Kick: Desconectado`;
+                    if (statusDot) statusDot.style.background = '#ef4444';
+                });
+
+                pusher.connection.bind('error', (err) => {
+                    console.warn('[Kick Pusher Conejita] Error:', err);
+                    if (!connectionSucceeded && retryCount < 2) {
+                        clearTimeout(connTimeout);
+                        currentKeyIndex++;
+                        conectarKickCloud(retryCount + 1);
+                    }
+                });
+
+            } catch(err) {
+                console.warn("[Kick Pusher Error]:", err);
+            }
+        }
+
+        // =====================================================================
+        // COMUNICACIÓN CON LA GALERÍA INDEX.HTML (POSTMESSAGE)
+        // =====================================================================
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+
+            if (event.data.type === 'TRIGGER_TEST_ALERT') {
+                const prevMute = isMuted;
+                if (typeof event.data.volume === 'number' && event.data.volume > 0) {
+                    alertVolume = event.data.volume;
+                    isMuted = false;
+                }
+                triggerAlertByType(event.data.alertType || 'follow');
+                setTimeout(() => { isMuted = prevMute; }, 2500);
+            } else if (event.data.type === 'SET_CUSTOM_TEXTS') {
+                if (event.data.customTexts) {
+                    Object.assign(customTexts, event.data.customTexts);
+                    if (isAlertActive && currentAlertData) {
+                        const type = currentAlertData.type;
+                        let tpl = customTexts[type] || '';
+                        if (type === 'sub') {
+                            const m = currentAlertData.months || 1;
+                            tpl = (m === 1 && customTexts.sub_new && customTexts.sub_new !== 'es un nuevo conejito VIP') ? customTexts.sub_new : customTexts.sub;
+                        }
+                        const count = currentAlertData.count || currentAlertData.months || currentAlertData.subs || currentAlertData.viewers || currentAlertData.kicks || 1;
+                        alertDesc.textContent = formatAlertSubtitle(tpl, {
+                            months: currentAlertData.months || count,
+                            subs: currentAlertData.subs || count,
+                            viewers: currentAlertData.viewers || count,
+                            kicks: currentAlertData.kicks || count,
+                            count: count,
+                            user: currentAlertData.username || ''
+                        });
+                    }
+                }
+            } else if (event.data.type === 'SET_LOOP_MODE') {
+                isLoopMode = !!event.data.isLoop;
+                if (isLoopMode && !isAlertActive) {
+                    triggerRandomTest();
+                }
+            }
+        });
+
+        // =====================================================================
+        // INICIALIZACIÓN
+        // =====================================================================
+        document.addEventListener('DOMContentLoaded', () => {
+            conectarKickCloud();
+
+            if (isPreview || isLoopMode) {
+                setTimeout(() => {
+                    triggerAlertByType(urlParams.get('test') || 'follow');
+                }, 400);
+            }
+        });
+    </script>
+</body>
+</html>

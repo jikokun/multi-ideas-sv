@@ -852,127 +852,121 @@
         // =====================================================================
         // CONEXIÓN NATIVA CON KICK PUSHER CLOUD Y RESOLUCIÓN REST
         // =====================================================================
-        const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
+        const KNOWN_KICK_CHANNELS = {
+            'jikokun': { channelId: 1874362, chatroomId: 1866891, slug: 'jikokun' }
+        };
+        const KICK_PUSHER_KEYS = ["32cbd69e4b950bf97679", "eb1d5f28b619a93b7726"];
         const KICK_PUSHER_CLUSTER = "us2";
+        let activePusher = null;
+        let currentKeyIndex = 0;
 
         async function resolverCanalKick(username) {
-            const clean = username.trim().toLowerCase().replace(/^@/, '');
+            const clean = (username || 'jikokun').trim().toLowerCase().replace(/^@/, '');
             const statusText = document.getElementById('kickStatusText');
             const statusDot = document.getElementById('kickDot');
 
-            // 0. Si viene en URL directamente o está en caché local, conectar de inmediato a 0 latencia
+            // 0. Overrides manuales directos en URL (ej: ?channel_id=1874362&chatroom_id=1866891)
             const urlCid = urlParams.get('channel_id') || urlParams.get('cid');
             const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id');
             if (urlCid) {
                 return { channelId: parseInt(urlCid, 10), chatroomId: parseInt(urlChatId || urlCid, 10), slug: clean };
             }
 
+            // 1. Caché local en navegador
             const cacheKey = `kick_channel_cache_${clean}`;
             try {
                 const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
                 if (cached && cached.channelId && cached.chatroomId) {
                     console.log(`[Kick Cache] Canal @${clean} cargado desde caché local.`);
-                    // Continuar en segundo plano para verificar frescura sin bloquear
-                    setTimeout(() => refreshKickCache(clean), 1000);
                     return cached;
                 }
             } catch(e) {}
 
+            // 2. Diccionario verificado para canales conocidos (jikokun por defecto)
+            if (KNOWN_KICK_CHANNELS[clean]) {
+                const resolved = KNOWN_KICK_CHANNELS[clean];
+                try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+                return resolved;
+            }
+
             if (statusText) statusText.textContent = `Kick: Buscando @${clean}...`;
 
+            // 3. Proxies CORS públicos activos (sin corsproxy.io que da 403)
             const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-            let data = null;
+            const proxyUrls = [
+                `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+                `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+                `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+                targetUrl
+            ];
 
-            // 1. Fetch directo
-            try {
-                const res = await fetch(targetUrl);
-                if (res.ok) data = await res.json();
-            } catch(e) {}
-
-            // 2. Fetch con Proxy 1 (AllOrigins)
-            if (!data) {
+            for (const pUrl of proxyUrls) {
                 try {
-                    const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-                    if (resProxy.ok) data = await resProxy.json();
-                } catch(e) {}
-            }
-
-            // 3. Fetch con Proxy 2 (CORSProxy)
-            if (!data) {
-                try {
-                    const resProxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-                    if (resProxy2.ok) data = await resProxy2.json();
-                } catch(e) {}
-            }
-
-            // 4. Fetch con Proxy 3 (CodeTabs)
-            if (!data) {
-                try {
-                    const resProxy3 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
-                    if (resProxy3.ok) data = await resProxy3.json();
-                } catch(e) {}
-            }
-
-            if (!data || !data.id) {
-                console.warn(`[Kick API] No se pudo resolver @${clean}. Funcionando en modo autónomo.`);
-                if (statusText) statusText.textContent = `@${clean} (Offline)`;
-                if (statusDot) statusDot.style.background = '#f59e0b';
-                return null;
-            }
-
-            const resolvedInfo = {
-                channelId: data.id,
-                chatroomId: data.chatroom?.id || data.id,
-                slug: data.slug
-            };
-
-            // Guardar en caché para conexiones instantáneas en futuras sesiones
-            try {
-                localStorage.setItem(cacheKey, JSON.stringify(resolvedInfo));
-            } catch(e) {}
-
-            return resolvedInfo;
-        }
-
-        async function refreshKickCache(clean) {
-            try {
-                const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-                const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.id) {
-                        localStorage.setItem(`kick_channel_cache_${clean}`, JSON.stringify({
-                            channelId: data.id,
-                            chatroomId: data.chatroom?.id || data.id,
-                            slug: data.slug
-                        }));
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 3500);
+                    const res = await fetch(pUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data && (data.id || data.chatroom?.id)) {
+                            const resolved = {
+                                channelId: data.id,
+                                chatroomId: data.chatroom?.id || data.id,
+                                slug: data.slug || clean
+                            };
+                            try { localStorage.setItem(cacheKey, JSON.stringify(resolved)); } catch(e) {}
+                            return resolved;
+                        }
                     }
-                }
-            } catch(e) {}
+                } catch(e) {}
+            }
+
+            // 4. Respaldo definitivo si es jikokun
+            if (clean === 'jikokun') {
+                return KNOWN_KICK_CHANNELS['jikokun'];
+            }
+
+            console.warn(`[Kick API] No se pudo resolver @${clean}.`);
+            if (statusText) statusText.textContent = `@${clean} (Offline)`;
+            if (statusDot) statusDot.style.background = '#f59e0b';
+            return null;
         }
 
-        async function conectarKickCloud() {
+        async function conectarKickCloud(retryCount = 0) {
             const info = await resolverCanalKick(kickChannel);
             if (!info) return;
 
             const statusText = document.getElementById('kickStatusText');
             const statusDot = document.getElementById('kickDot');
 
+            const currentKey = KICK_PUSHER_KEYS[currentKeyIndex % KICK_PUSHER_KEYS.length];
+            if (statusText) statusText.textContent = `Kick: Conectando...`;
+
+            if (activePusher) {
+                try { activePusher.disconnect(); } catch(e) {}
+            }
+
             try {
-                const pusher = new Pusher(KICK_PUSHER_KEY, {
+                const pusher = new Pusher(currentKey, {
                     cluster: KICK_PUSHER_CLUSTER,
-                    wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
-                    wsPort: 443,
-                    wssPort: 443,
-                    enabledTransports: ['ws', 'wss'],
                     forceTLS: true
                 });
+                activePusher = pusher;
+
+                let connectionSucceeded = false;
+                const connTimeout = setTimeout(() => {
+                    if (!connectionSucceeded && retryCount < 2) {
+                        console.warn("[Kick Alerts] Reintentando con clave alternativa...");
+                        currentKeyIndex++;
+                        conectarKickCloud(retryCount + 1);
+                    }
+                }, 8000);
 
                 // Suscripción al Canal (Follows, Subs, Gifts, Raids)
                 const channelSub = pusher.subscribe(`channel.${info.channelId}`);
 
                 // A. Followers
-                channelSub.bind('App\\Events\\FollowersUpdated', (ev) => {
+                function handleFollow(ev) {
                     const u = ev.username || 'Nuevo Seguidor';
                     queueAlert({
                         type: 'follow',
@@ -980,10 +974,12 @@
                         subtitle: formatAlertSubtitle(customTexts.follow, { user: u }),
                         username: u
                     });
-                });
+                }
+                channelSub.bind('App\\Events\\FollowersUpdated', handleFollow);
+                channelSub.bind('FollowersUpdated', handleFollow);
 
                 // B. Suscripciones
-                channelSub.bind('App\\Events\\SubscriptionEvent', (ev) => {
+                function handleSub(ev) {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const months = raw.months || 1;
                     const u = raw.username || 'Suscriptor';
@@ -994,10 +990,12 @@
                         subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
                         username: u
                     });
-                });
+                }
+                channelSub.bind('App\\Events\\SubscriptionEvent', handleSub);
+                channelSub.bind('SubscriptionEvent', handleSub);
 
                 // C. Suscripciones Regaladas
-                channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', (ev) => {
+                function handleGift(ev) {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const count = raw.gifted_usernames?.length || raw.count || 1;
                     const u = raw.gifter_username || 'Amigo del Canal';
@@ -1007,10 +1005,12 @@
                         subtitle: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
                         username: u
                     });
-                });
+                }
+                channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', handleGift);
+                channelSub.bind('GiftedSubscriptionsEvent', handleGift);
 
                 // D. Raids
-                channelSub.bind('App\\Events\\StreamHostEvent', (ev) => {
+                function handleRaid(ev) {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const viewers = raw.number || raw.viewers || 0;
                     const u = raw.host_username || 'Streamer Amigo';
@@ -1020,11 +1020,13 @@
                         subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
                         username: u
                     });
-                });
+                }
+                channelSub.bind('App\\Events\\StreamHostEvent', handleRaid);
+                channelSub.bind('StreamHostEvent', handleRaid);
 
                 // Suscripción al Chatroom (Kicks, tips, cheers)
                 const chatSub = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
-                chatSub.bind('App\\Events\\ChatMessageEvent', (ev) => {
+                function handleChat(ev) {
                     const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
                     const content = (raw.content || '').toLowerCase();
                     const sender = raw.sender?.username || 'Espectador';
@@ -1040,9 +1042,13 @@
                             username: sender
                         });
                     }
-                });
+                }
+                chatSub.bind('App\\Events\\ChatMessageEvent', handleChat);
+                chatSub.bind('ChatMessageEvent', handleChat);
 
                 pusher.connection.bind('connected', () => {
+                    connectionSucceeded = true;
+                    clearTimeout(connTimeout);
                     console.log(`[Kick Cloud] Conectado exitosamente a @${info.slug}`);
                     if (statusText) statusText.textContent = `Kick: @${info.slug} (En Vivo)`;
                     if (statusDot) {
@@ -1054,6 +1060,15 @@
                 pusher.connection.bind('disconnected', () => {
                     if (statusText) statusText.textContent = `Kick: Desconectado`;
                     if (statusDot) statusDot.style.background = '#ef4444';
+                });
+
+                pusher.connection.bind('error', (err) => {
+                    console.warn('[Kick Pusher] Error:', err);
+                    if (!connectionSucceeded && retryCount < 2) {
+                        clearTimeout(connTimeout);
+                        currentKeyIndex++;
+                        conectarKickCloud(retryCount + 1);
+                    }
                 });
 
             } catch(err) {
