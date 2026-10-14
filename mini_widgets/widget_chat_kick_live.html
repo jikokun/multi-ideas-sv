@@ -3,16 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat Flotante Kick (API Nativa) - Burbuja Futurista</title>
+  <title>Chat Flotante Kick (Streamer.bot) - Burbuja Futurista</title>
   
   <!-- Tipografías Modernas -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Nunito:wght@400;600;700;800;900&family=Orbitron:wght@600;700;800;900&family=Outfit:wght@400;600;700;800;900&family=Poppins:wght@400;600;700;800&family=Rajdhani:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <!-- Cliente Pusher JS Oficial para WebSockets de Kick -->
-  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 
   <style>
     :root {
@@ -375,6 +372,8 @@
       const urlParams = new URLSearchParams(window.location.search);
 
       const state = {
+        host: urlParams.get('host') || '127.0.0.1',
+        port: urlParams.get('port') || '8080',
         channel: (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').toLowerCase().trim().replace(/^@/, ''),
         font: urlParams.get('font') || 'Rajdhani',
         fontSize: parseInt(urlParams.get('size') || '16', 10),
@@ -420,6 +419,9 @@
         document.body.className = '';
         if (state.theme && state.theme !== 'cyberpunk') {
           document.body.classList.add(`theme-${state.theme}`);
+        }
+        if (window.self === window.top && !state.obsMode) {
+          document.body.classList.add('standalone-preview');
         }
 
         if (state.align === 'top') {
@@ -634,197 +636,287 @@
       }
 
       // -----------------------------------------------------------------------
-      // 7. CONEXIÓN DIRECTA A LA API DE KICK Y PUSHER WEBSOCKETS
+      // 7. CONEXIÓN LOCAL A STREAMER.BOT (WEBSOCKET NATIVO A 0 MS)
       // -----------------------------------------------------------------------
-      const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
-      const KICK_PUSHER_CLUSTER = "us2";
+      let streamerBotSocket = null;
+      let streamerBotConnected = false;
+      let currentPortIndex = 0;
+      let reconnectTimer = null;
 
-      async function resolverCanalKick(username) {
-        const clean = username.trim().toLowerCase().replace(/^@/, '');
-        updateHud('connecting', `Buscando canal @${clean}...`);
-
-        const cacheKey = `kick_chat_cache_${clean}`;
-        try {
-          const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-          if (cached && cached.chatroomId) {
-            console.log(`[Kick Chat Cache] Usando ID en caché para @${clean}:`, cached);
-            return cached;
-          }
-        } catch(e) {}
-
-        const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-        let data = null;
-
-        // Intento 1: Fetch directo
-        try {
-          const res = await fetch(targetUrl);
-          if (res.ok) data = await res.json();
-        } catch(e) {}
-
-        // Intento 2: Proxy AllOrigins
-        if (!data) {
-          try {
-            const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-            if (res.ok) data = await res.json();
-          } catch(e) {}
-        }
-
-        // Intento 3: Proxy CORSProxy
-        if (!data) {
-          try {
-            const res = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-            if (res.ok) data = await res.json();
-          } catch(e) {}
-        }
-
-        if (data && (data.chatroom?.id || data.id)) {
-          const resolved = {
-            channelId: data.id,
-            chatroomId: data.chatroom?.id || data.id,
-            slug: data.slug || clean
-          };
-          try {
-            localStorage.setItem(cacheKey, JSON.stringify(resolved));
-          } catch(e) {}
-          return resolved;
-        }
-
-        return null;
+      function getPortsToTry() {
+        const basePort = (state.port || '8080').toString().trim();
+        const fallbackPorts = ['8080', '4445', '7474'];
+        return [basePort, ...fallbackPorts.filter(p => p !== basePort)];
       }
 
-      async function conectarWebSocketKick() {
-        if (!state.channel) return;
+      function connectStreamerBot() {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
 
-        const info = await resolverCanalKick(state.channel);
-        if (!info || !info.chatroomId) {
-          updateHud('error', `Canal @${state.channel} no encontrado`);
-          console.warn("[Kick Chat] No se pudo resolver el canal. Iniciando demostración de prueba.");
-          if (state.preview) iniciarDemoPreview();
+        if (streamerBotSocket) {
+          try {
+            streamerBotSocket.onopen = null;
+            streamerBotSocket.onmessage = null;
+            streamerBotSocket.onerror = null;
+            streamerBotSocket.onclose = null;
+            streamerBotSocket.close();
+          } catch(e) {}
+          streamerBotSocket = null;
+        }
+
+        const ports = getPortsToTry();
+        const activePort = ports[currentPortIndex] || ports[0];
+        const host = state.host || '127.0.0.1';
+        const wsUrl = `ws://${host}:${activePort}/`;
+
+        updateHud('connecting', `Conectando a Streamer.bot (${activePort})...`);
+        console.log(`[Streamer.bot Chat] Intentando conectar a ${wsUrl}...`);
+
+        try {
+          streamerBotSocket = new WebSocket(wsUrl);
+
+          streamerBotSocket.onopen = function() {
+            streamerBotConnected = true;
+            console.log(`[Streamer.bot Chat] 🟢 Conectado exitosamente en puerto ${activePort}`);
+            updateHud('online', `Streamer.bot Conectado (${activePort})`);
+
+            // Suscribirse a eventos de Kick, Twitch, YouTube y General en Streamer.bot
+            try {
+              streamerBotSocket.send(JSON.stringify({
+                request: "Subscribe",
+                id: "kick-chat-live-sub",
+                events: {
+                  Kick: [
+                    "ChatMessage",
+                    "GiftSub",
+                    "Subscription",
+                    "RewardRedemption",
+                    "Raid",
+                    "Follow",
+                    "UserBanned",
+                    "MessageDeleted"
+                  ],
+                  Twitch: [
+                    "ChatMessage",
+                    "Sub",
+                    "ReSub",
+                    "GiftSub",
+                    "Raid"
+                  ],
+                  YouTube: [
+                    "Message"
+                  ],
+                  General: [
+                    "Custom"
+                  ]
+                }
+              }));
+            } catch(subErr) {
+              console.warn("[Streamer.bot Chat] Error enviando suscripción:", subErr);
+            }
+          };
+
+          streamerBotSocket.onmessage = function(event) {
+            try {
+              const data = JSON.parse(event.data);
+              parseStreamerBotEvent(data);
+            } catch(err) {
+              console.warn("[Streamer.bot Chat] Error al procesar paquete:", err);
+            }
+          };
+
+          streamerBotSocket.onerror = function() {
+            streamerBotConnected = false;
+          };
+
+          streamerBotSocket.onclose = function() {
+            streamerBotConnected = false;
+            console.log(`[Streamer.bot Chat] Conexión cerrada en ${activePort}. Probando siguiente puerto...`);
+            updateHud('connecting', `Reconectando con Streamer.bot...`);
+
+            currentPortIndex = (currentPortIndex + 1) % ports.length;
+            const nextWait = currentPortIndex === 0 ? 4000 : 1500;
+            reconnectTimer = setTimeout(connectStreamerBot, nextWait);
+          };
+
+        } catch(e) {
+          console.warn(`[Streamer.bot Chat] Excepción al instanciar WebSocket en ${wsUrl}:`, e);
+          currentPortIndex = (currentPortIndex + 1) % ports.length;
+          reconnectTimer = setTimeout(connectStreamerBot, 3000);
+        }
+      }
+
+      // Parsea los eventos entrantes desde el WebSocket de Streamer.bot
+      function parseStreamerBotEvent(data) {
+        if (!data) return;
+
+        const eventInfo = data.event || {};
+        const eventSource = ((eventInfo.source || data.source || '') + '').toLowerCase();
+        let eventType = ((eventInfo.type || data.type || '') + '').toLowerCase();
+
+        // 1. CHAT MESSAGE (Kick, Twitch, YouTube, Streamer.bot)
+        if (eventType.includes('chat') || eventType === 'message' || (!eventType && (data.data?.message || data.message))) {
+          parseStreamerChatMessage(data);
           return;
         }
 
-        updateHud('connecting', `Conectando WebSocket para @${info.slug}...`);
-
-        try {
-          const pusher = new Pusher(KICK_PUSHER_KEY, {
-            cluster: KICK_PUSHER_CLUSTER,
-            wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
-            wsPort: 443,
-            wssPort: 443,
-            enabledTransports: ['ws', 'wss'],
-            forceTLS: true
-          });
-
-          // 1. Suscripción al Chatroom de Kick (chatrooms.{id}.v2)
-          const chatChannel = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
-
-          // Evento de Mensaje de Chat
-          chatChannel.bind('App\\Events\\ChatMessageEvent', function(payload) {
-            let data = payload;
-            if (typeof data === 'string') {
-              try { data = JSON.parse(data); } catch(e) {}
-            }
-            if (data && data.data) {
-              if (typeof data.data === 'string') {
-                try { data = JSON.parse(data.data); } catch(e) {}
-              } else {
-                data = data.data;
-              }
-            }
-
-            if (!data || !data.content) return;
-            const sender = data.sender || {};
-            const badges = sender.identity?.badges || [];
-
-            addChatMessage({
-              username: sender.username || sender.slug || 'Espectador',
-              userColor: sender.identity?.color || '#53fc18',
-              text: data.content || '',
-              badges: badges,
-              messageId: data.id
-            });
-          });
-
-          // Moderación: Mensaje Borrado
-          chatChannel.bind('App\\Events\\MessageDeletedEvent', function(payload) {
-            const msgId = payload?.message?.id || payload?.id;
-            if (msgId) {
-              const el = document.querySelector(`[data-msg-id="${msgId}"]`);
-              if (el) el.remove();
-            }
-          });
-
-          // Moderación: Usuario Baneado / Silenciado
-          chatChannel.bind('App\\Events\\UserBannedEvent', function(payload) {
-            const username = payload?.user?.username || payload?.username;
-            if (username) {
-              document.querySelectorAll(`[data-sender="${username.toLowerCase()}"]`).forEach(el => el.remove());
-            }
-          });
-
-          // 2. Suscripción a Eventos del Canal (channel.{channelId}) para alertas integradas
-          if (info.channelId) {
-            const channelEvents = pusher.subscribe(`channel.${info.channelId}`);
-
-            // Nueva Suscripción
-            channelEvents.bind('App\\Events\\SubscriptionEvent', function(payload) {
-              let data = payload;
-              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
-              const user = data.username || data.user?.username || 'Usuario';
-              const months = data.months || data.count || 1;
-              addEventBubble({
-                type: 'sub',
-                username: user,
-                title: `⭐ ${user} se ha suscrito`,
-                extra: `${months} ${months === 1 ? 'mes' : 'meses'}`
-              });
-            });
-
-            // Suscripción Regalada
-            channelEvents.bind('App\\Events\\GiftedSubscriptionsEvent', function(payload) {
-              let data = payload;
-              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
-              const gifter = data.gifter_username || data.username || 'Un mecenas';
-              const gifts = data.gifted_usernames?.length || data.count || 1;
-              addEventBubble({
-                type: 'gift',
-                username: gifter,
-                title: `🎁 ${gifter} regaló ${gifts} ${gifts === 1 ? 'suscripción' : 'suscripciones'}`,
-                extra: `${gifts} subs`
-              });
-            });
-
-            // Raid o Host Entrante
-            channelEvents.bind('App\\Events\\StreamHostEvent', function(payload) {
-              let data = payload;
-              if (typeof data === 'string') try { data = JSON.parse(data); } catch(e) {}
-              const hostName = data.host_username || data.channel?.slug || 'Canal';
-              const viewers = data.number_viewers || data.viewers || 0;
-              addEventBubble({
-                type: 'raid',
-                username: hostName,
-                title: `🚀 ¡Raid de ${hostName}!`,
-                extra: `${viewers} viewers`
-              });
-            });
+        // 2. MODERACIÓN: MENSAJE BORRADO
+        if (eventType.includes('messagedeleted') || eventType.includes('delete')) {
+          const payload = data.data || data;
+          const msgId = payload.messageId || payload.id || payload.message?.id;
+          if (msgId) {
+            const el = document.querySelector(`[data-msg-id="${msgId}"]`);
+            if (el) el.remove();
           }
+          return;
+        }
 
-          // Conexión exitosa
-          pusher.connection.bind('connected', function() {
-            updateHud('online', `Conectado al chat de @${info.slug}`);
+        // 3. MODERACIÓN: USUARIO BANEADO / TIMEOUT
+        if (eventType.includes('userbanned') || eventType.includes('ban') || eventType.includes('timeout')) {
+          const payload = data.data || data;
+          const badUser = (payload.user?.username || payload.username || payload.user || '').toLowerCase().trim();
+          if (badUser) {
+            document.querySelectorAll(`[data-sender="${badUser}"]`).forEach(el => el.remove());
+          }
+          return;
+        }
+
+        // 4. ALERTAS: SUSCRIPCIONES, GIFTS, RAIDS, KICKS
+        parseStreamerAlertEvent(data, eventType, eventSource);
+      }
+
+      // Parsea mensajes normales de chat
+      function parseStreamerChatMessage(data) {
+        const payload = data.data || data;
+        const msgObj = payload.message || payload;
+        const userObj = msgObj.user || payload.user || payload.sender || {};
+
+        // Extraer texto
+        const text = msgObj.message || msgObj.text || payload.messageText || payload.text || payload.content || '';
+        if (!text) return;
+
+        // Extraer nombre de usuario
+        const username = userObj.name || userObj.username || userObj.login || userObj.slug || payload.username || 'Espectador';
+
+        // Extraer color
+        let userColor = userObj.color || userObj.roleColor || userObj.identity?.color || '#53fc18';
+        if (!userColor || userColor === '#000000') userColor = '#53fc18';
+
+        // Extraer insignias (Badges)
+        const badges = [];
+        const identityBadges = userObj.identity?.badges || userObj.badges;
+
+        if (Array.isArray(identityBadges) && identityBadges.length > 0) {
+          identityBadges.forEach(b => {
+            if (typeof b === 'string') {
+              badges.push({ type: b.toLowerCase() });
+            } else if (b && b.type) {
+              badges.push({ type: b.type.toLowerCase(), count: b.count });
+            }
           });
+        }
 
-          pusher.connection.bind('disconnected', function() {
-            updateHud('connecting', 'Reconectando con Kick...');
+        // Si Streamer.bot envía flags booleanas
+        if (userObj.isBroadcaster && !badges.some(b => b.type === 'broadcaster')) {
+          badges.unshift({ type: 'broadcaster' });
+        }
+        if ((userObj.isModerator || userObj.isMod) && !badges.some(b => b.type === 'moderator')) {
+          badges.push({ type: 'moderator' });
+        }
+        if ((userObj.isSubscriber || userObj.isSub) && !badges.some(b => b.type === 'subscriber')) {
+          badges.push({ type: 'subscriber', count: userObj.subMonths || userObj.months });
+        }
+        if (userObj.isVip && !badges.some(b => b.type === 'vip')) {
+          badges.push({ type: 'vip' });
+        }
+        if (userObj.isOg && !badges.some(b => b.type === 'og')) {
+          badges.push({ type: 'og' });
+        }
+
+        addChatMessage({
+          username: username,
+          userColor: userColor,
+          text: text,
+          badges: badges,
+          messageId: msgObj.id || payload.id
+        });
+      }
+
+      // Parsea alertas dinámicas (Subs, Gifts, Raids, Kicks)
+      function parseStreamerAlertEvent(data, eventType, eventSource) {
+        if (!state.showAlerts) return;
+        const payload = data.data || data;
+
+        // Extraer nombre de usuario involucrado
+        const userObj = payload.user || payload.subscriber || payload.sender || payload.recipient || {};
+        let username = '';
+        if (typeof userObj === 'string') {
+          username = userObj;
+        } else if (typeof userObj === 'object') {
+          username = userObj.name || userObj.username || userObj.login || userObj.displayName || '';
+        }
+        if (!username) {
+          username = payload.username || payload.displayName || payload.name || 'Comunidad';
+        }
+
+        // A. Regalo de Suscripción (Gift Sub / Sub Bomb)
+        if (eventType.includes('gift') || eventType.includes('bomb')) {
+          const gifts = payload.gifts || payload.totalGifts || payload.giftCount || payload.count || 1;
+          const recipient = payload.recipient?.name || payload.recipient?.username || payload.recipientUser || '';
+          addEventBubble({
+            type: 'gift',
+            username: username,
+            title: gifts > 1 
+              ? `🎁 ${username} regaló ${gifts} suscripciones` 
+              : `🎁 ${username} le regaló una sub a ${recipient || 'un viewer'}`,
+            extra: `${gifts} subs`
           });
+          return;
+        }
 
-          pusher.connection.bind('error', function() {
-            updateHud('error', 'Error en WebSocket de Kick');
+        // B. Nueva Suscripción / Resub
+        if (eventType.includes('sub') || eventType.includes('subscription')) {
+          const months = payload.months || payload.cumulativeMonths || payload.streak || 1;
+          const subMsg = payload.message || payload.subMessage || '';
+          addEventBubble({
+            type: 'sub',
+            username: username,
+            title: months > 1 
+              ? `⭐ ¡${username} se resuscribió!` 
+              : `⭐ ¡Nuevo suscriptor: ${username}!`,
+            extra: `${months} ${months === 1 ? 'mes' : 'meses'}`,
+            message: subMsg
           });
+          return;
+        }
 
-        } catch(err) {
-          console.error("[Kick Pusher] Error fatal:", err);
-          updateHud('error', 'Error conectando');
+        // C. Raid o Incursión Entrante
+        if (eventType.includes('raid') || eventType.includes('host')) {
+          const raider = payload.host_username || payload.channel?.slug || payload.raider || username;
+          const viewers = payload.viewers || payload.viewerCount || payload.number || 0;
+          addEventBubble({
+            type: 'raid',
+            username: raider,
+            title: `🚀 ¡Incursión / Raid de ${raider}!`,
+            extra: `${viewers} viewers`
+          });
+          return;
+        }
+
+        // D. Kicks / Donación / Canje de Puntos
+        if (eventType.includes('kick') || eventType.includes('reward') || eventType.includes('cheer') || eventType.includes('tip')) {
+          const amount = payload.amount || payload.kicks || payload.points || payload.bits || '';
+          const note = payload.message || payload.userInput || payload.prompt || '';
+          addEventBubble({
+            type: 'kicks',
+            username: username,
+            title: `💎 ¡${username} envió apoyo al canal!`,
+            extra: amount ? `${amount}` : '',
+            message: note
+          });
+          return;
         }
       }
 
@@ -833,10 +925,10 @@
       // -----------------------------------------------------------------------
       function iniciarDemoPreview() {
         const demoMessages = [
-          { username: 'Jikokun', color: '#53fc18', text: '¡Bienvenidos a la tripulación estelar! [emote:51941:pepeClap]', badges: [{ type: 'broadcaster' }] },
-          { username: 'StarlightMod', color: '#38bdf8', text: 'Recuerden respetar las normas de la comunidad [emote:49603:EZ]', badges: [{ type: 'moderator' }, { type: 'subscriber', count: 12 }] },
-          { username: 'CyberGamer', color: '#f59e0b', text: 'Que buen gameplay hermano, gg! 🔥', badges: [{ type: 'vip' }, { type: 'subscriber', count: 6 }] },
-          { username: 'NebulaGirl', color: '#ec4899', text: 'Vamos por ese récord hoy [emote:51941:pepeClap]', badges: [{ type: 'subscriber', count: 3 }] },
+          { username: 'Jikokun', color: '#53fc18', text: '¡Bienvenidos al chat de Streamer.bot! [emote:51941:pepeClap]', badges: [{ type: 'broadcaster' }] },
+          { username: 'StarlightMod', color: '#38bdf8', text: 'Conexión local a 0 ms activada en OBS [emote:49603:EZ]', badges: [{ type: 'moderator' }, { type: 'subscriber', count: 12 }] },
+          { username: 'CyberGamer', color: '#f59e0b', text: 'Que buen overlay hermano, se ve súper limpio! 🔥', badges: [{ type: 'vip' }, { type: 'subscriber', count: 6 }] },
+          { username: 'NebulaGirl', color: '#ec4899', text: 'Probando alertas en tiempo real ✨', badges: [{ type: 'subscriber', count: 3 }] },
           { username: 'AstroViewer', color: '#a855f7', text: 'Saludos desde la nave nodriza!', badges: [{ type: 'og' }] }
         ];
 
@@ -854,6 +946,7 @@
 
         let index = 3;
         function sendNext() {
+          if (!state.preview) return;
           const m = demoMessages[index % demoMessages.length];
           addChatMessage({
             username: m.username,
@@ -863,10 +956,10 @@
           });
           index++;
           // Intervalo entre mensajes simulados
-          setTimeout(sendNext, Math.floor(Math.random() * 2000) + 3000);
+          setTimeout(sendNext, Math.floor(Math.random() * 3000) + 4000);
         }
 
-        setTimeout(sendNext, 2500);
+        setTimeout(sendNext, 3500);
       }
 
       // -----------------------------------------------------------------------
@@ -888,8 +981,8 @@
           addEventBubble({
             type: 'sub',
             username: d.username || 'ComandanteNova',
-            title: `⭐ ${d.username || 'ComandanteNova'} se suscribió a la nave`,
-            message: '¡Excelente contenido, vamos por más meses!',
+            title: `⭐ ${d.username || 'ComandanteNova'} se suscribió al canal`,
+            message: '¡Excelente stream, vamos por más meses!',
             extra: d.extra || '6 meses'
           });
         }
@@ -906,7 +999,7 @@
             type: 'kicks',
             username: d.username || 'DonadorPro',
             title: `💎 ${d.username || 'DonadorPro'} aportó 500 Kicks`,
-            message: 'Para mejorar la nave espacial!',
+            message: 'Para apoyar la transmisión en vivo!',
             extra: '500'
           });
         }
@@ -918,6 +1011,13 @@
             extra: '85 viewers'
           });
         }
+        else if (d.type === 'CHANGE_CONNECTION') {
+          if (d.host) state.host = d.host;
+          if (d.port) state.port = d.port;
+          if (d.channel) state.channel = d.channel;
+          currentPortIndex = 0;
+          connectStreamerBot();
+        }
         else if (d.type === 'SET_CHAT_CONFIG') {
           if (d.font) state.font = d.font;
           if (d.fontSize) state.fontSize = parseInt(d.fontSize, 10);
@@ -928,10 +1028,21 @@
           if (d.theme) state.theme = d.theme;
           if (d.filterBots !== undefined) state.filterBots = !!d.filterBots;
           if (d.filterCommands !== undefined) state.filterCommands = !!d.filterCommands;
+          if (d.showBadges !== undefined) state.showBadges = !!d.showBadges;
+          if (d.showAlerts !== undefined) state.showAlerts = !!d.showAlerts;
           if (d.blockedUsers) {
             state.blockedUsers = d.blockedUsers.split(',').map(u => u.trim().toLowerCase()).filter(Boolean);
           }
           if (d.align) state.align = d.align;
+          if (d.host || d.port) {
+            let connChanged = false;
+            if (d.host && d.host !== state.host) { state.host = d.host; connChanged = true; }
+            if (d.port && d.port !== state.port) { state.port = d.port; connChanged = true; }
+            if (connChanged) {
+              currentPortIndex = 0;
+              connectStreamerBot();
+            }
+          }
           applyStyles();
         }
       });
@@ -939,7 +1050,7 @@
       // -----------------------------------------------------------------------
       // 10. INICIALIZACIÓN
       // -----------------------------------------------------------------------
-      conectarWebSocketKick();
+      connectStreamerBot();
 
       if (state.preview) {
         setTimeout(iniciarDemoPreview, 300);
