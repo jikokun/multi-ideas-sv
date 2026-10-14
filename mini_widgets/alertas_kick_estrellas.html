@@ -3,15 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Alerta Estelar Animada — Kick API Nativa</title>
+    <title>Alerta Estelar Animada — Streamer.bot</title>
     
     <!-- Tipografías -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-    
-    <!-- Cliente Oficial Pusher JS (Soporta WebSocket WSS de Kick sin restricciones CORS) -->
-    <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
 
     <style>
         :root {
@@ -849,215 +846,219 @@
         }
 
         // =====================================================================
-        // CONEXIÓN NATIVA CON KICK PUSHER CLOUD Y RESOLUCIÓN REST
+        // CONEXIÓN DIRECTA CON STREAMER.BOT (0 MS DE LATENCIA LOCAL)
         // =====================================================================
-        const KICK_PUSHER_KEY = "32cbd69e4b950bf97679";
-        const KICK_PUSHER_CLUSTER = "us2";
+        let streamerBotWs = null;
+        let streamerBotHost = urlParams.get('host') || '127.0.0.1';
+        let streamerBotPort = urlParams.get('port') || '8080';
+        let wsReconnectAttempts = 0;
+        let currentPortIndex = 0;
+        const FALLBACK_PORTS = [streamerBotPort, '8080', '4445', '7474'].filter((v, i, a) => a.indexOf(v) === i);
 
-        async function resolverCanalKick(username) {
-            const clean = username.trim().toLowerCase().replace(/^@/, '');
+        function updateSbStatus(status, text) {
             const statusText = document.getElementById('kickStatusText');
             const statusDot = document.getElementById('kickDot');
-
-            // 0. Si viene en URL directamente o está en caché local, conectar de inmediato a 0 latencia
-            const urlCid = urlParams.get('channel_id') || urlParams.get('cid');
-            const urlChatId = urlParams.get('chatroom_id') || urlParams.get('chat_id');
-            if (urlCid) {
-                return { channelId: parseInt(urlCid, 10), chatroomId: parseInt(urlChatId || urlCid, 10), slug: clean };
-            }
-
-            const cacheKey = `kick_channel_cache_${clean}`;
-            try {
-                const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null');
-                if (cached && cached.channelId && cached.chatroomId) {
-                    console.log(`[Kick Cache] Canal @${clean} cargado desde caché local.`);
-                    // Continuar en segundo plano para verificar frescura sin bloquear
-                    setTimeout(() => refreshKickCache(clean), 1000);
-                    return cached;
+            if (statusText) statusText.textContent = text;
+            if (statusDot) {
+                if (status === 'connected') {
+                    statusDot.style.background = '#53fc18';
+                    statusDot.style.boxShadow = '0 0 10px #53fc18';
+                } else if (status === 'connecting') {
+                    statusDot.style.background = '#38bdf8';
+                    statusDot.style.boxShadow = '0 0 8px #38bdf8';
+                } else {
+                    statusDot.style.background = '#f43f5e';
+                    statusDot.style.boxShadow = 'none';
                 }
-            } catch(e) {}
-
-            if (statusText) statusText.textContent = `Kick: Buscando @${clean}...`;
-
-            const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-            let data = null;
-
-            // 1. Fetch directo
-            try {
-                const res = await fetch(targetUrl);
-                if (res.ok) data = await res.json();
-            } catch(e) {}
-
-            // 2. Fetch con Proxy 1 (AllOrigins)
-            if (!data) {
-                try {
-                    const resProxy = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-                    if (resProxy.ok) data = await resProxy.json();
-                } catch(e) {}
             }
-
-            // 3. Fetch con Proxy 2 (CORSProxy)
-            if (!data) {
-                try {
-                    const resProxy2 = await fetch(`https://corsproxy.io/?${encodeURIComponent(targetUrl)}`);
-                    if (resProxy2.ok) data = await resProxy2.json();
-                } catch(e) {}
-            }
-
-            // 4. Fetch con Proxy 3 (CodeTabs)
-            if (!data) {
-                try {
-                    const resProxy3 = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
-                    if (resProxy3.ok) data = await resProxy3.json();
-                } catch(e) {}
-            }
-
-            if (!data || !data.id) {
-                console.warn(`[Kick API] No se pudo resolver @${clean}. Funcionando en modo autónomo.`);
-                if (statusText) statusText.textContent = `@${clean} (Offline)`;
-                if (statusDot) statusDot.style.background = '#f59e0b';
-                return null;
-            }
-
-            const resolvedInfo = {
-                channelId: data.id,
-                chatroomId: data.chatroom?.id || data.id,
-                slug: data.slug
-            };
-
-            // Guardar en caché para conexiones instantáneas en futuras sesiones
-            try {
-                localStorage.setItem(cacheKey, JSON.stringify(resolvedInfo));
-            } catch(e) {}
-
-            return resolvedInfo;
         }
 
-        async function refreshKickCache(clean) {
+        function connectStreamerBot() {
+            if (streamerBotWs) {
+                try {
+                    streamerBotWs.onclose = null;
+                    streamerBotWs.onerror = null;
+                    streamerBotWs.close();
+                } catch(e) {}
+                streamerBotWs = null;
+            }
+
+            const activePort = FALLBACK_PORTS[currentPortIndex % FALLBACK_PORTS.length];
+            const wsUrl = `ws://${streamerBotHost}:${activePort}/`;
+            updateSbStatus('connecting', `Streamer.bot: ${streamerBotHost}:${activePort}...`);
+
             try {
-                const targetUrl = `https://kick.com/api/v2/channels/${clean}`;
-                const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.id) {
-                        localStorage.setItem(`kick_channel_cache_${clean}`, JSON.stringify({
-                            channelId: data.id,
-                            chatroomId: data.chatroom?.id || data.id,
-                            slug: data.slug
-                        }));
+                streamerBotWs = new WebSocket(wsUrl);
+
+                streamerBotWs.onopen = () => {
+                    console.log(`[Streamer.bot Alertas] ¡Conectado con éxito a ${wsUrl}!`);
+                    wsReconnectAttempts = 0;
+                    updateSbStatus('connected', `Streamer.bot: Conectado (${activePort})`);
+
+                    // Suscribirse a todos los eventos Kick y de streaming de Streamer.bot
+                    const subscribePayload = {
+                        request: "Subscribe",
+                        id: "star-alerts-sub",
+                        events: {
+                            Kick: [
+                                "Follow",
+                                "Subscription",
+                                "GiftSub",
+                                "Raid",
+                                "RewardRedemption",
+                                "ChatMessage"
+                            ],
+                            Twitch: [
+                                "Follow",
+                                "Sub",
+                                "Resub",
+                                "GiftSub",
+                                "Raid",
+                                "Cheer"
+                            ],
+                            YouTube: [
+                                "Subscribe",
+                                "SuperChat",
+                                "SuperSticker",
+                                "MembershipGift"
+                            ],
+                            General: [
+                                "Custom"
+                            ]
+                        }
+                    };
+                    streamerBotWs.send(JSON.stringify(subscribePayload));
+                };
+
+                streamerBotWs.onmessage = (event) => {
+                    try {
+                        const payload = JSON.parse(event.data);
+                        handleStreamerBotEvent(payload);
+                    } catch(err) {
+                        console.warn("[Streamer.bot] Error procesando mensaje:", err);
                     }
-                }
-            } catch(e) {}
+                };
+
+                streamerBotWs.onerror = (e) => {
+                    console.warn(`[Streamer.bot] Error en puerto ${activePort}:`, e);
+                };
+
+                streamerBotWs.onclose = () => {
+                    updateSbStatus('offline', `Streamer.bot: Desconectado`);
+                    // Rotar al siguiente puerto si falla
+                    currentPortIndex++;
+                    wsReconnectAttempts++;
+                    const delay = wsReconnectAttempts > 4 ? 5000 : 2000;
+                    setTimeout(connectStreamerBot, delay);
+                };
+
+            } catch(e) {
+                console.warn("[Streamer.bot] Fallo al crear WebSocket:", e);
+                currentPortIndex++;
+                setTimeout(connectStreamerBot, 2500);
+            }
         }
 
-        async function conectarKickCloud() {
-            const info = await resolverCanalKick(kickChannel);
-            if (!info) return;
+        // Procesador de eventos de Streamer.bot
+        function handleStreamerBotEvent(payload) {
+            if (!payload || !payload.event) return;
+            const source = (payload.event.source || '').toLowerCase();
+            const eventType = (payload.event.type || '').toLowerCase();
+            const data = payload.data || {};
 
-            const statusText = document.getElementById('kickStatusText');
-            const statusDot = document.getElementById('kickDot');
+            console.log(`[Streamer.bot Evento]: ${source}.${eventType}`, data);
 
-            try {
-                const pusher = new Pusher(KICK_PUSHER_KEY, {
-                    cluster: KICK_PUSHER_CLUSTER,
-                    wsHost: `ws-${KICK_PUSHER_CLUSTER}.pusher.com`,
-                    wsPort: 443,
-                    wssPort: 443,
-                    enabledTransports: ['ws', 'wss'],
-                    forceTLS: true
+            // 1. EVENTOS DE SEGUIDOR (Kick & Twitch)
+            if (eventType.includes('follow')) {
+                const u = data.user?.username || data.username || data.name || data.user_name || 'Nuevo Seguidor';
+                queueAlert({
+                    type: 'follow',
+                    title: '¡Nuevo Seguidor!',
+                    subtitle: formatAlertSubtitle(customTexts.follow, { user: u }),
+                    username: u
                 });
-
-                // Suscripción al Canal (Follows, Subs, Gifts, Raids)
-                const channelSub = pusher.subscribe(`channel.${info.channelId}`);
-
-                // A. Followers
-                channelSub.bind('App\\Events\\FollowersUpdated', (ev) => {
-                    const u = ev.username || 'Nuevo Seguidor';
-                    queueAlert({
-                        type: 'follow',
-                        title: '¡Nuevo Seguidor!',
-                        subtitle: formatAlertSubtitle(customTexts.follow, { user: u }),
-                        username: u
-                    });
-                });
-
-                // B. Suscripciones
-                channelSub.bind('App\\Events\\SubscriptionEvent', (ev) => {
-                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
-                    const months = raw.months || 1;
-                    const u = raw.username || 'Suscriptor';
-                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
-                    queueAlert({
-                        type: 'sub',
-                        title: '¡Nueva Suscripción!',
-                        subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
-                        username: u
-                    });
-                });
-
-                // C. Suscripciones Regaladas
-                channelSub.bind('App\\Events\\GiftedSubscriptionsEvent', (ev) => {
-                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
-                    const count = raw.gifted_usernames?.length || raw.count || 1;
-                    const u = raw.gifter_username || 'Amigo del Canal';
-                    queueAlert({
-                        type: 'gift',
-                        title: '¡Sub Regalada!',
-                        subtitle: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
-                        username: u
-                    });
-                });
-
-                // D. Raids
-                channelSub.bind('App\\Events\\StreamHostEvent', (ev) => {
-                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
-                    const viewers = raw.number || raw.viewers || 0;
-                    const u = raw.host_username || 'Streamer Amigo';
-                    queueAlert({
-                        type: 'raid',
-                        title: '¡Raid Entrante!',
-                        subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
-                        username: u
-                    });
-                });
-
-                // Suscripción al Chatroom (Kicks, tips, cheers)
-                const chatSub = pusher.subscribe(`chatrooms.${info.chatroomId}.v2`);
-                chatSub.bind('App\\Events\\ChatMessageEvent', (ev) => {
-                    const raw = typeof ev === 'string' ? JSON.parse(ev) : ev;
-                    const content = (raw.content || '').toLowerCase();
-                    const sender = raw.sender?.username || 'Espectador';
-
-                    if (content.includes('!kick') || content.includes('kicks') || raw.type === 'tip') {
-                        let kicksNum = 100;
-                        const match = content.match(/\d+/);
-                        if (match) kicksNum = parseInt(match[0], 10);
-                        queueAlert({
-                            type: 'kicks',
-                            title: '¡Kicks Aportados!',
-                            subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: kicksNum, count: kicksNum, user: sender }),
-                            username: sender
-                        });
-                    }
-                });
-
-                pusher.connection.bind('connected', () => {
-                    console.log(`[Kick Cloud] Conectado exitosamente a @${info.slug}`);
-                    if (statusText) statusText.textContent = `Kick: @${info.slug} (En Vivo)`;
-                    if (statusDot) {
-                        statusDot.style.background = '#53fc18';
-                        statusDot.style.boxShadow = '0 0 8px #53fc18';
-                    }
-                });
-
-                pusher.connection.bind('disconnected', () => {
-                    if (statusText) statusText.textContent = `Kick: Desconectado`;
-                    if (statusDot) statusDot.style.background = '#ef4444';
-                });
-
-            } catch(err) {
-                console.warn("[Kick Pusher Error]:", err);
             }
+
+            // 2. EVENTOS DE SUSCRIPCIÓN (Kick & Twitch)
+            else if (eventType.includes('subscription') || eventType.includes('sub') || eventType.includes('resub')) {
+                // Descartar si es regalo directo (se maneja en gift)
+                if (eventType.includes('gift') || data.is_gift || data.isGift) {
+                    handleGiftEvent(data);
+                    return;
+                }
+                const u = data.user?.username || data.username || data.name || data.user_name || 'Suscriptor';
+                const months = data.months || data.duration || data.cumulative_months || data.tier || 1;
+                const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
+                queueAlert({
+                    type: 'sub',
+                    title: '¡Nueva Suscripción!',
+                    subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
+                    username: u,
+                    months: months
+                });
+            }
+
+            // 3. EVENTOS DE SUBS REGALADAS
+            else if (eventType.includes('giftsub') || eventType.includes('communitygift') || eventType.includes('membershipgift')) {
+                handleGiftEvent(data);
+            }
+
+            // 4. EVENTOS DE RAID / HOST
+            else if (eventType.includes('raid') || eventType.includes('host')) {
+                const u = data.raider?.username || data.host?.username || data.user?.username || data.username || 'Streamer Amigo';
+                const viewers = data.viewers || data.viewerCount || data.count || 0;
+                queueAlert({
+                    type: 'raid',
+                    title: '¡Raid Entrante!',
+                    subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
+                    username: u,
+                    viewers: viewers
+                });
+            }
+
+            // 5. EVENTOS DE KICKS / DONACIONES / PUNTOS
+            else if (eventType.includes('rewardredemption') || eventType.includes('superchat') || eventType.includes('cheer') || eventType.includes('tip')) {
+                const u = data.user?.username || data.username || data.user_name || 'Espectador';
+                const amount = data.amount || data.kicks || data.reward?.cost || data.bits || 100;
+                queueAlert({
+                    type: 'kicks',
+                    title: '¡Kicks Aportados!',
+                    subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: amount, count: amount, user: u }),
+                    username: u,
+                    kicks: amount
+                });
+            }
+
+            // 6. DETECCIÓN EN MENSAJES DE CHAT (!kick 500)
+            else if (eventType.includes('chatmessage') || eventType.includes('message')) {
+                const message = (data.message?.message || data.message?.text || data.text || data.message || '').toString();
+                const sender = data.user?.username || data.user?.name || data.username || 'Espectador';
+                const lower = message.toLowerCase();
+
+                if (lower.startsWith('!kicks') || lower.startsWith('!kick') || lower.includes('kicks')) {
+                    const match = lower.match(/\d+/);
+                    const amount = match ? parseInt(match[0], 10) : 50;
+                    queueAlert({
+                        type: 'kicks',
+                        title: '¡Kicks Aportados!',
+                        subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: amount, count: amount, user: sender }),
+                        username: sender,
+                        kicks: amount
+                    });
+                }
+            }
+        }
+
+        function handleGiftEvent(data) {
+            const u = data.gifter?.username || data.gifter || data.user?.username || data.username || 'Amigo del Canal';
+            const count = data.giftCount || data.count || data.subs || data.gifted_usernames?.length || 1;
+            queueAlert({
+                type: 'gift',
+                title: '¡Sub Regalada!',
+                subtitle: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
+                username: u,
+                subs: count
+            });
         }
 
         // =====================================================================
@@ -1068,6 +1069,23 @@
 
             if (event.data.type === 'TRIGGER_TEST_ALERT') {
                 triggerAlertByType(event.data.alertType || 'follow');
+            } else if (event.data.type === 'SET_STREAMERBOT_CONFIG') {
+                let changed = false;
+                if (event.data.host && event.data.host !== streamerBotHost) {
+                    streamerBotHost = event.data.host;
+                    changed = true;
+                }
+                if (event.data.port && event.data.port !== streamerBotPort) {
+                    streamerBotPort = String(event.data.port);
+                    if (!FALLBACK_PORTS.includes(streamerBotPort)) {
+                        FALLBACK_PORTS.unshift(streamerBotPort);
+                    }
+                    currentPortIndex = 0;
+                    changed = true;
+                }
+                if (changed) {
+                    connectStreamerBot();
+                }
             } else if (event.data.type === 'SET_CUSTOM_TEXTS') {
                 if (event.data.customTexts) {
                     Object.assign(customTexts, event.data.customTexts);
@@ -1101,8 +1119,8 @@
         // INICIALIZACIÓN
         // =====================================================================
         document.addEventListener('DOMContentLoaded', () => {
-            // Conectar a la API nativa de Kick
-            conectarKickCloud();
+            // Conexión en tiempo real con Streamer.bot
+            connectStreamerBot();
 
             // Si es vista previa o loop, disparar primera alerta
             if (isPreview || isLoopMode) {
