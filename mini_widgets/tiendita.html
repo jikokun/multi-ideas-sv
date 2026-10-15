@@ -2773,8 +2773,8 @@
       const raw = localStorage.getItem(STORAGE_KEY_ASISTENCIA);
       if(raw){
         const parsed = JSON.parse(raw);
-        // Mantener registro de asistencia si es de las últimas 18 horas de stream
-        if(parsed && Array.isArray(parsed.lista) && (Date.now() - (parsed.timestamp || 0) < 18 * 3600 * 1000)){
+        // Mantener registro de asistencia solo si es de las últimas 4 horas de la transmisión
+        if(parsed && Array.isArray(parsed.lista) && (Date.now() - (parsed.timestamp || 0) < 4 * 3600 * 1000)){
           asistenciaStream = parsed.lista;
         } else {
           asistenciaStream = [];
@@ -2838,68 +2838,98 @@
     let nuevoSaldo = saldoPrevio;
 
     if(!yaRegistrado){
-      // Consultar nivel del usuario para otorgar 500 base + bono de lealtad
-      const uData = window.StreamDB && window.StreamDB.usersCache ? window.StreamDB.usersCache.get(userNorm) : null;
-      const asistPrev = uData ? (uData.asistenciasCount || 0) : 0;
-      const nivelInfo = window.calcularNivelUsuario ? window.calcularNivelUsuario(asistPrev + 1) : { nivel: 1, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', bonoExtra: 0, puntosPorAsistencia: 500 };
-      const ptsGanados = nivelInfo.puntosPorAsistencia;
-
-      nuevoSaldo = saldoPrevio + ptsGanados;
-      setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
-
-      asistenciaStream.push({
-        user: cleanUser,
-        puntosGanados: ptsGanados,
-        xpGanada: 200,
-        nivel: nivelInfo.nivel,
-        insignia: nivelInfo.insigniaEmoji,
-        rango: nivelInfo.rangoTitulo,
-        hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        timestamp: Date.now()
-      });
-      guardarAsistenciaStream();
-
-      // Si este usuario está usando la tiendita en ese momento, actualizar su saldo en vivo
-      if(norm(usuarioActual) === userNorm){
-        saldoActual = nuevoSaldo;
-        animarPuntos(saldoActual);
-      }
-
-      console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts y +200 XP [Nivel ${nivelInfo.nivel} ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo}]. Saldo: ${nuevoSaldo} pts.`);
-      toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${nivelInfo.insigniaEmoji} <b>${nivelInfo.rangoTitulo}</b> • Nvl ${nivelInfo.nivel}] Recibiste <b>+${ptsGanados} pts</b> y <b>+200 XP</b> 🌟 (Total: <b>${nuevoSaldo} pts</b>)`);
-      playSfx('buy');
-
-      // Precargar su avatar para mostrarlo en !pasarlista
-      cargarAvatarUsuario(cleanUser);
-
-      // Notificar a Streamer.bot mediante WebSocket Action
-      if(socket && socket.readyState === 1){
-        socket.send(JSON.stringify({
-          request: 'DoAction',
-          action: { name: 'Tiendita_AsistenciaRegistrada' },
-          args: {
-            usuario: cleanUser,
-            puntosSumados: ptsGanados,
-            xpSumada: 200,
-            nivel: nivelInfo.nivel,
-            rango: nivelInfo.rangoTitulo,
-            nuevoSaldo: nuevoSaldo,
-            totalAsistentes: asistenciaStream.length
-          },
-          id: 'asistencia-lobito-' + Date.now()
-        }));
-      }
-
-      // Persistir asistencia en Firebase RTDB (asocia al stream activo de Kick automáticamente y otorga +200 XP)
-      if (window.StreamDB) {
+      // Si StreamDB está disponible, delegar la persistencia atómica en Firebase RTDB
+      if (window.StreamDB && typeof window.StreamDB.registrarAsistencia === 'function') {
         window.StreamDB.registrarAsistencia({
           usuario: cleanUser,
           botEmisor: 'Lobito_Mensajero'
-        }).then(() => {
+        }).then((record) => {
+          if (!record) return;
+          const ptsGanados = record.puntosOtorgados || 500;
+          const xpGanada = record.experienciaGanada || 200;
+          const nuevoSaldo = record.nuevoSaldo;
+          const nivel = record.nivelUsuario || 1;
+          const insignia = record.insigniaEmoji || '🐾';
+          const rango = record.rangoTitulo || 'Cachorro';
+
+          setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
+
+          asistenciaStream.push({
+            user: cleanUser,
+            puntosGanados: ptsGanados,
+            xpGanada: xpGanada,
+            nivel: nivel,
+            insignia: insignia,
+            rango: rango,
+            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: Date.now()
+          });
+          guardarAsistenciaStream();
+
+          if(norm(usuarioActual) === userNorm){
+            saldoActual = nuevoSaldo;
+            animarPuntos(saldoActual);
+          }
+
+          console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts y +${xpGanada} XP [Nivel ${nivel} ${insignia} ${rango}]. Saldo: ${nuevoSaldo} pts.`);
+          toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${insignia} <b>${rango}</b> • Nvl ${nivel}] Recibiste <b>+${ptsGanados} pts</b> y <b>+${xpGanada} XP</b> 🌟 (Total: <b>${nuevoSaldo} pts</b>)`);
+          playSfx('buy');
+
+          cargarAvatarUsuario(cleanUser);
+
+          if(socket && socket.readyState === 1){
+            socket.send(JSON.stringify({
+              request: 'DoAction',
+              action: { name: 'Tiendita_AsistenciaRegistrada' },
+              args: {
+                usuario: cleanUser,
+                puntosSumados: ptsGanados,
+                xpSumada: xpGanada,
+                nivel: nivel,
+                rango: rango,
+                nuevoSaldo: nuevoSaldo,
+                totalAsistentes: asistenciaStream.length
+              },
+              id: 'asistencia-lobito-' + Date.now()
+            }));
+          }
+
           if (typeof StreamDB.registrarInteraccionStream === 'function') {
             StreamDB.registrarInteraccionStream({ usuario: cleanUser, tipo: 'bienvenida_lobito' }).catch(()=>{});
           }
+
+          if($cardPl && $cardPl.classList.contains('visible')){
+            renderizarUsuariosPasarLista();
+          }
         }).catch(err => console.warn('[Tiendita] Error registrando asistencia en Firebase:', err));
+      } else {
+        // Fallback local en caso de que Firebase esté desconectado
+        const asistPrev = 0;
+        const nivelInfo = window.calcularNivelUsuario ? window.calcularNivelUsuario(asistPrev + 1) : { nivel: 1, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', bonoExtra: 0, puntosPorAsistencia: 500 };
+        const ptsGanados = nivelInfo.puntosPorAsistencia;
+        nuevoSaldo = saldoPrevio + ptsGanados;
+        setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
+
+        asistenciaStream.push({
+          user: cleanUser,
+          puntosGanados: ptsGanados,
+          xpGanada: 200,
+          nivel: nivelInfo.nivel,
+          insignia: nivelInfo.insigniaEmoji,
+          rango: nivelInfo.rangoTitulo,
+          hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          timestamp: Date.now()
+        });
+        guardarAsistenciaStream();
+
+        if(norm(usuarioActual) === userNorm){
+          saldoActual = nuevoSaldo;
+          animarPuntos(saldoActual);
+        }
+
+        toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${nivelInfo.insigniaEmoji} <b>${nivelInfo.rangoTitulo}</b>] Recibiste <b>+${ptsGanados} pts</b> y <b>+200 XP</b> 🌟`);
+        playSfx('buy');
+        cargarAvatarUsuario(cleanUser);
       }
     } else {
       console.log(`[Tiendita] ℹ️ @${cleanUser} ya fue registrado en la asistencia de esta transmisión.`);
@@ -4105,6 +4135,9 @@
       if(eventType.includes('streamstarted') || eventType.includes('streamonline')){
         console.log('[Tiendita] 🔴 Inicio de transmisión detectado en Streamer.bot.');
         reiniciarAsistenciaStream();
+        if(window.StreamDB && typeof window.StreamDB.iniciarNuevaTransmision === 'function'){
+          window.StreamDB.iniciarNuevaTransmision({ origen: 'streamerbot_streamstarted' });
+        }
       }
 
       // 1. Evento personalizado desde Streamer.bot (Custom Broadcast)
@@ -4116,6 +4149,9 @@
         }
         if(data.action === 'IniciarTransmision'){
           reiniciarAsistenciaStream();
+          if(window.StreamDB && typeof window.StreamDB.iniciarNuevaTransmision === 'function'){
+            window.StreamDB.iniciarNuevaTransmision({ origen: 'streamerbot_iniciartransmision' });
+          }
           return;
         }
         const customUser = data.user || data.userName || data.username || usuarioActual || 'cliente';
