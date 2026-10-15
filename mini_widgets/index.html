@@ -289,6 +289,7 @@
        ======================================================================= */
     #config-modal {
       overscroll-behavior: contain !important;
+      z-index: 99999 !important;
     }
     #modal-content {
       background: #0f172a;
@@ -328,27 +329,35 @@
       position: relative !important;
     }
     .modal-settings-header {
-      height: 34px !important;
-      min-height: 34px !important;
-      max-height: 34px !important;
-      padding: 0 14px !important;
+      height: 44px !important;
+      min-height: 44px !important;
+      max-height: 44px !important;
+      padding: 0 48px 0 16px !important;
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
       flex-shrink: 0 !important;
+      z-index: 10;
+      position: relative;
     }
     #modal-settings-container {
       flex: 1 1 auto !important;
       min-height: 0 !important;
-      height: calc(100% - 34px) !important;
-      max-height: calc(100% - 34px) !important;
-      overflow-y: scroll !important;
+      height: calc(100% - 44px) !important;
+      max-height: calc(100% - 44px) !important;
+      overflow-y: auto !important;
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch;
-      padding: 4px 12px 28px 12px !important;
-      scrollbar-width: thin;
+      padding: 12px 14px 28px 14px !important;
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
       scroll-behavior: auto !important;
+    }
+    #modal-settings-container::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
     }
     .modal-settings-card {
       background: rgba(15, 23, 42, 0.65);
@@ -817,24 +826,14 @@
       color: #334155 !important;
       border-color: #cbd5e1 !important;
     }
-    body.light-theme .custom-scrollbar {
-      scrollbar-color: #64748b #f1f5f9 !important;
+    body.light-theme #modal-settings-container {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
     }
-    body.light-theme .custom-scrollbar::-webkit-scrollbar {
-      width: 10px !important;
-    }
-    body.light-theme .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9 !important;
-      border-radius: 10px;
-      margin: 4px 0;
-    }
-    body.light-theme .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #94a3b8 !important;
-      border-radius: 10px;
-      border: 2px solid #f1f5f9;
-    }
-    body.light-theme .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-      background: #0284c7 !important;
+    body.light-theme #modal-settings-container::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
     }
     body.light-theme .modal-right-col {
       background: #ffffff !important;
@@ -1655,12 +1654,12 @@
   <!-- ======================================================================= -->
   <!-- MODAL DE CONFIGURACIÓN CON VISTA PREVIA EN VIVO 50/50                    -->
   <!-- ======================================================================= -->
-  <div id="config-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-3 sm:p-6">
+  <div id="config-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-[99999] hidden opacity-0 transition-opacity duration-300 flex items-center justify-center p-3 sm:p-6">
     
     <div class="w-full max-w-6xl h-[88vh] max-h-[88vh] flex flex-col lg:flex-row overflow-hidden relative transform scale-95 transition-transform duration-300" id="modal-content">
       
       <!-- Botón Cerrar Absoluto -->
-      <button onclick="closeWidgetConfigModal()" class="absolute top-4 right-4 z-20 bg-slate-800 hover:bg-red-900/60 hover:text-red-400 text-slate-400 w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-700" title="Cerrar ventana">
+      <button onclick="closeWidgetConfigModal()" class="absolute top-[6px] right-3 z-30 bg-slate-800 hover:bg-red-900/60 hover:text-red-400 text-slate-400 w-8 h-8 rounded-full flex items-center justify-center transition-colors shadow-sm border border-slate-700" title="Cerrar ventana">
         <i class="fa-solid fa-xmark text-sm"></i>
       </button>
 
@@ -2129,11 +2128,8 @@
             <button type="button" class="test-btn-tech" style="color: #10b981; border-color: rgba(16,185,129,0.4);" onclick="triggerJikokunDeckTest('tip')">💵 Tip</button>
           </div>
         </div>
-      </div>
-
-      <!-- Card 9: Showcase Alerta Eléctrica (Kick & Streamer.bot) -->
-          </div>
         </div>
+      </div>
 
         <!-- Panel de Configuración Específica: Alerta Eléctrica Kick Relámpago -->
         <div id="panel-settings-electric" class="widget-settings-panel hidden space-y-4">
@@ -2616,6 +2612,7 @@
       </div>
     </div>
   </div>
+</div>
 
   <!-- Toast Notification -->
   <div id="toast-notify" class="toast">
@@ -4397,12 +4394,12 @@
         }
       });
 
-      // Soporte fluido para scroll con rueda de mouse en la cabecera y panel de configuración
-      const header = document.querySelector('.modal-settings-header');
-      if (header) {
-        header.addEventListener('wheel', (e) => {
+      // Soporte fluido para scroll con rueda de mouse en todo el panel derecho y cabecera
+      const rightCol = document.querySelector('.modal-right-col');
+      if (rightCol) {
+        rightCol.addEventListener('wheel', (e) => {
           const container = document.getElementById('modal-settings-container');
-          if (container) {
+          if (container && (e.target === rightCol || !container.contains(e.target))) {
             container.scrollTop += e.deltaY;
           }
         }, { passive: true });
