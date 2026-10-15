@@ -352,32 +352,41 @@
         .content {
             z-index: 5;
             color: white;
-            padding: 0 40px;
+            padding: 0 35px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            max-width: 100%;
         }
 
-        .content p {
-            font-size: 16px;
-            color: var(--subtext-color);
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-            transition: color 0.4s ease;
-        }
-        
         .username {
             color: var(--star-yellow); /* Color estelar integrado al tema */
             font-weight: 800;
-            font-size: 34px; /* Más grande al aprovechar el espacio */
-            letter-spacing: 1px;
-            text-shadow: 0 0 15px var(--username-glow);
+            font-size: 32px; /* Más grande al aprovechar el espacio */
+            letter-spacing: 0.5px;
+            text-shadow: 0 0 16px var(--username-glow);
             display: block;
-            margin-top: 5px;
+            margin-bottom: 4px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
             max-width: 440px;
+            line-height: 1.15;
             transition: color 0.4s ease, text-shadow 0.4s ease;
+        }
+
+        .alert-subtitle {
+            font-size: 15px;
+            color: var(--subtext-color);
+            margin: 0;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            line-height: 1.35;
+            max-width: 460px;
+            white-space: normal;
+            transition: color 0.4s ease;
         }
 
         /* Decoraciones Absolutas (Estrellas y Líneas) */
@@ -551,10 +560,10 @@
                 <path d="M50 5 L61 35 L93 35 L67 54 L77 84 L50 65 L23 84 L33 54 L7 35 L39 35 Z" fill="var(--star-white)" />
             </svg>
 
-            <!-- Contenido textual de Alerta Kick -->
+            <!-- Contenido textual de Alerta Kick: Usuario que la activó y por qué la activó -->
             <div class="content">
-                <p id="alertSubtitle">Se ha unido a la tripulación</p>
-                <span id="followerName" class="username">Usuario123</span>
+                <span id="followerName" class="username">Usuario</span>
+                <p id="alertSubtitle" class="alert-subtitle">Se ha unido a la tripulación</p>
             </div>
 
         </div>
@@ -635,14 +644,17 @@
         function formatAlertSubtitle(template, vars = {}) {
             let res = String(template || '');
             const count = vars.count !== undefined ? vars.count : (vars.amount !== undefined ? vars.amount : (vars.months || vars.subs || vars.viewers || vars.kicks || 1));
+            const formattedKicks = (vars.kicks !== undefined && !isNaN(vars.kicks)) ? Number(vars.kicks).toLocaleString() : count;
             
             // Reemplazo flexible de variables tolerante a espacios y mayúsculas
             res = res.replace(/\{\s*(meses|mes)\s*\}/gi, vars.months !== undefined ? vars.months : count);
             res = res.replace(/\{\s*(subs|sub|regaladas)\s*\}/gi, vars.subs !== undefined ? vars.subs : count);
             res = res.replace(/\{\s*(viewers|espectadores|raiders|personas)\s*\}/gi, vars.viewers !== undefined ? vars.viewers : count);
-            res = res.replace(/\{\s*(kicks|kick|gemas|monedas)\s*\}/gi, vars.kicks !== undefined ? vars.kicks : count);
+            res = res.replace(/\{\s*(kicks|kick|gemas|monedas)\s*\}/gi, formattedKicks);
             res = res.replace(/\{\s*(cantidad|count|amount|n)\s*\}/gi, count);
-            res = res.replace(/\{\s*(user|usuario|streamer)\s*\}/gi, vars.user || '');
+            res = res.replace(/\{\s*(user|usuario|streamer|gifter|autor)\s*\}/gi, vars.user || '');
+            res = res.replace(/\{\s*(recipient|destinatario|para)\s*\}/gi, vars.recipient || 'la comunidad');
+            res = res.replace(/\{\s*(tier|nivel)\s*\}/gi, vars.tier || '1');
             return res;
         }
 
@@ -793,24 +805,31 @@
                     break;
                 case 'sub':
                     const months = [1, 2, 3, 6, 12][Math.floor(Math.random() * 5)];
-                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
+                    const isResub = months > 1;
+                    const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') 
+                        ? customTexts.sub_new 
+                        : (isResub ? customTexts.sub : '¡Se ha suscrito al canal estelar!');
                     displayAlert({
                         type: 'sub',
                         count: months,
                         months: months,
-                        title: '¡Nueva Suscripción!',
+                        title: isResub ? '¡Resuscripción!' : '¡Nueva Suscripción!',
                         subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: randomName }),
                         username: randomName
                     });
                     break;
                 case 'gift':
                     const gifts = [1, 5, 10, 20][Math.floor(Math.random() * 4)];
+                    const otherUser = mockUsers.filter(u => u !== randomName)[0] || 'Tripulante';
+                    const giftSubtitle = gifts > 1 
+                        ? formatAlertSubtitle(customTexts.gift, { subs: gifts, count: gifts, user: randomName })
+                        : formatAlertSubtitle('¡Le regaló una sub a @{recipient}!', { subs: 1, count: 1, user: randomName, recipient: otherUser });
                     displayAlert({
                         type: 'gift',
                         count: gifts,
                         subs: gifts,
-                        title: '¡Sub Regalada!',
-                        subtitle: formatAlertSubtitle(customTexts.gift, { subs: gifts, count: gifts, user: randomName }),
+                        title: gifts > 1 ? '¡Lluvia de Subs!' : '¡Sub Regalada!',
+                        subtitle: giftSubtitle,
                         username: randomName
                     });
                     break;
@@ -847,13 +866,14 @@
 
         // =====================================================================
         // CONEXIÓN DIRECTA CON STREAMER.BOT (0 MS DE LATENCIA LOCAL)
+        // PUERTO 4445 POR DEFECTO EN EL 99% DE LAS INSTALACIONES MODERNAS
         // =====================================================================
         let streamerBotWs = null;
         let streamerBotHost = urlParams.get('host') || '127.0.0.1';
-        let streamerBotPort = urlParams.get('port') || '8080';
+        let streamerBotPort = urlParams.get('port') || '4445'; // Puerto 4445 por defecto
         let wsReconnectAttempts = 0;
         let currentPortIndex = 0;
-        const FALLBACK_PORTS = [streamerBotPort, '8080', '4445', '7474'].filter((v, i, a) => a.indexOf(v) === i);
+        const FALLBACK_PORTS = [streamerBotPort, '4445', '8080', '7474'].filter((v, i, a) => a.indexOf(v) === i);
 
         function updateSbStatus(status, text) {
             const statusText = document.getElementById('kickStatusText');
@@ -891,11 +911,12 @@
                 streamerBotWs = new WebSocket(wsUrl);
 
                 streamerBotWs.onopen = () => {
-                    console.log(`[Streamer.bot Alertas] ¡Conectado con éxito a ${wsUrl}!`);
+                    console.log(`[Streamer.bot Alertas Estelares] ¡Conectado con éxito a ${wsUrl}!`);
                     wsReconnectAttempts = 0;
                     updateSbStatus('connected', `Streamer.bot: Conectado (${activePort})`);
 
-                    // Suscribirse a todos los eventos Kick y de streaming de Streamer.bot
+                    // Suscribirse EXCLUSIVAMENTE a los 5 eventos solicitados (Sub, Gift, Raid, Kicks, Follow)
+                    // Se excluyen expresamente ChatMessage, RewardRedemption y eventos Custom generales
                     const subscribePayload = {
                         request: "Subscribe",
                         id: "star-alerts-sub",
@@ -904,26 +925,24 @@
                                 "Follow",
                                 "Subscription",
                                 "GiftSub",
+                                "GiftBomb",
                                 "Raid",
-                                "RewardRedemption",
-                                "ChatMessage"
+                                "Kicks"
                             ],
                             Twitch: [
                                 "Follow",
                                 "Sub",
                                 "Resub",
                                 "GiftSub",
+                                "GiftBomb",
+                                "CommunityGift",
                                 "Raid",
                                 "Cheer"
                             ],
                             YouTube: [
                                 "Subscribe",
-                                "SuperChat",
-                                "SuperSticker",
-                                "MembershipGift"
-                            ],
-                            General: [
-                                "Custom"
+                                "MembershipGift",
+                                "SuperChat"
                             ]
                         }
                     };
@@ -935,7 +954,7 @@
                         const payload = JSON.parse(event.data);
                         handleStreamerBotEvent(payload);
                     } catch(err) {
-                        console.warn("[Streamer.bot] Error procesando mensaje:", err);
+                        console.warn("[Streamer.bot] Error procesando mensaje WebSocket:", err);
                     }
                 };
 
@@ -953,112 +972,238 @@
                 };
 
             } catch(e) {
-                console.warn("[Streamer.bot] Fallo al crear WebSocket:", e);
+                console.warn("[Streamer.bot] Fallo al instanciar WebSocket:", e);
                 currentPortIndex++;
                 setTimeout(connectStreamerBot, 2500);
             }
         }
 
-        // Procesador de eventos de Streamer.bot
+        // =====================================================================
+        // PROCESADOR DE EVENTOS DE STREAMER.BOT (FILTRADO ESTRICTO DE 5 EVENTOS)
+        // Solo absorbe: sub, regalos de sub, raid, kicks y follow
+        // Muestra el nombre de usuario que la activó y por qué la activó
+        // =====================================================================
         function handleStreamerBotEvent(payload) {
-            if (!payload || !payload.event) return;
-            const source = (payload.event.source || '').toLowerCase();
-            const eventType = (payload.event.type || '').toLowerCase();
+            if (!payload) return;
+
+            // Descartar confirmaciones de suscripción o mensajes de estado
+            if (payload.status === 'ok' || payload.id === 'star-alerts-sub') {
+                console.log("[Streamer.bot Alertas] Suscripción a eventos confirmada por Streamer.bot.");
+                return;
+            }
+
+            // Identificar fuente y tipo de evento de Streamer.bot
+            let source = '';
+            let eventType = '';
+            if (payload.event) {
+                if (typeof payload.event === 'string') {
+                    eventType = payload.event;
+                } else if (typeof payload.event === 'object') {
+                    source = payload.event.source || '';
+                    eventType = payload.event.type || '';
+                }
+            }
+            if (!eventType && payload.type) eventType = payload.type;
+            if (!eventType && payload.data?.event) eventType = payload.data.event;
+            if (!eventType && payload.data?.type) eventType = payload.data.type;
+
             const data = payload.data || {};
+            const evLower = String(eventType).toLowerCase().trim();
+            const srcLower = String(source).toLowerCase().trim();
 
-            console.log(`[Streamer.bot Evento]: ${source}.${eventType}`, data);
+            console.log(`[Streamer.bot Evento Entrante]: [${source}].[${eventType}]`, data);
 
-            // 1. EVENTOS DE SEGUIDOR (Kick & Twitch)
-            if (eventType.includes('follow')) {
-                const u = data.user?.username || data.username || data.name || data.user_name || 'Nuevo Seguidor';
+            // Helper para extraer nombre de usuario seguro de cualquier estructura de Streamer.bot
+            function getUsername(candidates, fallback = 'Usuario') {
+                for (const c of candidates) {
+                    if (!c) continue;
+                    if (typeof c === 'string' && c.trim()) return c.trim();
+                    if (typeof c === 'object') {
+                        const name = c.username || c.displayName || c.display_name || c.name || c.user_name || c.login || c.slug;
+                        if (name && typeof name === 'string' && name.trim()) return name.trim();
+                    }
+                }
+                return fallback;
+            }
+
+            // -----------------------------------------------------------------
+            // 1. REGALOS DE SUBS (GiftSub, GiftBomb, CommunityGift)
+            // Se evalúa PRIMERO porque "giftsub" contiene la palabra "sub"
+            // -----------------------------------------------------------------
+            const isGiftEvent = evLower.includes('giftsub') || 
+                                evLower.includes('giftbomb') || 
+                                evLower.includes('communitygift') || 
+                                evLower.includes('membershipgift') || 
+                                (evLower.includes('gift') && !evLower.includes('kicks')) ||
+                                data.is_gift === true || 
+                                data.isGift === true;
+
+            if (isGiftEvent) {
+                // Quién la activó: El usuario que regaló las suscripciones
+                const gifter = getUsername([
+                    data.gifter, data.gifterUser, data.gifter_username,
+                    data.user, data.user_name, data.username, data.sender
+                ], 'Amigo del Canal');
+
+                // Cantidad de subs regaladas
+                const giftCount = Number(data.giftCount || data.count || data.numGifts || data.totalGifts || data.gifts || data.subCount || data.gifted_usernames?.length || 1) || 1;
+
+                // Destinatario si fue regalo individual
+                const recipient = getUsername([
+                    data.recipient, data.recipientUser, data.recipient_username, data.targetUser
+                ], '');
+
+                // Por qué la activó (motivo descriptivo)
+                let reason = '';
+                if (giftCount > 1) {
+                    reason = formatAlertSubtitle(customTexts.gift, { user: gifter, subs: giftCount, count: giftCount });
+                } else if (recipient) {
+                    reason = formatAlertSubtitle('¡Le regaló una sub a @{recipient}!', { user: gifter, subs: 1, count: 1, recipient: recipient });
+                } else {
+                    reason = formatAlertSubtitle(customTexts.gift, { user: gifter, subs: 1, count: 1 });
+                }
+
+                queueAlert({
+                    type: 'gift',
+                    title: giftCount > 1 ? '¡Lluvia de Subs!' : '¡Sub Regalada!',
+                    subtitle: reason,
+                    username: gifter,
+                    subs: giftCount,
+                    count: giftCount
+                });
+                return;
+            }
+
+            // -----------------------------------------------------------------
+            // 2. SUSCRIPCIONES (Sub, Resub, Subscription)
+            // -----------------------------------------------------------------
+            const isSubEvent = (evLower.includes('subscription') || 
+                               evLower.includes('resub') || 
+                               evLower === 'sub' || 
+                               (srcLower === 'youtube' && evLower === 'subscribe')) && !isGiftEvent;
+
+            if (isSubEvent) {
+                // Quién la activó: El suscriptor
+                const u = getUsername([
+                    data.user, data.subscriber, data.user_name, data.username, data.name
+                ], 'Nuevo Suscriptor');
+
+                // Meses acumulados / antigüedad
+                const months = Number(data.months || data.cumulative_months || data.sub_months || data.duration || data.monthsSubscribed || data.tier_months || 1) || 1;
+                const isResub = months > 1;
+
+                // Plantilla según sea primera vez o renovación
+                const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar')
+                    ? customTexts.sub_new
+                    : (isResub ? customTexts.sub : '¡Se ha suscrito al canal estelar!');
+
+                // Por qué la activó
+                const reason = formatAlertSubtitle(subTpl, { user: u, months: months, count: months });
+
+                queueAlert({
+                    type: 'sub',
+                    title: isResub ? '¡Resuscripción!' : '¡Nueva Suscripción!',
+                    subtitle: reason,
+                    username: u,
+                    months: months,
+                    count: months
+                });
+                return;
+            }
+
+            // -----------------------------------------------------------------
+            // 3. SEGUIDOR / FALLOW (Follow)
+            // -----------------------------------------------------------------
+            const isFollowEvent = evLower.includes('follow') || (srcLower === 'kick' && evLower === 'follow');
+
+            if (isFollowEvent) {
+                // Quién la activó: El nuevo seguidor
+                const u = getUsername([
+                    data.user, data.follower, data.user_name, data.username, data.name
+                ], 'Nuevo Seguidor');
+
+                // Por qué la activó
+                const reason = formatAlertSubtitle(customTexts.follow, { user: u });
+
                 queueAlert({
                     type: 'follow',
                     title: '¡Nuevo Seguidor!',
-                    subtitle: formatAlertSubtitle(customTexts.follow, { user: u }),
+                    subtitle: reason,
                     username: u
                 });
+                return;
             }
 
-            // 2. EVENTOS DE SUSCRIPCIÓN (Kick & Twitch)
-            else if (eventType.includes('subscription') || eventType.includes('sub') || eventType.includes('resub')) {
-                // Descartar si es regalo directo (se maneja en gift)
-                if (eventType.includes('gift') || data.is_gift || data.isGift) {
-                    handleGiftEvent(data);
-                    return;
-                }
-                const u = data.user?.username || data.username || data.name || data.user_name || 'Suscriptor';
-                const months = data.months || data.duration || data.cumulative_months || data.tier || 1;
-                const subTpl = (months === 1 && customTexts.sub_new && customTexts.sub_new !== 'Ha abordado la nave estelar') ? customTexts.sub_new : customTexts.sub;
-                queueAlert({
-                    type: 'sub',
-                    title: '¡Nueva Suscripción!',
-                    subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: u }),
-                    username: u,
-                    months: months
-                });
-            }
+            // -----------------------------------------------------------------
+            // 4. RAID / HOST (Raid, Host)
+            // -----------------------------------------------------------------
+            const isRaidEvent = evLower.includes('raid') || evLower.includes('host');
 
-            // 3. EVENTOS DE SUBS REGALADAS
-            else if (eventType.includes('giftsub') || eventType.includes('communitygift') || eventType.includes('membershipgift')) {
-                handleGiftEvent(data);
-            }
+            if (isRaidEvent) {
+                // Quién la activó: El streamer que envía la raid
+                const u = getUsername([
+                    data.raider, data.host, data.from_broadcaster_user_name,
+                    data.user, data.user_name, data.username, data.name
+                ], 'Streamer Amigo');
 
-            // 4. EVENTOS DE RAID / HOST
-            else if (eventType.includes('raid') || eventType.includes('host')) {
-                const u = data.raider?.username || data.host?.username || data.user?.username || data.username || 'Streamer Amigo';
-                const viewers = data.viewers || data.viewerCount || data.count || 0;
+                // Cantidad de espectadores
+                const viewers = Number(data.viewers || data.viewerCount || data.viewer_count || data.raiders || data.count || 0) || 0;
+
+                // Por qué la activó
+                const reason = formatAlertSubtitle(customTexts.raid, { user: u, viewers: viewers, count: viewers });
+
                 queueAlert({
                     type: 'raid',
                     title: '¡Raid Entrante!',
-                    subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: u }),
+                    subtitle: reason,
                     username: u,
-                    viewers: viewers
+                    viewers: viewers,
+                    count: viewers
                 });
+                return;
             }
 
-            // 5. EVENTOS DE KICKS / DONACIONES / PUNTOS
-            else if (eventType.includes('rewardredemption') || eventType.includes('superchat') || eventType.includes('cheer') || eventType.includes('tip')) {
-                const u = data.user?.username || data.username || data.user_name || 'Espectador';
-                const amount = data.amount || data.kicks || data.reward?.cost || data.bits || 100;
+            // -----------------------------------------------------------------
+            // 5. KICKS / MONEDA DE APOYO (Kicks, Cheer, Tip, Donación directa)
+            // Se descarta expresamente cualquier mensaje común de chat
+            // -----------------------------------------------------------------
+            const isKicksEvent = (evLower === 'kicks' || 
+                                 evLower === 'kick' || 
+                                 (evLower.includes('kick') && !evLower.includes('message') && !evLower.includes('chat')) || 
+                                 evLower.includes('cheer') || 
+                                 evLower.includes('tip') || 
+                                 evLower === 'superchat') && 
+                                 !evLower.includes('message');
+
+            if (isKicksEvent) {
+                // Quién la activó: El donante de kicks
+                const u = getUsername([
+                    data.user, data.sender, data.donor, data.donorUser,
+                    data.user_name, data.username, data.name
+                ], 'Tripulante VIP');
+
+                // Cantidad de kicks / gemas aportadas
+                const kicksAmount = Number(data.amount || data.kicks || data.quantity || data.count || data.bits || 100) || 100;
+
+                // Por qué la activó
+                const reason = formatAlertSubtitle(customTexts.kicks, { user: u, kicks: kicksAmount, count: kicksAmount });
+
                 queueAlert({
                     type: 'kicks',
                     title: '¡Kicks Aportados!',
-                    subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: amount, count: amount, user: u }),
+                    subtitle: reason,
                     username: u,
-                    kicks: amount
+                    kicks: kicksAmount,
+                    count: kicksAmount
                 });
+                return;
             }
 
-            // 6. DETECCIÓN EN MENSAJES DE CHAT (!kick 500)
-            else if (eventType.includes('chatmessage') || eventType.includes('message')) {
-                const message = (data.message?.message || data.message?.text || data.text || data.message || '').toString();
-                const sender = data.user?.username || data.user?.name || data.username || 'Espectador';
-                const lower = message.toLowerCase();
-
-                if (lower.startsWith('!kicks') || lower.startsWith('!kick') || lower.includes('kicks')) {
-                    const match = lower.match(/\d+/);
-                    const amount = match ? parseInt(match[0], 10) : 50;
-                    queueAlert({
-                        type: 'kicks',
-                        title: '¡Kicks Aportados!',
-                        subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: amount, count: amount, user: sender }),
-                        username: sender,
-                        kicks: amount
-                    });
-                }
-            }
-        }
-
-        function handleGiftEvent(data) {
-            const u = data.gifter?.username || data.gifter || data.user?.username || data.username || 'Amigo del Canal';
-            const count = data.giftCount || data.count || data.subs || data.gifted_usernames?.length || 1;
-            queueAlert({
-                type: 'gift',
-                title: '¡Sub Regalada!',
-                subtitle: formatAlertSubtitle(customTexts.gift, { subs: count, count: count, user: u }),
-                username: u,
-                subs: count
-            });
+            // -----------------------------------------------------------------
+            // CUALQUIER OTRO EVENTO: DESCARTAR COMPLETAMENTE
+            // (ChatMessage, RewardRedemption, Ban, Custom actions, etc.)
+            // -----------------------------------------------------------------
+            console.log(`[Streamer.bot Alertas Estelares] Evento ignorado (no es sub, regalos de sub, raid, kicks ni follow): [${source}].[${eventType}]`);
         }
 
         // =====================================================================
