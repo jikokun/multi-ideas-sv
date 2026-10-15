@@ -327,17 +327,28 @@
       overflow: hidden !important;
       position: relative !important;
     }
+    .modal-settings-header {
+      height: 34px !important;
+      min-height: 34px !important;
+      max-height: 34px !important;
+      padding: 0 14px !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+      flex-shrink: 0 !important;
+    }
     #modal-settings-container {
-      flex: 1 1 0% !important;
+      flex: 1 1 auto !important;
       min-height: 0 !important;
-      height: auto !important;
-      max-height: 100% !important;
-      overflow-y: auto !important;
+      height: calc(100% - 34px) !important;
+      max-height: calc(100% - 34px) !important;
+      overflow-y: scroll !important;
       overflow-x: hidden !important;
       -webkit-overflow-scrolling: touch;
-      overscroll-behavior: contain;
-      padding: 10px 14px 32px 14px !important;
+      padding: 4px 12px 28px 12px !important;
       scrollbar-width: thin;
+      scroll-behavior: auto !important;
     }
     .modal-settings-card {
       background: rgba(15, 23, 42, 0.65);
@@ -516,7 +527,6 @@
     .custom-scrollbar {
       scrollbar-width: thin;
       scrollbar-color: rgba(255, 255, 255, 0.3) rgba(255, 255, 255, 0.05);
-      scroll-behavior: smooth;
     }
     .custom-scrollbar::-webkit-scrollbar {
       width: 8px;
@@ -829,11 +839,13 @@
     body.light-theme .modal-right-col {
       background: #ffffff !important;
     }
-    body.light-theme .modal-right-col > div:first-child {
+    body.light-theme .modal-right-col > div:first-child,
+    body.light-theme .modal-settings-header {
       background: #ffffff !important;
       border-bottom: 1px solid #e2e8f0 !important;
     }
-    body.light-theme .modal-right-col h3 {
+    body.light-theme .modal-right-col h3,
+    body.light-theme .modal-settings-header h3 {
       color: #334155 !important;
     }
     body.light-theme #modal-content > button:first-child {
@@ -1679,14 +1691,14 @@
       <!-- LADO DERECHO: Panel de Configuraciones Específicas del Widget (50%) -->
       <div class="modal-right-col w-full lg:w-1/2 flex flex-col h-full min-h-0 overflow-hidden">
         
-        <div class="py-2.5 px-4 border-b border-slate-800 flex items-center justify-between flex-shrink-0">
+        <div class="modal-settings-header flex items-center justify-between flex-shrink-0">
           <h3 class="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-slate-300">
             <i class="fa-solid fa-sliders text-sky-400"></i> Opciones de Personalización
           </h3>
         </div>
 
         <!-- Área Scrolleable con Formulario Específico del Widget -->
-        <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar" id="modal-settings-container">
+        <div class="custom-scrollbar" id="modal-settings-container">
 
         <!-- Panel de Configuración Específica: Widget Clima & Reloj en Vivo -->
         <div id="panel-settings-weather" class="widget-settings-panel hidden space-y-4">
@@ -4385,17 +4397,15 @@
         }
       });
 
-      // Permitir que la rueda del mouse scrollee el contenedor fluidamente en toda la columna derecha
-      const rightCol = document.querySelector('.modal-right-col');
-      if (rightCol) {
-        rightCol.addEventListener('wheel', (e) => {
+      // Soporte fluido para scroll con rueda de mouse en la cabecera y panel de configuración
+      const header = document.querySelector('.modal-settings-header');
+      if (header) {
+        header.addEventListener('wheel', (e) => {
           const container = document.getElementById('modal-settings-container');
-          if (!container) return;
-          // Si el cursor está sobre un control range (slider), permitimos ajuste nativo
-          if (e.target && e.target.tagName === 'INPUT' && e.target.type === 'range') return;
-          container.scrollTop += e.deltaY;
-          e.preventDefault();
-        }, { passive: false });
+          if (container) {
+            container.scrollTop += e.deltaY;
+          }
+        }, { passive: true });
       }
 
       if (window.location.hash) {
