@@ -882,26 +882,29 @@
       top: 16px;
       left: 16px;
       background: rgba(3, 16, 22, 0.95);
-      border: 1px solid rgba(0, 255, 204, 0.3);
-      border-radius: 12px;
+      border: 1px solid rgba(0, 255, 204, 0.35);
+      border-radius: 14px;
       padding: 12px 14px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85), 0 0 15px rgba(0, 255, 204, 0.15);
       max-width: 320px;
       z-index: 99999;
       pointer-events: auto;
       font-size: 0.8rem;
-      backdrop-filter: blur(10px);
-      transition: transform 0.3s ease, opacity 0.3s ease;
-    }
-
-    .test-dock.collapsed {
-      transform: translateY(-90%);
-      opacity: 0.4;
-    }
-
-    .test-dock:hover {
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.28s ease, visibility 0.28s ease;
       opacity: 1;
+      visibility: visible;
       transform: translateY(0);
+    }
+
+    /* Oculto por defecto en OBS / Stream (se alterna con clic en pantalla) */
+    .test-dock.hidden,
+    .test-dock.oculto {
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      transform: translateY(-24px) scale(0.95) !important;
     }
 
     .test-dock-title {
@@ -913,6 +916,30 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      gap: 8px;
+    }
+
+    .close-test-btn {
+      background: rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      border: 1px solid #ef4444;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 0.72rem;
+      font-weight: 900;
+      transition: all 0.2s ease;
+      padding: 0;
+      line-height: 1;
+    }
+    .close-test-btn:hover {
+      background: #ef4444;
+      color: #ffffff;
+      transform: scale(1.1);
     }
 
     .test-btns-grid {
@@ -1124,12 +1151,12 @@
   </div>
 
   <!-- ========================================================================
-       PANEL DE SIMULACIÓN Y PRUEBAS RÁPIDAS (VISUALIZABLE EN NAVEGADOR)
+       PANEL DE SIMULACIÓN Y PRUEBAS RÁPIDAS (OCULTO POR DEFECTO PARA OBS)
        ======================================================================== -->
-  <div class="test-dock" id="test-dock">
+  <div class="test-dock hidden" id="test-dock">
     <div class="test-dock-title">
       <span>🏦 JikoBank Simulator</span>
-      <span style="cursor:pointer;" onclick="document.getElementById('test-dock').classList.toggle('collapsed')">⚙️</span>
+      <button type="button" class="close-test-btn" onclick="toggleTestPanel(false); event.stopPropagation();" title="Cerrar Simulador">✖</button>
     </div>
     <div class="test-btns-grid">
       <button class="btn-test" onclick="simularComando('!saldo jikokun', 'jikokun')">💳 !saldo jikokun</button>
@@ -2018,6 +2045,28 @@
     window.activarCajero = activarCajero;
     window.ocultarCajero = ocultarCajero;
     window.ocultarCajeroInmediato = ocultarCajeroInmediato;
+
+    // ==========================================================================
+    // ALTERNAR VISIBILIDAD DEL PANEL DE SIMULACIÓN EN MODO INTERACTUAR DE OBS
+    // ==========================================================================
+    function toggleTestPanel(forceState) {
+      const panel = document.getElementById('test-dock');
+      if (!panel) return;
+      if (typeof forceState === 'boolean') {
+        if (forceState) panel.classList.remove('hidden', 'oculto');
+        else panel.classList.add('hidden');
+      } else {
+        panel.classList.toggle('hidden');
+      }
+    }
+    window.toggleTestPanel = toggleTestPanel;
+
+    // Al hacer clic o tocar la pantalla en OBS (Modo interactuar), alternar simulador
+    document.addEventListener('pointerdown', (e) => {
+      // Si el clic fue dentro del panel de pruebas o del cajero interactivo, no alternar
+      if (e.target.closest('#test-dock, #jikobank-stage, .jiko-atm')) return;
+      toggleTestPanel();
+    }, { passive: true });
 
     // Escuchador de postMessage para pruebas desde prueba.html
     window.addEventListener('message', (ev) => {
