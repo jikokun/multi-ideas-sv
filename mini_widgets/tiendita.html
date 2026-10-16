@@ -3823,15 +3823,9 @@
       return;
     }
 
-    // 0. Consulta de puntos: !jikopuntos, !puntos, !saldo, !points (disponible para todos en todo momento)
-    if(t.startsWith('!jikopuntos') || t.startsWith('!puntos') || t.startsWith('!saldo') || t.startsWith('!points') || t.startsWith('!misjikopuntos')){
-      const partes = raw.trim().split(/\s+/);
-      let targetUser = user;
-      if(partes.length > 1 && partes[1].replace(/^@/, '').trim()){
-        targetUser = partes[1].replace(/^@/, '').trim();
-      }
-      const pts = getUserPoints(targetUser);
-      mostrarCardJikopuntos(targetUser, pts);
+    // 0. Consulta de saldo/puntos delegada a JikoBank (no se muestra alerta en Tiendita para evitar duplicidad)
+    if(t.startsWith('!jikopuntos') || t.startsWith('!puntos') || t.startsWith('!saldo') || t.startsWith('!points') || t.startsWith('!misjikopuntos') || t.startsWith('!banco') || t.startsWith('!cajero') || t.startsWith('!prestamo')){
+      console.log(`[Tiendita] ℹ️ Comando bancario "${t}" ignorado en Tiendita (atendido exclusivamente por JikoBank)`);
       return;
     }
 
@@ -4269,8 +4263,7 @@
                                 t.startsWith('!prev ')||t.startsWith('prev ')||
                                 t.startsWith('!comprar ')||
                                 t.startsWith('!darjikopuntos')||
-                                t.startsWith('!jikopuntos')||t.startsWith('!puntos')||t.startsWith('!saldo')||t.startsWith('!points')||t.startsWith('!misjikopuntos')||
-                                t==='!perfil'||t==='!perfill'||t.startsWith('!perfil ')||t.startsWith('!perfill ')||
+                                                                t==='!perfil'||t==='!perfill'||t.startsWith('!perfil ')||t.startsWith('!perfill ')||
                                 t==='!pasarlista'||t.startsWith('!pasarlista')||t==='!cerrarlista'||t==='!limpiarasistencia'||
                                 itemDetectado !== null;
 
@@ -4542,7 +4535,7 @@
   if(btnJp){
     btnJp.onclick = ()=>{
       const randomUser = nombres[Math.floor(Math.random()*nombres.length)];
-      ejecutarTexto('!jikopuntos', randomUser);
+      toast('🏦 <b>JikoBank:</b> Las consultas de saldo ahora son atendidas exclusivamente por el cajero automático (JikoBank).', 'info');
     };
   }
   const btnPl = document.getElementById('demo-pasarlista');

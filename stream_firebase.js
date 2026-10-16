@@ -303,12 +303,12 @@ class StreamFirebaseService {
 
     try {
       if (!this.auth.currentUser) {
-        try {
-          await signInAnonymously(this.auth);
+        // No bloquear init() esperando autenticación anónima para compatibilidad instantánea en file:/// y OBS
+        signInAnonymously(this.auth).then(() => {
           console.log('[StreamDB] 🔐 Sesión anónima iniciada para widgets del stream');
-        } catch (authErr) {
-          console.warn('[StreamDB] Aviso al iniciar sesión anónima:', authErr);
-        }
+        }).catch((authErr) => {
+          console.warn('[StreamDB] Modo local/público activo (aviso auth):', authErr.message);
+        });
       }
 
       const connRef = ref(this.rtdb, '.info/connected');
@@ -2630,6 +2630,54 @@ class StreamFirebaseService {
   // 5.1 SISTEMA BANCARIO JIKOBANK (PRÉSTAMOS, DEUDAS, REGALOS Y CONDONACIONES)
   // ==========================================================================
 
+  // Obtener todos los préstamos registrados en JikoBank (para dashboard administrativo)
+  async obtenerTodosLosPrestamos() {
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) return [];
+      const list = [];
+      snap.forEach(child => {
+        list.push({ id: child.key, ...child.val() });
+      });
+      list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      return list;
+    } catch (e) {
+      console.warn('[JikoBank] Error obteniendo todos los préstamos:', e);
+      return [];
+    }
+  }
+
+  // Escuchar préstamos en tiempo real para el dashboard administrativo
+  onLoans(callback) {
+    if (typeof callback !== 'function') return () => {};
+    const loansRef = ref(this.rtdb, NODE_LOANS);
+
+    // Carga inicial ultrarrápida vía REST para renderizado inmediato
+    fetch('https://sensunshopweb-default-rtdb.firebaseio.com/stream/banco/prestamos.json')
+      .then(r => r.json())
+      .then(data => {
+        if (data && typeof data === 'object') {
+          const list = Object.entries(data).map(([id, val]) => ({ id, ...val }));
+          list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+          callback(list);
+        } else {
+          callback([]);
+        }
+      })
+      .catch(() => {});
+
+    return onValue(loansRef, snap => {
+      const list = [];
+      if (snap.exists()) {
+        snap.forEach(child => {
+          list.push({ id: child.key, ...child.val() });
+        });
+        list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+      }
+      callback(list);
+    });
+  }
+
   // Obtener préstamos de un usuario (como solicitante/deudor o acreedor)
   async obtenerPrestamosUsuario(username) {
     const key = norm(username);
@@ -2965,6 +3013,52 @@ class StreamFirebaseService {
       throw err;
     }
   }
+
+  // Perdonar un préstamo individual por su ID (Exclusivo para @Jikokun)
+  async perdonarPrestamoPorId(loanId, admin = 'jikokun') {
+    const adminNorm = norm(admin);
+    if (adminNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal @Jikokun');
+    }
+    if (!loanId) throw new Error('ID de préstamo no especificado');
+
+    try {
+      const loanRef = ref(this.rtdb, `${NODE_LOANS}/${loanId}`);
+      const snap = await get(loanRef);
+      if (!snap.exists()) throw new Error('Préstamo no encontrado');
+
+      const loan = snap.val();
+      const saldoRemanente = parseInt(loan.saldoPendiente, 10) || parseInt(loan.totalDevolver, 10) || 0;
+      const ahora = Date.now();
+      const fecha = new Date(ahora).toLocaleString('es-SV');
+
+      await update(loanRef, {
+        estado: 'perdonado',
+        saldoPendiente: 0,
+        perdonadoPor: 'jikokun',
+        fechaPerdonado: ahora,
+        fechaPerdonadoLegible: fecha
+      });
+
+      // Deducir el saldo perdonado de la deudaTotal del deudor en stream/usuarios
+      if (loan.solicitanteNorm && saldoRemanente > 0) {
+        await runTransaction(ref(this.rtdb, `${NODE_USERS}/${loan.solicitanteNorm}`), (u) => {
+          if (u) {
+            u.deudaTotal = Math.max(0, (u.deudaTotal || saldoRemanente) - saldoRemanente);
+          }
+          return u;
+        });
+      }
+
+      console.log(`[JikoBank] 🕊️ Préstamo #${loanId} perdonado por Jikokun a @${loan.solicitanteNorm} (${saldoRemanente} pts condonados)`);
+      return { exito: true, prestamo: loan, saldoPerdonado: saldoRemanente };
+    } catch (err) {
+      console.warn('[JikoBank] Error perdonando préstamo individual:', err);
+      throw err;
+    }
+  }
+
+
 
   // Regalar Jikopuntos de usuario a usuario (0% interés, regalo solidario sin deuda)
   async regalarJikopuntos({ remitente, receptor, cantidad }) {

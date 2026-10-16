@@ -2116,7 +2116,10 @@
         <button class="action-btn" onclick="sincronizarDatosLocalesConFirebase()" id="btn-sync-local" style="background: linear-gradient(135deg, #00f2fe 0%, #00adb5 100%); color: #02090f; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: transform 0.2s, box-shadow 0.2s;" title="Sincronizar todos los usuarios y Jikopuntos guardados localmente con Firebase">
           <span>🔄</span> Sincronizar Jikopuntos Locales
         </button>
-        <button class="action-btn" onclick="abrirModalCrearUsuario()" id="btn-header-add-user" style="background: linear-gradient(135deg, #53fc18 0%, #22c55e 100%); color: #041207; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(83, 252, 24, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Registrar nuevo usuario manualmente en Firebase">
+                <a href="jikobank.html" target="_blank" class="action-btn btn-secondary" style="border-color:rgba(0, 255, 204, 0.45); color:var(--cyan); display:inline-flex; align-items:center; gap:6px;" title="Abrir Cajero Automático JikoBank en vivo">
+          <span>🏦</span> Ver JikoBank
+        </a>
+<button class="action-btn" onclick="abrirModalCrearUsuario()" id="btn-header-add-user" style="background: linear-gradient(135deg, #53fc18 0%, #22c55e 100%); color: #041207; font-weight: 800; border: none; box-shadow: 0 4px 15px rgba(83, 252, 24, 0.35); padding: 8px 16px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;" title="Registrar nuevo usuario manualmente en Firebase">
           <span>➕</span> Añadir Usuario
         </button>
         <a href="tiendita.html" target="_blank" class="action-btn btn-secondary" title="Abrir Tiendita en pestaña independiente">
@@ -2237,6 +2240,24 @@
         </div>
         <div class="kpi-value" id="kpi-tasa-asistencia">0%</div>
         <div class="kpi-sub">% de la comunidad presente</div>
+      </div>
+
+      <div class="kpi-card red" style="border-color: rgba(255, 92, 108, 0.45); background: linear-gradient(135deg, rgba(255, 92, 108, 0.08) 0%, rgba(10, 20, 28, 0.8) 100%);">
+        <div class="kpi-head">
+          <span class="kpi-title" style="color: #ff8591;">Deuda Activa JikoBank</span>
+          <span class="kpi-icon">🏦</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-deuda" style="color: var(--rojo);">0 JP</div>
+        <div class="kpi-sub">Total créditos pendientes (2% interés)</div>
+      </div>
+
+      <div class="kpi-card cyan" style="border-color: rgba(0, 255, 204, 0.45); background: linear-gradient(135deg, rgba(0, 255, 204, 0.08) 0%, rgba(10, 20, 28, 0.8) 100%);">
+        <div class="kpi-head">
+          <span class="kpi-title" style="color: #6ee7b7;">Préstamos JikoBank</span>
+          <span class="kpi-icon">💳</span>
+        </div>
+        <div class="kpi-value" id="kpi-total-prestamos" style="color: var(--cyan);">0</div>
+        <div class="kpi-sub">Créditos bancarios &amp; P2P emitidos</div>
       </div>
     </section>
 
@@ -2560,13 +2581,14 @@
               <th>Experiencia (XP)</th>
               <th>Tiempo Visto</th>
               <th>Jikopuntos</th>
+              <th>Deuda JikoBank</th>
               <th>Streams</th>
               <th style="text-align: right;">Acciones</th>
             </tr>
           </thead>
           <tbody id="levels-table-body">
             <tr>
-              <td colspan="8" style="text-align:center; color: var(--text-muted); padding: 30px;">
+              <td colspan="9" style="text-align:center; color: var(--text-muted); padding: 30px;">
                 ⏳ Cargando escalafón de la manada desde stream/usuarios...
               </td>
             </tr>
@@ -2575,6 +2597,73 @@
       </div>
     </section>
 
+    <!-- ═══════════ SECCIÓN: JIKOBANK ✦ CONTROL BANCARIO, CRÉDITOS & PRÉSTAMOS (2%) ═══════════ -->
+    <section class="section-card" id="seccion-jikobank-dashboard" style="margin-bottom: 28px; border-color: rgba(0, 255, 204, 0.28);">
+      <div class="section-header">
+        <h2 class="section-title">
+          🏦 JikoBank ✦ Control de Préstamos, Créditos (2%) &amp; Deudas
+          <span class="badge-num" id="badge-loans-count">0 préstamos</span>
+        </h2>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <button class="action-btn" onclick="absolverDeudasGeneralUI()" style="background: linear-gradient(135deg, #ff5c6c 0%, #d946ef 100%); color:#fff; font-weight:800; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;" title="Perdonar y cancelar todas las deudas del stream a 0 JP">
+            🕊️ Absolución General de Deudas
+          </button>
+          <button class="action-btn" onclick="lluviaJikopuntosUI()" style="background: linear-gradient(135deg, #00f2fe 0%, #00adb5 100%); color:#02090f; font-weight:800; border:none; padding:8px 16px; border-radius:8px; cursor:pointer;" title="Entregar Jikopuntos masivos a todos los asistentes del stream">
+            🎁 Lluvia Masiva de Jikopuntos
+          </button>
+          <a href="jikobank.html" target="_blank" class="action-btn btn-secondary" style="border-color:rgba(0, 255, 204, 0.45); color:var(--cyan);">
+            📱 Abrir Cajero ATM
+          </a>
+        </div>
+      </div>
+
+      <!-- Barra de resumen bancario -->
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-bottom:18px;">
+        <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(0, 255, 204, 0.2); border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech); text-transform:uppercase;">Tasa de Interés Oficial</div>
+          <div style="font-size:1.3rem; font-weight:800; color:var(--cyan); font-family:var(--f-tech);">2.0% <small style="font-size:0.75rem; color:var(--text-dim);">(Fijo por crédito)</small></div>
+        </div>
+        <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(255, 92, 108, 0.2); border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech); text-transform:uppercase;">Saldo Pendiente Total</div>
+          <div style="font-size:1.3rem; font-weight:800; color:var(--rojo); font-family:var(--f-tech);" id="jb-summary-total-deuda">0 JP</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(83, 252, 24, 0.2); border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech); text-transform:uppercase;">Préstamos Saldados</div>
+          <div style="font-size:1.3rem; font-weight:800; color:var(--kick); font-family:var(--f-tech);" id="jb-summary-pagados">0</div>
+        </div>
+        <div style="background:rgba(0,0,0,0.35); border:1px solid rgba(255, 211, 92, 0.2); border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--f-tech); text-transform:uppercase;">Préstamos en Curso</div>
+          <div style="font-size:1.3rem; font-weight:800; color:var(--oro); font-family:var(--f-tech);" id="jb-summary-pendientes">0</div>
+        </div>
+      </div>
+
+      <!-- Tabla de préstamos en tiempo real -->
+      <div class="levels-table-wrap">
+        <table class="levels-table">
+          <thead>
+            <tr>
+              <th style="width: 70px;">ID</th>
+              <th>Solicitante</th>
+              <th>Acreedor</th>
+              <th>Monto Solicitado</th>
+              <th>Interés (2%)</th>
+              <th>Total Devolver</th>
+              <th>Saldo Pendiente</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th style="text-align: right;">Acción</th>
+            </tr>
+          </thead>
+          <tbody id="jikobank-loans-table-body">
+            <tr>
+              <td colspan="10" style="text-align:center; color: var(--text-muted); padding: 30px;">
+                ⏳ Conectando con stream/banco/prestamos...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
     <!-- ═══════════ CONTENIDO EN 2 COLUMNAS: PLATILLOS & TOP COMPRADORES ═══════════ -->
     <div class="content-layout">
 
@@ -2800,6 +2889,14 @@
           <div class="modal-stat-val" id="m-upc-orders">0</div>
           <div class="modal-stat-lbl">Pedidos Hechos</div>
         </div>
+        <div class="modal-stat-box" style="border-color: rgba(255, 92, 108, 0.4); background: rgba(255, 92, 108, 0.08);">
+          <div class="modal-stat-val" id="m-upc-debt" style="color:var(--rojo);">0 JP</div>
+          <div class="modal-stat-lbl">Deuda JikoBank (2%)</div>
+        </div>
+        <div class="modal-stat-box" style="border-color: rgba(0, 255, 204, 0.4); background: rgba(0, 255, 204, 0.08);">
+          <div class="modal-stat-val" id="m-upc-realsaldo" style="color:var(--cyan);">0 JP</div>
+          <div class="modal-stat-lbl">Saldo Real (Neto)</div>
+        </div>
         <div class="modal-stat-box">
           <div class="modal-stat-val" id="m-upc-dishes" style="color:var(--kick);">0</div>
           <div class="modal-stat-lbl">Platillos Servidos</div>
@@ -2815,6 +2912,12 @@
       </div>
 
       <!-- 1. Administración de Experiencia (XP) -->
+      <!-- Banner de alerta de deuda activa JikoBank -->
+      <div id="m-upc-debt-action-container" style="display:none; margin-bottom:14px; padding:12px 16px; background:rgba(255,92,108,0.12); border:1px solid rgba(255,92,108,0.35); border-radius:12px; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <span style="font-size:0.85rem; color:#ff8591;">⚠️ Este usuario tiene una deuda activa de <b id="m-upc-debt-banner-val">0 JP</b> en JikoBank (2% interés).</span>
+        <button type="button" class="action-btn" onclick="perdonarDeudaUsuarioModal()" style="background: linear-gradient(135deg, #ff5c6c 0%, #d946ef 100%); color:#fff; font-weight:800; border:none; padding:6px 14px; font-size:0.8rem; border-radius:6px; cursor:pointer;" title="Perdonar y cancelar toda la deuda de este usuario">🕊️ Perdonar Deuda</button>
+      </div>
+
       <div class="modal-admin-section">
         <div class="modal-admin-title" style="color:#c084fc;">⚡ Administrar Puntos de Experiencia (XP)</div>
         <div class="modal-pts-action-row">
@@ -3180,6 +3283,11 @@
       // 7. Escuchar transacciones en vivo
       StreamDB.onTransacciones((txList) => {
         renderizarTransacciones(txList);
+      });
+
+      // 7b. Escuchar préstamos de JikoBank en tiempo real (Créditos 2%, deudas y pagos)
+      StreamDB.onLoans((loans) => {
+        renderizarTablaPrestamos(loans);
       });
 
       // 8. Escuchar asistencias en vivo para actualizar el contraste de inmediato
@@ -3971,10 +4079,224 @@
       return mapa[code] || code || 'Automático';
     }
 
+
+    // ═══════════ LÓGICA DE JIKOBANK (CONTROL DE PRÉSTAMOS, CRÉDITOS 2% & DEUDAS) ═══════════
+    let prestamosCacheGlobal = [];
+
+    function renderizarTablaPrestamos(loans = []) {
+      prestamosCacheGlobal = loans;
+      const tbody = document.getElementById('jikobank-loans-table-body');
+      if (!tbody) return;
+
+      const totalPrestamos = loans.length;
+      let totalDeuda = 0;
+      let pagadosCount = 0;
+      let pendientesCount = 0;
+
+      loans.forEach(l => {
+        if (l.estado === 'pendiente' || l.estado === 'solicitado') {
+          totalDeuda += (parseInt(l.saldoPendiente, 10) || parseInt(l.totalDevolver, 10) || 0);
+          pendientesCount++;
+        } else if (l.estado === 'pagado') {
+          pagadosCount++;
+        }
+      });
+
+      // Actualizar contadores
+      const kpiPrestamosEl = document.getElementById('kpi-total-prestamos');
+      if (kpiPrestamosEl) kpiPrestamosEl.textContent = totalPrestamos;
+      const badgeLoansEl = document.getElementById('badge-loans-count');
+      if (badgeLoansEl) badgeLoansEl.textContent = `${totalPrestamos} préstamos`;
+      const jbPagadosEl = document.getElementById('jb-summary-pagados');
+      if (jbPagadosEl) jbPagadosEl.textContent = pagadosCount;
+      const jbPendientesEl = document.getElementById('jb-summary-pendientes');
+      if (jbPendientesEl) jbPendientesEl.textContent = pendientesCount;
+
+      if (loans.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" style="text-align:center; color: var(--text-muted); padding: 35px 20px;">
+              No se han emitido préstamos o créditos en JikoBank todavía.<br>
+              <small style="color:var(--text-dim);">Usa <code>!prestamo [monto]</code> en el chat para solicitar un crédito al 2% de interés.</small>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // Ordenar: primero pendientes/solicitados por fecha desc, luego pagados/perdonados
+      const sortedLoans = loans.slice().sort((a, b) => {
+        const orderMap = { solicitado: 1, pendiente: 2, pagado: 3, perdonado: 4, rechazado: 5 };
+        const orderA = orderMap[a.estado] || 99;
+        const orderB = orderMap[b.estado] || 99;
+        if (orderA !== orderB) return orderA - orderB;
+        return (b.timestamp || 0) - (a.timestamp || 0);
+      });
+
+      tbody.innerHTML = sortedLoans.map(p => {
+        const shortId = (p.id || '').slice(-6).toUpperCase();
+        const solNom = p.solicitante || p.solicitanteNorm || 'Desconocido';
+        const acrNom = p.acreedor || (p.esBanco ? 'JikoBank 🏦' : 'P2P');
+        const montoSolicitado = (p.montoPrestado || 0).toLocaleString();
+        const interes = (p.interesCalculado || Math.round((p.montoPrestado || 0) * 0.02)).toLocaleString();
+        const totalDevolver = (p.totalDevolver || 0).toLocaleString();
+        const saldoPendiente = (p.saldoPendiente !== undefined ? p.saldoPendiente : (p.totalDevolver || 0)).toLocaleString();
+        const fecha = p.fechaLegible || (p.timestamp ? new Date(p.timestamp).toLocaleDateString('es-SV') : 'Reciente');
+
+        let estadoBadge = '';
+        if (p.estado === 'pendiente') {
+          estadoBadge = `<span style="background:rgba(255,211,92,0.18); color:var(--oro); border:1px solid rgba(255,211,92,0.4); padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:700;">⏳ En Curso</span>`;
+        } else if (p.estado === 'pagado') {
+          estadoBadge = `<span style="background:rgba(83,252,24,0.18); color:var(--kick); border:1px solid rgba(83,252,24,0.4); padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:700;">✓ Saldado</span>`;
+        } else if (p.estado === 'perdonado') {
+          estadoBadge = `<span style="background:rgba(168,85,247,0.18); color:#c084fc; border:1px solid rgba(168,85,247,0.4); padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:700;">🕊️ Perdonado</span>`;
+        } else if (p.estado === 'solicitado') {
+          estadoBadge = `<span style="background:rgba(0,255,204,0.18); color:var(--cyan); border:1px solid rgba(0,255,204,0.4); padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:700;">📝 Solicitado</span>`;
+        } else {
+          estadoBadge = `<span style="background:rgba(255,92,108,0.18); color:var(--rojo); border:1px solid rgba(255,92,108,0.4); padding:3px 8px; border-radius:12px; font-size:0.75rem; font-weight:700;">✕ ${p.estado}</span>`;
+        }
+
+        const canForgive = (p.estado === 'pendiente' || p.estado === 'solicitado');
+
+        return `
+          <tr>
+            <td style="font-family:var(--f-tech); font-weight:700; color:var(--cyan); font-size:0.85rem;" title="${p.id}">#${shortId}</td>
+            <td>
+              <div style="font-weight:700; color:#fff; cursor:pointer;" onclick="abrirModalFicha('${p.solicitanteNorm || p.solicitante}')" title="Ver ficha de @${solNom}">
+                @${solNom}
+              </div>
+            </td>
+            <td>
+              <div style="font-size:0.85rem; color:var(--text-muted);">${acrNom}</div>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:700; color:var(--oro);">${montoSolicitado} <small style="font-size:0.7rem;">JP</small></span>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); color:var(--cyan); font-size:0.85rem;">+${interes} <small style="font-size:0.7rem;">JP (2%)</small></span>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:700; color:#fff;">${totalDevolver} <small style="font-size:0.7rem;">JP</small></span>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:800; color:${(p.saldoPendiente || 0) > 0 ? 'var(--rojo)' : 'var(--kick)'}; font-size:0.95rem;">
+                ${saldoPendiente} <small style="font-size:0.7rem;">JP</small>
+              </span>
+            </td>
+            <td>${estadoBadge}</td>
+            <td style="font-size:0.78rem; color:var(--text-dim); white-space:nowrap;">${fecha}</td>
+            <td style="text-align: right; white-space:nowrap;">
+              ${canForgive ? `
+                <button class="action-btn" onclick="perdonarPrestamoIndividualUI('${p.id}', '${solNom}')" style="background:linear-gradient(135deg, #a855f7 0%, #ec4899 100%); color:#fff; border:none; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; cursor:pointer;" title="Perdonar este préstamo individual y cancelar la deuda">
+                  🕊️ Perdonar
+                </button>
+              ` : `
+                <span style="font-size:0.75rem; color:var(--text-dim);">Finalizado</span>
+              `}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // Absolver todas las deudas del stream (Jikokun)
+    window.absolverDeudasGeneralUI = async function() {
+      const confirmacion = confirm('🕊️ ¿Estás seguro de que deseas perdonar y condonar TODAS las deudas de préstamos del stream?\n\nEsto dejará en 0 JP la deuda de todos los usuarios de la comunidad.');
+      if (!confirmacion) return;
+
+      try {
+        const res = await StreamDB.perdonarPrestamos({ admin: 'jikokun', targetUser: null });
+        if (res && res.exito) {
+          showToast(`🕊️ ¡Absolución general completada! ${res.totalPerdonados} préstamos perdonados (${(res.montoTotalPerdonado || 0).toLocaleString()} JP condonados).`);
+        } else {
+          showToast('ℹ️ No habían deudas pendientes para absolver.');
+        }
+      } catch (err) {
+        console.error('Error en absolverDeudasGeneralUI:', err);
+        showToast('❌ Error al realizar la absolución: ' + err.message);
+      }
+    };
+
+    // Perdonar un préstamo individual desde la tabla
+    window.perdonarPrestamoIndividualUI = async function(loanId, username) {
+      const confirmacion = confirm(`🕊️ ¿Deseas perdonar el préstamo #${(loanId || '').slice(-6).toUpperCase()} de @${username}?`);
+      if (!confirmacion) return;
+
+      try {
+        const res = await StreamDB.perdonarPrestamoPorId(loanId, 'jikokun');
+        if (res && res.exito) {
+          showToast(`🕊️ Préstamo de @${username} perdonado exitosamente (${(res.saldoPerdonado || 0).toLocaleString()} JP condonados).`);
+        }
+      } catch (err) {
+        console.error('Error en perdonarPrestamoIndividualUI:', err);
+        showToast('❌ Error: ' + err.message);
+      }
+    };
+
+    // Perdonar deuda desde el modal de ficha
+    window.perdonarDeudaUsuarioModal = async function() {
+      if (!usuarioEncontradoActual) return;
+      const uname = usuarioEncontradoActual.username;
+      const confirmacion = confirm(`🕊️ ¿Deseas perdonar TODA la deuda acumulada de @${uname}?`);
+      if (!confirmacion) return;
+
+      try {
+        const res = await StreamDB.perdonarPrestamos({ admin: 'jikokun', targetUser: uname });
+        if (res && res.exito) {
+          showToast(`🕊️ Deuda de @${uname} condonada a 0 JP.`);
+          // Recargar ficha
+          const uActualizado = await StreamDB.getUser(uname);
+          if (uActualizado) window.abrirModalFicha(uname);
+        }
+      } catch (err) {
+        showToast('❌ Error: ' + err.message);
+      }
+    };
+
+    // Lluvia masiva de Jikopuntos para todos los miembros
+    window.lluviaJikopuntosUI = async function() {
+      const cantStr = prompt('🎁 ¿Cuántos Jikopuntos deseas regalar a CADA miembro de la comunidad en esta lluvia?', '500');
+      if (!cantStr) return;
+      const cant = parseInt(cantStr, 10);
+      if (isNaN(cant) || cant <= 0) {
+        alert('Por favor ingresa un número entero positivo');
+        return;
+      }
+
+      if (!usuariosCacheGlobal || usuariosCacheGlobal.length === 0) {
+        alert('No hay usuarios cargados en el sistema');
+        return;
+      }
+
+      const totalUsuarios = usuariosCacheGlobal.length;
+      const totalPuntos = totalUsuarios * cant;
+      const confirmacion = confirm(`🎁 Confirmación de Lluvia Masiva:\n\n• Cantidad: ${cant.toLocaleString()} JP por usuario\n• Destinatarios: ${totalUsuarios} miembros\n• Total a emitir: ${totalPuntos.toLocaleString()} JP\n\n¿Proceder con la entrega masiva?`);
+      if (!confirmacion) return;
+
+      showToast(`🎁 Iniciando lluvia masiva de ${cant} JP a ${totalUsuarios} usuarios...`);
+      let entregados = 0;
+      for (const u of usuariosCacheGlobal) {
+        try {
+          await StreamDB.addJikopuntos(u.username, cant, `🎁 Lluvia Masiva de Jikopuntos de @Jikokun`);
+          entregados++;
+        } catch (e) {
+          console.warn(`Error entregando a @${u.username}:`, e);
+        }
+      }
+      showToast(`🎉 ¡Lluvia Masiva Completada! Se entregaron ${cant.toLocaleString()} JP a ${entregados} usuarios.`);
+    };
+
     // Renderizar Escalafón de Niveles de la Manada
     function renderizarEscalafonNiveles(users = []) {
       const tbody = document.getElementById('levels-table-body');
       if (!tbody) return;
+
+      // Actualizar KPI y Resumen de Deuda JikoBank
+      const totalDeudaGlobal = users.reduce((acc, u) => acc + (parseInt(u.deudaTotal, 10) || 0), 0);
+      const kpiDeudaEl = document.getElementById('kpi-total-deuda');
+      if (kpiDeudaEl) kpiDeudaEl.textContent = `${totalDeudaGlobal.toLocaleString()} JP`;
+      const jbSummaryDeudaEl = document.getElementById('jb-summary-total-deuda');
+      if (jbSummaryDeudaEl) jbSummaryDeudaEl.textContent = `${totalDeudaGlobal.toLocaleString()} JP`;
 
       const qInput = document.getElementById('filter-user-input');
       const q = (qInput ? qInput.value : '').toLowerCase().trim();
@@ -4102,6 +4424,20 @@
               <span style="font-family:var(--f-tech); font-weight:800; font-size:1.05rem; color:var(--oro); display:inline-flex; align-items:center; gap:4px;">
                 🪙 ${pts} <small style="font-size:0.72rem; color:var(--text-muted);">pts</small>
               </span>
+            </td>
+            <td>
+              ${(u.deudaTotal || 0) > 0 ? `
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <span style="font-family:var(--f-tech); font-weight:800; font-size:0.95rem; color:var(--rojo); display:inline-flex; align-items:center; gap:4px;" title="Deuda activa en JikoBank con 2% de interés">
+                    ⚠️ ${(u.deudaTotal).toLocaleString()} <small style="font-size:0.7rem; color:#ff8591;">JP</small>
+                  </span>
+                  <span style="font-size:0.7rem; color:var(--text-dim); font-family:var(--f-tech);">Neto: ${((u.jikopuntos || 0) - u.deudaTotal).toLocaleString()}</span>
+                </div>
+              ` : `
+                <span style="font-family:var(--f-tech); font-size:0.85rem; color:var(--kick); opacity:0.85; display:inline-flex; align-items:center; gap:3px;">
+                  ✓ Al día
+                </span>
+              `}
             </td>
             <td>
               <span style="font-family:var(--f-tech); font-weight:800; font-size:1.05rem; color:var(--kick);">${count}</span>
@@ -4422,6 +4758,21 @@
         setTxt('m-upc-name', '@' + (u.displayName || u.username));
         setTxt('m-upc-role', (u.rol || 'espectador').toUpperCase());
         setTxt('m-upc-balance', (u.jikopuntos || 0).toLocaleString() + ' pts');
+
+        const uDeuda = parseInt(u.deudaTotal, 10) || 0;
+        const uSaldoReal = (parseInt(u.jikopuntos, 10) || 0) - uDeuda;
+        setTxt('m-upc-debt', uDeuda.toLocaleString() + ' JP');
+        setTxt('m-upc-realsaldo', uSaldoReal.toLocaleString() + ' JP');
+
+        const debtBanner = document.getElementById('m-upc-debt-action-container');
+        if (debtBanner) {
+          if (uDeuda > 0) {
+            debtBanner.style.display = 'flex';
+            setTxt('m-upc-debt-banner-val', uDeuda.toLocaleString() + ' JP');
+          } else {
+            debtBanner.style.display = 'none';
+          }
+        }
 
         const nivelInfo = calcularNivelUsuario(u);
         setHtml('m-upc-level', `${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nvl ${nivelInfo.nivel})`);
