@@ -254,6 +254,29 @@
   .item-card.sin-img .emoji-fallback{display:grid}
   .item-card.sin-img img{display:none}
 
+  .item-card.agotado {
+    opacity: 0.55;
+    filter: grayscale(0.7);
+    position: relative;
+  }
+  .item-card.agotado::after {
+    content: 'AGOTADO';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-12deg);
+    background: rgba(239, 68, 68, 0.95);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 1px;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.9);
+    pointer-events: none;
+    z-index: 5;
+  }
+
   .item-cmd{
     font-family:var(--f-cuerpo);
     font-weight:900;
@@ -2029,53 +2052,52 @@
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
-  // Catálogo completo de 44 productos típicos y bebidas (imágenes en ../imagenes/tiendita_jiko/)
-  // Precios actualizados: Ningún producto por debajo de 120 pts (piso mínimo para economía con viewers de 5k-10k+ pts)
-  const ITEMS = [
-    { key:'pupusas',         nombre:'Pupusas',            precio:200, emoji:'🫓', img:'../imagenes/tiendita_jiko/pupusas.png' },
-    { key:'tamal',           nombre:'Tamal',              precio:180, emoji:'🫔', img:'../imagenes/tiendita_jiko/tamal.png' },
-    { key:'pollofrito',      nombre:'Pollo Frito',        precio:280, emoji:'🍗', img:'../imagenes/tiendita_jiko/pollofrito.png' },
-    { key:'salchipapa',      nombre:'Salchipapa',         precio:210, emoji:'🍟', img:'../imagenes/tiendita_jiko/salchipapa.png' },
-    { key:'hamburguesa',     nombre:'Hamburguesa',        precio:250, emoji:'🍔', img:'../imagenes/tiendita_jiko/hamburguesa.png' },
-    { key:'hotdog',          nombre:'Hot Dog',            precio:190, emoji:'🌭', img:'../imagenes/tiendita_jiko/hotdog.png' },
-    { key:'taco',            nombre:'Taco',               precio:180, emoji:'🌮', img:'../imagenes/tiendita_jiko/taco.png' },
-    { key:'burrito',         nombre:'Burrito',            precio:220, emoji:'🌯', img:'../imagenes/tiendita_jiko/burrito.png' },
-    { key:'yucafrita',       nombre:'Yuca Frita',         precio:180, emoji:'🥔', img:'../imagenes/tiendita_jiko/yucafrita.png' },
-    { key:'pastelitos',      nombre:'Pastelitos',         precio:170, emoji:'🥟', img:'../imagenes/tiendita_jiko/pastelitos.png' },
-    { key:'papitas',         nombre:'Papitas',            precio:160, emoji:'🍟', img:'../imagenes/tiendita_jiko/papitas.png' },
-    { key:'anillitos',       nombre:'Anillitos',          precio:160, emoji:'🧅', img:'../imagenes/tiendita_jiko/anillitos.png' },
-    { key:'sopita',          nombre:'Sopita',             precio:240, emoji:'🥣', img:'../imagenes/tiendita_jiko/sopita.png' },
-    { key:'arrozenleche',    nombre:'Arroz en Leche',     precio:165, emoji:'🍚', img:'../imagenes/tiendita_jiko/arrozenleche.png' },
-    { key:'chocopastel',     nombre:'Choco Pastel',       precio:195, emoji:'🍰', img:'../imagenes/tiendita_jiko/chocopastel.png' },
-    { key:'helado',          nombre:'Helado',             precio:150, emoji:'🍦', img:'../imagenes/tiendita_jiko/helado.png' },
-    { key:'galleta',         nombre:'Galleta',            precio:130, emoji:'🍪', img:'../imagenes/tiendita_jiko/galleta.png' },
-    { key:'arepita',         nombre:'Arepita',            precio:180, emoji:'🫓', img:'../imagenes/tiendita_jiko/arepita.png', aliases:['arepa','arepas','arepitas','arepitarellena','areparellena'] },
-    { key:'empanadamechada', nombre:'Empanada Mechada',   precio:195, emoji:'🥟', img:'../imagenes/tiendita_jiko/empanadamechada.png', aliases:['empanada','empanadas','mechada','empanaditamechada','empanada mechada','empanadacarne'] },
-    { key:'pabellon',        nombre:'Pabellón Criollo',   precio:320, emoji:'🍛', img:'../imagenes/tiendita_jiko/pabellon.png', aliases:['pabelloncriollo','pabellon criollo','pabellón','pabellón criollo','platopabellon'] },
-    { key:'tequeyoyo',       nombre:'Tequeyoyo',          precio:185, emoji:'🧀', img:'../imagenes/tiendita_jiko/tequeyoyo.png', aliases:['tequeyoyos','tequeyoyo zuliano','tequeno','tequeño','tequenos','tequeños'] },
-    { key:'cafe',            nombre:'Café Caliente',      precio:145, emoji:'☕', img:'../imagenes/tiendita_jiko/cafe.png' },
-    { key:'chocolatito',     nombre:'Chocolatito',        precio:150, emoji:'🍫', img:'../imagenes/tiendita_jiko/chocolatito.png' },
-    { key:'matcha',          nombre:'Matcha',             precio:155, emoji:'🍵', img:'../imagenes/tiendita_jiko/matcha.png', aliases:['tematcha','te matcha','té matcha','matchalatte'] },
-    { key:'horchata',        nombre:'Horchata',           precio:150, emoji:'🥛', img:'../imagenes/tiendita_jiko/horchata.png' },
-    { key:'limonada',        nombre:'Limonada',           precio:145, emoji:'🍋', img:'../imagenes/tiendita_jiko/limonada.png' },
-    { key:'juguito',         nombre:'Juguito',            precio:145, emoji:'🧃', img:'../imagenes/tiendita_jiko/juguito.png' },
-    { key:'frozen',          nombre:'Frozen',             precio:165, emoji:'🍧', img:'../imagenes/tiendita_jiko/frozen.png' },
-    { key:'coca',            nombre:'Coca-Cola',          precio:150, emoji:'🥤', img:'../imagenes/tiendita_jiko/coca.png' },
-    { key:'cerveza',         nombre:'Cerveza Helada',     precio:190, emoji:'🍺', img:'../imagenes/tiendita_jiko/cerveza.png' },
-    { key:'guarito',         nombre:'Guarito',            precio:210, emoji:'🍶', img:'../imagenes/tiendita_jiko/guarito.png' },
-    { key:'vinito',          nombre:'Vinito Especial',    precio:230, emoji:'🍷', img:'../imagenes/tiendita_jiko/vinito.png' },
-    { key:'vasoagua',        nombre:'Vaso de Agua',       precio:120, emoji:'🥛', img:'../imagenes/tiendita_jiko/vasoagua.png', aliases:['vasodeagua','vaso de agua','vasito de agua','vasitodeagua','aguavaso','aguafresca','agua fresca'] },
-    { key:'aguabotella',     nombre:'Agua en Botella',    precio:130, emoji:'💧', img:'../imagenes/tiendita_jiko/aguabotella.png', aliases:['agua','botella','botelladeagua','botella de agua','aguita'] },
-    { key:'aguacoco',        nombre:'Agua de Coco',       precio:150, emoji:'🥥', img:'../imagenes/tiendita_jiko/aguacoco.png', aliases:['coco','aguadecoco'] },
-    { key:'aguagalon',       nombre:'Galón de Agua',      precio:160, emoji:'🪣', img:'../imagenes/tiendita_jiko/aguagalon.png', aliases:['galon','galondeagua','garrafon'] },
-    { key:'cafenegro',       nombre:'Café Negro',         precio:140, emoji:'☕', img:'../imagenes/tiendita_jiko/cafenegro.png', aliases:['cafe negro','cafecitonegro','tinto'] },
-    { key:'capuchino',       nombre:'Capuchino',          precio:160, emoji:'☕', img:'../imagenes/tiendita_jiko/capuchino.png', aliases:['cappuccino','capu'] },
-    { key:'capuchinohelado', nombre:'Capuchino Helado',   precio:165, emoji:'🧋', img:'../imagenes/tiendita_jiko/capuchinohelado.png', aliases:['cappuccino helado','capu helado','capuhelado','cafehelado'] },
-    { key:'expreso',         nombre:'Café Expreso',       precio:145, emoji:'☕', img:'../imagenes/tiendita_jiko/expreso.png', aliases:['espresso','cafe expreso','cafe espresso'] },
-    { key:'juguitocaja',     nombre:'Juguito en Caja',    precio:135, emoji:'🧃', img:'../imagenes/tiendita_jiko/juguitocaja.png', aliases:['jugocaja','jugo en caja','jugouva'] },
-    { key:'juguitofresa',    nombre:'Juguito de Fresa',   precio:155, emoji:'🍓', img:'../imagenes/tiendita_jiko/juguitofresa.png', aliases:['jugofresa','jugo de fresa','licuado de fresa','licuadofresa'] },
-    { key:'techai',          nombre:'Té Chai',            precio:155, emoji:'🫖', img:'../imagenes/tiendita_jiko/techai.png', aliases:['te chai','chai','chailatte'] },
-    { key:'tesito',          nombre:'Tesito',             precio:140, emoji:'🍵', img:'../imagenes/tiendita_jiko/tesito.png', aliases:['te','té','tecito','tecaliente','té caliente'] }
+  // Catálogo dinámico de 44 productos típicos y bebidas (migrados a Google Drive con fallback local)
+  let ITEMS = [
+    { key: 'pupusas', nombre: 'Pupusas', precio: 200, stock: -1, emoji: '🫓', img: 'https://lh3.googleusercontent.com/d/1feo3VprYT0ZmM9U2oQgUiIDjEu6IMPBW', localImg: '../imagenes/tiendita_jiko/pupusas.png', categoria: 'comida', aliases: ["pupusa","pupusitas","revueltas"] },
+    { key: 'tamal', nombre: 'Tamal', precio: 180, stock: -1, emoji: '🫔', img: 'https://lh3.googleusercontent.com/d/16QUetNCPIwXBqlx7R9ciKULkplMQW-ut', localImg: '../imagenes/tiendita_jiko/tamal.png', categoria: 'comida', aliases: ["tamales","tamalito","tamalitos"] },
+    { key: 'pollofrito', nombre: 'Pollo Frito', precio: 280, stock: -1, emoji: '🍗', img: 'https://lh3.googleusercontent.com/d/1i5A7AkuPb91E6vUSihug4NraYx4tHPeZ', localImg: '../imagenes/tiendita_jiko/pollofrito.png', categoria: 'comida', aliases: ["pollo","pollito","pollo frito"] },
+    { key: 'salchipapa', nombre: 'Salchipapa', precio: 210, stock: -1, emoji: '🍟', img: 'https://lh3.googleusercontent.com/d/1TLr19N4ruGy8DuZ5dgInxevn1xrM0OxT', localImg: '../imagenes/tiendita_jiko/salchipapa.png', categoria: 'comida', aliases: ["salchipapas","salchicha"] },
+    { key: 'hamburguesa', nombre: 'Hamburguesa', precio: 250, stock: -1, emoji: '🍔', img: 'https://lh3.googleusercontent.com/d/1KJNXrn5sV-5IofJuAI2KYetRYxfwhMIs', localImg: '../imagenes/tiendita_jiko/hamburguesa.png', categoria: 'comida', aliases: ["burger","burguer","hamburguesas"] },
+    { key: 'hotdog', nombre: 'Hot Dog', precio: 190, stock: -1, emoji: '🌭', img: 'https://lh3.googleusercontent.com/d/14a-mvuqtSgSb6LyUBjp3WhjznyhjyQEx', localImg: '../imagenes/tiendita_jiko/hotdog.png', categoria: 'comida', aliases: ["hot dog","hotdogs","perro caliente"] },
+    { key: 'taco', nombre: 'Taco', precio: 180, stock: -1, emoji: '🌮', img: 'https://lh3.googleusercontent.com/d/1gdIoQ_8HX5ubX6mzG057ZvfmgIejZtwg', localImg: '../imagenes/tiendita_jiko/taco.png', categoria: 'comida', aliases: ["tacos","taquito","taquitos"] },
+    { key: 'burrito', nombre: 'Burrito', precio: 220, stock: -1, emoji: '🌯', img: 'https://lh3.googleusercontent.com/d/1oCDVR-EEi_hxDDcyJ1BLYTOEemmrXdmU', localImg: '../imagenes/tiendita_jiko/burrito.png', categoria: 'comida', aliases: ["burritos","burro"] },
+    { key: 'yucafrita', nombre: 'Yuca Frita', precio: 180, stock: -1, emoji: '🥔', img: 'https://lh3.googleusercontent.com/d/1uk95ZPphD8rXwuG-NJNp1ALcCOIf8Y8f', localImg: '../imagenes/tiendita_jiko/yucafrita.png', categoria: 'comida', aliases: ["yuca","yuca frita","yuquita"] },
+    { key: 'pastelitos', nombre: 'Pastelitos', precio: 170, stock: -1, emoji: '🥟', img: 'https://lh3.googleusercontent.com/d/1HGvzKVfVL-nauckYzm4t3XVv7WJEDHnb', localImg: '../imagenes/tiendita_jiko/pastelitos.png', categoria: 'comida', aliases: ["pastelito","pastelitos de carne"] },
+    { key: 'papitas', nombre: 'Papitas', precio: 160, stock: -1, emoji: '🍟', img: 'https://lh3.googleusercontent.com/d/1BF66OZVhGZZQ4Jxje_n1_A3vejk_Dm_L', localImg: '../imagenes/tiendita_jiko/papitas.png', categoria: 'comida', aliases: ["papas","papas fritas","papasfritas"] },
+    { key: 'anillitos', nombre: 'Anillitos', precio: 160, stock: -1, emoji: '🧅', img: 'https://lh3.googleusercontent.com/d/1QNV_SMwdVJNiN55KI2aWUfqWeBliSung', localImg: '../imagenes/tiendita_jiko/anillitos.png', categoria: 'comida', aliases: ["anillos","anillos de cebolla","anillitosdecebolla"] },
+    { key: 'sopita', nombre: 'Sopita', precio: 240, stock: -1, emoji: '🥣', img: 'https://lh3.googleusercontent.com/d/1KLybKD_PrhNC9Wgka6NVDlqpwXP5kOpa', localImg: '../imagenes/tiendita_jiko/sopita.png', categoria: 'comida', aliases: ["sopa","caldo","sopitacaliente"] },
+    { key: 'arrozenleche', nombre: 'Arroz en Leche', precio: 165, stock: -1, emoji: '🍚', img: 'https://lh3.googleusercontent.com/d/1TnVCJ31yWGXRHIf5ncU8eANDR6l3chy1', localImg: '../imagenes/tiendita_jiko/arrozenleche.png', categoria: 'postre', aliases: ["arroz con leche","arrozconleche"] },
+    { key: 'chocopastel', nombre: 'Choco Pastel', precio: 195, stock: -1, emoji: '🍰', img: 'https://lh3.googleusercontent.com/d/1rjVuQioEuTTq6y96l70xMBht2DmZNerC', localImg: '../imagenes/tiendita_jiko/chocopastel.png', categoria: 'postre', aliases: ["pastel","torta","pastel de chocolate","chococo"] },
+    { key: 'helado', nombre: 'Helado', precio: 150, stock: -1, emoji: '🍦', img: 'https://lh3.googleusercontent.com/d/1lGFEH0Im3PCqPBby8po1-5oxwz-JxD4o', localImg: '../imagenes/tiendita_jiko/helado.png', categoria: 'postre', aliases: ["helados","nieve","paleta"] },
+    { key: 'galleta', nombre: 'Galleta', precio: 130, stock: -1, emoji: '🍪', img: 'https://lh3.googleusercontent.com/d/1Y0c44snhL-t85vC4ugd1vTE9RaZdGMM7', localImg: '../imagenes/tiendita_jiko/galleta.png', categoria: 'postre', aliases: ["galletas","cookie","galletitas"] },
+    { key: 'arepita', nombre: 'Arepita', precio: 180, stock: -1, emoji: '🫓', img: 'https://lh3.googleusercontent.com/d/1ZNJowTBVVzaYHecESy1TOosdz4YWjI3h', localImg: '../imagenes/tiendita_jiko/arepita.png', categoria: 'comida', aliases: ["arepa","arepas","arepitas","arepitarellena","areparellena"] },
+    { key: 'empanadamechada', nombre: 'Empanada Mechada', precio: 195, stock: -1, emoji: '🥟', img: 'https://lh3.googleusercontent.com/d/1SlN0LMLoBfc3vGeT1HQCIVRIWtMfu_xO', localImg: '../imagenes/tiendita_jiko/empanadamechada.png', categoria: 'comida', aliases: ["empanada","empanadas","mechada","empanaditamechada","empanada mechada","empanadacarne"] },
+    { key: 'pabellon', nombre: 'Pabellón Criollo', precio: 320, stock: -1, emoji: '🍛', img: 'https://lh3.googleusercontent.com/d/1T00i0TKiKYRIgIjdwnmrDaFMlDS2QAon', localImg: '../imagenes/tiendita_jiko/pabellon.png', categoria: 'comida', aliases: ["pabelloncriollo","pabellon criollo","pabellón","pabellón criollo","platopabellon"] },
+    { key: 'tequeyoyo', nombre: 'Tequeyoyo', precio: 185, stock: -1, emoji: '🧀', img: 'https://lh3.googleusercontent.com/d/1jmYbQKVKvApK6wBBKPstqchcvd_2U0ws', localImg: '../imagenes/tiendita_jiko/tequeyoyo.png', categoria: 'comida', aliases: ["tequeyoyos","tequeyoyo zuliano","tequeno","tequeño","tequenos","tequeños"] },
+    { key: 'cafe', nombre: 'Café Caliente', precio: 145, stock: -1, emoji: '☕', img: 'https://lh3.googleusercontent.com/d/1chKBSv5uYCK8UR2g1o6grY6H4uT2L1Up', localImg: '../imagenes/tiendita_jiko/cafe.png', categoria: 'bebida', aliases: ["café","cafecito","cafecitocaliente"] },
+    { key: 'chocolatito', nombre: 'Chocolatito', precio: 150, stock: -1, emoji: '🍫', img: 'https://lh3.googleusercontent.com/d/1YtR7qNufxgnnErgtqBnpcVG3R6sw6sMX', localImg: '../imagenes/tiendita_jiko/chocolatito.png', categoria: 'bebida', aliases: ["chocolate","chocolate caliente","chococaliente"] },
+    { key: 'matcha', nombre: 'Matcha', precio: 155, stock: -1, emoji: '🍵', img: 'https://lh3.googleusercontent.com/d/1XFrCX5xSemUJMehLnRBfnfTenVrx_z5q', localImg: '../imagenes/tiendita_jiko/matcha.png', categoria: 'bebida', aliases: ["tematcha","te matcha","té matcha","matchalatte"] },
+    { key: 'horchata', nombre: 'Horchata', precio: 150, stock: -1, emoji: '🥛', img: 'https://lh3.googleusercontent.com/d/1EYjdt42x1v_GMVvDtllT7h-nOjydZ3Jd', localImg: '../imagenes/tiendita_jiko/horchata.png', categoria: 'bebida', aliases: ["horchatita","frescorecreo"] },
+    { key: 'limonada', nombre: 'Limonada', precio: 145, stock: -1, emoji: '🍋', img: 'https://lh3.googleusercontent.com/d/1STMCAYZXpGkEmYEk6jmRJnTE6Fg2-4Lt', localImg: '../imagenes/tiendita_jiko/limonada.png', categoria: 'bebida', aliases: ["limonadita","jugodelimon","aguadelimon"] },
+    { key: 'juguito', nombre: 'Juguito', precio: 145, stock: -1, emoji: '🧃', img: 'https://lh3.googleusercontent.com/d/1ITNl6SOGtUHX40pUmXtofM8PRyCjsxvw', localImg: '../imagenes/tiendita_jiko/juguito.png', categoria: 'bebida', aliases: ["jugo","jugonatural","jugos"] },
+    { key: 'frozen', nombre: 'Frozen', precio: 165, stock: -1, emoji: '🍧', img: 'https://lh3.googleusercontent.com/d/1FTDZeDfzVQ6T6MFTk21mKwkF2S2_Q-8W', localImg: '../imagenes/tiendita_jiko/frozen.png', categoria: 'bebida', aliases: ["frappe","granizado","frozzen"] },
+    { key: 'coca', nombre: 'Coca-Cola', precio: 150, stock: -1, emoji: '🥤', img: 'https://lh3.googleusercontent.com/d/1Ugujh5aXz61iMHu76AxxOEUPWjIrTvux', localImg: '../imagenes/tiendita_jiko/coca.png', categoria: 'bebida', aliases: ["soda","coca cola","cocacola","gaseosa"] },
+    { key: 'cerveza', nombre: 'Cerveza Helada', precio: 190, stock: -1, emoji: '🍺', img: 'https://lh3.googleusercontent.com/d/1IFz3ASDRIgkhjp2o2oPHXyQQsl0R_Lsv', localImg: '../imagenes/tiendita_jiko/cerveza.png', categoria: 'bebida', aliases: ["chela","birra","cervecita","pilsen"] },
+    { key: 'guarito', nombre: 'Guarito', precio: 210, stock: -1, emoji: '🍶', img: 'https://lh3.googleusercontent.com/d/1dXk_vOp2gdU2PXtag2wq6tG7hcOA3Q5E', localImg: '../imagenes/tiendita_jiko/guarito.png', categoria: 'bebida', aliases: ["guaro","aguardiente","trago","shot"] },
+    { key: 'vinito', nombre: 'Vinito Especial', precio: 230, stock: -1, emoji: '🍷', img: 'https://lh3.googleusercontent.com/d/1Yq1RIXcbOqaknOb3bZOh-d9HiMn-MB5V', localImg: '../imagenes/tiendita_jiko/vinito.png', categoria: 'bebida', aliases: ["vino","copadevino","vinito tinto","vinotinto"] },
+    { key: 'vasoagua', nombre: 'Vaso de Agua', precio: 120, stock: -1, emoji: '🥛', img: 'https://lh3.googleusercontent.com/d/1NvBceCIHCsQg6GHHZs32FDcb-KbfDlrJ', localImg: '../imagenes/tiendita_jiko/vasoagua.png', categoria: 'bebida', aliases: ["vasodeagua","vaso de agua","vasito de agua","vasitodeagua","aguavaso","aguafresca","agua fresca"] },
+    { key: 'aguabotella', nombre: 'Agua en Botella', precio: 130, stock: -1, emoji: '💧', img: 'https://lh3.googleusercontent.com/d/1xYjDFftyESHsGGQh-7CX8Mln04pOz5Dy', localImg: '../imagenes/tiendita_jiko/aguabotella.png', categoria: 'bebida', aliases: ["agua","botella","botelladeagua","botella de agua","aguita"] },
+    { key: 'aguacoco', nombre: 'Agua de Coco', precio: 150, stock: -1, emoji: '🥥', img: 'https://lh3.googleusercontent.com/d/1uItPqMi8_BQss5KFjYlyzlW-hxus-qtq', localImg: '../imagenes/tiendita_jiko/aguacoco.png', categoria: 'bebida', aliases: ["coco","aguadecoco"] },
+    { key: 'aguagalon', nombre: 'Galón de Agua', precio: 160, stock: -1, emoji: '🪣', img: 'https://lh3.googleusercontent.com/d/1aeH8WGgwO68nYL34c4HiL33eLMU7BDnr', localImg: '../imagenes/tiendita_jiko/aguagalon.png', categoria: 'bebida', aliases: ["galon","galondeagua","garrafon"] },
+    { key: 'cafenegro', nombre: 'Café Negro', precio: 140, stock: -1, emoji: '☕', img: 'https://lh3.googleusercontent.com/d/16k1-caNUXSQytPVNsJRNTqBLcRphbCYs', localImg: '../imagenes/tiendita_jiko/cafenegro.png', categoria: 'bebida', aliases: ["cafe negro","cafecitonegro","tinto"] },
+    { key: 'capuchino', nombre: 'Capuchino', precio: 160, stock: -1, emoji: '☕', img: 'https://lh3.googleusercontent.com/d/1KZjqKGMzlWgPYjKmGNEyaMjC0u9RA2TE', localImg: '../imagenes/tiendita_jiko/capuchino.png', categoria: 'bebida', aliases: ["cappuccino","capu"] },
+    { key: 'capuchinohelado', nombre: 'Capuchino Helado', precio: 165, stock: -1, emoji: '🧋', img: 'https://lh3.googleusercontent.com/d/1mPvEQUHW90TF0BQjTr396WHe_dVWDVU5', localImg: '../imagenes/tiendita_jiko/capuchinohelado.png', categoria: 'bebida', aliases: ["cappuccino helado","capu helado","capuhelado","cafehelado"] },
+    { key: 'expreso', nombre: 'Café Expreso', precio: 145, stock: -1, emoji: '☕', img: 'https://lh3.googleusercontent.com/d/11Yp-mwedNFg4M2-4rGTMdrpPcVCKpwD4', localImg: '../imagenes/tiendita_jiko/expreso.png', categoria: 'bebida', aliases: ["espresso","cafe expreso","cafe espresso"] },
+    { key: 'juguitocaja', nombre: 'Juguito en Caja', precio: 135, stock: -1, emoji: '🧃', img: 'https://lh3.googleusercontent.com/d/18PUKtBSykf77WHZQzEHx4TDhNUJkFGJR', localImg: '../imagenes/tiendita_jiko/juguitocaja.png', categoria: 'bebida', aliases: ["jugocaja","jugo en caja","jugouva"] },
+    { key: 'juguitofresa', nombre: 'Juguito de Fresa', precio: 155, stock: -1, emoji: '🍓', img: 'https://lh3.googleusercontent.com/d/1h-ErVAJlo8rEJ0hEpQHpWdQ50ZBz--BV', localImg: '../imagenes/tiendita_jiko/juguitofresa.png', categoria: 'bebida', aliases: ["jugofresa","jugo de fresa","licuado de fresa","licuadofresa"] },
+    { key: 'techai', nombre: 'Té Chai', precio: 155, stock: -1, emoji: '🫖', img: 'https://lh3.googleusercontent.com/d/11fF9X2DFeB30xrQterv7s0Qq2eGU6KuE', localImg: '../imagenes/tiendita_jiko/techai.png', categoria: 'bebida', aliases: ["te chai","chai","chailatte"] },
+    { key: 'tesito', nombre: 'Tesito', precio: 140, stock: -1, emoji: '🍵', img: 'https://lh3.googleusercontent.com/d/1WA-eoxlqfotfMRtPptMQPKGxsLGISAJd', localImg: '../imagenes/tiendita_jiko/tesito.png', categoria: 'bebida', aliases: ["te","té","tecito","tecaliente","té caliente"] },
   ];
 
   const $menu=document.getElementById('tiendita-menu'), $panel=document.getElementById('panel'),
@@ -3203,21 +3225,41 @@
   }
 
   /* ═══════════ RENDER DE LA TIRA CONTINUA ═══════════ */
-  // Duplicamos el array para lograr un bucle continuo suave
-  const itemsCiclo = [...ITEMS, ...ITEMS];
   const COIN_SVG = `<svg class="coin-icon" viewBox="0 0 20 20" width="21" height="21" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#f59e0b" stroke="#fef08a" stroke-width="1.2"/><circle cx="10" cy="10" r="6.5" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="2 1" opacity="0.85"/><polygon points="10,5.5 11.4,8.2 14.3,8.7 12.2,10.7 12.7,13.6 10,12.2 7.3,13.6 7.8,10.7 5.7,8.7 8.6,8.2" fill="#ffffff"/></svg>`;
 
-  const cardHTML=(it, idx)=>`
-    <div class="item-card ${!it.img ? 'sin-img' : ''}" data-key="${it.key}" data-idx="${idx}">
-      <div class="item-visual">
-        <span class="emoji-fallback">${it.emoji}</span>
-        ${it.img ? `<img src="${it.img}" alt="${it.key}" onerror="this.closest('.item-card').classList.add('sin-img')">` : ''}
-      </div>
-      <div class="item-cmd">!${it.key}</div>
-      <div class="item-price">${COIN_SVG} ${it.precio} <small>pts</small></div>
-    </div>`;
+  function cardHTML(it, idx) {
+    const agotado = it.stock === 0;
+    const imgSrc = it.img || it.driveUrl || it.localImg;
+    const fallbackSrc = it.localImg || '';
+    return `
+      <div class="item-card ${!imgSrc ? 'sin-img' : ''} ${agotado ? 'agotado' : ''}" data-key="${it.key}" data-idx="${idx}">
+        <div class="item-visual">
+          <span class="emoji-fallback">${it.emoji || '🍽️'}</span>
+          ${imgSrc ? `<img src="${imgSrc}" alt="${it.key}" onerror="this.onerror=null; if('${fallbackSrc}' && this.src!=='${fallbackSrc}') this.src='${fallbackSrc}'; else this.closest('.item-card').classList.add('sin-img');">` : ''}
+        </div>
+        <div class="item-cmd">${it.comando || ('!' + it.key)}</div>
+        <div class="item-price">${COIN_SVG} ${it.precio} <small>pts</small></div>
+      </div>`;
+  }
 
-  $track.innerHTML = itemsCiclo.map((it, idx)=>cardHTML(it, idx)).join('');
+  function renderCarouselTrack() {
+    const itemsActivos = ITEMS.filter(it => it.activo !== false && (it.precio > 0 || it.key === 'mesero'));
+    const itemsCiclo = itemsActivos.length > 0 ? [...itemsActivos, ...itemsActivos] : [];
+    $track.innerHTML = itemsCiclo.map((it, idx) => cardHTML(it, idx)).join('');
+  }
+
+  renderCarouselTrack();
+
+  // Sincronización en tiempo real del catálogo dinámico desde Firebase RTDB
+  if (window.StreamDB && typeof window.StreamDB.onTiendaItems === 'function') {
+    window.StreamDB.onTiendaItems((itemsDb) => {
+      if (itemsDb && Array.isArray(itemsDb) && itemsDb.length > 0) {
+        console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
+        ITEMS = itemsDb;
+        renderCarouselTrack();
+      }
+    });
+  }
 
 
 
@@ -3361,6 +3403,21 @@
     const k = norm(itemKey);
     const it = ITEMS.find(x => norm(x.key) === k || (x.aliases && x.aliases.some(a => norm(a) === k)));
     if(!it) return false;
+
+    if(it.activo === false){
+      toast(`🚫 El platillo <b>${it.nombre}</b> no está disponible en este momento.`,'warn');
+      playSfx('error');
+      return false;
+    }
+    if(it.stock === 0){
+      toast(`🚫 El platillo <b>${it.nombre}</b> está <b>AGOTADO</b>.`,'warn');
+      playSfx('error');
+      return false;
+    }
+    if(it.stock > 0 && cantidad > it.stock){
+      toast(`⚠️ Solo quedan <b>${it.stock}</b> unidades disponibles de <b>${it.nombre}</b>.`,'warn');
+      cantidad = it.stock;
+    }
 
     let cant = parseInt(cantidad, 10);
     if(isNaN(cant) || cant < 1) cant = 1;
@@ -3590,6 +3647,13 @@
           }, 1800);
         }
       }).catch(err => console.warn('[Tiendita] Error al registrar compra en Firebase:', err));
+
+      // Decrementar stock en tiempo real en Firebase RTDB si el producto tiene stock finito
+      if (window.StreamDB && typeof window.StreamDB.decrementarStockItem === 'function') {
+        platosAServir.forEach(plato => {
+          window.StreamDB.decrementarStockItem(plato.key, 1).catch(()=>{});
+        });
+      }
     }
 
     // Notificar a Streamer.bot
@@ -3640,8 +3704,13 @@
 
     if(isNaN(cantidad) || cantidad < 1) cantidad = 1;
 
-    // Buscar ítem exacto por key o por aliases
-    const item = ITEMS.find(it => norm(it.key) === s || (it.aliases && it.aliases.some(a => norm(a) === s)));
+    // Buscar ítem exacto por key, comando, nombre o aliases
+    const item = ITEMS.find(it => 
+      norm(it.key) === s || 
+      (it.comando && norm(it.comando).replace(/^!/, '') === s) ||
+      norm(it.nombre) === s ||
+      (it.aliases && it.aliases.some(a => norm(a) === s))
+    );
     if(item){
       return { item, cantidad };
     }

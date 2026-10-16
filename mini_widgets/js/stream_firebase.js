@@ -59,6 +59,7 @@ export const NODE_TRANS_STATS = 'stream/transmisiones_stats';
 export const NODE_WIDGETS = 'stream/widgets';
 export const NODE_OVERLAYS = 'stream/overlays';
 export const NODE_TIENDA = 'stream/tienda';
+export const NODE_TIENDA_ITEMS = 'stream/tienda/items';
 export const NODE_TRANSACTIONS = 'stream/tienda/transacciones';
 export const NODE_ATTENDANCE = 'stream/tienda/asistencias';
 export const NODE_TRANSFERS = 'stream/tienda/transferencias';
@@ -4103,6 +4104,111 @@ class StreamFirebaseService {
       cantidad: cantNum,
       nuevoSaldo: userFinal?.jikopuntos || 0
     };
+  }
+
+  // ==========================================================================
+  // 8.5 MÓDULO CATÁLOGO & STOCK DINÁMICO DE TIENDITA EN TIEMPO REAL
+  // ==========================================================================
+
+  // Obtener catálogo completo de ítems
+  async obtenerTiendaItems() {
+    await this.init();
+    try {
+      const snap = await get(ref(this.rtdb, NODE_TIENDA_ITEMS));
+      if (snap.exists()) {
+        const val = snap.val();
+        if (Array.isArray(val)) return val.filter(Boolean);
+        return Object.values(val);
+      }
+      return [];
+    } catch(err) {
+      console.warn('[StreamDB] Error al obtener catálogo de tienda:', err);
+      return [];
+    }
+  }
+
+  // Suscribirse a cambios en tiempo real del catálogo
+  onTiendaItems(callback) {
+    if (!this.rtdb || typeof callback !== 'function') return () => {};
+    const itemsRef = ref(this.rtdb, NODE_TIENDA_ITEMS);
+    return onValue(itemsRef, (snap) => {
+      if (snap.exists()) {
+        const val = snap.val();
+        const lista = Array.isArray(val) ? val.filter(Boolean) : Object.values(val);
+        callback(lista);
+      } else {
+        callback([]);
+      }
+    }, (err) => {
+      console.warn('[StreamDB] Error en listener de catálogo:', err);
+    });
+  }
+
+  // Guardar o actualizar un ítem del catálogo
+  async guardarTiendaItem(item) {
+    await this.init();
+    if (!item || !item.key) throw new Error('El ítem debe tener una clave única (key)');
+    const key = norm(item.key);
+    const itemData = {
+      key: key,
+      nombre: item.nombre || key,
+      precio: Math.max(1, parseInt(item.precio, 10) || 150),
+      stock: (item.stock === -1 || item.stock === '-1' || item.stock === undefined || item.stock === null) ? -1 : Math.max(0, parseInt(item.stock, 10) || 0),
+      emoji: item.emoji || '🍽️',
+      img: item.img || item.driveUrl || '',
+      driveUrl: item.driveUrl || item.img || '',
+      driveFileId: item.driveFileId || '',
+      localImg: item.localImg || '',
+      categoria: item.categoria || 'comida',
+      activo: item.activo !== false,
+      comando: item.comando || `!${key}`,
+      aliases: Array.isArray(item.aliases) ? item.aliases : (typeof item.aliases === 'string' ? item.aliases.split(',').map(s=>norm(s)).filter(Boolean) : []),
+      descripcion: item.descripcion || `${item.nombre || key} en la Tiendita`,
+      ultimaActualizacion: Date.now()
+    };
+
+    await set(ref(this.rtdb, `${NODE_TIENDA_ITEMS}/${key}`), itemData);
+    console.log(`[StreamDB] 🏪 Ítem "${key}" guardado en Firebase RTDB.`);
+    return itemData;
+  }
+
+  // Eliminar un ítem del catálogo
+  async eliminarTiendaItem(key) {
+    await this.init();
+    const k = norm(key);
+    await set(ref(this.rtdb, `${NODE_TIENDA_ITEMS}/${k}`), null);
+    console.log(`[StreamDB] 🗑️ Ítem "${k}" eliminado de Firebase RTDB.`);
+    return true;
+  }
+
+  // Sembrar/Poblar catálogo completo en lote
+  async sembrarTiendaItems(itemsArray) {
+    await this.init();
+    if (!Array.isArray(itemsArray)) return;
+    const updates = {};
+    itemsArray.forEach(item => {
+      const k = norm(item.key);
+      updates[`${NODE_TIENDA_ITEMS}/${k}`] = {
+        ...item,
+        key: k,
+        ultimaActualizacion: Date.now()
+      };
+    });
+    await update(ref(this.rtdb), updates);
+    console.log(`[StreamDB] 🌱 Catálogo sembrado con éxito (${itemsArray.length} ítems).`);
+    return true;
+  }
+
+  // Decrementar stock de un ítem tras una compra
+  async decrementarStockItem(key, cantidad = 1) {
+    await this.init();
+    const k = norm(key);
+    try {
+      await runTransaction(ref(this.rtdb, `${NODE_TIENDA_ITEMS}/${k}/stock`), (current) => {
+        if (current === -1 || current === undefined || current === null) return current; // Ilimitado
+        return Math.max(0, (current || 0) - cantidad);
+      });
+    } catch(e) {}
   }
 
   // ==========================================================================

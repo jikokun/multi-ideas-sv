@@ -2443,7 +2443,7 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     const progressPercent = profileModal.querySelector('#avatar-upload-progress-percent');
     const progressText = profileModal.querySelector('#avatar-upload-progress-text');
     const confirmSaveBtn = profileModal.querySelector('#confirm-save-avatar-btn');
-    const GOOGLE_DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzbs8jxFRoaPHOIX_5uuEUm2BEwq9RsYUj3tCZYY9d4fJ59ns1gFrm_cIrOyHnDxYi0/exec";
+    const GOOGLE_DRIVE_UPLOAD_URL = "https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec";
 
     let pendingUploadedDriveUrl = '';
 
