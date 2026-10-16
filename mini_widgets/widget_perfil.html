@@ -1823,20 +1823,23 @@ body {
     const asistencias = Math.max(0, parseInt(u.asistenciasCount, 10) || 0);
 
     const calcFunc = window.calcularNivelUsuario || ((a) => {
-      const n = Math.min(50, Math.max(1, Math.floor((parseInt(a.experiencia,10)||0)/1000) + 1));
-      return { nivel: n, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', porcentajeProgreso: 45, xpRequeridaParaSubir: 1000 };
+      const xp = (a && a.experiencia !== undefined && a.experiencia !== null) ? (parseInt(a.experiencia, 10) || 0) : ((parseInt(a?.asistenciasCount, 10) || 0) * 200);
+      const n = (a && a.nivel) ? (parseInt(a.nivel, 10) || 1) : Math.min(50, Math.max(1, Math.floor(xp / 1000) + 1));
+      return { nivel: n, rangoTitulo: a?.rangoTitulo || 'Cachorro', insigniaEmoji: a?.insigniaEmoji || '🐾', porcentajeProgreso: 45, xpEnNivel: xp % 1000, xpParaSubir: 1000 };
     });
 
     const nivelInfo = calcFunc(u);
-    const nivel = (u.nivel !== undefined && u.nivel !== null && u._forceLevel) ? u.nivel : (nivelInfo.nivel || 1);
-    const pts = Math.max(0, parseInt(u.jikopuntos, 10) || 1000);
+    const nivel = (u.nivel !== undefined && u.nivel !== null) ? (parseInt(u.nivel, 10) || 1) : (nivelInfo.nivel || 1);
+    const pts = (u.jikopuntos !== undefined && u.jikopuntos !== null)
+      ? Math.max(0, parseInt(u.jikopuntos, 10) || 0)
+      : ((u.puntos !== undefined && u.puntos !== null) ? Math.max(0, parseInt(u.puntos, 10) || 0) : 1000);
     const xpTotal = (u.experiencia !== undefined && u.experiencia !== null)
       ? Math.max(0, parseInt(u.experiencia, 10) || 0)
       : (asistencias * 200);
 
-    const xpEnNivel = nivelInfo.xpEnNivel || (xpTotal % 1000);
+    const xpEnNivel = nivelInfo.xpEnNivel !== undefined ? nivelInfo.xpEnNivel : (xpTotal % 1000);
     const xpParaSubir = nivelInfo.xpParaSubir || 1000;
-    const xpPct = Math.min(100, Math.max(0, nivelInfo.porcentajeProgreso !== undefined ? nivelInfo.porcentajeProgreso : Math.round((xpEnNivel / xpParaSubir) * 100)));
+    const xpPct = Math.min(100, Math.max(0, nivelInfo.porcentajeProgreso !== undefined ? nivelInfo.porcentajeProgreso : Math.round((xpEnNivel / Math.max(1, xpParaSubir)) * 100)));
 
     // Roles y Badges
     const rol = (u.rol || 'espectador').toLowerCase();
@@ -1974,8 +1977,8 @@ body {
       displayName: displayName,
       avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarMemCache[normUser] || (normUser === 'jikokun' ? avatarMemCache['jikokun'] : null),
       nivel: nivel,
-      rangoTitulo: (u._forceLevel && nivel >= 43) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 34) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro')),
-      insigniaEmoji: (u._forceLevel && nivel >= 43) ? '👑' : ((u._forceLevel && nivel >= 34) ? '🐺' : (nivelInfo.insigniaEmoji || '🐾')),
+      rangoTitulo: u.rangoTitulo || nivelInfo.rangoTitulo || ((nivel >= 43) ? 'Lobo Alfa' : ((nivel >= 34) ? 'Lobo Beta' : 'Cachorro')),
+      insigniaEmoji: u.insigniaEmoji || nivelInfo.insigniaEmoji || ((nivel >= 43) ? '👑' : ((nivel >= 34) ? '🐺' : '🐾')),
       pts: pts,
       asistencias: asistencias,
       xpTotal: xpTotal,
@@ -2007,6 +2010,15 @@ body {
       const clean = String(usernameOObjeto || 'usuario').replace(/^@/, '').trim().toLowerCase();
       if (window.StreamDB) {
         try { uData = await StreamDB.getUser(clean); } catch(e){}
+      }
+      if (!uData || (!uData.experiencia && !uData.jikopuntos && clean !== 'anon')) {
+        try {
+          const res = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/stream/usuarios/${clean}.json`);
+          if (res.ok) {
+            const remote = await res.json();
+            if (remote) uData = remote;
+          }
+        } catch(e){}
       }
       if (!uData) {
         uData = {

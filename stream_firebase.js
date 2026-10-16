@@ -465,7 +465,6 @@ class StreamFirebaseService {
       };
 
       let finalUser = newUser;
-      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
       await runTransaction(userRef, (actual) => {
         if (actual) {
           finalUser = actual;
