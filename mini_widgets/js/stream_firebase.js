@@ -3807,9 +3807,20 @@ class StreamFirebaseService {
   // Regalo Solidario (!regalar @usuario [cantidad]) - 0% interés, no genera deuda
   async regalarJikopuntos({ remitente, receptor, cantidad }) {
     await this.init();
+    let recRaw = receptor;
+    let cantRaw = cantidad;
+
+    // Protección defensiva en caso de argumentos invertidos (ej: { receptor: '12', cantidad: '@user' })
+    if ((typeof recRaw === 'number' || /^\d+$/.test(String(recRaw || '').trim())) && 
+        (typeof cantRaw === 'string' && (cantRaw.startsWith('@') || !/^\d+$/.test(cantRaw.trim())))) {
+      const temp = recRaw;
+      recRaw = cantRaw;
+      cantRaw = temp;
+    }
+
     const remNorm = norm(remitente);
-    const recNorm = norm(receptor);
-    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
+    const recNorm = norm(recRaw);
+    const cantNum = Math.max(1, parseInt(cantRaw, 10) || 0);
 
     if (!remNorm) throw new Error('Remitente no válido');
     if (!recNorm) throw new Error('Debes especificar a qué usuario regalarle');

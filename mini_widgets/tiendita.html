@@ -3838,6 +3838,64 @@
   }
 
   /* ═══════════ PROCESADOR DE COMANDOS ═══════════ */
+  function parsearMonto(str) {
+    if (typeof str === 'number') return Math.floor(str);
+    if (!str) return NaN;
+    const s = String(str).trim().toLowerCase().replace(/,/g, '');
+    const matchMulti = s.match(/^(\d+(?:\.\d+)?)\s*([km])$/);
+    if (matchMulti) {
+      const num = parseFloat(matchMulti[1]);
+      const mult = matchMulti[2] === 'k' ? 1000 : 1000000;
+      return Math.floor(num * mult);
+    }
+    const clean = s.replace(/[^\d]/g, '');
+    if (!clean) return NaN;
+    const n = parseInt(clean, 10);
+    return isNaN(n) ? NaN : n;
+  }
+
+  function esNumerico(str) {
+    if (typeof str === 'number') return true;
+    if (!str) return false;
+    const s = String(str).trim();
+    if (s.startsWith('@')) return false;
+    return /^\d[\d,]*([kmKM])?$/.test(s) || /^\d+(\.\d+)?([kmKM])?$/.test(s);
+  }
+
+  function parsearUsuarioYCantidad(arg1, arg2) {
+    if (!arg1 && !arg2) return { usuario: '', cantidad: NaN, esValido: false };
+    const s1 = (arg1 || '').toString().trim();
+    const s2 = (arg2 || '').toString().trim();
+
+    if (s1.startsWith('@')) {
+      const user = s1.replace(/^@+/, '');
+      const cant = parsearMonto(s2);
+      return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+    }
+    if (s2.startsWith('@')) {
+      const user = s2.replace(/^@+/, '');
+      const cant = parsearMonto(s1);
+      return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+    }
+    if (esNumerico(s1) && !esNumerico(s2)) {
+      const cant = parsearMonto(s1);
+      const user = s2.replace(/^@+/, '');
+      return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+    }
+    if (!esNumerico(s1) && esNumerico(s2)) {
+      const user = s1.replace(/^@+/, '');
+      const cant = parsearMonto(s2);
+      return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+    }
+    if (esNumerico(s1) && !s2) {
+      const cant = parsearMonto(s1);
+      return { usuario: '', cantidad: cant, esValido: !isNaN(cant) && cant > 0 };
+    }
+    const user = s1.replace(/^@+/, '');
+    const cant = parsearMonto(s2);
+    return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+  }
+
   function ejecutarTexto(raw, user=usuarioActual){
     const t = norm(raw);
     if(!t) return;
@@ -3947,17 +4005,18 @@
     if(t.startsWith('!regalar') || t.startsWith('!donar')){
       const partes = raw.trim().split(/\s+/);
       if(partes.length < 3){
-        toast(`⚠️ Uso: <b>!regalar &lt;@usuario&gt; &lt;cantidad&gt;</b>`,'err');
+        toast(`⚠️ Uso: <b>!regalar &lt;@usuario&gt; &lt;cantidad&gt;</b> o <b>!regalar &lt;cantidad&gt; &lt;@usuario&gt;</b>`,'err');
         playSfx('error');
         return;
       }
-      const receptor = partes[1].replace(/^@/, '').trim();
-      const cantidad = parseInt(partes[2], 10);
+      const parsed = parsearUsuarioYCantidad(partes[1], partes[2]);
+      const receptor = parsed.usuario;
+      const cantidad = parsed.cantidad;
       const remitenteNorm = norm(user);
       const receptorNorm = norm(receptor);
 
       if(!receptor || isNaN(cantidad) || cantidad <= 0){
-        toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!regalar @amigo 500</b>`,'err');
+        toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!regalar @amigo 500</b> o <b>!regalar 500 @amigo</b>`,'err');
         playSfx('error');
         return;
       }
@@ -4035,8 +4094,9 @@
         return;
       }
 
-      const receptor = partes[1].replace(/^@/, '').trim();
-      const cantidad = parseInt(partes[2], 10);
+      const parsed = parsearUsuarioYCantidad(partes[1], partes[2]);
+      const receptor = parsed.usuario;
+      const cantidad = parsed.cantidad;
 
       if(!receptor || isNaN(cantidad) || cantidad <= 0){
         toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!darjikopuntos ${receptor || 'usuario'} 500</b>`,'err');

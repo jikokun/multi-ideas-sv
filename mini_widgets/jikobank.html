@@ -1604,6 +1604,7 @@
       <button class="btn-test" onclick="simularComando('!aceptar', 'amigo')">✅ !aceptar P2P</button>
       <button class="btn-test" onclick="simularComando('!pagar 1000', 'espectador_demo')">💸 !pagar 1000</button>
       <button class="btn-test" onclick="simularComando('!regalar @amigo 500', 'jikokun')">🎁 !regalar 500</button>
+      <button class="btn-test" style="border-color: #a855f7; color: #d8b4fe;" onclick="simularComando('!regalar 12 @amigo', 'jikokun')">🎁 !regalar 12 @amigo</button>
       <button class="btn-test btn-gold" onclick="simularComando('!perdonarprestamos', 'jikokun')">🕊️ !perdonarprestamos</button>
       <button class="btn-test btn-gold" onclick="simularComando('!darjikopuntos todos 1000', 'jikokun')">🌟 !darjikopuntos todos</button>
       <button class="btn-test btn-danger" style="grid-column: 1 / -1;" onclick="ocultarCajeroInmediato()">⏹️ Ocultar Cajero</button>
@@ -1632,6 +1633,72 @@
       if (!s || s === 'undefined' || s === 'null') return '';
       return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
     };
+
+    // Parser inteligente de montos (admite enteros, comas, puntos y sufijos k/m)
+    function parsearMonto(str) {
+      if (typeof str === 'number') return Math.floor(str);
+      if (!str) return NaN;
+      const s = String(str).trim().toLowerCase().replace(/,/g, '');
+      const matchMulti = s.match(/^(\d+(?:\.\d+)?)\s*([km])$/);
+      if (matchMulti) {
+        const num = parseFloat(matchMulti[1]);
+        const mult = matchMulti[2] === 'k' ? 1000 : 1000000;
+        return Math.floor(num * mult);
+      }
+      const clean = s.replace(/[^\d]/g, '');
+      if (!clean) return NaN;
+      const n = parseInt(clean, 10);
+      return isNaN(n) ? NaN : n;
+    }
+
+    function esNumerico(str) {
+      if (typeof str === 'number') return true;
+      if (!str) return false;
+      const s = String(str).trim();
+      if (s.startsWith('@')) return false;
+      return /^\d[\d,]*([kmKM])?$/.test(s) || /^\d+(\.\d+)?([kmKM])?$/.test(s);
+    }
+
+    // Parser bidireccional inteligente: soporta tanto "!regalar @user 12" como "!regalar 12 @user"
+    function parsearUsuarioYCantidad(arg1, arg2) {
+      if (!arg1 && !arg2) return { usuario: '', cantidad: NaN, esValido: false };
+      const s1 = (arg1 || '').toString().trim();
+      const s2 = (arg2 || '').toString().trim();
+
+      // Caso 1: arg1 tiene '@' -> arg1 es usuario, arg2 es cantidad
+      if (s1.startsWith('@')) {
+        const user = s1.replace(/^@+/, '');
+        const cant = parsearMonto(s2);
+        return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+      }
+      // Caso 2: arg2 tiene '@' -> arg2 es usuario, arg1 es cantidad
+      if (s2.startsWith('@')) {
+        const user = s2.replace(/^@+/, '');
+        const cant = parsearMonto(s1);
+        return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+      }
+      // Caso 3: arg1 es numérico y arg2 no -> arg1 = cantidad, arg2 = usuario
+      if (esNumerico(s1) && !esNumerico(s2)) {
+        const cant = parsearMonto(s1);
+        const user = s2.replace(/^@+/, '');
+        return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+      }
+      // Caso 4: arg2 es numérico y arg1 no -> arg1 = usuario, arg2 = cantidad
+      if (!esNumerico(s1) && esNumerico(s2)) {
+        const user = s1.replace(/^@+/, '');
+        const cant = parsearMonto(s2);
+        return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+      }
+      // Caso 5: Solo se pasó un número
+      if (esNumerico(s1) && !s2) {
+        const cant = parsearMonto(s1);
+        return { usuario: '', cantidad: cant, esValido: !isNaN(cant) && cant > 0 };
+      }
+      // Caso 6: Orden posicional por defecto
+      const user = s1.replace(/^@+/, '');
+      const cant = parsearMonto(s2);
+      return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
+    }
 
     // Elementos del DOM
     const elAtm = document.getElementById('jiko-atm');
@@ -2379,9 +2446,10 @@
           }
 
           if (c === '!prestamo') {
-            if (params.length >= 2) {
-              const targetRaw = params[0].toLowerCase().trim().replace(/^@/, '');
-              const monto = parseInt(params[1], 10);
+            if (params.length >= 1) {
+              const parsedLoan = parsearUsuarioYCantidad(params[0], params[1]);
+              const targetRaw = (parsedLoan.usuario || 'jikobank').toLowerCase().trim();
+              const monto = (!isNaN(parsedLoan.cantidad) && parsedLoan.cantidad > 0) ? parsedLoan.cantidad : 2000;
               if (monto && monto > 0) {
                 const res = await window.StreamDB.solicitarPrestamo({ solicitante: sNorm, acreedor: targetRaw, monto: monto });
                 const p = res.prestamo;
@@ -2477,39 +2545,55 @@
           }
 
           if (c === '!regalar' || c === '!donar') {
-            if (params.length >= 2) {
-              const targetUser = norm(params[0]);
-              const cant = parseInt(params[1], 10);
-              if (cant && cant > 0) {
-                const res = await window.StreamDB.regalarJikopuntos({ remitente: sNorm, receptor: targetUser, cantidad: cant });
-                const [remUser, recUser] = await Promise.all([
-                  window.StreamDB.getUser(sNorm),
-                  window.StreamDB.getUser(targetUser)
-                ]);
-                const nivelRem = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(remUser) : { rangoTitulo: 'Donante Solidario', insigniaEmoji: '🎁', nivel: 1 };
-                const nivelRec = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(recUser) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
-
-                await ejecutarFlujoRegaloAnimado({
-                  remitente: remUser?.displayName || sNorm,
-                  receptor: recUser?.displayName || targetUser,
-                  monto: cant,
-                  saldoRemitenteAntes: res.saldoRemitenteAntes,
-                  saldoRemitenteDespues: res.saldoRemitenteDespues,
-                  deudaRemitente: remUser?.deudaTotal || 0,
-                  saldoReceptorAntes: res.saldoReceptorAntes,
-                  saldoReceptorDespues: res.saldoReceptorDespues,
-                  deudaReceptor: recUser?.deudaTotal || 0,
-                  avatarRemitente: remUser?.avatar,
-                  avatarReceptor: recUser?.avatar,
-                  nivelRemitente: nivelRem.nivel || 1,
-                  rangoRemitente: nivelRem.rangoTitulo || 'Donante',
-                  emojiRemitente: nivelRem.insigniaEmoji || '🎁',
-                  nivelReceptor: nivelRec.nivel || 1,
-                  rangoReceptor: nivelRec.rangoTitulo || 'Beneficiario',
-                  emojiReceptor: nivelRec.insigniaEmoji || '🐾'
+            const parsedReg = parsearUsuarioYCantidad(params[0], params[1]);
+            const targetUser = norm(parsedReg.usuario);
+            const cant = parsedReg.cantidad;
+            if (targetUser && cant && cant > 0) {
+              const remUser = await window.StreamDB.getUser(sNorm);
+              if (!remUser || (remUser.jikopuntos || 0) < cant) {
+                activarCajero({
+                  user: remUser?.displayName || sNorm,
+                  saldo: remUser?.jikopuntos || 0,
+                  deuda: remUser?.deudaTotal || 0,
+                  saldoReal: (remUser?.jikopuntos || 0) - (remUser?.deudaTotal || 0),
+                  avatar: remUser?.avatar,
+                  actionData: {
+                    titulo: '⚠️ SALDO INSUFICIENTE',
+                    cuerpo: `Tienes <b>${fmt(remUser?.jikopuntos || 0)} JP</b> y deseas regalar <b>${fmt(cant)} JP</b> a @${targetUser}.`,
+                    prompt: '❌ No cuentas con fondos suficientes para este regalo.',
+                    bancoTitle: 'ERROR DE TRANSACCIÓN',
+                    icon: '⚠️'
+                  },
+                  duracionMs: 5000,
+                  efectoSfx: 'chirp'
                 });
                 return;
               }
+              const res = await window.StreamDB.regalarJikopuntos({ remitente: sNorm, receptor: targetUser, cantidad: cant });
+              const recUser = await window.StreamDB.getUser(targetUser);
+              const nivelRem = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(remUser) : { rangoTitulo: 'Donante Solidario', insigniaEmoji: '🎁', nivel: 1 };
+              const nivelRec = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(recUser) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
+
+              await ejecutarFlujoRegaloAnimado({
+                remitente: remUser?.displayName || sNorm,
+                receptor: recUser?.displayName || targetUser,
+                monto: cant,
+                saldoRemitenteAntes: res.saldoRemitenteAntes,
+                saldoRemitenteDespues: res.saldoRemitenteDespues,
+                deudaRemitente: remUser?.deudaTotal || 0,
+                saldoReceptorAntes: res.saldoReceptorAntes,
+                saldoReceptorDespues: res.saldoReceptorDespues,
+                deudaReceptor: recUser?.deudaTotal || 0,
+                avatarRemitente: remUser?.avatar,
+                avatarReceptor: recUser?.avatar,
+                nivelRemitente: nivelRem.nivel || 1,
+                rangoRemitente: nivelRem.rangoTitulo || 'Donante',
+                emojiRemitente: nivelRem.insigniaEmoji || '🎁',
+                nivelReceptor: nivelRec.nivel || 1,
+                rangoReceptor: nivelRec.rangoTitulo || 'Beneficiario',
+                emojiReceptor: nivelRec.insigniaEmoji || '🐾'
+              });
+              return;
             }
           }
 
@@ -2543,9 +2627,10 @@
           }
 
           if (c === '!darjikopuntos') {
-            if (sNorm === 'jikokun' && params.length >= 2) {
-              const target = params[0].toLowerCase().trim().replace(/^@/, '');
-              const cant = parseInt(params[1], 10);
+            if (sNorm === 'jikokun' && params.length >= 1) {
+              const parsedDar = parsearUsuarioYCantidad(params[0], params[1]);
+              const target = (parsedDar.usuario || (params[0] || '').toLowerCase().trim().replace(/^@/, ''));
+              const cant = (!isNaN(parsedDar.cantidad) && parsedDar.cantidad > 0) ? parsedDar.cantidad : parsearMonto(params[1]);
               if (cant && cant > 0) {
                 if (target === 'todos' || target === 'all') {
                   const res = await window.StreamDB.darJikopuntosTodos({ admin: 'jikokun', cantidad: cant });
@@ -2623,8 +2708,9 @@
           efectoSfx: 'chirp'
         });
       } else if (c === '!prestamo') {
-        const targetRaw = params[0] ? params[0].toLowerCase().trim().replace(/^@/, '') : 'jikobank';
-        const monto = params[1] ? parseInt(params[1], 10) : 2000;
+        const parsedLoan = parsearUsuarioYCantidad(params[0], params[1]);
+        const targetRaw = (parsedLoan.usuario || 'jikobank').toLowerCase().trim();
+        const monto = (!isNaN(parsedLoan.cantidad) && parsedLoan.cantidad > 0) ? parsedLoan.cantidad : 2000;
         const interesMonto = Math.max(1, Math.round(monto * 0.02));
         const total = monto + interesMonto;
         const esBanco = (targetRaw === 'jikobank' || targetRaw === 'jiko' || targetRaw === 'banco');
@@ -2732,8 +2818,9 @@
           efectoSfx: 'success'
         });
       } else if (c === '!regalar' || c === '!donar') {
-        const rec = params[0] ? norm(params[0]) : 'amigo';
-        const cant = params[1] ? Math.max(1, parseInt(params[1], 10) || 500) : 500;
+        const parsedReg = parsearUsuarioYCantidad(params[0], params[1]);
+        const rec = parsedReg.usuario ? norm(parsedReg.usuario) : 'amigo';
+        const cant = (!isNaN(parsedReg.cantidad) && parsedReg.cantidad > 0) ? parsedReg.cantidad : (params[1] ? Math.max(1, parsearMonto(params[1]) || 500) : 500);
         const remObj = mockDB[sNorm] || (mockDB[sNorm] = { displayName: sender, saldo: 5000, deuda: 0, nivel: 5, rango: 'Explorador', emoji: '🌲', rol: 'espectador', avatar: null });
         const recObj = mockDB[rec] || (mockDB[rec] = { displayName: rec, saldo: 2000, deuda: 0, nivel: 3, rango: 'Cachorro', emoji: '🐾', rol: 'espectador', avatar: null });
 
@@ -2809,7 +2896,8 @@
           efectoSfx: 'pardon'
         });
       } else if (c === '!darjikopuntos') {
-        const cant = params[1] ? parseInt(params[1], 10) : 1000;
+        const parsedDar = parsearUsuarioYCantidad(params[0], params[1]);
+        const cant = (!isNaN(parsedDar.cantidad) && parsedDar.cantidad > 0) ? parsedDar.cantidad : 1000;
         activarCajero({
           user: 'Comunidad del Stream',
           saldo: cant,
