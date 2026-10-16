@@ -11,7 +11,7 @@
 // - stream/vinculaciones:        Índice Auth UID -> username para vinculación de cuentas web
 // ==========================================================================
 
-import { rtdb, auth, signInAnonymously } from "../../firebase-config.js";
+import { rtdb, auth, signInAnonymously } from "./firebase-config.js";
 import { 
   ref, 
   set, 
@@ -65,6 +65,9 @@ export const NODE_TRANSFERS = 'stream/tienda/transferencias';
 export const NODE_STATS = 'stream/tienda/estadisticas';
 export const NODE_BINDINGS = 'stream/vinculaciones';
 export const NODE_COMBUSTIBLE_ACTIVO = 'stream/transmisiones_stats/combustibleEnVivo';
+export const NODE_BANCO = 'stream/banco';
+export const NODE_LOANS = 'stream/banco/prestamos';
+export const TASA_INTERES_PRESTAMO = 0.02; // 2% fijo por préstamo
 
 // Constantes de Kick
 export const KICK_CHANNEL = 'jikokun';
@@ -2625,6 +2628,457 @@ class StreamFirebaseService {
   }
 
   // ==========================================================================
+  // 5.1 SISTEMA BANCARIO JIKOBANK (PRÉSTAMOS, DEUDAS, REGALOS Y CONDONACIONES)
+  // ==========================================================================
+
+  // Obtener préstamos de un usuario (como solicitante/deudor o acreedor)
+  async obtenerPrestamosUsuario(username) {
+    const key = norm(username);
+    if (!key) return [];
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) return [];
+      const list = [];
+      snap.forEach(child => {
+        const p = child.val();
+        if (p.solicitanteNorm === key || p.acreedorNorm === key) {
+          list.push({ id: child.key, ...p });
+        }
+      });
+      return list;
+    } catch (e) {
+      console.warn(`[JikoBank] Error obteniendo préstamos de @${key}:`, e);
+      return [];
+    }
+  }
+
+  // Obtener resumen de deuda activa de un usuario
+  async obtenerDeudaUsuario(username) {
+    const key = norm(username);
+    if (!key) return { deudaTotal: 0, prestamosActivos: [] };
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) return { deudaTotal: 0, prestamosActivos: [] };
+      let deudaTotal = 0;
+      const prestamosActivos = [];
+      snap.forEach(child => {
+        const p = child.val();
+        if (p.solicitanteNorm === key && p.estado === 'pendiente') {
+          deudaTotal += (parseInt(p.saldoPendiente, 10) || 0);
+          prestamosActivos.push({ id: child.key, ...p });
+        }
+      });
+      return { deudaTotal, prestamosActivos };
+    } catch (e) {
+      return { deudaTotal: 0, prestamosActivos: [] };
+    }
+  }
+
+  // Solicitar un préstamo (P2P entre espectadores o directo al banco 'jikobank')
+  async solicitarPrestamo({ solicitante, acreedor = 'jikobank', monto }) {
+    const solNorm = norm(solicitante);
+    const acrNorm = norm(acreedor);
+    const montoNum = Math.max(1, parseInt(monto, 10) || 0);
+    const ahora = Date.now();
+    const fechaLegible = new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
+
+    if (!solNorm) throw new Error('Solicitante no válido');
+    if (montoNum <= 0) throw new Error('El monto debe ser mayor a 0');
+
+    const esBanco = (acrNorm === 'jikobank' || acrNorm === 'banco' || acrNorm === 'jikokun');
+    const acreedorFinal = esBanco ? 'JikoBank' : acreedor;
+    const acreedorFinalNorm = esBanco ? 'jikobank' : acrNorm;
+
+    // Calcular interés del 2%
+    const interes = Math.max(1, Math.round(montoNum * TASA_INTERES_PRESTAMO));
+    const totalDevolver = montoNum + interes;
+
+    // Si es P2P, verificar que el prestamista tenga saldo suficiente para prestar
+    if (!esBanco) {
+      if (solNorm === acreedorFinalNorm) {
+        throw new Error('No puedes solicitarte un préstamo a ti mismo');
+      }
+      const prestamistaSaldo = await this.getCachedPoints(acreedorFinalNorm);
+      if (prestamistaSaldo < montoNum) {
+        throw new Error(`@${acreedor} no cuenta con saldo suficiente (${prestamistaSaldo} < ${montoNum} pts)`);
+      }
+    }
+
+    try {
+      const loanRef = push(ref(this.rtdb, NODE_LOANS));
+      const record = {
+        id: loanRef.key,
+        solicitante: solicitante,
+        solicitanteNorm: solNorm,
+        acreedor: acreedorFinal,
+        acreedorNorm: acreedorFinalNorm,
+        esBanco: esBanco,
+        montoPrestado: montoNum,
+        tasaInteres: 2,
+        interesCalculado: interes,
+        totalDevolver: totalDevolver,
+        saldoPendiente: totalDevolver,
+        montoPagado: 0,
+        estado: 'solicitado', // Requiere !aceptar o !firmar
+        timestamp: ahora,
+        fechaLegible: fechaLegible
+      };
+
+      await set(loanRef, record);
+      console.log(`[JikoBank] 📋 Solicitud de préstamo #${loanRef.key} creada: @${solNorm} pide ${montoNum} pts a @${acreedorFinalNorm} (Devolver: ${totalDevolver} pts)`);
+      return record;
+    } catch (err) {
+      console.error('[JikoBank] Error creando solicitud de préstamo:', err);
+      throw err;
+    }
+  }
+
+  // Confirmar/Aceptar y desembolsar un préstamo solicitado
+  async confirmarPrestamo({ prestamoId, autorizador }) {
+    if (!prestamoId) throw new Error('ID de préstamo no especificado');
+    const autNorm = norm(autorizador);
+
+    try {
+      const loanRef = ref(this.rtdb, `${NODE_LOANS}/${prestamoId}`);
+      const snap = await get(loanRef);
+      if (!snap.exists()) throw new Error('El préstamo no existe');
+
+      const loan = snap.val();
+      if (loan.estado !== 'solicitado') {
+        throw new Error(`El préstamo ya fue ${loan.estado}`);
+      }
+
+      // Validar quién autoriza
+      if (loan.esBanco) {
+        // En préstamo de banco, el solicitante es quien "firma"
+        if (autNorm !== loan.solicitanteNorm && autNorm !== 'jikokun') {
+          throw new Error('Solo el solicitante o Jikokun pueden firmar el préstamo del banco');
+        }
+      } else {
+        // En préstamo P2P, el prestamista debe ser quien acepta
+        if (autNorm !== loan.acreedorNorm && autNorm !== 'jikokun') {
+          throw new Error(`Solo @${loan.acreedor} puede aceptar prestar sus fondos`);
+        }
+        // Deducción al prestamista
+        const saldoAcreedor = await this.getCachedPoints(loan.acreedorNorm);
+        if (saldoAcreedor < loan.montoPrestado) {
+          throw new Error(`@${loan.acreedor} no cuenta con saldo suficiente (${saldoAcreedor} < ${loan.montoPrestado})`);
+        }
+        await this.addJikopuntos(loan.acreedorNorm, -loan.montoPrestado, `Préstamo otorgado a @${loan.solicitante}`);
+      }
+
+      // Acreditar fondos al solicitante
+      const nuevoSaldoSol = await this.addJikopuntos(loan.solicitanteNorm, loan.montoPrestado, `Préstamo recibido de @${loan.acreedor}`);
+
+      // Actualizar deuda total del usuario solicitante
+      const userRef = ref(this.rtdb, `${NODE_USERS}/${loan.solicitanteNorm}`);
+      await runTransaction(userRef, (u) => {
+        if (u) {
+          u.deudaTotal = (u.deudaTotal || 0) + loan.totalDevolver;
+        }
+        return u;
+      });
+
+      // Actualizar estado del préstamo a activo / 'pendiente'
+      const ahora = Date.now();
+      await update(loanRef, {
+        estado: 'pendiente',
+        fechaAprobado: ahora,
+        fechaAprobadoLegible: new Date(ahora).toLocaleString('es-SV')
+      });
+
+      console.log(`[JikoBank] 🏦 Préstamo #${prestamoId} desembolsado exitosamente: +${loan.montoPrestado} pts a @${loan.solicitanteNorm} (Deuda: ${loan.totalDevolver} pts)`);
+      loan.estado = 'pendiente';
+      return {
+        exito: true,
+        prestamo: loan,
+        nuevoSaldoSolicitante: nuevoSaldoSol
+      };
+    } catch (err) {
+      console.warn('[JikoBank] Error confirmando préstamo:', err);
+      throw err;
+    }
+  }
+
+  // Rechazar o cancelar una solicitud de préstamo
+  async rechazarPrestamo({ prestamoId, usuario }) {
+    if (!prestamoId) return false;
+    const uNorm = norm(usuario);
+    try {
+      const loanRef = ref(this.rtdb, `${NODE_LOANS}/${prestamoId}`);
+      const snap = await get(loanRef);
+      if (!snap.exists()) return false;
+      const loan = snap.val();
+      if (loan.estado !== 'solicitado') return false;
+
+      await update(loanRef, {
+        estado: 'rechazado',
+        rechazadoPor: uNorm,
+        fechaRechazo: Date.now()
+      });
+      return true;
+    } catch(e) {
+      return false;
+    }
+  }
+
+  // Pagar total o parcialmente una deuda de préstamo
+  async pagarPrestamo({ deudor, prestamoId = null, monto = null }) {
+    const key = norm(deudor);
+    if (!key) throw new Error('Usuario deudor no válido');
+
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) throw new Error('No existen préstamos registrados');
+
+      // Buscar préstamos pendientes del usuario
+      const prestamos = [];
+      snap.forEach(child => {
+        const p = child.val();
+        if (p.solicitanteNorm === key && p.estado === 'pendiente') {
+          prestamos.push({ id: child.key, ...p });
+        }
+      });
+
+      if (prestamos.length === 0) {
+        throw new Error(`@${deudor} no tiene ninguna deuda de préstamo pendiente`);
+      }
+
+      // Ordenar por más antiguo primero o seleccionar el prestamoId
+      let targetLoan = prestamoId 
+        ? prestamos.find(p => p.id === prestamoId)
+        : prestamos[0];
+
+      if (!targetLoan) targetLoan = prestamos[0];
+
+      const saldoActual = await this.getCachedPoints(key);
+      const saldoPendiente = parseInt(targetLoan.saldoPendiente, 10) || targetLoan.totalDevolver;
+      const abonoDeseado = monto ? Math.min(saldoPendiente, parseInt(monto, 10) || 0) : saldoPendiente;
+
+      if (abonoDeseado <= 0) throw new Error('El monto a abonar debe ser mayor a 0');
+      if (saldoActual < abonoDeseado) {
+        throw new Error(`Saldo insuficiente para abonar (${saldoActual} < ${abonoDeseado} pts)`);
+      }
+
+      // 1. Deducir saldo del deudor
+      const nuevoSaldoDeudor = await this.addJikopuntos(key, -abonoDeseado, `Pago de préstamo a @${targetLoan.acreedor}`);
+
+      // 2. Si el acreedor no es el banco, abonar al acreedor (con el interés ganado)
+      if (!targetLoan.esBanco) {
+        await this.addJikopuntos(targetLoan.acreedorNorm, abonoDeseado, `Cobro de préstamo saldado por @${deudor}`);
+      }
+
+      // 3. Actualizar registro del préstamo
+      const nuevoSaldoPendiente = Math.max(0, saldoPendiente - abonoDeseado);
+      const pagadoTotalmente = nuevoSaldoPendiente === 0;
+
+      await update(ref(this.rtdb, `${NODE_LOANS}/${targetLoan.id}`), {
+        saldoPendiente: nuevoSaldoPendiente,
+        montoPagado: (targetLoan.montoPagado || 0) + abonoDeseado,
+        estado: pagadoTotalmente ? 'pagado' : 'pendiente',
+        ultimoPagoTimestamp: Date.now()
+      });
+
+      // 4. Actualizar deudaTotal en perfil de usuario
+      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
+      await runTransaction(userRef, (u) => {
+        if (u) {
+          u.deudaTotal = Math.max(0, (u.deudaTotal || abonoDeseado) - abonoDeseado);
+        }
+        return u;
+      });
+
+      console.log(`[JikoBank] 💳 Pago registrado de @${key}: -${abonoDeseado} pts (Restante préstamo #${targetLoan.id}: ${nuevoSaldoPendiente} pts)`);
+      return {
+        exito: true,
+        abono: abonoDeseado,
+        saldoPendiente: nuevoSaldoPendiente,
+        pagadoTotalmente: pagadoTotalmente,
+        nuevoSaldoDeudor: nuevoSaldoDeudor,
+        prestamo: targetLoan
+      };
+    } catch (err) {
+      console.warn('[JikoBank] Error procesando pago de préstamo:', err);
+      throw err;
+    }
+  }
+
+  // Absolución/Perdón de préstamos (Exclusivo para @Jikokun)
+  async perdonarPrestamos({ admin = 'jikokun', targetUser = null }) {
+    const adminNorm = norm(admin);
+    if (adminNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal @Jikokun');
+    }
+
+    const targetNorm = targetUser ? norm(targetUser) : null;
+    let totalPerdonados = 0;
+    let montoTotalPerdonado = 0;
+    const usuariosAfectados = new Set();
+
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) {
+        return { totalPerdonados: 0, montoTotalPerdonado: 0, usuariosAfectados: [] };
+      }
+
+      const updates = {};
+      const ahora = Date.now();
+      const fecha = new Date(ahora).toLocaleString('es-SV');
+
+      snap.forEach(child => {
+        const p = child.val();
+        if (p.estado === 'pendiente' || p.estado === 'solicitado') {
+          if (!targetNorm || p.solicitanteNorm === targetNorm) {
+            updates[`${child.key}/estado`] = 'perdonado';
+            updates[`${child.key}/saldoPendiente`] = 0;
+            updates[`${child.key}/perdonadoPor`] = 'jikokun';
+            updates[`${child.key}/fechaPerdonado`] = ahora;
+            updates[`${child.key}/fechaPerdonadoLegible`] = fecha;
+
+            totalPerdonados++;
+            montoTotalPerdonado += (parseInt(p.saldoPendiente, 10) || parseInt(p.totalDevolver, 10) || 0);
+            usuariosAfectados.add(p.solicitanteNorm);
+          }
+        }
+      });
+
+      if (Object.keys(updates).length > 0) {
+        await update(ref(this.rtdb, NODE_LOANS), updates);
+
+        // Resetear deudaTotal en perfiles de usuarios perdonados
+        for (const uKey of usuariosAfectados) {
+          await runTransaction(ref(this.rtdb, `${NODE_USERS}/${uKey}`), (u) => {
+            if (u) u.deudaTotal = 0;
+            return u;
+          });
+        }
+      }
+
+      console.log(`[JikoBank] 👑 ¡ABSOLUCIÓN REALIZADA POR JIKOKUN! ${totalPerdonados} préstamos perdonados (${montoTotalPerdonado} pts)`);
+      return {
+        exito: true,
+        totalPerdonados: totalPerdonados,
+        montoTotalPerdonado: montoTotalPerdonado,
+        usuariosAfectados: Array.from(usuariosAfectados)
+      };
+    } catch (err) {
+      console.error('[JikoBank] Error en perdonarPrestamos:', err);
+      throw err;
+    }
+  }
+
+  // Regalar Jikopuntos de usuario a usuario (0% interés, regalo solidario sin deuda)
+  async regalarJikopuntos({ remitente, receptor, cantidad }) {
+    const remNorm = norm(remitente);
+    const recNorm = norm(receptor);
+    const monto = Math.max(1, parseInt(cantidad, 10) || 0);
+
+    if (!remNorm || !recNorm) throw new Error('Usuarios no válidos');
+    if (remNorm === recNorm) throw new Error('No puedes regalarte puntos a ti mismo');
+    if (monto <= 0) throw new Error('El monto debe ser mayor a 0');
+
+    // Verificar saldo del remitente
+    const saldoRem = await this.getCachedPoints(remNorm);
+    if (saldoRem < monto) {
+      throw new Error(`Saldo insuficiente: tienes ${saldoRem} pts y quieres regalar ${monto} pts.`);
+    }
+
+    try {
+      const nuevoSaldoRem = await this.addJikopuntos(remNorm, -monto, `Regalo solidario a @${receptor}`);
+      const nuevoSaldoRec = await this.addJikopuntos(recNorm, monto, `Regalo solidario recibido de @${remitente}`);
+
+      // Registrar transferencia solidaria
+      const transRef = push(ref(this.rtdb, NODE_TRANSFERS));
+      const record = {
+        id: transRef.key,
+        admin: remitente,
+        receptor: receptor,
+        receptorNorm: recNorm,
+        remitente: remitente,
+        remitenteNorm: remNorm,
+        cantidad: monto,
+        motivo: 'Regalo solidario',
+        tipo: 'regalo_viewer',
+        timestamp: Date.now(),
+        fechaLegible: new Date().toLocaleString('es-SV')
+      };
+      await set(transRef, record);
+
+      console.log(`[JikoBank] 🎁 Regalo solidario: @${remitente} -> @${receptor} (${monto} pts)`);
+      return {
+        exito: true,
+        remitente: remitente,
+        receptor: receptor,
+        cantidad: monto,
+        nuevoSaldoRemitente: nuevoSaldoRem,
+        nuevoSaldoReceptor: nuevoSaldoRec
+      };
+    } catch (err) {
+      console.warn('[JikoBank] Error en regalarJikopuntos:', err);
+      throw err;
+    }
+  }
+
+  // Dar Jikopuntos a TODOS los asistentes de la transmisión actual (Exclusivo de Jikokun)
+  async darJikopuntosTodos({ admin = 'jikokun', cantidad }) {
+    const adminNorm = norm(admin);
+    if (adminNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal @Jikokun');
+    }
+    const monto = Math.max(1, parseInt(cantidad, 10) || 0);
+
+    try {
+      const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+      const stats = statsSnap.exists() ? statsSnap.val() : {};
+      const streamId = (stats.isLive === true && stats.streamActivoId) ? stats.streamActivoId : stats.ultimoStreamId;
+
+      if (!streamId) {
+        throw new Error('No hay transmisión activa o reciente registrada');
+      }
+
+      const transSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes`));
+      if (!transSnap.exists()) {
+        throw new Error('Aún no hay asistentes registrados en esta transmisión');
+      }
+
+      const asistentes = transSnap.val();
+      const keys = Object.keys(asistentes);
+      if (keys.length === 0) {
+        throw new Error('Lista de asistentes vacía en la transmisión actual');
+      }
+
+      const premiados = [];
+      for (const uKey of keys) {
+        try {
+          const uData = asistentes[uKey];
+          const displayName = uData.username || uKey;
+          await this.addJikopuntos(uKey, monto, `Lluvia comunitaria de Jikokun (${streamId})`);
+          premiados.push(displayName);
+        } catch (e) {}
+      }
+
+      const totalRepartido = premiados.length * monto;
+      // Actualizar total en stream
+      await runTransaction(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`), (s) => {
+        if (s) s.puntosRepartidos = (s.puntosRepartidos || 0) + totalRepartido;
+        return s;
+      });
+
+      console.log(`[JikoBank] 🐺 ¡LLUVIA DE JIKOPUNTOS! ${premiados.length} asistentes recibieron +${monto} pts cada uno (Total: ${totalRepartido} pts)`);
+      return {
+        exito: true,
+        totalAsistentes: premiados.length,
+        montoPorUsuario: monto,
+        totalRepartido: totalRepartido,
+        asistentesPremiados: premiados
+      };
+    } catch (err) {
+      console.warn('[JikoBank] Error en darJikopuntosTodos:', err);
+      throw err;
+    }
+  }
+
+  // ==========================================================================
   // 6. ESTADO Y CONFIGURACIÓN DE WIDGETS Y OVERLAYS
   // ==========================================================================
 
@@ -2894,7 +3348,700 @@ class StreamFirebaseService {
   }
 
   // ==========================================================================
-  // 8. LIMPIEZA TOTAL DE REGISTROS DE PRUEBA EN FIREBASE RTDB
+  // 8. SISTEMA BANCARIO JIKOBANK (PRÉSTAMOS, CRÉDITOS, REGALOS Y PERDÓN DE DEUDAS)
+  // ==========================================================================
+
+  // Obtener todos los préstamos asociados a un usuario (como solicitante o acreedor)
+  async obtenerPrestamosUsuario(username) {
+    await this.init();
+    const key = norm(username);
+    if (!key) return [];
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) return [];
+      const lista = [];
+      snap.forEach(child => {
+        const p = child.val();
+        if (p && (norm(p.solicitante) === key || norm(p.acreedor) === key)) {
+          lista.push({ ...p, id: child.key });
+        }
+      });
+      return lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    } catch (e) {
+      console.warn('[StreamDB] Error al obtener préstamos de @' + key, e);
+      return [];
+    }
+  }
+
+  // Obtener préstamos pendientes de confirmación o firma para un usuario
+  async obtenerPrestamoPendientePara(username) {
+    await this.init();
+    const key = norm(username);
+    if (!key) return null;
+    try {
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (!snap.exists()) return null;
+      let pendiente = null;
+      snap.forEach(child => {
+        const p = child.val();
+        if (!p) return;
+        // Si es banco esperando firma del solicitante (!firmar o !aceptar)
+        if (p.tipo === 'banco' && p.estado === 'pendiente_firma' && norm(p.solicitante) === key) {
+          pendiente = { ...p, id: child.key };
+        }
+        // Si es P2P esperando que el acreedor acepte o rechace
+        if (p.tipo === 'p2p' && p.estado === 'pendiente' && norm(p.acreedor) === key) {
+          pendiente = { ...p, id: child.key };
+        }
+      });
+      return pendiente;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Obtener consolidado del cajero para visualización de tarjeta y HUD
+  async obtenerDatosCajero(username) {
+    const key = norm(username);
+    if (!key) return null;
+    const user = await this.getUser(key);
+    if (!user) return null;
+
+    const saldoBruto = Math.max(0, parseInt(user.jikopuntos, 10) || 0);
+    const deuda = Math.max(0, parseInt(user.deudaTotal, 10) || 0);
+    const saldoReal = saldoBruto - deuda; // Saldo real neto (puede ser negativo si debe más de lo que tiene)
+
+    return {
+      username: key,
+      displayName: user.displayName || key,
+      avatar: user.avatar || '',
+      nivel: user.nivel || 1,
+      rangoTitulo: user.rangoTitulo || 'Cachorro',
+      insigniaEmoji: user.insigniaEmoji || '🐾',
+      saldoActual: saldoBruto,
+      deudaTotal: deuda,
+      saldoReal: saldoReal,
+      tasaInteres: TASA_INTERES_PRESTAMO,
+      tasaPorcentaje: Math.round(TASA_INTERES_PRESTAMO * 100) + '%'
+    };
+  }
+
+  // Solicitar un préstamo (P2P entre usuarios o directo a JikoBank)
+  async solicitarPrestamo({ solicitante, acreedor, monto }) {
+    await this.init();
+    const solNorm = norm(solicitante);
+    const montoNum = Math.max(1, parseInt(monto, 10) || 0);
+
+    if (!solNorm) throw new Error('Usuario solicitante inválido');
+    if (montoNum <= 0) throw new Error('El monto debe ser mayor a 0');
+
+    const acrNorm = norm(acreedor);
+    const esBanco = (acrNorm === 'jikobank' || acrNorm === 'jiko' || acrNorm === 'banco');
+
+    if (!esBanco && solNorm === acrNorm) {
+      throw new Error('No puedes pedirte un préstamo a ti mismo');
+    }
+
+    // Calcular tasa de interés del 2%
+    const interesMonto = Math.max(1, Math.round(montoNum * TASA_INTERES_PRESTAMO));
+    const totalAPagar = montoNum + interesMonto;
+    const ahora = Date.now();
+
+    // Asegurar perfiles en Firebase
+    await this.getUser(solNorm);
+    if (!esBanco) {
+      const acreedorUser = await this.getUser(acrNorm);
+      if (!acreedorUser || (acreedorUser.jikopuntos || 0) < montoNum) {
+        throw new Error(`@${acrNorm} no cuenta con saldo suficiente (${montoNum} JP) para prestarte.`);
+      }
+    }
+
+    const nuevoPrestamo = {
+      solicitante: solNorm,
+      acreedor: esBanco ? 'jikobank' : acrNorm,
+      montoOriginal: montoNum,
+      interesTasa: TASA_INTERES_PRESTAMO,
+      interesMonto: interesMonto,
+      totalAPagar: totalAPagar,
+      saldoPendiente: totalAPagar,
+      tipo: esBanco ? 'banco' : 'p2p',
+      estado: esBanco ? 'pendiente_firma' : 'pendiente',
+      timestamp: ahora,
+      fechaSolicitud: ahora,
+      fechaSolicitudLegible: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })
+    };
+
+    const prestamoRef = push(ref(this.rtdb, NODE_LOANS));
+    const prestamoId = prestamoRef.key;
+    await set(prestamoRef, { ...nuevoPrestamo, id: prestamoId });
+
+    console.log(`[StreamDB] 🏦 Préstamo #${prestamoId} registrado (${nuevoPrestamo.tipo}): @${solNorm} solicita ${montoNum} JP a ${nuevoPrestamo.acreedor}`);
+
+    return {
+      success: true,
+      prestamoId: prestamoId,
+      prestamo: { ...nuevoPrestamo, id: prestamoId },
+      esBanco: esBanco,
+      interesPorcentaje: '2%'
+    };
+  }
+
+  // Confirmar/Aceptar/Firmar préstamo pendiente
+  async confirmarPrestamo({ autorizador, prestamoId = null }) {
+    await this.init();
+    const autNorm = norm(autorizador);
+    if (!autNorm) throw new Error('Autorizador inválido');
+
+    let pData = null;
+    let targetKey = prestamoId;
+
+    if (targetKey) {
+      const snap = await get(ref(this.rtdb, `${NODE_LOANS}/${targetKey}`));
+      if (snap.exists()) pData = snap.val();
+    } else {
+      // Buscar el último pendiente para este autorizador
+      const pendiente = await this.obtenerPrestamoPendientePara(autNorm);
+      if (pendiente) {
+        pData = pendiente;
+        targetKey = pendiente.id;
+      }
+    }
+
+    if (!pData || !targetKey) {
+      throw new Error(`No hay ningún préstamo pendiente que requiera confirmación de @${autNorm}.`);
+    }
+
+    // Validar permisos de autorización
+    const esBanco = pData.tipo === 'banco';
+    if (esBanco) {
+      // En préstamo con JikoBank, es el solicitante quien debe firmar/aceptar
+      if (norm(pData.solicitante) !== autNorm) {
+        throw new Error(`Solo @${pData.solicitante} puede firmar este préstamo del banco.`);
+      }
+      if (pData.estado !== 'pendiente_firma') {
+        throw new Error(`El préstamo ya no está pendiente de firma (Estado actual: ${pData.estado}).`);
+      }
+    } else {
+      // En préstamo P2P, es el acreedor quien debe autorizar el desembolso
+      if (norm(pData.acreedor) !== autNorm) {
+        throw new Error(`Solo @${pData.acreedor} puede aceptar prestar los jikopuntos.`);
+      }
+      if (pData.estado !== 'pendiente') {
+        throw new Error(`El préstamo ya no está pendiente de aprobación (Estado actual: ${pData.estado}).`);
+      }
+    }
+
+    const solNorm = norm(pData.solicitante);
+    const monto = pData.montoOriginal;
+    const totalAPagar = pData.totalAPagar;
+    const ahora = Date.now();
+
+    // 1. Si es P2P, verificar y debitar fondos del acreedor
+    if (!esBanco) {
+      const acrNorm = norm(pData.acreedor);
+      const acrRef = ref(this.rtdb, `${NODE_USERS}/${acrNorm}`);
+      let fondosSuficientes = true;
+
+      await runTransaction(acrRef, (actual) => {
+        if (!actual || (actual.jikopuntos || 0) < monto) {
+          fondosSuficientes = false;
+          return actual;
+        }
+        actual.jikopuntos = (actual.jikopuntos || 0) - monto;
+        actual.totalGastado = (actual.totalGastado || 0) + monto;
+        actual.ultimaActividad = ahora;
+        return actual;
+      });
+
+      if (!fondosSuficientes) {
+        throw new Error(`@${acrNorm} no tiene suficientes Jikopuntos (${monto} JP) para completar el préstamo.`);
+      }
+      this._updateLocalCache(acrNorm, (await this.getUser(acrNorm))?.jikopuntos);
+    }
+
+    // 2. Acreditar monto original al solicitante y cargar deuda total (capital + 2% interés)
+    const solRef = ref(this.rtdb, `${NODE_USERS}/${solNorm}`);
+    await runTransaction(solRef, (actual) => {
+      if (!actual) return actual;
+      actual.jikopuntos = (actual.jikopuntos || 0) + monto;
+      actual.totalGanado = (actual.totalGanado || 0) + monto;
+      actual.deudaTotal = Math.max(0, (actual.deudaTotal || 0) + totalAPagar);
+      actual.ultimaActividad = ahora;
+      return actual;
+    });
+
+    const solUserActualizado = await this.getUser(solNorm);
+    this._updateLocalCache(solNorm, solUserActualizado?.jikopuntos);
+
+    // 3. Actualizar estado del préstamo a activo
+    const pRef = ref(this.rtdb, `${NODE_LOANS}/${targetKey}`);
+    const actualizacionPrestamo = {
+      estado: 'activo',
+      fechaAprobacion: ahora,
+      fechaAprobacionLegible: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' }),
+      saldoPendiente: totalAPagar,
+      aprobadoPor: autNorm
+    };
+    await update(pRef, actualizacionPrestamo);
+
+    // 4. Registrar en transacciones históricas
+    try {
+      const transRef = push(ref(this.rtdb, NODE_TRANSACTIONS));
+      await set(transRef, {
+        tipo: 'prestamo_desembolsado',
+        solicitante: solNorm,
+        acreedor: pData.acreedor,
+        monto: monto,
+        interesMonto: pData.interesMonto,
+        totalDeuda: totalAPagar,
+        prestamoId: targetKey,
+        timestamp: ahora
+      });
+    } catch(e) {}
+
+    console.log(`[StreamDB] 🚀 Préstamo #${targetKey} aprobado con éxito. Acreditados ${monto} JP a @${solNorm}. Deuda contraída: ${totalAPagar} JP (2% tasa).`);
+
+    return {
+      success: true,
+      prestamoId: targetKey,
+      solicitante: solNorm,
+      acreedor: pData.acreedor,
+      montoAcreditado: monto,
+      totalDeuda: totalAPagar,
+      saldoActualSolicitante: solUserActualizado?.jikopuntos || 0,
+      deudaTotalSolicitante: solUserActualizado?.deudaTotal || totalAPagar
+    };
+  }
+
+  // Rechazar o cancelar préstamo pendiente
+  async rechazarPrestamo({ usuario, prestamoId = null }) {
+    await this.init();
+    const uNorm = norm(usuario);
+    if (!uNorm) throw new Error('Usuario inválido');
+
+    let pData = null;
+    let targetKey = prestamoId;
+
+    if (targetKey) {
+      const snap = await get(ref(this.rtdb, `${NODE_LOANS}/${targetKey}`));
+      if (snap.exists()) pData = snap.val();
+    } else {
+      const pendiente = await this.obtenerPrestamoPendientePara(uNorm);
+      if (pendiente) {
+        pData = pendiente;
+        targetKey = pendiente.id;
+      }
+    }
+
+    if (!pData || !targetKey) {
+      throw new Error(`No hay ningún préstamo pendiente que rechazar para @${uNorm}.`);
+    }
+
+    const solNorm = norm(pData.solicitante);
+    const acrNorm = norm(pData.acreedor);
+
+    if (uNorm !== solNorm && uNorm !== acrNorm && uNorm !== 'jikokun') {
+      throw new Error('No tienes autorización para cancelar o rechazar esta solicitud.');
+    }
+
+    const ahora = Date.now();
+    await update(ref(this.rtdb, `${NODE_LOANS}/${targetKey}`), {
+      estado: 'rechazado',
+      fechaRechazo: ahora,
+      rechazadoPor: uNorm
+    });
+
+    return {
+      success: true,
+      prestamoId: targetKey,
+      solicitante: solNorm,
+      acreedor: acrNorm,
+      rechazadoPor: uNorm
+    };
+  }
+
+  // Pagar deuda / amortizar préstamos activos (!pagarprestamo [monto])
+  async pagarPrestamo({ deudor, monto = null }) {
+    await this.init();
+    const dNorm = norm(deudor);
+    if (!dNorm) throw new Error('Usuario deudor inválido');
+
+    const user = await this.getUser(dNorm);
+    if (!user) throw new Error('Usuario no encontrado');
+
+    const deudaTotal = Math.max(0, parseInt(user.deudaTotal, 10) || 0);
+    if (deudaTotal <= 0) {
+      throw new Error(`¡Felicidades @${dNorm}! No tienes ninguna deuda pendiente en JikoBank.`);
+    }
+
+    const saldoActual = Math.max(0, parseInt(user.jikopuntos, 10) || 0);
+    if (saldoActual <= 0) {
+      throw new Error(`@${dNorm}, no tienes Jikopuntos disponibles para abonar a tu deuda.`);
+    }
+
+    // Determinar cuánto se puede pagar
+    let montoDeseado = monto !== null ? Math.max(1, parseInt(monto, 10) || 0) : deudaTotal;
+    const montoAPagar = Math.min(saldoActual, deudaTotal, montoDeseado);
+
+    if (montoAPagar <= 0) {
+      throw new Error('El monto a pagar debe ser mayor a 0');
+    }
+
+    const ahora = Date.now();
+
+    // 1. Obtener préstamos activos del deudor para amortizarlos en orden FIFO
+    const snap = await get(ref(this.rtdb, NODE_LOANS));
+    const prestamosActivos = [];
+    if (snap.exists()) {
+      snap.forEach(child => {
+        const p = child.val();
+        if (p && norm(p.solicitante) === dNorm && p.estado === 'activo' && (p.saldoPendiente || 0) > 0) {
+          prestamosActivos.push({ ...p, id: child.key });
+        }
+      });
+      prestamosActivos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    }
+
+    let restantePorDistribuir = montoAPagar;
+
+    for (const p of prestamosActivos) {
+      if (restantePorDistribuir <= 0) break;
+
+      const deudaEstePrestamo = Math.max(0, parseInt(p.saldoPendiente, 10) || 0);
+      const abono = Math.min(restantePorDistribuir, deudaEstePrestamo);
+      const nuevoSaldoPrestamo = deudaEstePrestamo - abono;
+      const pagadoTotalmente = nuevoSaldoPrestamo <= 0;
+
+      // Si fue préstamo P2P a otro usuario, devolverle su capital/intereses amortizados
+      if (p.tipo === 'p2p' && p.acreedor && norm(p.acreedor) !== 'jikobank') {
+        const acrNorm = norm(p.acreedor);
+        const acrRef = ref(this.rtdb, `${NODE_USERS}/${acrNorm}`);
+        await runTransaction(acrRef, (actual) => {
+          if (!actual) return actual;
+          actual.jikopuntos = (actual.jikopuntos || 0) + abono;
+          actual.totalGanado = (actual.totalGanado || 0) + abono;
+          actual.ultimaActividad = ahora;
+          return actual;
+        });
+        this._updateLocalCache(acrNorm, (await this.getUser(acrNorm))?.jikopuntos);
+      }
+
+      // Actualizar estado del préstamo
+      await update(ref(this.rtdb, `${NODE_LOANS}/${p.id}`), {
+        saldoPendiente: nuevoSaldoPrestamo,
+        estado: pagadoTotalmente ? 'pagado' : 'activo',
+        ultimoPagoTimestamp: ahora,
+        ultimoAbono: abono,
+        ...(pagadoTotalmente ? { fechaPagoCompleto: ahora } : {})
+      });
+
+      restantePorDistribuir -= abono;
+    }
+
+    // 2. Debitar del deudor y rebajar deudaTotal
+    const deudorRef = ref(this.rtdb, `${NODE_USERS}/${dNorm}`);
+    await runTransaction(deudorRef, (actual) => {
+      if (!actual) return actual;
+      actual.jikopuntos = Math.max(0, (actual.jikopuntos || 0) - montoAPagar);
+      actual.totalGastado = (actual.totalGastado || 0) + montoAPagar;
+      actual.deudaTotal = Math.max(0, (actual.deudaTotal || 0) - montoAPagar);
+      actual.ultimaActividad = ahora;
+      return actual;
+    });
+
+    const userFinal = await this.getUser(dNorm);
+    this._updateLocalCache(dNorm, userFinal?.jikopuntos);
+
+    console.log(`[StreamDB] 💳 Pago completado por @${dNorm}: Abono de ${montoAPagar} JP. Deuda restante: ${userFinal.deudaTotal} JP.`);
+
+    return {
+      success: true,
+      deudor: dNorm,
+      montoPagado: montoAPagar,
+      deudaRestante: userFinal.deudaTotal || 0,
+      saldoRestante: userFinal.jikopuntos || 0,
+      totalmenteSaldado: (userFinal.deudaTotal || 0) === 0
+    };
+  }
+
+  // Regalo Solidario (!regalar @usuario [cantidad]) - 0% interés, no genera deuda
+  async regalarJikopuntos({ remitente, receptor, cantidad }) {
+    await this.init();
+    const remNorm = norm(remitente);
+    const recNorm = norm(receptor);
+    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
+
+    if (!remNorm) throw new Error('Remitente no válido');
+    if (!recNorm) throw new Error('Debes especificar a qué usuario regalarle');
+    if (remNorm === recNorm) throw new Error('No puedes regalarte Jikopuntos a ti mismo');
+    if (cantNum <= 0) throw new Error('La cantidad a regalar debe ser mayor a 0');
+
+    const remUser = await this.getUser(remNorm);
+    if (!remUser || (remUser.jikopuntos || 0) < cantNum) {
+      throw new Error(`Saldo insuficiente. Tienes ${remUser?.jikopuntos || 0} JP y deseas regalar ${cantNum} JP.`);
+    }
+
+    await this.getUser(recNorm); // Asegurar existencia del receptor
+    const ahora = Date.now();
+
+    // Debitar de remitente
+    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${remNorm}`), (u) => {
+      if (!u) return u;
+      u.jikopuntos = Math.max(0, (u.jikopuntos || 0) - cantNum);
+      u.totalGastado = (u.totalGastado || 0) + cantNum;
+      u.ultimaActividad = ahora;
+      return u;
+    });
+
+    // Acreditar a receptor
+    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${recNorm}`), (u) => {
+      if (!u) return u;
+      u.jikopuntos = (u.jikopuntos || 0) + cantNum;
+      u.totalGanado = (u.totalGanado || 0) + cantNum;
+      u.ultimaActividad = ahora;
+      return u;
+    });
+
+    const [finalRem, finalRec] = await Promise.all([
+      this.getUser(remNorm),
+      this.getUser(recNorm)
+    ]);
+
+    this._updateLocalCache(remNorm, finalRem?.jikopuntos);
+    this._updateLocalCache(recNorm, finalRec?.jikopuntos);
+
+    // Registrar en transferencias de tienda
+    try {
+      const transRef = push(ref(this.rtdb, NODE_TRANSFERS));
+      await set(transRef, {
+        remitente: remNorm,
+        receptor: recNorm,
+        cantidad: cantNum,
+        tipo: 'regalo_solidario',
+        timestamp: ahora,
+        fechaLegible: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })
+      });
+      await this._incrementarEstadistica('totalTransferencias', 1);
+    } catch(e) {}
+
+    console.log(`[StreamDB] 🎁 Regalo solidario: @${remNorm} regaló ${cantNum} JP a @${recNorm}`);
+
+    return {
+      success: true,
+      remitente: remNorm,
+      receptor: recNorm,
+      cantidad: cantNum,
+      saldoRemitente: finalRem?.jikopuntos || 0,
+      saldoReceptor: finalRec?.jikopuntos || 0
+    };
+  }
+
+  // Absolución de Deudas / Perdón (!perdonarprestamos [@usuario]) - Solo Broadcaster Jikokun
+  async perdonarPrestamos({ admin, targetUser = null }) {
+    await this.init();
+    const admNorm = norm(admin);
+    if (admNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
+    }
+
+    const targetNorm = targetUser ? norm(targetUser) : null;
+    const ahora = Date.now();
+    let usuariosPerdonados = 0;
+    let prestamosCancelados = 0;
+
+    if (targetNorm) {
+      // Perdonar únicamente a un usuario específico
+      const uRef = ref(this.rtdb, `${NODE_USERS}/${targetNorm}`);
+      await update(uRef, {
+        deudaTotal: 0,
+        ultimaActividad: ahora
+      });
+      usuariosPerdonados = 1;
+
+      // Marcar préstamos activos de ese usuario como perdonados
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (snap.exists()) {
+        const updatesBatch = {};
+        snap.forEach(child => {
+          const p = child.val();
+          if (p && norm(p.solicitante) === targetNorm && p.estado === 'activo') {
+            updatesBatch[`${child.key}/estado`] = 'perdonado';
+            updatesBatch[`${child.key}/saldoPendiente`] = 0;
+            updatesBatch[`${child.key}/fechaPerdon`] = ahora;
+            updatesBatch[`${child.key}/perdonadoPor`] = 'jikokun';
+            prestamosCancelados++;
+          }
+        });
+        if (Object.keys(updatesBatch).length > 0) {
+          await update(ref(this.rtdb, NODE_LOANS), updatesBatch);
+        }
+      }
+
+      console.log(`[StreamDB] 🕊️ Absolución de deuda concedida a @${targetNorm} por @jikokun (${prestamosCancelados} préstamos cancelados).`);
+      return {
+        success: true,
+        targetUser: targetNorm,
+        esGeneral: false,
+        prestamosCancelados: prestamosCancelados
+      };
+    } else {
+      // Absolución general para todos los usuarios con deudas
+      const usersSnap = await get(ref(this.rtdb, NODE_USERS));
+      if (usersSnap.exists()) {
+        const updatesUsers = {};
+        usersSnap.forEach(child => {
+          const u = child.val();
+          if (u && (u.deudaTotal || 0) > 0) {
+            updatesUsers[`${child.key}/deudaTotal`] = 0;
+            usuariosPerdonados++;
+          }
+        });
+        if (Object.keys(updatesUsers).length > 0) {
+          await update(ref(this.rtdb, NODE_USERS), updatesUsers);
+        }
+      }
+
+      // Marcar todos los préstamos activos en el banco como perdonados
+      const snap = await get(ref(this.rtdb, NODE_LOANS));
+      if (snap.exists()) {
+        const updatesLoans = {};
+        snap.forEach(child => {
+          const p = child.val();
+          if (p && p.estado === 'activo') {
+            updatesLoans[`${child.key}/estado`] = 'perdonado';
+            updatesLoans[`${child.key}/saldoPendiente`] = 0;
+            updatesLoans[`${child.key}/fechaPerdon`] = ahora;
+            updatesLoans[`${child.key}/perdonadoPor`] = 'jikokun';
+            prestamosCancelados++;
+          }
+        });
+        if (Object.keys(updatesLoans).length > 0) {
+          await update(ref(this.rtdb, NODE_LOANS), updatesLoans);
+        }
+      }
+
+      console.log(`[StreamDB] 🕊️ Absolución General de JikoBank: ${usuariosPerdonados} usuarios liberados de deudas (${prestamosCancelados} préstamos cancelados).`);
+      return {
+        success: true,
+        targetUser: null,
+        esGeneral: true,
+        usuariosPerdonados: usuariosPerdonados,
+        prestamosCancelados: prestamosCancelados
+      };
+    }
+  }
+
+  // Entregar Jikopuntos a todos los asistentes (!darjikopuntos todos [cantidad]) - Solo Broadcaster Jikokun
+  async darJikopuntosTodos({ admin, cantidad }) {
+    await this.init();
+    const admNorm = norm(admin);
+    if (admNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
+    }
+
+    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
+    if (cantNum <= 0) throw new Error('La cantidad de puntos debe ser mayor a 0');
+
+    const ahora = Date.now();
+    let usuariosBeneficiados = 0;
+    const listaUsuarios = [];
+
+    // Prioridad 1: Asistentes del stream activo
+    try {
+      const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+      const streamId = statsSnap.exists() ? statsSnap.val().streamActivoId : null;
+      if (streamId) {
+        const asistSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes`));
+        if (asistSnap.exists()) {
+          const asistentes = asistSnap.val();
+          for (const key of Object.keys(asistentes)) {
+            const uNorm = norm(key);
+            if (!uNorm) continue;
+            await runTransaction(ref(this.rtdb, `${NODE_USERS}/${uNorm}`), (u) => {
+              if (!u) return u;
+              u.jikopuntos = (u.jikopuntos || 0) + cantNum;
+              u.totalGanado = (u.totalGanado || 0) + cantNum;
+              u.ultimaActividad = ahora;
+              return u;
+            });
+            usuariosBeneficiados++;
+            listaUsuarios.push(uNorm);
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Si no había stream activo o ningún asistente conectado, aplicar a todos los usuarios registrados
+    if (usuariosBeneficiados === 0) {
+      const usersSnap = await get(ref(this.rtdb, NODE_USERS));
+      if (usersSnap.exists()) {
+        const users = usersSnap.val();
+        for (const [key, u] of Object.entries(users)) {
+          const uNorm = norm(key);
+          if (!uNorm) continue;
+          await runTransaction(ref(this.rtdb, `${NODE_USERS}/${uNorm}`), (userObj) => {
+            if (!userObj) return userObj;
+            userObj.jikopuntos = (userObj.jikopuntos || 0) + cantNum;
+            userObj.totalGanado = (userObj.totalGanado || 0) + cantNum;
+            userObj.ultimaActividad = ahora;
+            return userObj;
+          });
+          usuariosBeneficiados++;
+          listaUsuarios.push(uNorm);
+        }
+      }
+    }
+
+    console.log(`[StreamDB] 🎁 ¡Regalo Masivo de Jikokun! ${cantNum} JP entregados a ${usuariosBeneficiados} usuarios.`);
+
+    return {
+      success: true,
+      cantidad: cantNum,
+      usuariosBeneficiados: usuariosBeneficiados,
+      lista: listaUsuarios
+    };
+  }
+
+  // Entregar Jikopuntos a un usuario específico (!darjikopuntos @usuario [cantidad]) - Solo Broadcaster Jikokun
+  async darJikopuntosUsuario({ admin, targetUser, cantidad }) {
+    await this.init();
+    const admNorm = norm(admin);
+    if (admNorm !== 'jikokun') {
+      throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
+    }
+
+    const targetNorm = norm(targetUser);
+    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
+
+    if (!targetNorm) throw new Error('Usuario destino no válido');
+    if (cantNum <= 0) throw new Error('La cantidad debe ser mayor a 0');
+
+    await this.getUser(targetNorm); // asegurar que existe
+    const ahora = Date.now();
+
+    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${targetNorm}`), (u) => {
+      if (!u) return u;
+      u.jikopuntos = (u.jikopuntos || 0) + cantNum;
+      u.totalGanado = (u.totalGanado || 0) + cantNum;
+      u.ultimaActividad = ahora;
+      return u;
+    });
+
+    const userFinal = await this.getUser(targetNorm);
+    this._updateLocalCache(targetNorm, userFinal?.jikopuntos);
+
+    console.log(`[StreamDB] 🎁 @jikokun otorgó ${cantNum} JP a @${targetNorm}. Saldo final: ${userFinal.jikopuntos} JP.`);
+
+    return {
+      success: true,
+      targetUser: targetNorm,
+      cantidad: cantNum,
+      nuevoSaldo: userFinal?.jikopuntos || 0
+    };
+  }
+
+  // ==========================================================================
+  // 9. LIMPIEZA TOTAL DE REGISTROS DE PRUEBA EN FIREBASE RTDB
   // ==========================================================================
   async limpiarRegistrosDePrueba() {
     await this.init();

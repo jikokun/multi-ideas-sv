@@ -406,3 +406,49 @@ El método `StreamDB.contrastarAsistenciasTransmision(streamId)` compara en tiem
 - **`presentes`**: Espectadores que asistieron, con su nivel, rango, hora de llegada y puntos otorgados.
 - **`ausentes`**: Miembros de la comunidad registrados que no sintonizaron esa transmisión, mostrando sus asistencias históricas y un botón directo para marcarles asistencia si llegaron con retraso.
 - **`tasaAsistencia`**: Porcentaje visual de asistencia de la comunidad.
+
+---
+
+## 🏛️ 7. SISTEMA BANCARIO JIKOBANK (PRÉSTAMOS, CRÉDITOS, REGALOS Y CAJERO OBS)
+
+> **Archivo del Widget:** [jikobank.html](file:///e:/Proyectos%20Web/multi-ideas-sv/mini_widgets/jikobank.html)  
+> **Panel de Pruebas & Control:** [prueba.html](file:///e:/Proyectos%20Web/multi-ideas-sv/prueba.html) (Sección JikoBank)  
+> **Nodo Firebase:** `stream/banco/prestamos` y `stream/usuarios/{user}/deudaTotal`  
+> **Tasa de Interés:** 2% fijo (`TASA_INTERES_PRESTAMO = 0.02`)
+
+### 1. Concepto y Funcionamiento
+JikoBank es un overlay independiente de OBS que sustituye la alerta tradicional de saldo flotante por un **Cajero Automático interactivo** alojado en la esquina inferior derecha (ocupando menos de un cuarto de pantalla en 1080p). Al activarse con comandos:
+1. **Desplazamiento Vertical**: El cajero asoma desde abajo con un sonido electrónico de encendido (Web Audio sweep).
+2. **Boot & Iluminación**: El cabezal iluminado dice **JikoBank** en cian neón (`#00ffcc`), las cámaras y escáneres se iluminan y la pantalla inicia.
+3. **Zoom Inmersivo**: El cajero se inclina/amplía hacia adelante (`scale(1.08)`) y una **pantalla holográfica HUD** cubre el frente mostrando:
+   - **Identidad:** Avatar oficial de Kick, Display Name, Rango y Nivel de Asistencia.
+   - **Saldo Actual:** Jikopuntos disponibles en verde/cian neón.
+   - **Deuda Total:** Saldo pendiente con desglose de la tasa del 2%.
+   - **Saldo Real Neto:** `Saldo Actual - Deuda Total` (con indicador de Solvencia o Déficit).
+4. **Auto-cierre inteligente:** Se retrae suavemente tras 7.5 segundos (o al confirmarse una transacción).
+
+### 2. Comandos del Chat Habilitados
+| Comando | Parámetros | Permiso | Descripción |
+| :--- | :--- | :--- | :--- |
+| `!saldo` / `!jikopuntos` / `!banco` | `[@usuario]` (opcional) | Todos | Despliega el cajero JikoBank con animación de inmersión y muestra el saldo, deuda y saldo real. |
+| `!prestamo jikobank` | `[monto]` | Todos | Solicita préstamo directo a JikoBank (fondos ilimitados generados por el banco). Tasa 2%. Despliega contrato en terminal. |
+| `!firmar` / `!aceptar` | Ninguno | Solicitante | Firma el contrato de préstamo pendiente con JikoBank. Desembolsa los puntos al instante y carga la deuda con el 2% de interés. Sonido de dispensador de billetes. |
+| `!prestamo` | `@usuario [monto]` | Todos | Préstamo P2P entre espectadores con tasa del 2% de ganancia para el prestamista. Espera que el acreedor escriba `!aceptar` o `!rechazar`. |
+| `!aceptar` / `!rechazar` | Ninguno | Acreedor | Acepta o rechaza la solicitud de préstamo de otro espectador. |
+| `!pagar` / `!pagarprestamo` | `[monto]` (opcional) | Todos | Amortiza o cancela la deuda pendiente. Si no se indica monto, abona el total de su saldo o deuda. Sonido de depósito bancario. |
+| `!regalar` / `!donar` | `@usuario [monto]` | Todos | Transfiere puntos directamente sin deuda ni intereses (0%). Diseñado para solidaridad con recién llegados. |
+| `!perdonarprestamos` | Ninguno | Broadcaster (@jikokun) | Concede **Absolución General**: cancela y borra a 0 JP todas las deudas activas de todos los usuarios en el stream con efecto celestial dorado. |
+| `!perdonarprestamos` | `@usuario` | Broadcaster (@jikokun) | Concede absolución y cancela a 0 JP las deudas de un usuario específico. |
+| `!darjikopuntos todos` | `[monto]` | Broadcaster (@jikokun) | Entrega un bono de Jikopuntos a todos los asistentes del stream activo. |
+| `!darjikopuntos` | `@usuario [monto]` | Broadcaster (@jikokun) | Otorga Jikopuntos directamente a un usuario. |
+
+### 3. Métodos en StreamDB (`stream_firebase.js`)
+- `StreamDB.obtenerDatosCajero(username)`: Retorna saldo, deuda, saldo real, avatar, nivel y rango.
+- `StreamDB.solicitarPrestamo({ solicitante, acreedor, monto })`: Registra solicitud en `stream/banco/prestamos`.
+- `StreamDB.confirmarPrestamo({ autorizador, prestamoId })`: Desembolsa fondos y actualiza `deudaTotal`.
+- `StreamDB.rechazarPrestamo({ usuario, prestamoId })`: Cancela préstamo pendiente.
+- `StreamDB.pagarPrestamo({ deudor, monto })`: Amortiza préstamos en orden FIFO y descuenta de `deudaTotal`.
+- `StreamDB.regalarJikopuntos({ remitente, receptor, cantidad })`: Transferencia pura sin interés.
+- `StreamDB.perdonarPrestamos({ admin, targetUser })`: Borra deudas (general o individual).
+- `StreamDB.darJikopuntosTodos({ admin, cantidad })`: Bonificación masiva de asistentes.
+
