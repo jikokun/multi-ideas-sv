@@ -1961,6 +1961,9 @@
     <button id="demo-reset">Reset Pts</button>
   </div>
 
+<!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+<script src="./js/jiko_widget_sync.js"></script>
+
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js';
@@ -2601,6 +2604,11 @@
       }
     }
 
+    // Proteger tarjeta de perfil adquiriendo lock de sincronización
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.acquire('perfil', cleanUser, (PERFIL_DURATION_SEC + 1) * 1000);
+    }
+
     const d = calcularDatosPerfilTiendita(uData);
 
     const tiendaAbierta = $menu && $menu.classList.contains('visible');
@@ -2726,6 +2734,9 @@
     setTimeout(() => {
       $cardPerfil.classList.remove('visible', 'saliendo');
       $cardPerfil.style.display = 'none';
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release('perfil');
+      }
     }, 750); // Sincronizado con rotación vertical de 750ms
   }
 
@@ -3823,8 +3834,15 @@
       return;
     }
 
-    // 0. Consulta de saldo/puntos delegada a JikoBank (no se muestra alerta en Tiendita para evitar duplicidad)
-    if(t.startsWith('!jikopuntos') || t.startsWith('!puntos') || t.startsWith('!saldo') || t.startsWith('!points') || t.startsWith('!misjikopuntos') || t.startsWith('!banco') || t.startsWith('!cajero') || t.startsWith('!prestamo')){
+    // 0. Comandos bancarios delegados a JikoBank (no se procesan ni alertan en Tiendita para evitar duplicidad y errores)
+    const esComandoBancario = t.startsWith('!jikopuntos') || t.startsWith('!puntos') || t.startsWith('!saldo') ||
+                              t.startsWith('!points') || t.startsWith('!misjikopuntos') || t.startsWith('!banco') ||
+                              t.startsWith('!cajero') || t.startsWith('!prestamo') || t.startsWith('!firmar') ||
+                              t.startsWith('!aceptar') || t.startsWith('!pagarprestamo') || t.startsWith('!regalar') ||
+                              t.startsWith('!donar') || t.startsWith('!perdonarprestamos') || t.startsWith('!perdonardeudas') ||
+                              t.startsWith('!darjikopuntos') || t.startsWith('!deuda') ||
+                              (!$menu.classList.contains('visible') && (t === '!pagar' || t.startsWith('!pagar ')));
+    if (esComandoBancario) {
       console.log(`[Tiendita] ℹ️ Comando bancario "${t}" ignorado en Tiendita (atendido exclusivamente por JikoBank)`);
       return;
     }
@@ -3843,13 +3861,35 @@
         return;
       }
 
-      perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
-
       const partes = raw.trim().split(/\s+/);
       let targetUser = user;
       if(partes.length > 1 && partes[1].replace(/^@/, '').trim()){
         targetUser = partes[1].replace(/^@/, '').trim();
       }
+
+      // Si existe una instancia de widget_perfil.html activa en OBS, delegar a ella para evitar duplicidad
+      if (window.JikoWidgetSync && JikoWidgetSync.hasStandalonePerfil()) {
+        console.log(`[Tiendita] 🪪 Comando !perfil delegado al widget_perfil.html independiente`);
+        return;
+      }
+
+      // Comprobar si hay otro widget activo en pantalla (Tiendita abierta o Cajero JikoBank en uso)
+      if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
+        const lock = JikoWidgetSync.getActiveLock();
+        const enqueued = JikoWidgetSync.enqueue({
+          widget: 'perfil',
+          command: '!perfil',
+          sender: user,
+          target: targetUser,
+          raw: raw
+        });
+        if (enqueued) {
+          toast(JikoWidgetSync.getFriendlyQueuedToast(enqueued, lock), 'info');
+        }
+        return;
+      }
+
+      perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
       mostrarCardPerfilTiendita(targetUser);
       return;
     }
@@ -4005,6 +4045,20 @@
     // 1. Abrir tienda (o renovar tiempo si es el mismo usuario)
     if(esComandoAbrir){
       if(!tiendaAbierta){
+        // Si otro widget está activo (Cajero JikoBank o Tarjeta de Perfil), encolar para no sobreponer
+        if (window.JikoWidgetSync && JikoWidgetSync.isBusy('tienda')) {
+          const lock = JikoWidgetSync.getActiveLock();
+          const enqueued = JikoWidgetSync.enqueue({
+            widget: 'tienda',
+            command: '!tienda',
+            sender: user,
+            raw: raw
+          });
+          if (enqueued) {
+            toast(JikoWidgetSync.getFriendlyQueuedToast(enqueued, lock), 'info');
+          }
+          return;
+        }
         mostrarMenu(user, getUserPoints(user));
         toast(`🛒 <b>@${user}</b> abrió la tiendita!`);
       } else {
@@ -4262,8 +4316,7 @@
                                 t.startsWith('!anterior ')||t.startsWith('anterior ')||
                                 t.startsWith('!prev ')||t.startsWith('prev ')||
                                 t.startsWith('!comprar ')||
-                                t.startsWith('!darjikopuntos')||
-                                                                t==='!perfil'||t==='!perfill'||t.startsWith('!perfil ')||t.startsWith('!perfill ')||
+                                t==='!perfil'||t==='!perfill'||t.startsWith('!perfil ')||t.startsWith('!perfill ')||
                                 t==='!pasarlista'||t.startsWith('!pasarlista')||t==='!cerrarlista'||t==='!limpiarasistencia'||
                                 itemDetectado !== null;
 
@@ -4325,6 +4378,11 @@
     bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
     iniciarCd(AUTO_CIERRE_MS);
 
+    // Proteger tiendita adquiriendo lock de exclusión mutua
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.acquire('tienda', user, AUTO_CIERRE_MS + 2000);
+    }
+
     // Sincronizar estado del widget y escuchar cambios de saldo en vivo en Firebase RTDB
     if (window.StreamDB) {
       window.StreamDB.setWidgetState('tiendita', { isOpen: true, usuarioEnTurno: user });
@@ -4357,6 +4415,10 @@
     if($turnAlert) $turnAlert.classList.remove('activo', 'sacudir');
     if(estabaAbierta){
       iniciarCooldownGlobal();
+    }
+    // Liberar lock de tiendita para permitir que el siguiente widget en cola entre fluidamente
+    if (window.JikoWidgetSync && estabaAbierta) {
+      window.JikoWidgetSync.release('tienda');
     }
     if (window.StreamDB) {
       window.StreamDB.setWidgetState('tiendita', { isOpen: false, usuarioEnTurno: null });
@@ -4858,6 +4920,24 @@
         break;
     }
   });
+
+  // ── Sincronización Inter-Widgets: Handlers para ejecutar órdenes encoladas ──
+  if (window.JikoWidgetSync) {
+    window.JikoWidgetSync.onExecute('tienda', (item) => {
+      console.log('[Tiendita] 🎯 Despachando apertura de tienda encolada para @' + item.sender);
+      if (!$menu.classList.contains('visible')) {
+        mostrarMenu(item.sender, getUserPoints(item.sender));
+        toast(`🛒 <b>@${item.sender}</b>: ¡Tu turno en la tiendita ha comenzado!`);
+      }
+    });
+
+    window.JikoWidgetSync.onExecute('perfil', (item) => {
+      if (!window.JikoWidgetSync.hasStandalonePerfil()) {
+        console.log('[Tiendita] 🪪 Despachando perfil encolado para @' + (item.target || item.sender));
+        mostrarCardPerfilTiendita(item.target || item.sender);
+      }
+    });
+  }
 
   conectarWS();
 </script>

@@ -11,6 +11,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Outfit:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
+  <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+  <script src="./js/jiko_widget_sync.js"></script>
+
   <style>
     /* ==========================================================================
        VARIABLES Y PALETA DE COLOR OFICIAL JIKOKUN (ACUA OSCURO / CIBER CYAN)
@@ -1367,6 +1370,11 @@
       elAtm.classList.add('state-visible');
       SFX.boot();
 
+      // Proteger cajero adquiriendo lock de exclusión mutua
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.acquire('cajero', cleanUser, duracionMs + 1000);
+      }
+
       // 2. Zoom inmersivo hacia el terminal tras 480ms
       setTimeout(() => {
         elAtm.classList.add('state-zoomed');
@@ -1407,6 +1415,9 @@
       elAtm.classList.remove('state-zoomed');
       setTimeout(() => {
         elAtm.classList.remove('state-visible');
+        if (window.JikoWidgetSync) {
+          window.JikoWidgetSync.release('cajero');
+        }
       }, 350);
     }
 
@@ -1415,6 +1426,9 @@
       if (timerBarInterval) clearInterval(timerBarInterval);
       elAtm.classList.remove('state-zoomed');
       elAtm.classList.remove('state-visible');
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release('cajero');
+      }
     }
 
     // ==========================================================================
@@ -1424,6 +1438,27 @@
       const c = comando.toLowerCase().trim();
       const sNorm = norm(sender);
       console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender}`);
+
+      // Comprobar si es un comando bancario reconocido por JikoBank
+      const esComandoJikoBank = (c === '!saldo' || c === '!jikopuntos' || c === '!puntos' || c === '!points' ||
+                                 c === '!misjikopuntos' || c === '!banco' || c === '!cajero' || c === '!prestamo' ||
+                                 c === '!firmar' || c === '!aceptar' || c === '!pagar' || c === '!pagarprestamo' ||
+                                 c === '!regalar' || c === '!donar' || c === '!perdonarprestamos' ||
+                                 c === '!perdonardeudas' || c === '!darjikopuntos');
+      if (!esComandoJikoBank) return;
+
+      // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla (Tiendita o Perfil), encolar y no sobreponer
+      if (window.JikoWidgetSync && JikoWidgetSync.isBusy('cajero')) {
+        const lock = JikoWidgetSync.getActiveLock();
+        console.log(`[JikoBank] ⏳ Pantalla ocupada por [${lock?.widget}]. Comando "${c}" encolado para @${sender}.`);
+        JikoWidgetSync.enqueue({
+          widget: 'cajero',
+          command: c,
+          sender: sender,
+          params: params
+        });
+        return;
+      }
 
       // 1. Modo StreamDB si está en línea
       if (window.StreamDB && typeof window.StreamDB.obtenerDatosCajero === 'function') {
@@ -1942,6 +1977,18 @@
     }
 
     conectarStreamerBot();
+
+    // ── Sincronización Inter-Widgets: Handler para ejecutar órdenes encoladas de cajero ──
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.onExecute('cajero', (item) => {
+        console.log(`[JikoBank] 🎯 Despachando comando encolado: "${item.command}" de @${item.sender}`);
+        procesarComando({
+          comando: item.command,
+          sender: item.sender,
+          params: item.params || []
+        });
+      });
+    }
 
     // ==========================================================================
     // EXPOSICIÓN GLOBAL DE FUNCIONES DE PRUEBA Y COMANDOS

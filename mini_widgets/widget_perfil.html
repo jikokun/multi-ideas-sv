@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-600-normal.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-700-normal.css">
 
+<!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+<script src="./js/jiko_widget_sync.js"></script>
+
 <style>
 * {
     box-sizing: border-box;
@@ -2108,6 +2111,11 @@ body {
     root.classList.add('visible');
     playSciFiSound();
 
+    // Proteger tarjeta de perfil adquiriendo lock de exclusión mutua
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.acquire('perfil', d.displayName, DURATION_SEC * 1000 + 1000);
+    }
+
     // Barra de tiempo y autocierre
     const timerBar = document.getElementById('card-timer-bar');
     if (timerBar) {
@@ -2131,6 +2139,9 @@ body {
     setTimeout(() => {
       root.classList.remove('visible', 'saliendo');
       root.style.display = 'none';
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release('perfil');
+      }
     }, 750); // Sincronizado con la rotación vertical sobre el eje Y (750ms)
   }
 
@@ -2184,6 +2195,19 @@ body {
             console.warn(`[WidgetPerfil] ⏳ Cooldown activo para @${u}: espera ${segs}s para volver a mostrar tarjeta`);
             return;
           }
+
+          if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
+            const lock = JikoWidgetSync.getActiveLock();
+            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada por [${lock?.widget}]. Perfil de @${u} encolado.`);
+            JikoWidgetSync.enqueue({
+              widget: 'perfil',
+              command: '!perfil',
+              sender: u,
+              target: u
+            });
+            return;
+          }
+
           perfilCooldowns.set(normU, ahora + COOLDOWN_PERFIL_MS);
           mostrarTarjetaPerfil(u);
           return;
@@ -2225,13 +2249,27 @@ body {
             console.warn(`[WidgetPerfil] ⏳ Cooldown activo para @${sender}: espera ${segs}s antes de volver a solicitar !perfil`);
             return;
           }
-          perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
 
           let target = sender;
           const partes = t.split(/\s+/);
           if (partes.length > 1 && partes[1].replace(/^@/, '').trim()) {
             target = partes[1].replace(/^@/, '').trim();
           }
+
+          // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla (Tiendita o Cajero JikoBank), encolar y no sobreponer
+          if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
+            const lock = JikoWidgetSync.getActiveLock();
+            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada por [${lock?.widget}]. !perfil para @${target} puesto en cola.`);
+            JikoWidgetSync.enqueue({
+              widget: 'perfil',
+              command: '!perfil',
+              sender: sender,
+              target: target
+            });
+            return;
+          }
+
+          perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
           console.log(`[WidgetPerfil] 🪪 Comando !perfil invocado por @${sender} para @${target} (Cooldown 60s activado)`);
           mostrarTarjetaPerfil(target);
         }
@@ -2241,6 +2279,20 @@ body {
     socket.onclose = () => setTimeout(conectarWS, 3000);
     socket.onerror = () => {};
   }
+
+  // ── Sincronización Inter-Widgets: Registro de Perfil y Handler de Cola ──
+  if (window.JikoWidgetSync) {
+    window.JikoWidgetSync.registerStandalonePerfil(true);
+    setInterval(() => {
+      window.JikoWidgetSync.registerStandalonePerfil(true);
+    }, 60000);
+
+    window.JikoWidgetSync.onExecute('perfil', (item) => {
+      console.log(`[WidgetPerfil] 🎯 Despachando perfil encolado para @${item.target || item.sender}`);
+      mostrarTarjetaPerfil(item.target || item.sender);
+    });
+  }
+
   conectarWS();
 
   /* ═══════════ FUNCIONES DE PRUEBA / DEMO ═══════════ */
