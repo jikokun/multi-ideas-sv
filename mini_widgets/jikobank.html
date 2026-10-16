@@ -57,27 +57,27 @@
     }
 
     /* ==========================================================================
-       CONTENEDOR MAESTRO: SECTOR INFERIOR DERECHO (MÁXIMO 1/4 DE LA PANTALLA)
+       CONTENEDOR MAESTRO: SECTOR INFERIOR DERECHO (ALINEADO A LA DERECHA)
        ========================================================================== */
     .jikobank-stage {
       position: fixed;
-      right: 28px;
+      right: 24px;
       bottom: 0;
-      width: 410px;
-      max-width: calc(100vw - 40px);
-      height: 520px;
+      width: 630px;
+      max-width: calc(100vw - 32px);
+      height: 530px;
       max-height: calc(100vh - 20px);
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
-      align-items: center;
+      align-items: flex-end;
       perspective: 1200px;
       pointer-events: none;
       z-index: 9999;
     }
 
     /* ==========================================================================
-       ESTRUCTURA DEL CAJERO AUTOMÁTICO (JIKO-ATM)
+       ESTRUCTURA DEL CAJERO FÍSICO VERTICAL (JIKO-ATM)
        ========================================================================== */
     .jiko-atm {
       width: 370px;
@@ -94,24 +94,24 @@
       overflow: visible;
       transform: translateY(115%);
       opacity: 0;
-      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s ease;
+      transition: transform 0.75s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.45s ease, filter 0.45s ease;
       will-change: transform, opacity;
       pointer-events: auto;
     }
 
-    /* ESTADOS DE VISIBILIDAD Y ANIMACIÓN */
+    /* ESTADOS DE VISIBILIDAD DEL CAJERO */
     .jiko-atm.state-visible {
       transform: translateY(0);
       opacity: 1;
+      filter: none;
     }
 
-    /* MODO ZOOM INMERSIÓN */
-    .jiko-atm.state-zoomed {
-      transform: translateY(4%) scale(1.08);
-      box-shadow: 
-        0 -15px 50px rgba(0, 0, 0, 0.95),
-        0 0 45px rgba(0, 255, 204, 0.35),
-        inset 0 1px 3px rgba(255, 255, 255, 0.5);
+    /* Cuando la pantalla horizontal toma el protagonismo, el cajero de fondo se atenúa suavemente */
+    .jiko-atm.state-screen-active {
+      opacity: 0.14;
+      transform: translateY(18px) scale(0.97);
+      filter: blur(2.5px);
+      pointer-events: none;
     }
 
     /* 1. Barra de Cámaras / Sensores */
@@ -247,7 +247,6 @@
       transition: filter 0.3s ease;
     }
 
-    /* Líneas de escaneo CRT */
     .screen::before {
       content: '';
       position: absolute;
@@ -259,7 +258,6 @@
       opacity: 0.7;
     }
 
-    /* Brillo de barrido CRT */
     .screen::after {
       content: '';
       position: absolute;
@@ -326,7 +324,6 @@
       position: relative;
     }
 
-    /* Ranura de Tarjeta con escáner cian */
     .card-slot {
       height: 14px;
       background: var(--jiko-metal-dark);
@@ -348,7 +345,6 @@
       animation: slotScan 2.4s infinite ease-in-out;
     }
 
-    /* Teclado numérico blindado */
     .keypad {
       background: #061e25;
       border-radius: 7px;
@@ -399,7 +395,7 @@
       border-radius: 2px;
     }
 
-    /* Ranura de Recibos */
+    /* Ranura de Recibos y Ticket Térmico Físico */
     .receipt-slot {
       height: 24px;
       background: var(--jiko-metal-dark);
@@ -407,7 +403,7 @@
       position: relative;
       border: 1px solid rgba(34, 211, 238, 0.25);
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.85);
-      overflow: hidden;
+      overflow: visible; /* Permite que el ticket salga colgando */
     }
 
     .receipt-slot::before {
@@ -421,6 +417,98 @@
       transform: translateY(-50%);
       border-radius: 2px;
       border-bottom: 1px solid rgba(0,255,204,0.2);
+    }
+
+    /* Ticket Físico Térmico que se imprime hacia abajo */
+    .receipt-paper {
+      position: absolute;
+      top: 14px;
+      left: -22px;
+      width: 120px;
+      background: #f8fafc;
+      color: #091319;
+      font-family: var(--jiko-font-mono);
+      font-size: 0.52rem;
+      padding: 7px 6px;
+      border-radius: 0 0 3px 3px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.95), 0 0 12px rgba(0, 255, 204, 0.35);
+      transform-origin: top center;
+      transform: translateY(-115%) scaleY(0.1);
+      opacity: 0;
+      transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease;
+      z-index: 60;
+      pointer-events: none;
+      border: 1px dashed rgba(0, 0, 0, 0.25);
+      border-top: 1px solid #cbd5e1;
+      line-height: 1.25;
+    }
+
+    .receipt-paper.printing {
+      transform: translateY(0) scaleY(1);
+      opacity: 1;
+    }
+
+    .receipt-header {
+      font-weight: 800;
+      font-size: 0.58rem;
+      text-align: center;
+      color: #032b35;
+      letter-spacing: 0.5px;
+    }
+    .receipt-sub {
+      font-size: 0.48rem;
+      text-align: center;
+      color: #64748b;
+      margin-bottom: 2px;
+    }
+    .receipt-div {
+      text-align: center;
+      color: #94a3b8;
+      letter-spacing: -1px;
+      overflow: hidden;
+      margin: 1px 0;
+      font-size: 0.5rem;
+    }
+    .receipt-op {
+      font-weight: 900;
+      text-align: center;
+      color: #0e7490;
+      font-size: 0.55rem;
+      letter-spacing: 0.5px;
+      margin-bottom: 3px;
+    }
+    .receipt-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      font-size: 0.5rem;
+    }
+    .receipt-line span { color: #64748b; }
+    .receipt-line b { color: #0f172a; font-weight: 700; }
+    .receipt-total-line {
+      display: flex;
+      justify-content: space-between;
+      gap: 4px;
+      font-size: 0.54rem;
+      font-weight: 900;
+      color: #dc2626;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 2px;
+      margin-top: 2px;
+    }
+    .receipt-verified {
+      text-align: center;
+      font-weight: 800;
+      font-size: 0.5rem;
+      color: #059669;
+      margin-top: 2px;
+    }
+    .receipt-barcode {
+      text-align: center;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      color: #334155;
+      margin-top: 3px;
     }
 
     /* 5. Dispensador de Efectivo Motorizado */
@@ -470,7 +558,6 @@
       border-radius: 50%;
     }
 
-    /* Efecto de expulsión de billetes activo */
     .cash-dispenser.dispensing {
       box-shadow: 
         inset 0 3px 8px rgba(0,0,0,0.8),
@@ -478,7 +565,7 @@
       border-color: #00ffcc;
     }
 
-    /* 6. Chasis Inferior y Pernos */
+    /* 6. Chasis Inferior */
     .bottom-panel {
       height: 55px;
       position: relative;
@@ -497,75 +584,104 @@
       top: 12px;
       box-shadow: 0 0 6px rgba(0,255,204,0.6);
     }
-
     .bottom-panel::before { left: 16px; }
     .bottom-panel::after { right: 16px; }
 
     /* ==========================================================================
-       HOLOGRAPHIC TERMINAL HUD (PANTALLA AMPLIADA INMERSIVA QUE CUBRE EL CAJERO)
+       HOLOGRAPHIC TERMINAL HUD (PANTALLA HORIZONTAL EXPANDIDA ATM)
+       Relación de aspecto horizontal widescreen (no vertical como un teléfono)
        ========================================================================== */
     .jiko-terminal-overlay {
       position: absolute;
-      top: 0;
-      left: 0;
       right: 0;
-      bottom: 0;
-      background: rgba(3, 16, 22, 0.96);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-radius: 20px 20px 0 0;
+      bottom: 16px;
+      width: 615px;
+      max-width: 100%;
+      height: 335px;
+      background: radial-gradient(circle at 50% 0%, rgba(8, 45, 56, 0.98) 0%, rgba(3, 16, 22, 0.98) 65%, rgba(1, 9, 13, 0.99) 100%);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      border-radius: 18px;
       border: 2px solid var(--jiko-cyan);
       box-shadow: 
-        inset 0 0 35px rgba(0, 255, 204, 0.25),
-        0 0 40px rgba(0, 0, 0, 0.9);
+        0 0 35px rgba(0, 255, 204, 0.35),
+        0 15px 45px rgba(0, 0, 0, 0.95),
+        inset 0 1px 2px rgba(255, 255, 255, 0.4),
+        inset 0 0 25px rgba(0, 255, 204, 0.15);
       display: flex;
       flex-direction: column;
+      justify-content: space-between;
+      padding: 16px 20px 14px;
       z-index: 100;
-      padding: 16px 18px 20px;
       opacity: 0;
-      transform: scale(0.92);
+      transform: translateY(25px) scale(0.94);
       pointer-events: none;
-      transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      overflow: hidden;
     }
 
-    .jiko-atm.state-zoomed .jiko-terminal-overlay {
+    .jiko-terminal-overlay::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+      background-size: 100% 3px;
+      pointer-events: none;
+      z-index: 2;
+      opacity: 0.55;
+    }
+
+    .jiko-terminal-overlay.state-open {
       opacity: 1;
-      transform: scale(1);
+      transform: translateY(0) scale(1);
       pointer-events: auto;
     }
 
-    /* Cabezal de Seguridad del Terminal */
-    .hud-header {
+    /* Cabezal Superior Horizontal */
+    .hud-top-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
       border-bottom: 1px solid rgba(0, 255, 204, 0.25);
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      padding-bottom: 8px;
+      z-index: 5;
     }
 
-    .hud-title-group {
+    .hud-brand-box {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
     }
 
-    .hud-icon {
-      font-size: 1.15rem;
-      filter: drop-shadow(0 0 6px var(--jiko-cyan));
+    .hud-bank-icon {
+      font-size: 1.3rem;
+      filter: drop-shadow(0 0 8px var(--jiko-cyan));
     }
 
-    .hud-title {
+    .hud-brand-text {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hud-bank-title {
       font-family: var(--jiko-font-display);
-      font-size: 0.95rem;
+      font-size: 1.05rem;
       font-weight: 800;
       color: #ffffff;
-      letter-spacing: 1.5px;
+      letter-spacing: 2px;
       text-transform: uppercase;
-      text-shadow: 0 0 8px rgba(0, 255, 204, 0.6);
+      text-shadow: 0 0 10px rgba(0, 255, 204, 0.8);
+      line-height: 1.1;
     }
 
-    .hud-badge-live {
+    .hud-bank-tag {
+      font-family: var(--jiko-font-mono);
+      font-size: 0.62rem;
+      color: #38bdf8;
+      letter-spacing: 1px;
+    }
+
+    .hud-live-badge {
       font-family: var(--jiko-font-mono);
       font-size: 0.65rem;
       font-weight: 700;
@@ -579,40 +695,34 @@
       gap: 5px;
     }
 
-    .hud-pulse {
-      width: 5px;
-      height: 5px;
+    .hud-pulse-dot {
+      width: 6px;
+      height: 6px;
       border-radius: 50%;
       background: var(--jiko-cyan);
       box-shadow: 0 0 6px var(--jiko-cyan);
       animation: ledBlink 1s infinite;
     }
 
-    /* Tarjeta de Identidad de Usuario */
-    .hud-user-card {
+    /* Tarjeta Compacta de Usuario en la Barra */
+    .hud-user-pill {
       display: flex;
       align-items: center;
-      gap: 12px;
-      background: linear-gradient(90deg, rgba(8, 51, 62, 0.5) 0%, rgba(3, 20, 26, 0.8) 100%);
+      gap: 10px;
+      background: rgba(8, 51, 62, 0.45);
       border: 1px solid rgba(34, 211, 238, 0.3);
-      border-radius: 12px;
-      padding: 8px 12px;
-      margin-bottom: 12px;
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      border-radius: 24px;
+      padding: 4px 12px 4px 5px;
     }
 
     .hud-avatar-box {
-      width: 44px;
-      height: 44px;
+      width: 34px;
+      height: 34px;
       border-radius: 50%;
       border: 2px solid var(--jiko-cyan);
-      box-shadow: 0 0 10px var(--jiko-cyan-glow);
+      box-shadow: 0 0 8px var(--jiko-cyan-glow);
       overflow: hidden;
-      flex-shrink: 0;
       background: #020c0f;
-      display: flex;
-      align-items: center;
-      justify-content: center;
     }
 
     .hud-avatar-img {
@@ -622,209 +732,285 @@
     }
 
     .hud-user-info {
-      flex: 1;
-      min-width: 0;
+      display: flex;
+      flex-direction: column;
     }
 
-    .hud-username {
-      font-family: var(--jiko-font-body);
-      font-weight: 800;
-      font-size: 1.05rem;
-      color: #ffffff;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    .hud-user-name-row {
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .hud-role-pill {
-      font-size: 0.65rem;
+    .hud-user-name {
+      font-family: var(--jiko-font-body);
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: #ffffff;
+      white-space: nowrap;
+    }
+
+    .hud-role-badge {
+      font-size: 0.6rem;
       font-family: var(--jiko-font-display);
-      padding: 2px 6px;
+      padding: 1px 5px;
       border-radius: 4px;
       background: rgba(0, 255, 204, 0.15);
       border: 1px solid rgba(0, 255, 204, 0.4);
       color: var(--jiko-cyan);
     }
 
-    .hud-user-meta {
-      font-size: 0.75rem;
-      color: #94a3b8;
+    .hud-user-rank-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 2px;
+      gap: 6px;
+      font-size: 0.68rem;
     }
 
-    .hud-user-rank {
+    .hud-rank-text {
       color: #38bdf8;
       font-weight: 600;
     }
 
+    .hud-level-text {
+      color: #94a3b8;
+      font-family: var(--jiko-font-mono);
+    }
+
     /* ==========================================================================
-       LAS 3 MÉTRICAS CLAVE (MINIMALISTAS, NÚMEROS GRANDES Y ULTRA LEGIBLES)
+       GRILLA HORIZONTAL DE LAS 3 MÉTRICAS CLAVE (NÚMEROS GRANDES Y DESTACADOS)
        ========================================================================== */
     .hud-metrics-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin: 10px 0;
+      z-index: 5;
     }
 
     .metric-card {
-      background: rgba(4, 25, 32, 0.85);
-      border: 1px solid rgba(0, 255, 204, 0.2);
-      border-radius: 10px;
-      padding: 10px 12px;
+      background: rgba(4, 25, 32, 0.9);
+      border: 1px solid rgba(0, 255, 204, 0.25);
+      border-radius: 12px;
+      padding: 12px 14px 10px;
       position: relative;
       overflow: hidden;
       display: flex;
       flex-direction: column;
-      justify-content: center;
-    }
-
-    .metric-card.full-width {
-      grid-column: 1 / -1;
-      background: linear-gradient(135deg, rgba(8, 51, 62, 0.6) 0%, rgba(3, 20, 26, 0.9) 100%);
-      border-color: rgba(0, 255, 204, 0.45);
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+      justify-content: space-between;
+      min-height: 125px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 4px 15px rgba(0,0,0,0.5);
+      transition: transform 0.25s ease, border-color 0.25s ease;
     }
 
     .metric-card::before {
       content: '';
       position: absolute;
-      top: 0; left: 0;
-      width: 3px; height: 100%;
+      top: 0; left: 0; right: 0;
+      height: 3px;
       background: var(--jiko-cyan);
-      box-shadow: 0 0 8px var(--jiko-cyan);
+      box-shadow: 0 0 10px var(--jiko-cyan);
     }
 
     .metric-card.danger::before {
       background: var(--jiko-danger);
-      box-shadow: 0 0 8px var(--jiko-danger);
+      box-shadow: 0 0 10px var(--jiko-danger);
     }
 
     .metric-card.net::before {
-      background: linear-gradient(180deg, #00ffcc, #38bdf8);
-      box-shadow: 0 0 10px #00ffcc;
+      background: linear-gradient(90deg, #00ffcc, #38bdf8);
+      box-shadow: 0 0 12px #00ffcc;
     }
+
+    .metric-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .metric-label-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .metric-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+    }
+    .dot-cyan { background: var(--jiko-cyan); box-shadow: 0 0 6px var(--jiko-cyan); }
+    .dot-red { background: var(--jiko-danger); box-shadow: 0 0 6px var(--jiko-danger); }
+    .dot-blue { background: #38bdf8; box-shadow: 0 0 6px #38bdf8; }
 
     .metric-label {
       font-family: var(--jiko-font-display);
-      font-size: 0.62rem;
+      font-size: 0.65rem;
       letter-spacing: 1.2px;
       color: #94a3b8;
       text-transform: uppercase;
       font-weight: 700;
-      margin-bottom: 3px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
-    .metric-rate-badge {
-      font-size: 0.6rem;
+    .metric-badge-rate {
+      font-size: 0.62rem;
       font-family: var(--jiko-font-mono);
       background: rgba(239, 68, 68, 0.15);
       color: #f87171;
       padding: 1px 5px;
       border-radius: 4px;
-      border: 1px solid rgba(239, 68, 68, 0.3);
+      border: 1px solid rgba(239, 68, 68, 0.35);
+    }
+
+    .metric-solvencia-tag {
+      font-size: 0.62rem;
+      font-family: var(--jiko-font-mono);
+      color: #00ffcc;
+      font-weight: 700;
+    }
+
+    .metric-value-box {
+      display: flex;
+      align-items: baseline;
+      gap: 4px;
+      margin: 4px 0 2px;
     }
 
     .metric-value {
       font-family: var(--jiko-font-display);
-      font-size: 1.35rem;
+      font-size: 1.85rem;
       font-weight: 900;
       color: #ffffff;
-      line-height: 1.1;
-      letter-spacing: 0.5px;
+      line-height: 1;
+      letter-spacing: -0.5px;
+      font-variant-numeric: tabular-nums;
     }
 
     .metric-value.cyan {
       color: var(--jiko-cyan);
-      text-shadow: 0 0 12px var(--jiko-cyan-glow);
+      text-shadow: 0 0 14px var(--jiko-cyan-glow);
     }
 
     .metric-value.red {
       color: #f87171;
-      text-shadow: 0 0 12px var(--jiko-danger-glow);
+      text-shadow: 0 0 14px var(--jiko-danger-glow);
     }
 
     .metric-value.gold {
       color: #fbbf24;
-      text-shadow: 0 0 12px var(--jiko-gold-glow);
-    }
-
-    .metric-value.large {
-      font-size: 1.7rem;
+      text-shadow: 0 0 14px var(--jiko-gold-glow);
     }
 
     .metric-unit {
-      font-size: 0.72rem;
-      font-weight: 700;
+      font-size: 0.78rem;
+      font-weight: 800;
       color: #94a3b8;
-      margin-left: 4px;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
     }
 
-    /* ==========================================================================
-       TARJETA DINÁMICA DE ACCIONES Y CONTRATOS (PRÉSTAMOS, FIRMAS, REGALOS)
-       ========================================================================== */
-    .hud-action-card {
-      background: linear-gradient(135deg, rgba(6, 38, 48, 0.85) 0%, rgba(2, 16, 21, 0.95) 100%);
-      border: 1px solid rgba(0, 255, 204, 0.35);
-      border-radius: 10px;
-      padding: 10px 14px;
-      margin-top: 4px;
-      position: relative;
-      overflow: hidden;
+    .metric-sublabel {
+      font-family: var(--jiko-font-mono);
+      font-size: 0.62rem;
+      color: #64748b;
+      margin-top: auto;
     }
 
-    .hud-action-header {
+    /* Badge flotante de diferencia animada (+X JP / -X JP) */
+    .metric-delta-tag {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-family: var(--jiko-font-display);
+      font-size: 0.8rem;
+      font-weight: 900;
+      padding: 3px 8px;
+      border-radius: 6px;
+      animation: deltaPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      pointer-events: none;
+    }
+
+    .metric-delta-tag.positive {
+      color: #00ffcc;
+      background: rgba(0, 255, 204, 0.18);
+      border: 1px solid #00ffcc;
+      box-shadow: 0 0 12px rgba(0, 255, 204, 0.5);
+    }
+
+    .metric-delta-tag.negative {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid #ef4444;
+      box-shadow: 0 0 12px rgba(239, 68, 68, 0.5);
+    }
+
+    @keyframes deltaPop {
+      0% { opacity: 0; transform: translateY(-8px) scale(0.85); }
+      100% { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    /* Barra Horizontal Inferior de Acción / Aviso */
+    .hud-action-banner {
+      background: linear-gradient(90deg, rgba(6, 38, 48, 0.95) 0%, rgba(2, 16, 21, 0.98) 100%);
+      border: 1px solid rgba(0, 255, 204, 0.4);
+      border-radius: 8px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 5;
+    }
+
+    .hud-action-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .hud-action-icon {
+      font-size: 1.15rem;
+      filter: drop-shadow(0 0 6px var(--jiko-cyan));
+    }
+
+    .hud-action-content {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .hud-action-title {
       font-family: var(--jiko-font-display);
       font-size: 0.75rem;
       font-weight: 800;
       color: var(--jiko-cyan);
       letter-spacing: 1px;
       text-transform: uppercase;
-      margin-bottom: 5px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .hud-action-body {
-      font-size: 0.82rem;
+      font-size: 0.75rem;
       color: #e2e8f0;
-      line-height: 1.35;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .hud-action-prompt {
-      margin-top: 6px;
       font-family: var(--jiko-font-mono);
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       font-weight: 700;
       color: #fbbf24;
-      background: rgba(245, 158, 11, 0.12);
-      border: 1px dashed rgba(245, 158, 11, 0.45);
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px dashed rgba(245, 158, 11, 0.5);
       border-radius: 6px;
-      padding: 5px 8px;
-      text-align: center;
+      padding: 4px 8px;
+      white-space: nowrap;
       animation: promptGlow 1.8s infinite ease-in-out;
-    }
-
-    /* Estado de Absolución / Perdón Celestial */
-    .hud-action-card.pardon {
-      border-color: #fbbf24;
-      background: linear-gradient(135deg, rgba(50, 35, 6, 0.9) 0%, rgba(18, 12, 1, 0.95) 100%);
-      box-shadow: 0 0 25px rgba(245, 158, 11, 0.3);
-    }
-
-    .hud-action-card.pardon .hud-action-header {
-      color: #fbbf24;
     }
 
     /* Barra de progreso de auto-cierre */
@@ -833,8 +1019,9 @@
       height: 3px;
       background: rgba(255, 255, 255, 0.1);
       border-radius: 2px;
-      margin-top: 10px;
+      margin-top: 6px;
       overflow: hidden;
+      z-index: 5;
     }
 
     .hud-timer-bar {
@@ -844,6 +1031,192 @@
       box-shadow: 0 0 8px var(--jiko-cyan);
       transform-origin: left;
       transition: width 0.1s linear;
+    }
+
+    /* ==========================================================================
+       SOBRE VIBRANTE EN ESPERA (1.5 MINUTOS / 90 SEGUNDOS)
+       ========================================================================== */
+    .loan-envelope {
+      position: absolute;
+      right: 0;
+      bottom: 20px;
+      width: 360px;
+      background: radial-gradient(circle at 50% 0%, #063442 0%, #031b22 65%, #010b0f 100%);
+      border: 2px solid #00ffcc;
+      border-radius: 14px;
+      box-shadow: 
+        0 0 28px rgba(0, 255, 204, 0.45),
+        0 12px 35px rgba(0, 0, 0, 0.9),
+        inset 0 0 15px rgba(0, 255, 204, 0.2);
+      padding: 12px 14px 10px;
+      z-index: 200;
+      opacity: 0;
+      transform: translateY(25px) scale(0.9);
+      pointer-events: none;
+      transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s ease;
+      will-change: transform, box-shadow;
+    }
+
+    .loan-envelope.state-waiting {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+      animation: envelopeVibe 1.6s infinite ease-in-out, envelopeGlowPulse 2.2s infinite ease-in-out;
+    }
+
+    .loan-envelope.state-unsealing {
+      transform: scale(1.12);
+      box-shadow: 0 0 60px rgba(0, 255, 204, 0.95);
+      opacity: 0;
+      transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes envelopeVibe {
+      0%, 100% { transform: translateY(0) scale(1) rotate(0deg); }
+      20% { transform: translateY(-1.5px) scale(1.008) rotate(-0.7deg); }
+      40% { transform: translateY(1.5px) scale(1) rotate(0.7deg); }
+      60% { transform: translateY(-1px) scale(1.008) rotate(-0.4deg); }
+      80% { transform: translateY(1px) scale(1) rotate(0.4deg); }
+    }
+
+    @keyframes envelopeGlowPulse {
+      0%, 100% { border-color: #00ffcc; box-shadow: 0 0 25px rgba(0, 255, 204, 0.4); }
+      50% { border-color: #38bdf8; box-shadow: 0 0 40px rgba(56, 189, 248, 0.7); }
+    }
+
+    .envelope-top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+      padding-bottom: 6px;
+      margin-bottom: 8px;
+    }
+
+    .envelope-badge-box {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .envelope-led {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #00ffcc;
+      box-shadow: 0 0 8px #00ffcc;
+      animation: ledBlink 0.8s infinite;
+    }
+
+    .envelope-tag {
+      font-family: var(--jiko-font-display);
+      font-size: 0.65rem;
+      font-weight: 800;
+      color: #00ffcc;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    .envelope-timer {
+      font-family: var(--jiko-font-mono);
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .envelope-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .envelope-stamp {
+      width: 44px;
+      height: 44px;
+      background: linear-gradient(135deg, rgba(0, 255, 204, 0.2), rgba(8, 145, 178, 0.4));
+      border: 1px solid #00ffcc;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      box-shadow: 0 0 12px rgba(0, 255, 204, 0.35);
+      flex-shrink: 0;
+    }
+
+    .envelope-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .envelope-users {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .env-user-sol { color: #ffffff; }
+    .env-arrow { color: #00ffcc; font-size: 0.75rem; }
+    .env-user-acr { color: #38bdf8; }
+
+    .envelope-amount-row {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-top: 2px;
+    }
+
+    .env-monto-val {
+      font-family: var(--jiko-font-display);
+      font-size: 1.15rem;
+      font-weight: 900;
+      color: #00ffcc;
+      text-shadow: 0 0 8px rgba(0, 255, 204, 0.5);
+    }
+
+    .env-monto-rate {
+      font-size: 0.65rem;
+      color: #94a3b8;
+    }
+
+    .envelope-prompt-banner {
+      font-family: var(--jiko-font-mono);
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: #fbbf24;
+      background: rgba(245, 158, 11, 0.12);
+      border: 1px dashed rgba(245, 158, 11, 0.5);
+      border-radius: 6px;
+      padding: 5px 8px;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .envelope-progress-wrap {
+      width: 100%;
+      height: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .envelope-progress-fill {
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(90deg, #f59e0b, #00ffcc);
+      box-shadow: 0 0 8px #00ffcc;
+      transform-origin: left;
+      transition: width 0.2s linear;
     }
 
     /* ==========================================================================
@@ -898,7 +1271,6 @@
       transform: translateY(0);
     }
 
-    /* Oculto por defecto en OBS / Stream (se alterna con clic en pantalla) */
     .test-dock.hidden,
     .test-dock.oculto {
       opacity: 0 !important;
@@ -994,15 +1366,16 @@
        ======================================================================== -->
   <div class="jikobank-stage" id="jikobank-stage">
 
+    <!-- 1. CAJERO FÍSICO VERTICAL (Animación vertical desde abajo) -->
     <div class="jiko-atm" id="jiko-atm">
 
-      <!-- 1. Cámaras y Sensores Ópticos -->
+      <!-- Cámaras y Sensores Ópticos -->
       <div class="atm-top">
         <div class="camera"></div>
         <div class="camera"></div>
       </div>
 
-      <!-- 2. Barra de Banco con Iluminación Neón -->
+      <!-- Barra de Banco Neón -->
       <div class="bank-bar">
         <div class="bank-brand">
           <div class="bank-logo-icon">J</div>
@@ -1014,7 +1387,7 @@
         </div>
       </div>
 
-      <!-- 3. Pantalla Central del Cajero -->
+      <!-- Pantalla Central del Cajero (Modo Idle) -->
       <div class="screen-area">
         <div class="screen-frame">
           <div class="screen" id="atm-screen-base">
@@ -1027,7 +1400,7 @@
         </div>
       </div>
 
-      <!-- 4. Consola de Teclas y Ranuras -->
+      <!-- Consola de Teclas y Ranuras -->
       <div class="middle-panel">
         <div class="card-slot"></div>
         
@@ -1044,108 +1417,172 @@
           <div class="key-bar"></div>
         </div>
 
-        <div class="receipt-slot"></div>
+        <!-- Ranura con Ticket Térmico que se imprime hacia abajo -->
+        <div class="receipt-slot">
+          <div class="receipt-paper" id="receipt-paper">
+            <div class="receipt-header">*** JIKOBANK TICKET ***</div>
+            <div class="receipt-sub">MULTI IDEAS SV ✦ KICK</div>
+            <div class="receipt-div">- - - - - - - - - - - - -</div>
+            <div class="receipt-op" id="receipt-op">PRÉSTAMO APROBADO</div>
+            <div class="receipt-line"><span>FECHA:</span> <b id="receipt-fecha">HOY</b></div>
+            <div class="receipt-line"><span>BENEFICIARIO:</span> <b id="receipt-sol">@usuario</b></div>
+            <div class="receipt-line"><span>ORIGEN:</span> <b id="receipt-acr">JikoBank</b></div>
+            <div class="receipt-line"><span>MONTO:</span> <b id="receipt-cap">+2,000 JP</b></div>
+            <div class="receipt-line"><span>TASA (2%):</span> <b id="receipt-int">+40 JP</b></div>
+            <div class="receipt-total-line"><span>TOTAL DEUDA:</span> <b id="receipt-tot">2,040 JP</b></div>
+            <div class="receipt-div">- - - - - - - - - - - - -</div>
+            <div class="receipt-verified">AUTORIZADO &amp; VALIDADO ✓</div>
+            <div class="receipt-barcode">||| | |||| | ||| || ||| |</div>
+          </div>
+        </div>
       </div>
 
-      <!-- 5. Expulsión de Efectivo Motorizada -->
+      <!-- Expulsión de Efectivo Motorizada -->
       <div class="cash-panel">
         <div class="cash-dispenser" id="cash-dispenser"></div>
       </div>
 
-      <!-- 6. Chasis Inferior y Pernos -->
+      <!-- Chasis Inferior -->
       <div class="bottom-panel"></div>
 
-      <!-- ====================================================================
-           HOLOGRAPHIC TERMINAL HUD (PANTALLA AMPLIADA INMERSIVA)
-           ==================================================================== -->
-      <div class="jiko-terminal-overlay" id="jiko-terminal-overlay">
-        
-        <!-- Cabezal del HUD -->
-        <div class="hud-header">
-          <div class="hud-title-group">
-            <span class="hud-icon">🏛️</span>
-            <span class="hud-title" id="hud-title">JIKOBANK</span>
+    </div>
+
+    <!-- 2. HOLOGRAPHIC TERMINAL HUD (PANTALLA HORIZONTAL WIDESCREEN DEL CAJERO) -->
+    <div class="jiko-terminal-overlay" id="jiko-terminal-overlay">
+      
+      <!-- Cabezal Superior Horizontal -->
+      <div class="hud-top-bar">
+        <div class="hud-brand-box">
+          <div class="hud-bank-icon">🏛️</div>
+          <div class="hud-brand-text">
+            <span class="hud-bank-title" id="hud-title">JIKOBANK</span>
+            <span class="hud-bank-tag">ATM TERMINAL ✦ KICK STREAM</span>
           </div>
-          <div class="hud-badge-live">
-            <span class="hud-pulse"></span>
-            <span id="hud-status-badge">KICK STREAM</span>
+          <div class="hud-live-badge">
+            <span class="hud-pulse-dot"></span>
+            <span>ONLINE</span>
           </div>
         </div>
 
-        <!-- Tarjeta de Usuario / Solicitante -->
-        <div class="hud-user-card" id="hud-user-card">
+        <div class="hud-user-pill">
           <div class="hud-avatar-box">
             <img src="https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp" alt="Avatar" class="hud-avatar-img" id="hud-avatar">
           </div>
           <div class="hud-user-info">
-            <div class="hud-username">
-              <span id="hud-username">@jikokun</span>
-              <span class="hud-role-pill" id="hud-role-pill">OWNER</span>
+            <div class="hud-user-name-row">
+              <span class="hud-user-name" id="hud-username">@jikokun</span>
+              <span class="hud-role-badge" id="hud-role-pill">OWNER</span>
             </div>
-            <div class="hud-user-meta">
-              <span class="hud-user-rank" id="hud-rank">🐾 Cachorro</span>
-              <span id="hud-level">LVL 1</span>
+            <div class="hud-user-rank-row">
+              <span class="hud-rank-text" id="hud-rank">🐾 Cachorro</span>
+              <span class="hud-level-text" id="hud-level">LVL 1</span>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Las 3 Métricas Financieras Principales -->
-        <div class="hud-metrics-grid">
-          
-          <!-- 1. Saldo Actual -->
-          <div class="metric-card">
-            <div class="metric-label">
-              <span>SALDO ACTUAL</span>
-            </div>
-            <div class="metric-value cyan" id="hud-saldo">
-              1,000 <span class="metric-unit">JP</span>
+      <!-- Las 3 Métricas Financieras Clave en Grilla Horizontal (Números Grandes) -->
+      <div class="hud-metrics-grid">
+        
+        <!-- 1. Saldo Actual / Disponible -->
+        <div class="metric-card" id="card-saldo">
+          <div class="metric-card-header">
+            <div class="metric-label-group">
+              <span class="metric-dot dot-cyan"></span>
+              <span class="metric-label">SALDO DISPONIBLE</span>
             </div>
           </div>
-
-          <!-- 2. Deuda Total con Tasa del 2% -->
-          <div class="metric-card danger">
-            <div class="metric-label">
-              <span>DEUDA TOTAL</span>
-              <span class="metric-rate-badge" id="hud-rate-badge">2% TASA</span>
-            </div>
-            <div class="metric-value red" id="hud-deuda">
-              0 <span class="metric-unit">JP</span>
-            </div>
+          <div class="metric-value-box">
+            <span class="metric-value cyan" id="hud-saldo">1,000</span>
+            <span class="metric-unit">JP</span>
           </div>
-
-          <!-- 3. Saldo Real Neto (Saldo - Deuda) -->
-          <div class="metric-card net full-width">
-            <div class="metric-label">
-              <span>SALDO REAL NETO (DISPONIBLE)</span>
-              <span style="color:#00ffcc; font-size:0.6rem;" id="hud-solvencia-tag">● SOLVENTE</span>
-            </div>
-            <div class="metric-value cyan large" id="hud-saldo-real">
-              1,000 <span class="metric-unit">JP</span>
-            </div>
-          </div>
-
+          <div class="metric-sublabel">Jikopuntos en cuenta</div>
+          <div class="metric-delta-tag" id="delta-saldo" style="display: none;"></div>
         </div>
 
-        <!-- Tarjeta Dinámica de Acciones y Contratos -->
-        <div class="hud-action-card" id="hud-action-card" style="display: none;">
-          <div class="hud-action-header" id="hud-action-header">
-            <span>📝</span> <span id="hud-action-title">CONTRATO DE PRÉSTAMO</span>
+        <!-- 2. Deuda Total con Tasa del 2% -->
+        <div class="metric-card danger" id="card-deuda">
+          <div class="metric-card-header">
+            <div class="metric-label-group">
+              <span class="metric-dot dot-red"></span>
+              <span class="metric-label">DEUDA TOTAL</span>
+            </div>
+            <span class="metric-badge-rate" id="hud-rate-badge">2% TASA</span>
           </div>
-          <div class="hud-action-body" id="hud-action-body">
-            Solicitud pendiente de firma para desembolso inmediato.
+          <div class="metric-value-box">
+            <span class="metric-value red" id="hud-deuda">0</span>
+            <span class="metric-unit">JP</span>
           </div>
-          <div class="hud-action-prompt" id="hud-action-prompt">
-            Escribe !firmar o !aceptar en el chat
-          </div>
+          <div class="metric-sublabel" id="hud-deuda-sublabel">Sin deudas activas</div>
+          <div class="metric-delta-tag" id="delta-deuda" style="display: none;"></div>
         </div>
 
-        <!-- Barra de Tiempo para Auto-Cierre -->
-        <div class="hud-timer-bar-container">
-          <div class="hud-timer-bar" id="hud-timer-bar"></div>
+        <!-- 3. Saldo Real Neto (Disponible tras pagar deuda) -->
+        <div class="metric-card net" id="card-neto">
+          <div class="metric-card-header">
+            <div class="metric-label-group">
+              <span class="metric-dot dot-blue"></span>
+              <span class="metric-label">SALDO REAL NETO</span>
+            </div>
+            <span class="metric-solvencia-tag" id="hud-solvencia-tag">● SOLVENTE</span>
+          </div>
+          <div class="metric-value-box">
+            <span class="metric-value cyan" id="hud-saldo-real">1,000</span>
+            <span class="metric-unit">JP</span>
+          </div>
+          <div class="metric-sublabel">Patrimonio limpio neto</div>
         </div>
 
       </div>
 
+      <!-- Barra de Acción / Aviso Dinámico (Visible en contratos o avisos especiales) -->
+      <div class="hud-action-banner" id="hud-action-card" style="display: none;">
+        <div class="hud-action-left">
+          <span class="hud-action-icon" id="hud-action-icon">📝</span>
+          <div class="hud-action-content">
+            <div class="hud-action-title" id="hud-action-title">CONTRATO DE PRÉSTAMO</div>
+            <div class="hud-action-body" id="hud-action-body">Solicitud pendiente de firma.</div>
+          </div>
+        </div>
+        <div class="hud-action-prompt" id="hud-action-prompt">!firmar o !aceptar</div>
+      </div>
+
+      <!-- Barra de Tiempo para Auto-Cierre -->
+      <div class="hud-timer-bar-container">
+        <div class="hud-timer-bar" id="hud-timer-bar"></div>
+      </div>
+
+    </div>
+
+    <!-- 3. SOBRE FLOTANTE EN ESPERA (1.5 MINUTOS / 90 SEGUNDOS) -->
+    <div class="loan-envelope" id="loan-envelope">
+      <div class="envelope-top-bar">
+        <div class="envelope-badge-box">
+          <span class="envelope-led"></span>
+          <span class="envelope-tag">SOLICITUD EN ESPERA</span>
+        </div>
+        <div class="envelope-timer" id="envelope-timer">⏱️ 01:30</div>
+      </div>
+      <div class="envelope-body">
+        <div class="envelope-stamp">✉️</div>
+        <div class="envelope-info">
+          <div class="envelope-users">
+            <span class="env-user-sol" id="env-solicitante">@usuario</span>
+            <span class="env-arrow">➔</span>
+            <span class="env-user-acr" id="env-acreedor">🏛️ JikoBank</span>
+          </div>
+          <div class="envelope-amount-row">
+            <span class="env-monto-val" id="env-monto">2,000 JP</span>
+            <span class="env-monto-rate">(+2% int. Total: <b id="env-total">2,040 JP</b>)</span>
+          </div>
+        </div>
+      </div>
+      <div class="envelope-prompt-banner" id="env-prompt">
+        ✍️ Escribe <b>!firmar</b> en el chat para autorizar
+      </div>
+      <div class="envelope-progress-wrap">
+        <div class="envelope-progress-fill" id="envelope-progress-fill"></div>
+      </div>
     </div>
 
   </div>
@@ -1162,7 +1599,7 @@
       <button class="btn-test" onclick="simularComando('!saldo jikokun', 'jikokun')">💳 !saldo jikokun</button>
       <button class="btn-test" onclick="simularComandoConDeuda('lobito', 1500, 306)">📉 !saldo con Deuda</button>
       <button class="btn-test" onclick="simularComando('!prestamo jikobank 2000', 'espectador_demo')">🏦 !prestamo jikobank</button>
-      <button class="btn-test" onclick="simularComando('!firmar', 'espectador_demo')">✍️ !firmar</button>
+      <button class="btn-test" onclick="simularComando('!firmar', 'espectador_demo')">✍️ !firmar (Banco)</button>
       <button class="btn-test" onclick="simularComando('!prestamo @amigo 1000', 'espectador_demo')">🤝 !prestamo P2P</button>
       <button class="btn-test" onclick="simularComando('!aceptar', 'amigo')">✅ !aceptar P2P</button>
       <button class="btn-test" onclick="simularComando('!pagar 1000', 'espectador_demo')">💸 !pagar 1000</button>
@@ -1185,6 +1622,11 @@
     const DURACION_CONTRATO_MS = 14000;
     const DURACION_PERDON_MS = 9000;
 
+    // Estado del Préstamo en Espera (Sobre de 90 segundos / 1.5 minutos)
+    let loanEnEspera = null;
+    let timerEnvelopeCountdown = null;
+    const DURACION_SOBRE_ESPERA_MS = 90000; // 90 segundos = 1.5 minutos exactos
+
     // Normalizador auxiliar
     const norm = s => {
       if (!s || s === 'undefined' || s === 'null') return '';
@@ -1196,10 +1638,20 @@
     const elTerminal = document.getElementById('jiko-terminal-overlay');
     const elDispenser = document.getElementById('cash-dispenser');
     const elTimerBar = document.getElementById('hud-timer-bar');
+    const elReceiptPaper = document.getElementById('receipt-paper');
+    const elLoanEnvelope = document.getElementById('loan-envelope');
 
-    // Elementos del HUD
+    // Elementos del Sobre
+    const elEnvTimer = document.getElementById('envelope-timer');
+    const elEnvSol = document.getElementById('env-solicitante');
+    const elEnvAcr = document.getElementById('env-acreedor');
+    const elEnvMonto = document.getElementById('env-monto');
+    const elEnvTotal = document.getElementById('env-total');
+    const elEnvPrompt = document.getElementById('env-prompt');
+    const elEnvProgressFill = document.getElementById('envelope-progress-fill');
+
+    // Elementos del HUD Horizontal
     const hudTitle = document.getElementById('hud-title');
-    const hudStatusBadge = document.getElementById('hud-status-badge');
     const hudAvatar = document.getElementById('hud-avatar');
     const hudUsername = document.getElementById('hud-username');
     const hudRolePill = document.getElementById('hud-role-pill');
@@ -1207,13 +1659,14 @@
     const hudLevel = document.getElementById('hud-level');
     const hudSaldo = document.getElementById('hud-saldo');
     const hudDeuda = document.getElementById('hud-deuda');
+    const hudDeudaSub = document.getElementById('hud-deuda-sublabel');
     const hudSaldoReal = document.getElementById('hud-saldo-real');
     const hudSolvenciaTag = document.getElementById('hud-solvencia-tag');
     const hudRateBadge = document.getElementById('hud-rate-badge');
 
     // Elementos de la tarjeta de acción
     const elActionCard = document.getElementById('hud-action-card');
-    const elActionHeader = document.getElementById('hud-action-header');
+    const elActionIcon = document.getElementById('hud-action-icon');
     const elActionTitle = document.getElementById('hud-action-title');
     const elActionBody = document.getElementById('hud-action-body');
     const elActionPrompt = document.getElementById('hud-action-prompt');
@@ -1225,7 +1678,6 @@
       'lobito': { displayName: 'Lobito', saldo: 1500, deuda: 306, nivel: 8, rango: 'Explorador', emoji: '🌲', rol: 'espectador', avatar: null },
       'amigo': { displayName: 'Amigo', saldo: 3000, deuda: 0, nivel: 12, rango: 'Cazador Fiel', emoji: '🏹', rol: 'espectador', avatar: null }
     };
-    let mockPrestamoPendiente = null;
 
     // Sintetizador de Audio Web Audio API
     let audioCtx = null;
@@ -1337,8 +1789,27 @@
 
     const JIKO_AVATAR = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
 
+    // Animación suave de rodillo numérico para saldos
+    function animarContador(elemento, valorInicial, valorFinal, duracionMs = 1200) {
+      const inicio = performance.now();
+      const vIni = Number(valorInicial) || 0;
+      const vFin = Number(valorFinal) || 0;
+
+      function actualizar(ahora) {
+        const transcurrido = ahora - inicio;
+        const progress = Math.min(1, transcurrido / duracionMs);
+        const ease = 1 - Math.pow(1 - progress, 3);
+        const actual = Math.round(vIni + (vFin - vIni) * ease);
+        elemento.textContent = fmt(actual);
+        if (progress < 1) {
+          requestAnimationFrame(actualizar);
+        }
+      }
+      requestAnimationFrame(actualizar);
+    }
+
     // ==========================================================================
-    // SECUENCIA DE ANIMACIÓN DEL CAJERO (DESPLAZAMIENTO VERTICAL + ZOOM INMERSIÓN)
+    // ACTIVAR CAJERO CON PANTALLA HORIZONTAL (TIMING DELIBERADO: SUBE ATM Y LUEGO ABRE PANTALLA)
     // ==========================================================================
     function activarCajero({ 
       user, 
@@ -1352,7 +1823,8 @@
       rol = 'espectador',
       actionData = null,
       duracionMs = DURACION_CONSULTA_MS,
-      efectoSfx = 'chirp'
+      efectoSfx = 'chirp',
+      delta = null
     }) {
       if (timerDismiss) clearTimeout(timerDismiss);
       if (timerBarInterval) clearInterval(timerBarInterval);
@@ -1364,47 +1836,62 @@
       hudLevel.textContent = `LVL ${nivel}`;
       hudAvatar.src = avatar || (cleanUser.toLowerCase() === 'jikokun' ? JIKO_AVATAR : `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanUser)}&background=041920&color=00ffcc&bold=true`);
 
-      hudSaldo.innerHTML = `${fmt(saldo)} <span class="metric-unit">JP</span>`;
-      hudDeuda.innerHTML = `${fmt(deuda)} <span class="metric-unit">JP</span>`;
+      hudSaldo.textContent = fmt(saldo);
+      hudDeuda.textContent = fmt(deuda);
       hudRateBadge.textContent = deuda > 0 ? '2% TASA ACTIVA' : '2% TASA';
+      hudDeudaSub.textContent = deuda > 0 ? 'Préstamo vigente' : 'Sin deudas activas';
 
       const neto = Number(saldoReal);
-      hudSaldoReal.innerHTML = `${fmt(neto)} <span class="metric-unit">JP</span>`;
+      hudSaldoReal.textContent = fmt(neto);
       if (neto < 0) {
-        hudSaldoReal.className = 'metric-value red large';
+        hudSaldoReal.className = 'metric-value red';
         hudSolvenciaTag.textContent = '● DÉFICIT';
         hudSolvenciaTag.style.color = '#ef4444';
       } else {
-        hudSaldoReal.className = 'metric-value cyan large';
+        hudSaldoReal.className = 'metric-value cyan';
         hudSolvenciaTag.textContent = '● SOLVENTE';
         hudSolvenciaTag.style.color = '#00ffcc';
       }
 
+      // Delta animado (+JP / -JP)
+      const deltaEl = document.getElementById('delta-saldo');
+      if (delta) {
+        deltaEl.style.display = 'block';
+        deltaEl.className = 'metric-delta-tag ' + (delta.tipo === 'positive' ? 'positive' : 'negative');
+        deltaEl.textContent = (delta.tipo === 'positive' ? '+ ' : '- ') + fmt(delta.monto) + ' JP';
+      } else {
+        deltaEl.style.display = 'none';
+      }
+
       if (actionData) {
-        elActionCard.style.display = 'block';
-        elActionCard.className = 'hud-action-card ' + (actionData.cardClass || '');
+        elActionCard.style.display = 'flex';
         elActionTitle.textContent = actionData.titulo || 'CONTRATO BANCARIO';
         elActionBody.innerHTML = actionData.cuerpo || '';
         elActionPrompt.innerHTML = actionData.prompt || 'Escribe !firmar o !aceptar en el chat';
+        if (actionData.icon) elActionIcon.textContent = actionData.icon;
         hudTitle.textContent = actionData.bancoTitle || 'JIKOBANK';
       } else {
         elActionCard.style.display = 'none';
         hudTitle.textContent = 'JIKOBANK';
       }
 
-      // 1. Desplazamiento vertical (asoma el cajero desde la esquina inferior derecha)
-      elAtm.classList.remove('state-zoomed');
+      // 1. Paso 1: El cajero físico asciende verticalmente desde el fondo
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
       elAtm.classList.add('state-visible');
       SFX.boot();
 
-      // Proteger cajero adquiriendo lock de exclusión mutua
+      // Lock de exclusión mutua
       if (window.JikoWidgetSync) {
-        window.JikoWidgetSync.acquire('cajero', cleanUser, duracionMs + 1000);
+        window.JikoWidgetSync.acquire('cajero', cleanUser, duracionMs + 1500);
       }
 
-      // 2. Zoom inmersivo hacia el terminal tras 480ms
+      // 2. Paso 2: Tras un timing deliberado (950ms) para que se aprecie la máquina física vertical,
+      // la pantalla horizontal widescreen se despliega en primer plano
       setTimeout(() => {
-        elAtm.classList.add('state-zoomed');
+        elAtm.classList.add('state-screen-active');
+        elTerminal.classList.add('state-open');
+
         if (efectoSfx === 'cash') SFX.cash();
         else if (efectoSfx === 'pardon') SFX.pardon();
         else if (efectoSfx === 'success') SFX.success();
@@ -1414,7 +1901,7 @@
           elDispenser.classList.add('dispensing');
           setTimeout(() => elDispenser.classList.remove('dispensing'), 1500);
         }
-      }, 480);
+      }, 950);
 
       iniciarBarraTiempo(duracionMs);
 
@@ -1439,34 +1926,256 @@
     function ocultarCajero() {
       if (timerDismiss) clearTimeout(timerDismiss);
       if (timerBarInterval) clearInterval(timerBarInterval);
-      elAtm.classList.remove('state-zoomed');
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
       setTimeout(() => {
         elAtm.classList.remove('state-visible');
         if (window.JikoWidgetSync) {
           window.JikoWidgetSync.release('cajero');
         }
-      }, 350);
+      }, 400);
     }
 
     function ocultarCajeroInmediato() {
       if (timerDismiss) clearTimeout(timerDismiss);
       if (timerBarInterval) clearInterval(timerBarInterval);
-      elAtm.classList.remove('state-zoomed');
+      ocultarSobreEspera();
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
       elAtm.classList.remove('state-visible');
+      elReceiptPaper.classList.remove('printing');
+      elDispenser.classList.remove('dispensing');
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('cajero');
       }
     }
 
     // ==========================================================================
+    // LÓGICA DEL SOBRE FLOTANTE EN ESPERA (1.5 MINUTOS / 90 SEGUNDOS)
+    // ==========================================================================
+    function mostrarSobreEspera(prestamo) {
+      if (timerDismiss) clearTimeout(timerDismiss);
+      if (timerBarInterval) clearInterval(timerBarInterval);
+      if (timerEnvelopeCountdown) clearInterval(timerEnvelopeCountdown);
+
+      loanEnEspera = {
+        ...prestamo,
+        expiresAt: Date.now() + DURACION_SOBRE_ESPERA_MS
+      };
+
+      // Si la pantalla horizontal estaba abierta, se cierra suavemente para transformarse en el sobre
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
+      elAtm.classList.remove('state-visible');
+
+      // Adquirir lock para el sobre durante los 90s
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.acquire('cajero', prestamo.solicitante, DURACION_SOBRE_ESPERA_MS + 2000);
+      }
+
+      elEnvSol.textContent = '@' + prestamo.solicitante;
+      elEnvAcr.textContent = prestamo.esBanco ? '🏛️ JikoBank' : ('@' + prestamo.acreedor);
+      elEnvMonto.textContent = fmt(prestamo.monto) + ' JP';
+      elEnvTotal.textContent = fmt(prestamo.total) + ' JP';
+
+      if (prestamo.esBanco) {
+        elEnvPrompt.innerHTML = `✍️ @${prestamo.solicitante}, escribe <b>!firmar</b> o <b>!aceptar</b>`;
+      } else {
+        elEnvPrompt.innerHTML = `📢 @${prestamo.acreedor}, escribe <b>!aceptar</b> o <b>!rechazar</b>`;
+      }
+
+      elLoanEnvelope.classList.remove('state-unsealing');
+      elLoanEnvelope.classList.add('state-waiting');
+      SFX.chirp();
+
+      const inicio = Date.now();
+      const duracion = DURACION_SOBRE_ESPERA_MS;
+
+      const actualizarCountdown = () => {
+        const transcurrido = Date.now() - inicio;
+        const restanteMs = Math.max(0, duracion - transcurrido);
+        const totalSegundos = Math.ceil(restanteMs / 1000);
+
+        const mins = Math.floor(totalSegundos / 60);
+        const segs = totalSegundos % 60;
+        elEnvTimer.textContent = `⏱️ ${String(mins).padStart(2, '0')}:${String(segs).padStart(2, '0')}`;
+
+        const pct = Math.max(0, (restanteMs / duracion) * 100);
+        elEnvProgressFill.style.width = pct + '%';
+
+        if (restanteMs <= 0) {
+          clearInterval(timerEnvelopeCountdown);
+          expirarSobreEspera();
+        }
+      };
+
+      actualizarCountdown();
+      timerEnvelopeCountdown = setInterval(actualizarCountdown, 1000);
+    }
+
+    function expirarSobreEspera() {
+      if (timerEnvelopeCountdown) clearInterval(timerEnvelopeCountdown);
+      elEnvTimer.textContent = '⏱️ EXPIRADO';
+      elEnvPrompt.textContent = '❌ Solicitud expirada (sin firma en 1m 30s)';
+      elLoanEnvelope.style.borderColor = '#ef4444';
+      setTimeout(() => {
+        ocultarSobreEspera();
+      }, 3000);
+    }
+
+    function ocultarSobreEspera() {
+      if (timerEnvelopeCountdown) clearInterval(timerEnvelopeCountdown);
+      elLoanEnvelope.classList.remove('state-waiting', 'state-unsealing');
+      elLoanEnvelope.style.borderColor = '#00ffcc';
+      loanEnEspera = null;
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release('cajero');
+      }
+    }
+
+    // ==========================================================================
+    // SECUENCIA MAESTRA DE DESEMBOLSO DE PRÉSTAMO (SOBRE -> DRENAJE -> RECIBO -> ACREDITACIÓN)
+    // ==========================================================================
+    async function ejecutarFlujoDesembolsoAnimado({
+      solicitante,
+      acreedor,
+      monto,
+      interes,
+      total,
+      esBanco,
+      saldoAcreedorAntes,
+      saldoAcreedorDespues,
+      saldoSolicitanteAntes,
+      saldoSolicitanteDespues,
+      deudaSolicitanteDespues,
+      avatarSolicitante = null,
+      avatarAcreedor = null
+    }) {
+      if (timerEnvelopeCountdown) clearInterval(timerEnvelopeCountdown);
+
+      // PASO 1: EL SOBRE SE ABRE CON ANIMACIÓN Y DESTELLO
+      elLoanEnvelope.classList.remove('state-waiting');
+      elLoanEnvelope.classList.add('state-unsealing');
+      SFX.boot();
+
+      await new Promise(r => setTimeout(r, 650));
+      elLoanEnvelope.classList.remove('state-unsealing');
+
+      // PASO 2: SE MUESTRA EL SALDO DEL PRESTAMISTA SIENDO DRENADO LO PRESTADO
+      const nombreAcreedor = esBanco ? 'Bóveda JikoBank' : acreedor;
+      const rolAcreedor = esBanco ? 'banco' : 'espectador';
+
+      // Mostrar pantalla horizontal del prestamista
+      elAtm.classList.add('state-visible', 'state-screen-active');
+      elTerminal.classList.add('state-open');
+      hudUsername.textContent = esBanco ? '🏛️ JikoBank' : ('@' + acreedor);
+      hudRolePill.textContent = esBanco ? 'BANCO' : 'PRESTAMISTA';
+      hudRank.textContent = esBanco ? '🏛️ Reserva Federal' : '🤝 Miembro';
+      hudLevel.textContent = esBanco ? 'LVL 99' : 'LVL 10';
+      hudAvatar.src = avatarAcreedor || (esBanco ? JIKO_AVATAR : `https://ui-avatars.com/api/?name=${encodeURIComponent(acreedor)}&background=041920&color=00ffcc&bold=true`);
+
+      hudSaldo.textContent = fmt(saldoAcreedorAntes);
+      hudDeuda.textContent = '0';
+      hudSaldoReal.textContent = fmt(saldoAcreedorAntes);
+      hudSolvenciaTag.textContent = '● DRENANDO';
+      hudSolvenciaTag.style.color = '#ef4444';
+
+      // Badge de débito en rojo
+      const deltaEl = document.getElementById('delta-saldo');
+      deltaEl.style.display = 'block';
+      deltaEl.className = 'metric-delta-tag negative';
+      deltaEl.textContent = `- ${fmt(monto)} JP`;
+
+      // Barra de aviso de desembolso
+      elActionCard.style.display = 'flex';
+      elActionIcon.textContent = '💸';
+      elActionTitle.textContent = 'DESEMBOLSO DE FONDOS';
+      elActionBody.innerHTML = `Extrayendo <b style="color:#ef4444;">-${fmt(monto)} JP</b> para el préstamo de @${solicitante}`;
+      elActionPrompt.innerHTML = 'Procesando débito...';
+
+      SFX.chirp();
+      // Animar conteo hacia abajo (drenaje)
+      animarContador(hudSaldo, saldoAcreedorAntes, saldoAcreedorDespues, 1400);
+      animarContador(hudSaldoReal, saldoAcreedorAntes, saldoAcreedorDespues, 1400);
+
+      // Esperar 2.6 segundos para que se aprecie el drenaje
+      await new Promise(r => setTimeout(r, 2600));
+
+      // PASO 3: APARECE EL CAJERO DE SIEMPRE IMPRIMIENDO EL RECIBO
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
+      elAtm.classList.add('state-visible');
+
+      // Llenar datos del recibo térmico físico
+      document.getElementById('receipt-sol').textContent = '@' + solicitante;
+      document.getElementById('receipt-acr').textContent = esBanco ? 'JikoBank' : ('@' + acreedor);
+      document.getElementById('receipt-cap').textContent = '+' + fmt(monto) + ' JP';
+      document.getElementById('receipt-int').textContent = '+' + fmt(interes) + ' JP';
+      document.getElementById('receipt-tot').textContent = fmt(total) + ' JP';
+      document.getElementById('receipt-fecha').textContent = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+
+      // Expulsar billetes y dispensar ticket
+      elDispenser.classList.add('dispensing');
+      elReceiptPaper.classList.add('printing');
+      SFX.cash();
+
+      // Esperar 3.2 segundos mientras el ticket y el efectivo salen
+      await new Promise(r => setTimeout(r, 3200));
+      elDispenser.classList.remove('dispensing');
+
+      // PASO 4: SALE LA PANTALLA HORIZONTAL DEL USUARIO QUE RECIBE Y SE VE CÓMO LE AUMENTA EL SALDO
+      elAtm.classList.add('state-screen-active');
+      elTerminal.classList.add('state-open');
+
+      hudUsername.textContent = '@' + solicitante;
+      hudRolePill.textContent = (solicitante.toLowerCase() === 'jikokun') ? 'OWNER' : 'BENEFICIARIO';
+      hudRank.textContent = '🐾 Préstamo Aprobado';
+      hudLevel.textContent = 'LVL 5';
+      hudAvatar.src = avatarSolicitante || (solicitante.toLowerCase() === 'jikokun' ? JIKO_AVATAR : `https://ui-avatars.com/api/?name=${encodeURIComponent(solicitante)}&background=041920&color=00ffcc&bold=true`);
+
+      hudSaldo.textContent = fmt(saldoSolicitanteAntes);
+      hudDeuda.textContent = fmt(deudaSolicitanteDespues);
+      hudRateBadge.textContent = '2% TASA ACTIVA';
+      hudDeudaSub.textContent = 'Préstamo contraído';
+
+      const netoFinal = saldoSolicitanteDespues - deudaSolicitanteDespues;
+      hudSaldoReal.textContent = fmt(saldoSolicitanteAntes - (deudaSolicitanteDespues - total));
+      hudSolvenciaTag.textContent = netoFinal >= 0 ? '● SOLVENTE' : '● DÉFICIT';
+      hudSolvenciaTag.style.color = netoFinal >= 0 ? '#00ffcc' : '#ef4444';
+
+      // Badge de crédito en verde cyan
+      deltaEl.style.display = 'block';
+      deltaEl.className = 'metric-delta-tag positive';
+      deltaEl.textContent = `+ ${fmt(monto)} JP`;
+
+      elActionCard.style.display = 'flex';
+      elActionIcon.textContent = '🎉';
+      elActionTitle.textContent = '¡FONDOS ACREDITADOS AL INSTANTE!';
+      elActionBody.innerHTML = `Has recibido <b style="color:#00ffcc;">+${fmt(monto)} JP</b>. Deuda total (2%): <b>${fmt(deudaSolicitanteDespues)} JP</b>`;
+      elActionPrompt.innerHTML = '¡Disfruta tus Jikopuntos en el stream!';
+
+      SFX.success();
+      // Animar conteo hacia arriba (aumento de saldo)
+      animarContador(hudSaldo, saldoSolicitanteAntes, saldoSolicitanteDespues, 1500);
+      animarContador(hudSaldoReal, saldoSolicitanteAntes - (deudaSolicitanteDespues - total), netoFinal, 1500);
+
+      // Mostrar durante 7.5 segundos la pantalla con la barra de progreso
+      iniciarBarraTiempo(7500);
+      await new Promise(r => setTimeout(r, 7500));
+
+      // Guardar ticket y cerrar
+      elReceiptPaper.classList.remove('printing');
+      ocultarCajero();
+    }
+
+    // ==========================================================================
     // PROCESAMIENTO DE COMANDOS DEL STREAM (CON INTEGRACIÓN FIREBASE O FALLBACK)
     // ==========================================================================
-    async function procesarComando({ comando, sender, params = [] }) {
+    async function procesarComando({ comando, sender, params = [], force = false }) {
       const c = comando.toLowerCase().trim();
       const sNorm = norm(sender);
-      console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender}`);
+      console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender} (force: ${force})`);
 
-      // Comprobar si es un comando bancario reconocido por JikoBank
       const esComandoJikoBank = (c === '!saldo' || c === '!jikopuntos' || c === '!puntos' || c === '!points' ||
                                  c === '!misjikopuntos' || c === '!banco' || c === '!cajero' || c === '!prestamo' ||
                                  c === '!firmar' || c === '!aceptar' || c === '!pagar' || c === '!pagarprestamo' ||
@@ -1474,8 +2183,8 @@
                                  c === '!perdonardeudas' || c === '!darjikopuntos');
       if (!esComandoJikoBank) return;
 
-      // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla (Tiendita o Perfil), encolar y no sobreponer
-      if (window.JikoWidgetSync && JikoWidgetSync.isBusy('cajero')) {
+      // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla, encolar (a menos que se fuerce desde el simulador)
+      if (!force && window.JikoWidgetSync && JikoWidgetSync.isBusy('cajero') && !loanEnEspera) {
         const lock = JikoWidgetSync.getActiveLock();
         console.log(`[JikoBank] ⏳ Pantalla ocupada por [${lock?.widget}]. Comando "${c}" encolado para @${sender}.`);
         JikoWidgetSync.enqueue({
@@ -1487,15 +2196,17 @@
         return;
       }
 
-      // 1. Modo StreamDB si está en línea
-      if (window.StreamDB && typeof window.StreamDB.obtenerDatosCajero === 'function') {
+      // ── MODO 1: INTEGRACIÓN FIREBASE RTDB EN TIEMPO REAL ──
+      if (window.StreamDB && typeof window.StreamDB.solicitarPrestamo === 'function') {
         try {
           if (c === '!saldo' || c === '!jikopuntos' || c === '!banco' || c === '!cajero') {
             let target = sNorm;
             if (params.length > 0 && params[0].replace(/^@/, '').trim()) {
               target = norm(params[0]);
             }
-            const data = await window.StreamDB.obtenerDatosCajero(target);
+            const dataPromise = window.StreamDB.obtenerDatosCajero(target);
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1200));
+            const data = await Promise.race([dataPromise, timeoutPromise]);
             if (data) {
               activarCajero({
                 user: data.displayName || target,
@@ -1523,72 +2234,63 @@
                 const userObj = await window.StreamDB.getUser(sNorm);
                 const nivelInfo = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(userObj) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
 
-                if (res.esBanco) {
-                  activarCajero({
-                    user: userObj?.displayName || sNorm,
-                    saldo: userObj?.jikopuntos || 0,
-                    deuda: userObj?.deudaTotal || 0,
-                    saldoReal: (userObj?.jikopuntos || 0) - (userObj?.deudaTotal || 0),
-                    avatar: userObj?.avatar,
-                    rango: nivelInfo.rangoTitulo,
-                    emoji: nivelInfo.insigniaEmoji,
-                    nivel: nivelInfo.nivel,
-                    actionData: {
-                      titulo: 'CONTRATO DE PRÉSTAMO JIKOBANK',
-                      cuerpo: `Monto: <b>${fmt(p.montoOriginal)} JP</b> | Interés (2%): <b>+${fmt(p.interesMonto)} JP</b><br>Total a devolver: <b>${fmt(p.totalAPagar)} JP</b>`,
-                      prompt: `✍️ @${sNorm}, escribe <b>!firmar</b> o <b>!aceptar</b> para recibir tus JP`,
-                      bancoTitle: 'CONTRATO JIKOBANK'
-                    },
-                    duracionMs: DURACION_CONTRATO_MS,
-                    efectoSfx: 'chirp'
+                // 1. Mostrar brevemente pantalla del solicitante y luego plegarse en el sobre en espera por 90s
+                activarCajero({
+                  user: userObj?.displayName || sNorm,
+                  saldo: userObj?.jikopuntos || 0,
+                  deuda: userObj?.deudaTotal || 0,
+                  saldoReal: (userObj?.jikopuntos || 0) - (userObj?.deudaTotal || 0),
+                  avatar: userObj?.avatar,
+                  rango: nivelInfo.rangoTitulo,
+                  emoji: nivelInfo.insigniaEmoji,
+                  nivel: nivelInfo.nivel,
+                  actionData: {
+                    titulo: res.esBanco ? 'SOLICITANDO PRÉSTAMO AL BANCO' : 'SOLICITANDO PRÉSTAMO P2P',
+                    cuerpo: `Monto: <b>${fmt(p.montoOriginal)} JP</b> (+2% int.) | Plegando sobre de espera...`,
+                    prompt: 'Generando sobre de firma...',
+                    icon: '✉️'
+                  },
+                  duracionMs: 1400,
+                  efectoSfx: 'chirp'
+                });
+
+                setTimeout(() => {
+                  mostrarSobreEspera({
+                    id: p.id,
+                    solicitante: sNorm,
+                    acreedor: p.acreedor,
+                    monto: p.montoOriginal,
+                    interes: p.interesMonto,
+                    total: p.totalAPagar,
+                    esBanco: res.esBanco
                   });
-                } else {
-                  activarCajero({
-                    user: userObj?.displayName || sNorm,
-                    saldo: userObj?.jikopuntos || 0,
-                    deuda: userObj?.deudaTotal || 0,
-                    saldoReal: (userObj?.jikopuntos || 0) - (userObj?.deudaTotal || 0),
-                    avatar: userObj?.avatar,
-                    rango: nivelInfo.rangoTitulo,
-                    emoji: nivelInfo.insigniaEmoji,
-                    nivel: nivelInfo.nivel,
-                    actionData: {
-                      titulo: 'SOLICITUD DE PRÉSTAMO P2P (2%)',
-                      cuerpo: `@${sNorm} solicita <b>${fmt(p.montoOriginal)} JP</b> a @${p.acreedor}.<br>Devolverá: <b>${fmt(p.totalAPagar)} JP</b> (+2% de ganancia para ti).`,
-                      prompt: `📢 @${p.acreedor}, escribe <b>!aceptar</b> o <b>!rechazar</b>`,
-                      bancoTitle: 'PRÉSTAMO P2P'
-                    },
-                    duracionMs: DURACION_CONTRATO_MS,
-                    efectoSfx: 'chirp'
-                  });
-                }
+                }, 1300);
+
                 return;
               }
             }
           }
 
           if (c === '!firmar' || c === '!aceptar') {
+            // Si hay un préstamo pendiente en Firebase o en el sobre
             const res = await window.StreamDB.confirmarPrestamo({ autorizador: sNorm });
-            const userObj = await window.StreamDB.getUser(res.solicitante);
-            const nivelInfo = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(userObj) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
-            activarCajero({
-              user: userObj?.displayName || res.solicitante,
-              saldo: res.saldoActualSolicitante,
-              deuda: res.deudaTotalSolicitante,
-              saldoReal: res.saldoActualSolicitante - res.deudaTotalSolicitante,
-              avatar: userObj?.avatar,
-              rango: nivelInfo.rangoTitulo,
-              emoji: nivelInfo.insigniaEmoji,
-              nivel: nivelInfo.nivel,
-              actionData: {
-                titulo: '¡PRÉSTAMO DESEMBOLSADO CON ÉXITO!',
-                cuerpo: `Acreditados: <b style="color:#00ffcc">+${fmt(res.montoAcreditado)} JP</b>.<br>Deuda total contraída: <b>${fmt(res.totalDeuda)} JP</b> (2% interés).`,
-                prompt: `🎉 ¡Jikopuntos entregados al instante!`,
-                dispense: true,
-                bancoTitle: 'DESEMBOLSO JIKOBANK'
-              },
-              duracionMs: DURACION_CONSULTA_MS,
-              efectoSfx: 'cash'
+            const userSol = await window.StreamDB.getUser(res.solicitante);
+            const userAcr = res.acreedor === 'jikobank' ? null : await window.StreamDB.getUser(res.acreedor);
+
+            ejecutarFlujoDesembolsoAnimado({
+              solicitante: res.solicitante,
+              acreedor: res.acreedor,
+              monto: res.montoAcreditado,
+              interes: res.totalDeuda - res.montoAcreditado,
+              total: res.totalDeuda,
+              esBanco: res.acreedor === 'jikobank',
+              saldoAcreedorAntes: res.acreedor === 'jikobank' ? 999999 : ((userAcr?.jikopuntos || 0) + res.montoAcreditado),
+              saldoAcreedorDespues: res.acreedor === 'jikobank' ? (999999 - res.montoAcreditado) : (userAcr?.jikopuntos || 0),
+              saldoSolicitanteAntes: res.saldoActualSolicitante - res.montoAcreditado,
+              saldoSolicitanteDespues: res.saldoActualSolicitante,
+              deudaSolicitanteDespues: res.deudaTotalSolicitante,
+              avatarSolicitante: userSol?.avatar,
+              avatarAcreedor: userAcr?.avatar
             });
             return;
           }
@@ -1611,7 +2313,8 @@
                 titulo: res.totalmenteSaldado ? '¡DEUDA COMPLETAMENTE SALDADA!' : 'PAGO REALIZADO CON ÉXITO',
                 cuerpo: `Abono de <b>${fmt(res.montoPagado)} JP</b> aplicado a tu crédito.<br>Deuda restante: <b>${fmt(res.deudaRestante)} JP</b>`,
                 prompt: res.totalmenteSaldado ? '🌟 ¡Felicidades! Estás libre de deudas' : '💳 Pago registrado en JikoBank',
-                bancoTitle: 'CAJERO DE PAGOS'
+                bancoTitle: 'CAJERO DE PAGOS',
+                icon: '💸'
               },
               duracionMs: DURACION_CONSULTA_MS,
               efectoSfx: 'success'
@@ -1638,9 +2341,10 @@
                   nivel: nivelInfo.nivel,
                   actionData: {
                     titulo: '🎁 ¡REGALO SOLIDARIO RECIBIDO!',
-                    cuerpo: `@${sNorm} le ha regalado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${targetUser}.<br>Sin deudas ni intereses (0%). ¡Apoyo puro para la manada!`,
+                    cuerpo: `@${sNorm} le ha regalado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${targetUser}.`,
                     prompt: `🤝 ¡Solidaridad en el directo de Jikokun!`,
-                    bancoTitle: 'TRANSFERENCIA SOLIDARIA'
+                    bancoTitle: 'TRANSFERENCIA SOLIDARIA',
+                    icon: '🎁'
                   },
                   duracionMs: DURACION_CONSULTA_MS,
                   efectoSfx: 'success'
@@ -1666,11 +2370,11 @@
                 actionData: {
                   titulo: '🕊️ ABSOLUCIÓN DE DEUDAS POR @JIKOKUN',
                   cuerpo: target 
-                    ? `Todas las deudas de <b>@${target}</b> han sido perdonadas y canceladas a 0 JP por Jikokun.` 
-                    : `¡<b>Absolución General</b>! Todas las deudas del stream han sido perdonadas y borradas a 0 JP.`,
+                    ? `Todas las deudas de <b>@${target}</b> han sido perdonadas a 0 JP.` 
+                    : `¡<b>Absolución General</b>! Todas las deudas del stream borradas a 0 JP.`,
                   prompt: `✨ ¡Borrón y cuenta nueva en JikoBank!`,
-                  cardClass: 'pardon',
-                  bancoTitle: 'DECRETO DE JIKOKUN'
+                  bancoTitle: 'DECRETO DE JIKOKUN',
+                  icon: '🕊️'
                 },
                 duracionMs: DURACION_PERDON_MS,
                 efectoSfx: 'pardon'
@@ -1697,9 +2401,10 @@
                     nivel: 50,
                     actionData: {
                       titulo: '🎁 ¡BONO MASIVO DE JIKOPUNTOS!',
-                      cuerpo: `@jikokun ha entregado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a todos los asistentes del stream.<br>Total beneficiados: <b>${res.usuariosBeneficiados} usuarios</b>.`,
-                      prompt: `🎉 ¡Gracias a todos por apoyar el stream!`,
-                      bancoTitle: 'RECOMPENSA DE ASISTENCIA'
+                      cuerpo: `@jikokun ha entregado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a todos los asistentes (${res.usuariosBeneficiados} beneficiados).`,
+                      prompt: `🎉 ¡Gracias por acompañar el stream!`,
+                      bancoTitle: 'RECOMPENSA DE ASISTENCIA',
+                      icon: '🌟'
                     },
                     duracionMs: DURACION_PERDON_MS,
                     efectoSfx: 'cash'
@@ -1719,9 +2424,10 @@
                     nivel: nivelInfo.nivel,
                     actionData: {
                       titulo: '🎁 ¡JIKOPUNTOS OTORGADOS POR JIKOKUN!',
-                      cuerpo: `@jikokun le otorgó <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${target}.<br>Nuevo saldo disponible: <b>${fmt(res.nuevoSaldo)} JP</b>.`,
+                      cuerpo: `@jikokun le otorgó <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${target}.`,
                       prompt: `🌟 ¡Felicidades @${target}!`,
-                      bancoTitle: 'DONACIÓN DEL CREADOR'
+                      bancoTitle: 'DONACIÓN DEL CREADOR',
+                      icon: '🎁'
                     },
                     duracionMs: DURACION_CONSULTA_MS,
                     efectoSfx: 'cash'
@@ -1732,14 +2438,12 @@
             }
           }
         } catch(err) {
-          console.warn('[JikoBank] Fallback a simulación local tras excepción en RTDB:', err);
+          console.warn('[JikoBank] Fallback a simulación local tras:', err.message);
         }
       }
 
-      // ========================================================================
-      // 2. MODO FALLBACK LOCAL (SIMULADOR EN MEMORIA)
-      // ========================================================================
-      let uData = mockDB[sNorm] || { displayName: sender, saldo: 1000, deuda: 0, nivel: 1, rango: 'Cachorro', emoji: '🐾', rol: 'espectador', avatar: null };
+      // ── MODO 2: FALLBACK LOCAL EN MEMORIA (PRUEBAS Y SIMULADOR) ──
+      let uData = mockDB[sNorm] || (mockDB[sNorm] = { displayName: sender, saldo: 1200, deuda: 0, nivel: 1, rango: 'Cachorro', emoji: '🐾', rol: 'espectador', avatar: null });
 
       if (c === '!saldo' || c === '!jikopuntos' || c === '!banco' || c === '!cajero') {
         let target = sNorm;
@@ -1764,83 +2468,84 @@
         const monto = params[1] ? parseInt(params[1], 10) : 2000;
         const interesMonto = Math.max(1, Math.round(monto * 0.02));
         const total = monto + interesMonto;
+        const esBanco = (targetRaw === 'jikobank' || targetRaw === 'jiko' || targetRaw === 'banco');
 
-        mockPrestamoPendiente = {
+        const prestamoObj = {
           solicitante: sNorm,
-          acreedor: targetRaw,
+          acreedor: esBanco ? 'jikobank' : targetRaw,
           monto: monto,
           interes: interesMonto,
-          total: total
+          total: total,
+          esBanco: esBanco
         };
 
-        if (targetRaw === 'jikobank' || targetRaw === 'jiko' || targetRaw === 'banco') {
-          activarCajero({
-            user: uData.displayName || sNorm,
-            saldo: uData.saldo,
-            deuda: uData.deuda,
-            saldoReal: uData.saldo - uData.deuda,
-            avatar: uData.avatar,
-            rango: uData.rango,
-            emoji: uData.emoji,
-            nivel: uData.nivel,
-            actionData: {
-              titulo: 'CONTRATO DE PRÉSTAMO JIKOBANK',
-              cuerpo: `Monto solicitado: <b>${fmt(monto)} JP</b> | Interés (2%): <b>+${fmt(interesMonto)} JP</b><br>Total a pagar: <b>${fmt(total)} JP</b>`,
-              prompt: `✍️ @${sNorm}, escribe <b>!firmar</b> o <b>!aceptar</b> para recibir tus JP`,
-              bancoTitle: 'CONTRATO JIKOBANK'
-            },
-            duracionMs: DURACION_CONTRATO_MS,
-            efectoSfx: 'chirp'
-          });
-        } else {
-          activarCajero({
-            user: uData.displayName || sNorm,
-            saldo: uData.saldo,
-            deuda: uData.deuda,
-            saldoReal: uData.saldo - uData.deuda,
-            avatar: uData.avatar,
-            rango: uData.rango,
-            emoji: uData.emoji,
-            nivel: uData.nivel,
-            actionData: {
-              titulo: 'SOLICITUD DE PRÉSTAMO P2P (2%)',
-              cuerpo: `@${sNorm} solicita <b>${fmt(monto)} JP</b> a @${targetRaw}.<br>Devolverá: <b>${fmt(total)} JP</b> (+2% de beneficio por préstamo).`,
-              prompt: `📢 @${targetRaw}, escribe <b>!aceptar</b> o <b>!rechazar</b>`,
-              bancoTitle: 'PRÉSTAMO P2P'
-            },
-            duracionMs: DURACION_CONTRATO_MS,
-            efectoSfx: 'chirp'
-          });
-        }
-      } else if (c === '!firmar' || c === '!aceptar') {
-        if (!mockPrestamoPendiente) {
-          mockPrestamoPendiente = { solicitante: sNorm, acreedor: 'jikobank', monto: 2000, interes: 40, total: 2040 };
-        }
-        const p = mockPrestamoPendiente;
-        const solObj = mockDB[p.solicitante] || (mockDB[p.solicitante] = { displayName: p.solicitante, saldo: 1000, deuda: 0, nivel: 1, rango: 'Cachorro', emoji: '🐾', rol: 'espectador' });
-        solObj.saldo += p.monto;
-        solObj.deuda += p.total;
-        mockPrestamoPendiente = null;
-
+        // 1. Mostrar pantalla breve del solicitante
         activarCajero({
-          user: solObj.displayName || p.solicitante,
-          saldo: solObj.saldo,
-          deuda: solObj.deuda,
-          saldoReal: solObj.saldo - solObj.deuda,
-          avatar: solObj.avatar,
-          rango: solObj.rango,
-          emoji: solObj.emoji,
-          nivel: solObj.nivel,
+          user: uData.displayName || sNorm,
+          saldo: uData.saldo,
+          deuda: uData.deuda,
+          saldoReal: uData.saldo - uData.deuda,
+          avatar: uData.avatar,
+          rango: uData.rango,
+          emoji: uData.emoji,
+          nivel: uData.nivel,
           actionData: {
-            titulo: '¡PRÉSTAMO DESEMBOLSADO CON ÉXITO!',
-            cuerpo: `Acreditados: <b style="color:#00ffcc">+${fmt(p.monto)} JP</b>.<br>Deuda contraída: <b>${fmt(p.total)} JP</b> (2% interés).`,
-            prompt: `🎉 ¡Jikopuntos entregados al instante!`,
-            dispense: true,
-            bancoTitle: 'DESEMBOLSO JIKOBANK'
+            titulo: esBanco ? 'SOLICITANDO PRÉSTAMO AL BANCO' : 'SOLICITANDO PRÉSTAMO P2P',
+            cuerpo: `Monto: <b>${fmt(monto)} JP</b> (+2% int.) | Plegando sobre de espera...`,
+            prompt: 'Generando sobre de firma...',
+            icon: '✉️'
           },
-          duracionMs: DURACION_CONSULTA_MS,
-          efectoSfx: 'cash'
+          duracionMs: 1400,
+          efectoSfx: 'chirp'
         });
+
+        // 2. Plegarse en el sobre de espera por 90 segundos
+        setTimeout(() => {
+          mostrarSobreEspera(prestamoObj);
+        }, 1300);
+
+      } else if (c === '!firmar' || c === '!aceptar') {
+        const p = loanEnEspera || {
+          solicitante: sNorm,
+          acreedor: 'jikobank',
+          monto: 2000,
+          interes: 40,
+          total: 2040,
+          esBanco: true
+        };
+
+        const solObj = mockDB[p.solicitante] || (mockDB[p.solicitante] = { displayName: p.solicitante, saldo: 1200, deuda: 0, nivel: 5, rango: 'Cachorro', emoji: '🐾', rol: 'espectador' });
+        const acrObj = p.esBanco ? null : (mockDB[p.acreedor] || (mockDB[p.acreedor] = { displayName: p.acreedor, saldo: 3000, deuda: 0, nivel: 12, rango: 'Cazador', emoji: '🏹', rol: 'espectador' }));
+
+        const saldoAcrAntes = p.esBanco ? 999999 : (acrObj?.saldo || 3000);
+        const saldoAcrDespues = saldoAcrAntes - p.monto;
+        if (!p.esBanco && acrObj) {
+          acrObj.saldo = Math.max(0, acrObj.saldo - p.monto);
+        }
+
+        const saldoSolAntes = solObj.saldo;
+        const saldoSolDespues = solObj.saldo + p.monto;
+        solObj.saldo = saldoSolDespues;
+        solObj.deuda += p.total;
+
+        ejecutarFlujoDesembolsoAnimado({
+          solicitante: p.solicitante,
+          acreedor: p.acreedor,
+          monto: p.monto,
+          interes: p.interes,
+          total: p.total,
+          esBanco: p.esBanco,
+          saldoAcreedorAntes: saldoAcrAntes,
+          saldoAcreedorDespues: saldoAcrDespues,
+          saldoSolicitanteAntes: saldoSolAntes,
+          saldoSolicitanteDespues: saldoSolDespues,
+          deudaSolicitanteDespues: solObj.deuda,
+          avatarSolicitante: solObj.avatar,
+          avatarAcreedor: acrObj?.avatar
+        });
+
+        loanEnEspera = null;
+
       } else if (c === '!pagar' || c === '!pagarprestamo') {
         const monto = params[0] ? parseInt(params[0], 10) : uData.deuda;
         const abono = Math.min(uData.saldo, uData.deuda, monto || uData.deuda);
@@ -1861,7 +2566,8 @@
             titulo: uData.deuda === 0 ? '¡DEUDA COMPLETAMENTE SALDADA!' : 'PAGO REALIZADO CON ÉXITO',
             cuerpo: `Abono de <b>${fmt(abono)} JP</b> aplicado a tu crédito.<br>Deuda restante: <b>${fmt(uData.deuda)} JP</b>`,
             prompt: uData.deuda === 0 ? '🌟 ¡Felicidades! Estás libre de deudas' : '💳 Pago registrado en JikoBank',
-            bancoTitle: 'CAJERO DE PAGOS'
+            bancoTitle: 'CAJERO DE PAGOS',
+            icon: '💸'
           },
           duracionMs: DURACION_CONSULTA_MS,
           efectoSfx: 'success'
@@ -1882,9 +2588,10 @@
           nivel: recObj.nivel,
           actionData: {
             titulo: '🎁 ¡REGALO SOLIDARIO RECIBIDO!',
-            cuerpo: `@${sNorm} le ha regalado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${rec}.<br>Sin deudas ni intereses (0%). ¡Apoyo puro para la manada!`,
+            cuerpo: `@${sNorm} le regaló <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${rec}.`,
             prompt: `🤝 ¡Solidaridad en el directo de Jikokun!`,
-            bancoTitle: 'TRANSFERENCIA SOLIDARIA'
+            bancoTitle: 'TRANSFERENCIA SOLIDARIA',
+            icon: '🎁'
           },
           duracionMs: DURACION_CONSULTA_MS,
           efectoSfx: 'success'
@@ -1906,8 +2613,8 @@
             titulo: '🕊️ ABSOLUCIÓN DE DEUDAS POR @JIKOKUN',
             cuerpo: `¡<b>Absolución General</b>! Todas las deudas del stream han sido perdonadas y borradas a 0 JP.`,
             prompt: `✨ ¡Borrón y cuenta nueva en JikoBank!`,
-            cardClass: 'pardon',
-            bancoTitle: 'DECRETO DE JIKOKUN'
+            bancoTitle: 'DECRETO DE JIKOKUN',
+            icon: '🕊️'
           },
           duracionMs: DURACION_PERDON_MS,
           efectoSfx: 'pardon'
@@ -1927,7 +2634,8 @@
             titulo: '🎁 ¡BONO MASIVO DE JIKOPUNTOS!',
             cuerpo: `@jikokun ha entregado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a todos los asistentes del stream.`,
             prompt: `🎉 ¡Gracias a todos por apoyar el stream!`,
-            bancoTitle: 'RECOMPENSA DE ASISTENCIA'
+            bancoTitle: 'RECOMPENSA DE ASISTENCIA',
+            icon: '🌟'
           },
           duracionMs: DURACION_PERDON_MS,
           efectoSfx: 'cash'
@@ -2005,7 +2713,7 @@
 
     conectarStreamerBot();
 
-    // ── Sincronización Inter-Widgets: Handler para ejecutar órdenes encoladas de cajero ──
+    // Sincronización Inter-Widgets: Handler para despachar comandos encolados de cajero
     if (window.JikoWidgetSync) {
       window.JikoWidgetSync.onExecute('cajero', (item) => {
         console.log(`[JikoBank] 🎯 Despachando comando encolado: "${item.command}" de @${item.sender}`);
@@ -2021,13 +2729,19 @@
     // EXPOSICIÓN GLOBAL DE FUNCIONES DE PRUEBA Y COMANDOS
     // ==========================================================================
     window.simularComando = function(textoComando, sender = 'jikokun') {
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release();
+      }
       const parts = textoComando.trim().split(/\s+/);
       const comando = parts[0];
       const params = parts.slice(1);
-      procesarComando({ comando, sender, params });
+      procesarComando({ comando, sender, params, force: true });
     };
 
     window.simularComandoConDeuda = function(username, saldo = 1500, deuda = 306) {
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.release();
+      }
       activarCajero({
         user: username,
         saldo: saldo,
@@ -2045,6 +2759,8 @@
     window.activarCajero = activarCajero;
     window.ocultarCajero = ocultarCajero;
     window.ocultarCajeroInmediato = ocultarCajeroInmediato;
+    window.mostrarSobreEspera = mostrarSobreEspera;
+    window.ocultarSobreEspera = ocultarSobreEspera;
 
     // ==========================================================================
     // ALTERNAR VISIBILIDAD DEL PANEL DE SIMULACIÓN EN MODO INTERACTUAR DE OBS
@@ -2061,14 +2777,13 @@
     }
     window.toggleTestPanel = toggleTestPanel;
 
-    // Al hacer clic o tocar la pantalla en OBS (Modo interactuar), alternar simulador
+    // Al hacer clic en el fondo vacío en OBS (Modo interactuar), alternar simulador
     document.addEventListener('pointerdown', (e) => {
-      // Si el clic fue dentro del panel de pruebas o del cajero interactivo, no alternar
-      if (e.target.closest('#test-dock, #jikobank-stage, .jiko-atm')) return;
+      if (e.target.closest('#test-dock, #jikobank-stage, .jiko-atm, .jiko-terminal-overlay, .loan-envelope')) return;
       toggleTestPanel();
     }, { passive: true });
 
-    // Escuchador de postMessage para pruebas desde prueba.html
+    // Escuchador de postMessage para pruebas
     window.addEventListener('message', (ev) => {
       const data = ev.data;
       if (!data || typeof data !== 'object') return;
@@ -2099,7 +2814,6 @@
         await window.StreamDB.init();
         console.log('[JikoBank] 🌐 Firebase RTDB conectado y listo para transacciones.');
 
-        // Conectar al chat de Kick en vivo vía Pusher nativo
         try {
           await window.StreamDB.iniciarDetectorKick();
           window.StreamDB.onKickChatMessage((msg) => {
