@@ -1986,8 +1986,23 @@
     StreamDB.onUsers((users) => {
       if (Array.isArray(users)) {
         users.forEach(u => {
-          if (u && u.username && u.avatar && window.avatarCache) {
-            window.avatarCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
+          if (u && u.username) {
+            const uKey = norm(u.username);
+            if (u.avatar && window.avatarCache) {
+              window.avatarCache[uKey] = normalizarAvatarKickUrl(u.avatar);
+            }
+            if (u.jikopuntos !== undefined && u.jikopuntos !== null) {
+              const pts = parseInt(u.jikopuntos, 10);
+              try { localStorage.setItem('tiendita_pts_' + uKey, pts); } catch(e){}
+              if (typeof usuarioActual !== 'undefined' && uKey === norm(usuarioActual)) {
+                if (typeof saldoActual !== 'undefined' && saldoActual !== pts) {
+                  saldoActual = pts;
+                  if (typeof animarPuntos === 'function') animarPuntos(saldoActual);
+                  const bar = document.getElementById('user-bar');
+                  if (bar) { bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
+                }
+              }
+            }
           }
         });
       }
@@ -3838,9 +3853,9 @@
     const esComandoBancario = t.startsWith('!jikopuntos') || t.startsWith('!puntos') || t.startsWith('!saldo') ||
                               t.startsWith('!points') || t.startsWith('!misjikopuntos') || t.startsWith('!banco') ||
                               t.startsWith('!cajero') || t.startsWith('!prestamo') || t.startsWith('!firmar') ||
-                              t.startsWith('!aceptar') || t.startsWith('!pagarprestamo') || t.startsWith('!regalar') ||
-                              t.startsWith('!donar') || t.startsWith('!perdonarprestamos') || t.startsWith('!perdonardeudas') ||
-                              t.startsWith('!darjikopuntos') || t.startsWith('!deuda') ||
+                              t.startsWith('!aceptar') || t.startsWith('!pagarprestamo') ||
+                              t.startsWith('!perdonarprestamos') || t.startsWith('!perdonardeudas') ||
+                              t.startsWith('!deuda') ||
                               (!$menu.classList.contains('visible') && (t === '!pagar' || t.startsWith('!pagar ')));
     if (esComandoBancario) {
       console.log(`[Tiendita] ℹ️ Comando bancario "${t}" ignorado en Tiendita (atendido exclusivamente por JikoBank)`);
@@ -3928,6 +3943,79 @@
       return;
     }
 
+    // 0.35 Comando de Regalo Solidario entre usuarios: !regalar @usuario XXXX / !donar @usuario XXXX
+    if(t.startsWith('!regalar') || t.startsWith('!donar')){
+      const partes = raw.trim().split(/\s+/);
+      if(partes.length < 3){
+        toast(`⚠️ Uso: <b>!regalar &lt;@usuario&gt; &lt;cantidad&gt;</b>`,'err');
+        playSfx('error');
+        return;
+      }
+      const receptor = partes[1].replace(/^@/, '').trim();
+      const cantidad = parseInt(partes[2], 10);
+      const remitenteNorm = norm(user);
+      const receptorNorm = norm(receptor);
+
+      if(!receptor || isNaN(cantidad) || cantidad <= 0){
+        toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!regalar @amigo 500</b>`,'err');
+        playSfx('error');
+        return;
+      }
+      if(remitenteNorm === receptorNorm){
+        toast(`⚠️ No puedes regalarte puntos a ti mismo.`,'err');
+        playSfx('error');
+        return;
+      }
+
+      const saldoRemAntes = getUserPoints(remitenteNorm);
+      if(saldoRemAntes < cantidad && remitenteNorm !== 'jikokun'){
+        toast(`⛔ <b>@${user}</b> no tiene suficientes puntos (Saldo: <b>${saldoRemAntes} pts</b>, Desea regalar: <b>${cantidad} pts</b>)`,'err');
+        playSfx('error');
+        return;
+      }
+
+      const nuevoRem = Math.max(0, saldoRemAntes - cantidad);
+      const saldoRecAntes = getUserPoints(receptorNorm);
+      const nuevoRec = saldoRecAntes + cantidad;
+
+      setUserPoints(remitenteNorm, nuevoRem, `!regalar a @${receptor}`);
+      setUserPoints(receptorNorm, nuevoRec, `!regalar de @${user}`);
+
+      if (window.StreamDB && typeof window.StreamDB.regalarJikopuntos === 'function') {
+        window.StreamDB.regalarJikopuntos({
+          remitente: user,
+          receptor: receptor,
+          cantidad: cantidad
+        }).catch(err => console.warn('[Tiendita] Error procesando regalo en Firebase:', err));
+      }
+
+      // Si el usuario activo en la pantalla de la tiendita es el remitente: mostrar descuento animado
+      if(norm(usuarioActual) === remitenteNorm){
+        saldoActual = nuevoRem;
+        animarPuntos(saldoActual);
+        const bar = document.getElementById('user-bar');
+        if(bar){ bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
+        toast(`💸 Regalaste <b>-${cantidad} pts</b> a <b>@${receptor}</b> (Tu saldo: <b>${saldoActual} pts</b>)`);
+      }
+      // Si el usuario activo en la pantalla de la tiendita es el receptor: mostrar abono animado
+      else if(norm(usuarioActual) === receptorNorm){
+        saldoActual = nuevoRec;
+        animarPuntos(saldoActual);
+        const bar = document.getElementById('user-bar');
+        if(bar){ bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
+        toast(`🎁 ¡<b>@${user}</b> te regaló <b>+${cantidad} pts</b>! (Tu saldo: <b>${saldoActual} pts</b>)`);
+      }
+      // Si es un tercero viendo la tiendita
+      else {
+        toast(`🎁 ¡Regalo Solidario! <b>@${user}</b> le regaló <b>+${cantidad} pts</b> a <b>@${receptor}</b>`);
+      }
+
+      playSfx('buy');
+      const panel = document.getElementById('panel');
+      if(panel) explosión(panel);
+      return;
+    }
+
     // 0.4 Comando exclusivo para Jikokun: !darjikopuntos usuario XXXX (siempre permitido)
     if(t.startsWith('!darjikopuntos')){
       const emisorNorm = norm(user);
@@ -3968,6 +4056,9 @@
           nuevoSaldo: nuevoSaldo,
           motivo: '!darjikopuntos'
         }).catch(err => console.warn('[Tiendita] Error registrando transferencia en Firebase:', err));
+        if (typeof window.StreamDB.addJikopuntos === 'function') {
+          window.StreamDB.addJikopuntos(receptor, cantidad, '!darjikopuntos').catch(()=>{});
+        }
       }
 
       if(norm(usuarioActual) === norm(receptor)){

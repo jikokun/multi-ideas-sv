@@ -2107,6 +2107,8 @@
       elAtm.classList.add('state-visible');
 
       // Llenar datos del recibo térmico físico
+      const elRecOpHead = document.getElementById('receipt-op');
+      if (elRecOpHead) elRecOpHead.textContent = 'PRÉSTAMO APROBADO';
       document.getElementById('receipt-sol').textContent = '@' + solicitante;
       document.getElementById('receipt-acr').textContent = esBanco ? 'JikoBank' : ('@' + acreedor);
       document.getElementById('receipt-cap').textContent = '+' + fmt(monto) + ' JP';
@@ -2164,6 +2166,158 @@
       await new Promise(r => setTimeout(r, 7500));
 
       // Guardar ticket y cerrar
+      elReceiptPaper.classList.remove('printing');
+      ocultarCajero();
+    }
+
+    // ==========================================================================
+    // SECUENCIA MAESTRA DE REGALO SOLIDARIO (DESCUENTO REMITENTE -> RECIBO -> ABONO RECEPTOR)
+    // ==========================================================================
+    async function ejecutarFlujoRegaloAnimado({
+      remitente,
+      receptor,
+      monto,
+      saldoRemitenteAntes,
+      saldoRemitenteDespues,
+      deudaRemitente = 0,
+      saldoReceptorAntes,
+      saldoReceptorDespues,
+      deudaReceptor = 0,
+      avatarRemitente = null,
+      avatarReceptor = null,
+      nivelRemitente = 1,
+      rangoRemitente = 'Donante Solidario',
+      emojiRemitente = '🎁',
+      nivelReceptor = 1,
+      rangoReceptor = 'Beneficiario',
+      emojiReceptor = '🐾'
+    }) {
+      if (timerDismiss) clearTimeout(timerDismiss);
+      if (timerBarInterval) clearInterval(timerBarInterval);
+      if (timerEnvelopeCountdown) clearInterval(timerEnvelopeCountdown);
+
+      const deltaEl = document.getElementById('delta-saldo');
+
+      // Adquirir lock global para que ningún otro widget se superponga
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.acquire('cajero', remitente, 16000);
+      }
+
+      // ======================================================================
+      // FASE 1: DESCUENTO DEL REMITENTE (EL QUE REGALA SUS JIKOPUNTOS)
+      // ======================================================================
+      elAtm.classList.add('state-visible', 'state-screen-active');
+      elTerminal.classList.add('state-open');
+
+      const isOwnerRem = remitente.toLowerCase() === 'jikokun';
+      hudUsername.textContent = '@' + remitente;
+      hudRolePill.textContent = isOwnerRem ? 'OWNER' : 'REMITENTE';
+      hudRank.textContent = `${emojiRemitente} ${rangoRemitente}`;
+      hudLevel.textContent = `LVL ${nivelRemitente}`;
+      hudAvatar.src = avatarRemitente || (isOwnerRem ? JIKO_AVATAR : `https://ui-avatars.com/api/?name=${encodeURIComponent(remitente)}&background=041920&color=00ffcc&bold=true`);
+
+      hudSaldo.textContent = fmt(saldoRemitenteAntes);
+      hudDeuda.textContent = fmt(deudaRemitente);
+      hudRateBadge.textContent = '0% TASA SOLIDARIA';
+      hudDeudaSub.textContent = 'Regalo sin intereses ni deuda';
+
+      const netoRemitenteAntes = saldoRemitenteAntes - deudaRemitente;
+      const netoRemitenteDespues = saldoRemitenteDespues - deudaRemitente;
+      hudSaldoReal.textContent = fmt(netoRemitenteAntes);
+      hudSolvenciaTag.textContent = '● DEBITANDO';
+      hudSolvenciaTag.style.color = '#ef4444';
+
+      // Badge de débito en rojo neón
+      deltaEl.style.display = 'block';
+      deltaEl.className = 'metric-delta-tag negative';
+      deltaEl.textContent = `- ${fmt(monto)} JP`;
+
+      // Barra de acción detallando la salida de fondos
+      elActionCard.style.display = 'flex';
+      elActionIcon.textContent = '🎁';
+      elActionTitle.textContent = 'TRANSFIRIENDO REGALO SOLIDARIO';
+      elActionBody.innerHTML = `Debitando <b style="color:#ef4444;">-${fmt(monto)} JP</b> de tu saldo para transferir a <b>@${receptor}</b>`;
+      elActionPrompt.innerHTML = '🤝 ¡Generosidad activa en la comunidad de Jikokun!';
+
+      SFX.chirp();
+      // Animar rodillo de conteo hacia abajo (descuento visible)
+      animarContador(hudSaldo, saldoRemitenteAntes, saldoRemitenteDespues, 1500);
+      animarContador(hudSaldoReal, netoRemitenteAntes, netoRemitenteDespues, 1500);
+
+      // Esperar 2.8 segundos para que la comunidad y el streamer vean el descuento
+      await new Promise(r => setTimeout(r, 2800));
+
+      // ======================================================================
+      // FASE 2: CAJERO FÍSICO IMPRIMIENDO RECIBO DE TRANSFERENCIA Y DINERO
+      // ======================================================================
+      elTerminal.classList.remove('state-open');
+      elAtm.classList.remove('state-screen-active');
+      elAtm.classList.add('state-visible');
+
+      // Configurar ticket térmico para regalo solidario
+      const elRecOp = document.getElementById('receipt-op');
+      if (elRecOp) elRecOp.textContent = 'REGALO SOLIDARIO';
+      document.getElementById('receipt-sol').textContent = '@' + receptor;
+      document.getElementById('receipt-acr').textContent = '@' + remitente;
+      document.getElementById('receipt-cap').textContent = fmt(monto) + ' JP';
+      document.getElementById('receipt-int').textContent = '0 JP (0%)';
+      document.getElementById('receipt-tot').textContent = fmt(monto) + ' JP';
+      document.getElementById('receipt-fecha').textContent = new Date().toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' });
+
+      // Expulsar billetes y dispensar ticket
+      elDispenser.classList.add('dispensing');
+      elReceiptPaper.classList.add('printing');
+      SFX.cash();
+
+      // Esperar 3.0 segundos mientras el ticket y los billetes se dispensan
+      await new Promise(r => setTimeout(r, 3000));
+      elDispenser.classList.remove('dispensing');
+
+      // ======================================================================
+      // FASE 3: ABONO DEL RECEPTOR (EL QUE RECIBE EL REGALO)
+      // ======================================================================
+      elAtm.classList.add('state-screen-active');
+      elTerminal.classList.add('state-open');
+
+      const isOwnerRec = receptor.toLowerCase() === 'jikokun';
+      hudUsername.textContent = '@' + receptor;
+      hudRolePill.textContent = isOwnerRec ? 'OWNER' : 'BENEFICIARIO';
+      hudRank.textContent = `${emojiReceptor} ${rangoReceptor}`;
+      hudLevel.textContent = `LVL ${nivelReceptor}`;
+      hudAvatar.src = avatarReceptor || (isOwnerRec ? JIKO_AVATAR : `https://ui-avatars.com/api/?name=${encodeURIComponent(receptor)}&background=041920&color=00ffcc&bold=true`);
+
+      hudSaldo.textContent = fmt(saldoReceptorAntes);
+      hudDeuda.textContent = fmt(deudaReceptor);
+      hudRateBadge.textContent = '0% SIN INTERÉS';
+      hudDeudaSub.textContent = 'Regalo de la comunidad';
+
+      const netoReceptorAntes = saldoReceptorAntes - deudaReceptor;
+      const netoReceptorDespues = saldoReceptorDespues - deudaReceptor;
+      hudSaldoReal.textContent = fmt(netoReceptorAntes);
+      hudSolvenciaTag.textContent = netoReceptorDespues >= 0 ? '● SOLVENTE' : '● DÉFICIT';
+      hudSolvenciaTag.style.color = netoReceptorDespues >= 0 ? '#00ffcc' : '#ef4444';
+
+      // Badge de crédito en verde cyan
+      deltaEl.style.display = 'block';
+      deltaEl.className = 'metric-delta-tag positive';
+      deltaEl.textContent = `+ ${fmt(monto)} JP`;
+
+      elActionCard.style.display = 'flex';
+      elActionIcon.textContent = '🎉';
+      elActionTitle.textContent = '¡REGALO SOLIDARIO RECIBIDO!';
+      elActionBody.innerHTML = `¡<b>@${remitente}</b> te ha regalado <b style="color:#00ffcc;">+${fmt(monto)} JP</b>! ¡Saldo acreditado!`;
+      elActionPrompt.innerHTML = '✨ ¡Felicidades, disfruta tus Jikopuntos en el stream!';
+
+      SFX.success();
+      // Animar rodillo de conteo hacia arriba (abono visible)
+      animarContador(hudSaldo, saldoReceptorAntes, saldoReceptorDespues, 1500);
+      animarContador(hudSaldoReal, netoReceptorAntes, netoReceptorDespues, 1500);
+
+      // Mostrar durante 7 segundos con la barra regresiva
+      iniciarBarraTiempo(7000);
+      await new Promise(r => setTimeout(r, 7000));
+
+      // Guardar ticket y cerrar cajero
       elReceiptPaper.classList.remove('printing');
       ocultarCajero();
     }
@@ -2328,26 +2482,31 @@
               const cant = parseInt(params[1], 10);
               if (cant && cant > 0) {
                 const res = await window.StreamDB.regalarJikopuntos({ remitente: sNorm, receptor: targetUser, cantidad: cant });
-                const recUser = await window.StreamDB.getUser(targetUser);
-                const nivelInfo = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(recUser) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
-                activarCajero({
-                  user: recUser?.displayName || targetUser,
-                  saldo: res.saldoReceptor,
-                  deuda: recUser?.deudaTotal || 0,
-                  saldoReal: res.saldoReceptor - (recUser?.deudaTotal || 0),
-                  avatar: recUser?.avatar,
-                  rango: nivelInfo.rangoTitulo,
-                  emoji: nivelInfo.insigniaEmoji,
-                  nivel: nivelInfo.nivel,
-                  actionData: {
-                    titulo: '🎁 ¡REGALO SOLIDARIO RECIBIDO!',
-                    cuerpo: `@${sNorm} le ha regalado <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${targetUser}.`,
-                    prompt: `🤝 ¡Solidaridad en el directo de Jikokun!`,
-                    bancoTitle: 'TRANSFERENCIA SOLIDARIA',
-                    icon: '🎁'
-                  },
-                  duracionMs: DURACION_CONSULTA_MS,
-                  efectoSfx: 'success'
+                const [remUser, recUser] = await Promise.all([
+                  window.StreamDB.getUser(sNorm),
+                  window.StreamDB.getUser(targetUser)
+                ]);
+                const nivelRem = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(remUser) : { rangoTitulo: 'Donante Solidario', insigniaEmoji: '🎁', nivel: 1 };
+                const nivelRec = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(recUser) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
+
+                await ejecutarFlujoRegaloAnimado({
+                  remitente: remUser?.displayName || sNorm,
+                  receptor: recUser?.displayName || targetUser,
+                  monto: cant,
+                  saldoRemitenteAntes: res.saldoRemitenteAntes,
+                  saldoRemitenteDespues: res.saldoRemitenteDespues,
+                  deudaRemitente: remUser?.deudaTotal || 0,
+                  saldoReceptorAntes: res.saldoReceptorAntes,
+                  saldoReceptorDespues: res.saldoReceptorDespues,
+                  deudaReceptor: recUser?.deudaTotal || 0,
+                  avatarRemitente: remUser?.avatar,
+                  avatarReceptor: recUser?.avatar,
+                  nivelRemitente: nivelRem.nivel || 1,
+                  rangoRemitente: nivelRem.rangoTitulo || 'Donante',
+                  emojiRemitente: nivelRem.insigniaEmoji || '🎁',
+                  nivelReceptor: nivelRec.nivel || 1,
+                  rangoReceptor: nivelRec.rangoTitulo || 'Beneficiario',
+                  emojiReceptor: nivelRec.insigniaEmoji || '🐾'
                 });
                 return;
               }
@@ -2574,28 +2733,58 @@
         });
       } else if (c === '!regalar' || c === '!donar') {
         const rec = params[0] ? norm(params[0]) : 'amigo';
-        const cant = params[1] ? parseInt(params[1], 10) : 500;
-        const recObj = mockDB[rec] || (mockDB[rec] = { displayName: rec, saldo: 2000, deuda: 0, nivel: 5, rango: 'Explorador', emoji: '🌲', rol: 'espectador' });
+        const cant = params[1] ? Math.max(1, parseInt(params[1], 10) || 500) : 500;
+        const remObj = mockDB[sNorm] || (mockDB[sNorm] = { displayName: sender, saldo: 5000, deuda: 0, nivel: 5, rango: 'Explorador', emoji: '🌲', rol: 'espectador', avatar: null });
+        const recObj = mockDB[rec] || (mockDB[rec] = { displayName: rec, saldo: 2000, deuda: 0, nivel: 3, rango: 'Cachorro', emoji: '🐾', rol: 'espectador', avatar: null });
+
+        if (remObj.saldo < cant) {
+          activarCajero({
+            user: remObj.displayName || sNorm,
+            saldo: remObj.saldo,
+            deuda: remObj.deuda,
+            saldoReal: remObj.saldo - remObj.deuda,
+            avatar: remObj.avatar,
+            actionData: {
+              titulo: '⚠️ SALDO INSUFICIENTE',
+              cuerpo: `Tienes <b>${fmt(remObj.saldo)} JP</b> y deseas regalar <b>${fmt(cant)} JP</b> a @${rec}.`,
+              prompt: '❌ No cuentas con fondos suficientes para este regalo.',
+              bancoTitle: 'ERROR DE TRANSACCIÓN',
+              icon: '⚠️'
+            },
+            duracionMs: 5000,
+            efectoSfx: 'chirp'
+          });
+          return;
+        }
+
+        const saldoRemAntes = remObj.saldo;
+        remObj.saldo -= cant;
+        const saldoRemDespues = remObj.saldo;
+
+        const saldoRecAntes = recObj.saldo;
         recObj.saldo += cant;
-        activarCajero({
-          user: recObj.displayName || rec,
-          saldo: recObj.saldo,
-          deuda: recObj.deuda,
-          saldoReal: recObj.saldo - recObj.deuda,
-          avatar: recObj.avatar,
-          rango: recObj.rango,
-          emoji: recObj.emoji,
-          nivel: recObj.nivel,
-          actionData: {
-            titulo: '🎁 ¡REGALO SOLIDARIO RECIBIDO!',
-            cuerpo: `@${sNorm} le regaló <b style="color:#00ffcc;">+${fmt(cant)} JP</b> a @${rec}.`,
-            prompt: `🤝 ¡Solidaridad en el directo de Jikokun!`,
-            bancoTitle: 'TRANSFERENCIA SOLIDARIA',
-            icon: '🎁'
-          },
-          duracionMs: DURACION_CONSULTA_MS,
-          efectoSfx: 'success'
+        const saldoRecDespues = recObj.saldo;
+
+        await ejecutarFlujoRegaloAnimado({
+          remitente: remObj.displayName || sNorm,
+          receptor: recObj.displayName || rec,
+          monto: cant,
+          saldoRemitenteAntes: saldoRemAntes,
+          saldoRemitenteDespues: saldoRemDespues,
+          deudaRemitente: remObj.deuda || 0,
+          saldoReceptorAntes: saldoRecAntes,
+          saldoReceptorDespues: saldoRecDespues,
+          deudaReceptor: recObj.deuda || 0,
+          avatarRemitente: remObj.avatar,
+          avatarReceptor: recObj.avatar,
+          nivelRemitente: remObj.nivel || 1,
+          rangoRemitente: remObj.rango || 'Donante',
+          emojiRemitente: remObj.emoji || '🎁',
+          nivelReceptor: recObj.nivel || 1,
+          rangoReceptor: recObj.rango || 'Cachorro',
+          emojiReceptor: recObj.emoji || '🐾'
         });
+        return;
       } else if (c === '!perdonarprestamos' || c === '!perdonardeudas') {
         for (const k in mockDB) {
           mockDB[k].deuda = 0;

@@ -3059,59 +3059,6 @@ class StreamFirebaseService {
   }
 
 
-
-  // Regalar Jikopuntos de usuario a usuario (0% interés, regalo solidario sin deuda)
-  async regalarJikopuntos({ remitente, receptor, cantidad }) {
-    const remNorm = norm(remitente);
-    const recNorm = norm(receptor);
-    const monto = Math.max(1, parseInt(cantidad, 10) || 0);
-
-    if (!remNorm || !recNorm) throw new Error('Usuarios no válidos');
-    if (remNorm === recNorm) throw new Error('No puedes regalarte puntos a ti mismo');
-    if (monto <= 0) throw new Error('El monto debe ser mayor a 0');
-
-    // Verificar saldo del remitente
-    const saldoRem = await this.getCachedPoints(remNorm);
-    if (saldoRem < monto) {
-      throw new Error(`Saldo insuficiente: tienes ${saldoRem} pts y quieres regalar ${monto} pts.`);
-    }
-
-    try {
-      const nuevoSaldoRem = await this.addJikopuntos(remNorm, -monto, `Regalo solidario a @${receptor}`);
-      const nuevoSaldoRec = await this.addJikopuntos(recNorm, monto, `Regalo solidario recibido de @${remitente}`);
-
-      // Registrar transferencia solidaria
-      const transRef = push(ref(this.rtdb, NODE_TRANSFERS));
-      const record = {
-        id: transRef.key,
-        admin: remitente,
-        receptor: receptor,
-        receptorNorm: recNorm,
-        remitente: remitente,
-        remitenteNorm: remNorm,
-        cantidad: monto,
-        motivo: 'Regalo solidario',
-        tipo: 'regalo_viewer',
-        timestamp: Date.now(),
-        fechaLegible: new Date().toLocaleString('es-SV')
-      };
-      await set(transRef, record);
-
-      console.log(`[JikoBank] 🎁 Regalo solidario: @${remitente} -> @${receptor} (${monto} pts)`);
-      return {
-        exito: true,
-        remitente: remitente,
-        receptor: receptor,
-        cantidad: monto,
-        nuevoSaldoRemitente: nuevoSaldoRem,
-        nuevoSaldoReceptor: nuevoSaldoRec
-      };
-    } catch (err) {
-      console.warn('[JikoBank] Error en regalarJikopuntos:', err);
-      throw err;
-    }
-  }
-
   // Dar Jikopuntos a TODOS los asistentes de la transmisión actual (Exclusivo de Jikokun)
   async darJikopuntosTodos({ admin = 'jikokun', cantidad }) {
     const adminNorm = norm(admin);
@@ -3874,8 +3821,10 @@ class StreamFirebaseService {
       throw new Error(`Saldo insuficiente. Tienes ${remUser?.jikopuntos || 0} JP y deseas regalar ${cantNum} JP.`);
     }
 
-    await this.getUser(recNorm); // Asegurar existencia del receptor
+    const recUser = await this.getUser(recNorm); // Asegurar existencia del receptor
     const ahora = Date.now();
+    const saldoRemAntes = remUser?.jikopuntos || 0;
+    const saldoRecAntes = recUser?.jikopuntos || 0;
 
     // Debitar de remitente
     await runTransaction(ref(this.rtdb, `${NODE_USERS}/${remNorm}`), (u) => {
@@ -3917,15 +3866,27 @@ class StreamFirebaseService {
       await this._incrementarEstadistica('totalTransferencias', 1);
     } catch(e) {}
 
-    console.log(`[StreamDB] 🎁 Regalo solidario: @${remNorm} regaló ${cantNum} JP a @${recNorm}`);
+    console.log(`[StreamDB] 🎁 Regalo solidario: @${remNorm} regaló ${cantNum} JP a @${recNorm} (Rem: ${saldoRemAntes} -> ${finalRem?.jikopuntos}, Rec: ${saldoRecAntes} -> ${finalRec?.jikopuntos})`);
 
     return {
       success: true,
+      exito: true,
       remitente: remNorm,
       receptor: recNorm,
       cantidad: cantNum,
+      monto: cantNum,
+      saldoRemitenteAntes: saldoRemAntes,
+      saldoRemitenteDespues: finalRem?.jikopuntos || 0,
       saldoRemitente: finalRem?.jikopuntos || 0,
-      saldoReceptor: finalRec?.jikopuntos || 0
+      saldoReceptorAntes: saldoRecAntes,
+      saldoReceptorDespues: finalRec?.jikopuntos || 0,
+      saldoReceptor: finalRec?.jikopuntos || 0,
+      nuevoSaldoRemitente: finalRem?.jikopuntos || 0,
+      nuevoSaldoReceptor: finalRec?.jikopuntos || 0,
+      avatarRemitente: finalRem?.avatar,
+      avatarReceptor: finalRec?.avatar,
+      deudaRemitente: finalRem?.deudaTotal || 0,
+      deudaReceptor: finalRec?.deudaTotal || 0
     };
   }
 
