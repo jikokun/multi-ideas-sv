@@ -1343,6 +1343,33 @@
     }
 
     /* ═══════════ SESIONES DE STREAM Y CONTRASTE DE ASISTENCIAS ═══════════ */
+    .attendance-tab-btn {
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-family: var(--f-tech);
+      font-size: 0.85rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(0, 0, 0, 0.45);
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .attendance-tab-btn:hover {
+      background: rgba(83, 252, 24, 0.1);
+      color: #fff;
+      border-color: rgba(83, 252, 24, 0.35);
+    }
+    .attendance-tab-btn.active {
+      background: linear-gradient(135deg, rgba(83, 252, 24, 0.22), rgba(0, 242, 254, 0.18));
+      border-color: var(--kick);
+      color: #fff;
+      box-shadow: 0 0 15px rgba(83, 252, 24, 0.25);
+    }
+
     .stream-session-selector-bar {
       display: flex;
       align-items: center;
@@ -2790,87 +2817,161 @@
     </section>
 
     <!-- ═══════════ SECCIÓN: SESIONES DE STREAM Y CONTRASTE DE ASISTENCIAS ═══════════ -->
-    <section class="section-card" style="margin-bottom: 28px;">
-      <div class="section-header">
-        <h2 class="section-title">
-          📡 Sesiones de Transmisión &amp; Contraste de Asistencias
+    <section class="section-card" id="seccion-asistencias-panel" style="margin-bottom: 28px;">
+      <div class="section-header" style="flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <h2 class="section-title" style="margin:0;">
+            📡 Registro y Contraste de Asistencias
+          </h2>
           <span class="badge-num" id="badge-streams-count">0 streams</span>
-        </h2>
-        <span style="font-size: 0.8rem; color: var(--kick); font-family: var(--f-tech);">stream/transmisiones/{id}</span>
-      </div>
-
-      <!-- Barra de selección de stream -->
-      <div class="stream-session-selector-bar">
-        <div class="select-session-wrap">
-          <label style="font-size:0.85rem; font-weight:700; color:var(--text-muted); font-family:var(--f-tech); white-space:nowrap;">Transmisión:</label>
-          <select id="select-stream-session" onchange="cambiarStreamSeleccionado()">
-            <option value="">⏳ Cargando sesiones de transmisiones...</option>
-          </select>
-        </div>
-        <button class="action-btn btn-secondary" onclick="refrescarContrasteActual()" style="padding: 9px 14px; font-size:0.85rem;">
-          🔄 Actualizar Contraste
-        </button>
-      </div>
-
-      <!-- Resumen de la sesión seleccionada -->
-      <div class="stream-summary-banner" id="stream-summary-banner">
-        <div class="ssb-meta">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <span class="kmb-status-tag offline" id="ssb-badge-estado">OFFLINE</span>
-            <span class="ssb-title" id="ssb-stream-titulo">Selecciona una transmisión para ver detalles</span>
-          </div>
-          <div class="ssb-dates" id="ssb-stream-fechas">--</div>
+          <span class="badge-num" id="badge-asistencias-count" style="background:rgba(0,242,254,0.15); color:var(--cyan); border-color:var(--cyan);">0 asistencias registradas</span>
         </div>
 
-        <div class="ssb-rate-box">
-          <div class="ssb-rate-circle">
-            <div class="ssb-rate-val" id="ssb-rate-val">0%</div>
-            <div class="ssb-rate-lbl">Tasa de Asistencia</div>
-          </div>
-          <div style="width: 110px;">
-            <div class="progress-bar-bg" style="height: 10px;">
-              <div class="progress-bar-fill" id="ssb-rate-bar" style="width: 0%"></div>
-            </div>
-            <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--f-tech); margin-top: 4px; text-align: center;" id="ssb-rate-counts">
-              0 presentes / 0 total
-            </div>
-          </div>
+        <!-- Pestañas de Navegación -->
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <button type="button" class="attendance-tab-btn active" id="tab-btn-contraste" onclick="cambiarPestanaAsistencia('contraste')">
+            <span>📊</span> Contraste por Stream
+          </button>
+          <button type="button" class="attendance-tab-btn" id="tab-btn-historial" onclick="cambiarPestanaAsistencia('historial')">
+            <span>📋</span> Registro Histórico General (<span id="tab-asistencias-total">0</span>)
+          </button>
         </div>
       </div>
 
-      <!-- Cuadrícula de Contraste: Presentes vs Ausentes -->
-      <div class="contrast-grid">
-
-        <!-- Columna 1: Presentes en la sesión -->
-        <div class="contrast-col presentes">
-          <div class="contrast-header">
-            <span class="contrast-title">
-              ✅ Espectadores que Asistieron (Activos)
-            </span>
-            <span class="badge-num" id="badge-presentes-count" style="background:rgba(83,252,24,0.15); color:var(--kick); border-color:var(--kick);">0</span>
+      <!-- VISTA 1: CONTRASTE POR STREAM -->
+      <div id="vista-contraste-stream">
+        <!-- Barra de selección de stream y acciones rápidas -->
+        <div class="stream-session-selector-bar">
+          <div class="select-session-wrap">
+            <label style="font-size:0.85rem; font-weight:700; color:var(--text-muted); font-family:var(--f-tech); white-space:nowrap;">Transmisión:</label>
+            <select id="select-stream-session" onchange="cambiarStreamSeleccionado()">
+              <option value="">⏳ Cargando sesiones de transmisiones...</option>
+            </select>
           </div>
-          <div class="contrast-list" id="contrast-presentes-list">
-            <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
-              Selecciona una transmisión para ver la lista de asistentes.
+          
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <!-- Buscador local en contraste -->
+            <input type="text" id="filter-contrast-input" class="search-input" style="max-width:210px; padding:8px 12px; font-size:0.82rem;" placeholder="🔍 Filtrar espectadores..." oninput="filtrarContrasteLocal(this.value)">
+
+            <!-- Pasar lista rápida -->
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="text" id="input-asistencia-rapida" class="search-input" style="max-width:160px; padding:8px 12px; font-size:0.82rem;" placeholder="@usuario" onkeydown="if(event.key==='Enter') pasarListaRapidaUI()">
+              <button class="action-btn btn-primary" onclick="pasarListaRapidaUI()" style="padding:8px 12px; font-size:0.82rem;" title="Marcar asistencia para este espectador en el stream seleccionado">
+                ➕ Registrar
+              </button>
+            </div>
+
+            <button class="action-btn btn-secondary" onclick="refrescarContrasteActual()" style="padding: 8px 12px; font-size:0.82rem;">
+              🔄 Actualizar
+            </button>
+          </div>
+        </div>
+
+        <!-- Resumen de la sesión seleccionada -->
+        <div class="stream-summary-banner" id="stream-summary-banner">
+          <div class="ssb-meta">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="kmb-status-tag offline" id="ssb-badge-estado">OFFLINE</span>
+              <span class="ssb-title" id="ssb-stream-titulo">Selecciona una transmisión para ver detalles</span>
+            </div>
+            <div class="ssb-dates" id="ssb-stream-fechas">--</div>
+          </div>
+
+          <div class="ssb-rate-box">
+            <div class="ssb-rate-circle">
+              <div class="ssb-rate-val" id="ssb-rate-val">0%</div>
+              <div class="ssb-rate-lbl">Tasa de Asistencia</div>
+            </div>
+            <div style="width: 110px;">
+              <div class="progress-bar-bg" style="height: 10px;">
+                <div class="progress-bar-fill" id="ssb-rate-bar" style="width: 0%"></div>
+              </div>
+              <div style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--f-tech); margin-top: 4px; text-align: center;" id="ssb-rate-counts">
+                0 presentes / 0 total
+              </div>
             </div>
           </div>
         </div>
 
-        <!-- Columna 2: Ausentes en la sesión -->
-        <div class="contrast-col ausentes">
-          <div class="contrast-header">
-            <span class="contrast-title">
-              💤 Espectadores Ausentes de la Manada
-            </span>
-            <span class="badge-num" id="badge-ausentes-count" style="background:rgba(255,92,108,0.15); color:var(--rojo); border-color:var(--rojo);">0</span>
-          </div>
-          <div class="contrast-list" id="contrast-ausentes-list">
-            <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
-              Selecciona una transmisión para ver los espectadores que no asistieron.
+        <!-- Cuadrícula de Contraste: Presentes vs Ausentes -->
+        <div class="contrast-grid">
+
+          <!-- Columna 1: Presentes en la sesión -->
+          <div class="contrast-col presentes">
+            <div class="contrast-header">
+              <span class="contrast-title">
+                ✅ Espectadores que Asistieron (Activos)
+              </span>
+              <span class="badge-num" id="badge-presentes-count" style="background:rgba(83,252,24,0.15); color:var(--kick); border-color:var(--kick);">0</span>
             </div>
+            <div class="contrast-list" id="contrast-presentes-list">
+              <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+                Selecciona una transmisión para ver la lista de asistentes.
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna 2: Ausentes en la sesión -->
+          <div class="contrast-col ausentes">
+            <div class="contrast-header">
+              <span class="contrast-title">
+                💤 Espectadores Ausentes de la Manada
+              </span>
+              <span class="badge-num" id="badge-ausentes-count" style="background:rgba(255,92,108,0.15); color:var(--rojo); border-color:var(--rojo);">0</span>
+            </div>
+            <div class="contrast-list" id="contrast-ausentes-list">
+              <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+                Selecciona una transmisión para ver los espectadores que no asistieron.
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- VISTA 2: REGISTRO HISTÓRICO GENERAL DE ASISTENCIAS -->
+      <div id="vista-historial-asistencias" style="display:none;">
+        <!-- Barra de herramientas del historial -->
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:14px; margin-bottom:18px; flex-wrap:wrap;">
+          <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:260px; max-width:420px;">
+            <input type="text" id="input-filtro-historial-user" class="search-input" style="width:100%; padding:9px 14px; font-size:0.88rem;" placeholder="🔍 Buscar por nombre de usuario..." oninput="renderizarTablaHistorialAsistencias()">
+          </div>
+
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <select id="select-filtro-historial-stream" class="toolbar-select" onchange="renderizarTablaHistorialAsistencias()" style="max-width:260px;">
+              <option value="todos">Todas las transmisiones</option>
+            </select>
+
+            <button class="action-btn btn-secondary" onclick="exportarAsistenciasCSV()" style="padding:8px 14px; font-size:0.82rem;" title="Exportar historial a formato CSV">
+              📥 Exportar CSV
+            </button>
           </div>
         </div>
 
+        <!-- Tabla Histórica de Asistencias -->
+        <div class="levels-table-wrap">
+          <table class="levels-table">
+            <thead>
+              <tr>
+                <th style="width: 45px;">#</th>
+                <th>Fecha y Hora</th>
+                <th>Espectador</th>
+                <th>Rango &amp; Nivel</th>
+                <th>Transmisión</th>
+                <th>Puntos Otorgados</th>
+                <th>Emisor</th>
+                <th style="text-align: right;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="historial-asistencias-table-body">
+              <tr>
+                <td colspan="8" style="text-align:center; color: var(--text-muted); padding: 30px;">
+                  ⏳ Cargando registro de asistencias desde stream/tienda/asistencias...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </section>
 
@@ -3986,7 +4087,7 @@
       formatearTiempoVisto, 
       formatearHorasDecimal, 
       calcularNivelUsuario 
-    } from './js/stream_firebase.js';
+    } from './js/stream_firebase.js?v=20261016_4';
 
     window.StreamDB = StreamDB;
     window.norm = norm;
@@ -4000,6 +4101,11 @@
     let transmisionesHistorialCache = [];
     let streamSeleccionadoId = null;
     let usuariosCacheGlobal = [];
+    let asistenciasHistorialCache = [];
+    let contrasteActualCache = null;
+    let pestanaAsistenciaActual = 'contraste';
+    window.asistenciasHistorialCache = asistenciasHistorialCache;
+    window.transmisionesHistorialCache = transmisionesHistorialCache;
 
     // Toast flotante
     function showToast(msg) {
@@ -4042,6 +4148,8 @@
 
       // 4. Escuchar historial de transmisiones para el contraste
       StreamDB.onTransmisionesHistorial((streams) => {
+        transmisionesHistorialCache = streams || [];
+        window.transmisionesHistorialCache = transmisionesHistorialCache;
         actualizarListaTransmisiones(streams);
       });
 
@@ -4068,8 +4176,13 @@
         renderizarTablaPrestamos(loans);
       });
 
-      // 8. Escuchar asistencias en vivo para actualizar el contraste de inmediato
+      // 8. Escuchar asistencias en vivo para actualizar el contraste y la tabla histórica de inmediato
       StreamDB.onAsistencias((asisList) => {
+        asistenciasHistorialCache = asisList || [];
+        window.asistenciasHistorialCache = asistenciasHistorialCache;
+        actualizarBadgesAsistencias(asistenciasHistorialCache);
+        actualizarFiltroStreamsHistorial(asistenciasHistorialCache);
+        renderizarTablaHistorialAsistencias();
         if (streamSeleccionadoId) {
           cargarContrasteStream(streamSeleccionadoId);
         }
@@ -4737,6 +4850,179 @@
       cargarContrasteStream(streamSeleccionadoId);
     };
 
+    // ═══════════ GESTIÓN DE PESTAÑAS Y REGISTRO DE ASISTENCIAS ═══════════
+    window.cambiarPestanaAsistencia = function(pestana) {
+      pestanaAsistenciaActual = pestana;
+      const btnContraste = document.getElementById('tab-btn-contraste');
+      const btnHistorial = document.getElementById('tab-btn-historial');
+      const vistaContraste = document.getElementById('vista-contraste-stream');
+      const vistaHistorial = document.getElementById('vista-historial-asistencias');
+
+      if (pestana === 'contraste') {
+        if (btnContraste) btnContraste.classList.add('active');
+        if (btnHistorial) btnHistorial.classList.remove('active');
+        if (vistaContraste) vistaContraste.style.display = 'block';
+        if (vistaHistorial) vistaHistorial.style.display = 'none';
+        if (streamSeleccionadoId) cargarContrasteStream(streamSeleccionadoId);
+      } else {
+        if (btnContraste) btnContraste.classList.remove('active');
+        if (btnHistorial) btnHistorial.classList.add('active');
+        if (vistaContraste) vistaContraste.style.display = 'none';
+        if (vistaHistorial) vistaHistorial.style.display = 'block';
+        renderizarTablaHistorialAsistencias();
+      }
+    };
+
+    function actualizarBadgesAsistencias(asistencias = []) {
+      const total = asistencias.length;
+      const b1 = document.getElementById('badge-asistencias-count');
+      const b2 = document.getElementById('tab-asistencias-total');
+      if (b1) b1.textContent = `${total} asistencias registradas`;
+      if (b2) b2.textContent = total;
+    }
+
+    function actualizarFiltroStreamsHistorial(asistencias = []) {
+      const select = document.getElementById('select-filtro-historial-stream');
+      if (!select) return;
+      const streamsSet = new Set();
+      asistencias.forEach(a => {
+        if (a.streamId) streamsSet.add(a.streamId);
+      });
+      const currentVal = select.value;
+      const optionsHtml = ['<option value="todos">Todas las transmisiones</option>'];
+      Array.from(streamsSet).forEach(sid => {
+        const matchingStream = transmisionesHistorialCache.find(s => s.id === sid);
+        const label = matchingStream ? `Stream #${matchingStream.numeroStream || ''} ✦ ${matchingStream.titulo || sid}` : sid;
+        optionsHtml.push(`<option value="${sid}">${label}</option>`);
+      });
+      select.innerHTML = optionsHtml.join('');
+      if (currentVal && streamsSet.has(currentVal)) {
+        select.value = currentVal;
+      }
+    }
+
+    window.renderizarTablaHistorialAsistencias = function() {
+      const tbody = document.getElementById('historial-asistencias-table-body');
+      if (!tbody) return;
+
+      const userFilter = norm(document.getElementById('input-filtro-historial-user')?.value || '');
+      const streamFilter = document.getElementById('select-filtro-historial-stream')?.value || 'todos';
+
+      let filtradas = asistenciasHistorialCache || [];
+
+      if (streamFilter !== 'todos') {
+        filtradas = filtradas.filter(a => a.streamId === streamFilter);
+      }
+      if (userFilter) {
+        filtradas = filtradas.filter(a => norm(a.usuario || a.usuarioNorm || '').includes(userFilter));
+      }
+
+      if (filtradas.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align:center; color: var(--text-muted); padding: 35px 15px; font-family: var(--f-tech);">
+              🔍 No se encontraron registros de asistencia con los filtros seleccionados.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtradas.map((a, idx) => {
+        const uKey = a.usuarioNorm || norm(a.usuario);
+        const userObj = usuariosCacheGlobal.find(u => norm(u.username) === uKey);
+        const avatar = a.avatar || userObj?.avatar || '';
+        const hasAv = avatar && avatar.startsWith('http');
+        const num = a.numeroStream ? `#${a.numeroStream}` : (a.streamId ? a.streamId.replace('stream_', '#') : '--');
+        const emisor = a.botEmisor || 'Lobito_Mensajero';
+        const isManual = emisor.toLowerCase().includes('panel') || emisor.toLowerCase().includes('manual');
+
+        return `
+          <tr>
+            <td style="font-family:var(--f-tech); color:var(--text-dim);">${idx + 1}</td>
+            <td style="font-family:var(--f-tech); font-size:0.85rem; color:#d1d5db; white-space:nowrap;">
+              ${a.fechaLegible || new Date(a.timestamp || Date.now()).toLocaleString('es-SV', { dateStyle:'short', timeStyle:'short' })}
+            </td>
+            <td>
+              <div class="user-clickable-cell" onclick="abrirModalFicha('${a.usuario || uKey}')" title="Ver ficha de @${a.usuario}">
+                <div class="contrast-avatar" style="width:34px; height:34px; padding:0; overflow:hidden; border-radius:50%; border:1.5px solid var(--kick); display:flex; align-items:center; justify-content:center; background:#07120a;">
+                  ${hasAv ? `
+                    <img src="${avatar}" alt="${a.usuario}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='https://wsrv.nl/?url=' + encodeURIComponent('${avatar}');} else {this.parentElement.innerHTML='${a.insigniaEmoji || '🐾'}';}">
+                  ` : `
+                    <span style="font-size:1.05rem;">${a.insigniaEmoji || '🐾'}</span>
+                  `}
+                </div>
+                <div>
+                  <div class="user-clickable-name" style="font-weight:800; color:#fff; font-size:0.9rem;">@${a.usuario}</div>
+                  <div style="font-size:0.72rem; color:var(--text-muted); font-family:var(--f-tech);">${a.tituloAutomatico || a.rangoTitulo || 'Cachorro'}</div>
+                </div>
+              </div>
+            </td>
+            <td>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span class="level-badge-pill" style="font-size:0.75rem; padding:2px 8px;">
+                  ${a.insigniaEmoji || '🐾'} Nvl ${a.nivelUsuario || 1}
+                </span>
+                <span style="font-size:0.78rem; color:var(--text-muted); font-family:var(--f-tech);">
+                  ${(a.experienciaTotal || 0).toLocaleString()} XP
+                </span>
+              </div>
+            </td>
+            <td>
+              <span class="contrast-tag" style="background:rgba(0,242,254,0.12); color:var(--cyan); border:1px solid rgba(0,242,254,0.3); font-size:0.78rem; padding:3px 8px; border-radius:6px; font-family:var(--f-tech);">
+                Stream ${num}
+              </span>
+            </td>
+            <td>
+              <span style="font-family:var(--f-tech); font-weight:800; color:var(--oro); font-size:0.92rem;">
+                +${a.puntosOtorgados || 500} JP
+              </span>
+              ${a.bonoExtraNivel ? `<span style="font-size:0.72rem; color:var(--kick); margin-left:4px;">(+${a.bonoExtraNivel} bono)</span>` : ''}
+            </td>
+            <td>
+              <span style="font-size:0.78rem; padding:3px 8px; border-radius:6px; font-family:var(--f-tech); ${isManual ? 'background:rgba(168,85,247,0.15); color:var(--morado); border:1px solid rgba(168,85,247,0.3);' : 'background:rgba(83,252,24,0.12); color:var(--kick); border:1px solid rgba(83,252,24,0.3);'}">
+                ${isManual ? '🖐️ ' + emisor : '🤖 ' + emisor}
+              </span>
+            </td>
+            <td style="text-align:right;">
+              <button class="action-btn btn-secondary" onclick="abrirModalFicha('${a.usuario || uKey}')" style="padding:4px 8px; font-size:0.75rem;" title="Ver ficha del usuario">
+                👤 Ver Ficha
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    };
+
+    window.exportarAsistenciasCSV = function() {
+      if (!asistenciasHistorialCache || asistenciasHistorialCache.length === 0) {
+        showToast('⚠️ No hay registros de asistencia para exportar.');
+        return;
+      }
+      const headers = ['Fecha', 'Hora', 'Usuario', 'Nivel', 'Rango', 'XP', 'PuntosOtorgados', 'StreamId', 'NumeroStream', 'Emisor'];
+      const rows = asistenciasHistorialCache.map(a => [
+        `"${a.fechaLegible || ''}"`,
+        `"${new Date(a.timestamp || Date.now()).toLocaleTimeString()}"`,
+        `"${a.usuario || ''}"`,
+        a.nivelUsuario || 1,
+        `"${a.rangoTitulo || ''}"`,
+        a.experienciaTotal || 0,
+        a.puntosOtorgados || 0,
+        `"${a.streamId || ''}"`,
+        a.numeroStream || '',
+        `"${a.botEmisor || ''}"`
+      ]);
+      const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `asistencias_stream_${Date.now()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('📥 Archivo CSV descargado con éxito');
+    };
+
     window.refrescarContrasteActual = function() {
       if (streamSeleccionadoId) {
         cargarContrasteStream(streamSeleccionadoId);
@@ -4744,11 +5030,101 @@
       }
     };
 
+    // Filtrar espectadores localmente en las columnas de Presentes y Ausentes
+    window.filtrarContrasteLocal = function(query) {
+      if (!contrasteActualCache) return;
+      const q = norm(query || '').trim();
+      const presFiltrados = q ? contrasteActualCache.presentes.filter(p => norm(p.username).includes(q)) : contrasteActualCache.presentes;
+      const ausFiltrados = q ? contrasteActualCache.ausentes.filter(a => norm(a.username).includes(q)) : contrasteActualCache.ausentes;
+
+      renderizarColumnaPresentes(presFiltrados);
+      renderizarColumnaAusentes(ausFiltrados);
+    };
+
+    function renderizarColumnaPresentes(presentes = []) {
+      const presListEl = document.getElementById('contrast-presentes-list');
+      if (!presListEl) return;
+      if (presentes.length === 0) {
+        presListEl.innerHTML = `
+          <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
+            Sin asistentes que coincidan con la búsqueda.
+          </div>
+        `;
+        return;
+      }
+      presListEl.innerHTML = presentes.map(p => {
+        const hasAv = p.avatar && p.avatar.startsWith('http');
+        return `
+          <div class="contrast-item">
+            <div class="contrast-user-info">
+              <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid var(--kick); display:flex; align-items:center; justify-content:center; background:#07120a;">
+                ${hasAv ? `
+                  <img src="${p.avatar}" alt="${p.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='https://wsrv.nl/?url=' + encodeURIComponent('${p.avatar}');} else {this.parentElement.innerHTML='${p.insigniaEmoji || '🐾'}';}">
+                ` : `
+                  <span style="font-size:1.1rem;">${p.insigniaEmoji || '🐾'}</span>
+                `}
+              </div>
+              <div>
+                <div class="contrast-name">@${p.username}</div>
+                <div class="contrast-meta">${p.rangoTitulo} (Nvl ${p.nivel}) • Llegó: ${p.hora}</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="contrast-tag present">Presente</span>
+              <button class="action-btn" onclick="quitarAsistenciaDeStreamUI('${p.username}')" style="padding: 4px 8px; font-size: 0.72rem; background:rgba(255,92,108,0.12); border:1px solid rgba(255,92,108,0.3); color:var(--rojo);" title="Remover asistencia de esta sesión">
+                ✕ Quitar
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderizarColumnaAusentes(ausentes = []) {
+      const ausListEl = document.getElementById('contrast-ausentes-list');
+      if (!ausListEl) return;
+      if (ausentes.length === 0) {
+        ausListEl.innerHTML = `
+          <div style="text-align: center; color: var(--kick); padding: 30px 10px; font-family: var(--f-tech);">
+            🎉 ¡Asistencia perfecta! Toda la manada estuvo presente en este stream.
+          </div>
+        `;
+        return;
+      }
+      ausListEl.innerHTML = ausentes.map(a => {
+        const hasAv = a.avatar && a.avatar.startsWith('http');
+        return `
+          <div class="contrast-item">
+            <div class="contrast-user-info">
+              <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; opacity:0.85; background:#07120a;">
+                ${hasAv ? `
+                  <img src="${a.avatar}" alt="${a.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='https://wsrv.nl/?url=' + encodeURIComponent('${a.avatar}');} else {this.parentElement.innerHTML='${a.insigniaEmoji || '🐾'}';}">
+                ` : `
+                  <span style="font-size:1.1rem;">${a.insigniaEmoji || '🐾'}</span>
+                `}
+              </div>
+              <div>
+                <div class="contrast-name" style="color:#d1d5db;">@${a.username}</div>
+                <div class="contrast-meta">${a.rangoTitulo} (Nvl ${a.nivel}) • ${a.asistenciasCount} asistencias previas</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span class="contrast-tag absent">Ausente</span>
+              <button class="action-btn btn-primary" onclick="pasarListaManual('${a.username}')" style="padding: 4px 8px; font-size: 0.72rem;" title="Registrar asistencia ahora">
+                ➕ Asistió
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
     // Cargar y mostrar contraste de la sesión seleccionada
     async function cargarContrasteStream(streamId) {
       if (!streamId) return;
       const res = await StreamDB.contrastarAsistenciasTransmision(streamId);
       if (!res) return;
+      contrasteActualCache = res;
 
       // Banner resumen del stream
       const estadoBadge = document.getElementById('ssb-badge-estado');
@@ -4771,74 +5147,13 @@
       document.getElementById('badge-ausentes-count').textContent = res.totalAusentes;
       document.getElementById('kpi-tasa-asistencia').textContent = `${res.tasaAsistencia}%`;
 
-      // Renderizar columna Presentes
-      const presListEl = document.getElementById('contrast-presentes-list');
-      if (res.presentes.length === 0) {
-        presListEl.innerHTML = `
-          <div style="text-align: center; color: var(--text-muted); padding: 30px 10px; font-family: var(--f-tech);">
-            Sin asistentes registrados en esta transmisión todavía.
-          </div>
-        `;
-      } else {
-        presListEl.innerHTML = res.presentes.map(p => {
-          const hasAv = p.avatar && p.avatar.startsWith('http');
-          return `
-            <div class="contrast-item">
-              <div class="contrast-user-info">
-                <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid var(--kick); display:flex; align-items:center; justify-content:center; background:#07120a;">
-                  ${hasAv ? `
-                    <img src="${p.avatar}" alt="${p.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='https://wsrv.nl/?url=' + encodeURIComponent('${p.avatar}');} else {this.parentElement.innerHTML='${p.insigniaEmoji || '🐾'}';}">
-                  ` : `
-                    <span style="font-size:1.1rem;">${p.insigniaEmoji || '🐾'}</span>
-                  `}
-                </div>
-                <div>
-                  <div class="contrast-name">@${p.username}</div>
-                  <div class="contrast-meta">${p.rangoTitulo} (Nvl ${p.nivel}) • Llegó: ${p.hora}</div>
-                </div>
-              </div>
-              <span class="contrast-tag present">Presente</span>
-            </div>
-          `;
-        }).join('');
-      }
+      // Renderizar columnas aplicando filtro si lo hay
+      const currentQ = norm(document.getElementById('filter-contrast-input')?.value || '');
+      const presFiltrados = currentQ ? res.presentes.filter(p => norm(p.username).includes(currentQ)) : res.presentes;
+      const ausFiltrados = currentQ ? res.ausentes.filter(a => norm(a.username).includes(currentQ)) : res.ausentes;
 
-      // Renderizar columna Ausentes
-      const ausListEl = document.getElementById('contrast-ausentes-list');
-      if (res.ausentes.length === 0) {
-        ausListEl.innerHTML = `
-          <div style="text-align: center; color: var(--kick); padding: 30px 10px; font-family: var(--f-tech);">
-            🎉 ¡Asistencia perfecta! Toda la manada estuvo presente en este stream.
-          </div>
-        `;
-      } else {
-        ausListEl.innerHTML = res.ausentes.map(a => {
-          const hasAv = a.avatar && a.avatar.startsWith('http');
-          return `
-            <div class="contrast-item">
-              <div class="contrast-user-info">
-                <div class="contrast-avatar" style="width:36px; height:36px; padding:0; overflow:hidden; border-radius:50%; border:1px solid rgba(255,255,255,0.12); display:flex; align-items:center; justify-content:center; opacity:0.85; background:#07120a;">
-                  ${hasAv ? `
-                    <img src="${a.avatar}" alt="${a.username}" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block;" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry){this.dataset.retry='1'; this.src='https://wsrv.nl/?url=' + encodeURIComponent('${a.avatar}');} else {this.parentElement.innerHTML='${a.insigniaEmoji || '🐾'}';}">
-                  ` : `
-                    <span style="font-size:1.1rem;">${a.insigniaEmoji || '🐾'}</span>
-                  `}
-                </div>
-                <div>
-                  <div class="contrast-name" style="color:#d1d5db;">@${a.username}</div>
-                  <div class="contrast-meta">${a.rangoTitulo} (Nvl ${a.nivel}) • ${a.asistenciasCount} asistencias previas</div>
-                </div>
-              </div>
-              <div style="display:flex; align-items:center; gap:8px;">
-                <span class="contrast-tag absent">Ausente</span>
-                <button class="action-btn btn-primary" onclick="pasarListaManual('${a.username}')" style="padding: 4px 8px; font-size: 0.72rem;" title="Registrar asistencia ahora">
-                  ➕ Asistió
-                </button>
-              </div>
-            </div>
-          `;
-        }).join('');
-      }
+      renderizarColumnaPresentes(presFiltrados);
+      renderizarColumnaAusentes(ausFiltrados);
     }
 
     // Helper para nombre legible de marco cibernético
@@ -5248,15 +5563,45 @@
       }).join('');
     }
 
-    // Pasar lista manual
+    // Pasar lista manual (vinculando con streamId seleccionado si existe)
     window.pasarListaManual = async function(username) {
       if (!username) return;
-      const asis = await StreamDB.registrarAsistencia({ usuario: username, botEmisor: 'Panel_Estadisticas' });
+      const asis = await StreamDB.registrarAsistencia({ 
+        usuario: username, 
+        botEmisor: 'Panel_Estadisticas',
+        streamId: streamSeleccionadoId || null
+      });
       if (asis) {
         showToast(`🐺 Asistencia registrada para <b>@${username}</b> (+${asis.puntosOtorgados} pts • ${asis.insigniaEmoji} ${asis.rangoTitulo})`);
         if (streamSeleccionadoId) {
           cargarContrasteStream(streamSeleccionadoId);
         }
+      }
+    };
+
+    // Pasar lista rápida mediante input de texto
+    window.pasarListaRapidaUI = async function() {
+      const inp = document.getElementById('input-asistencia-rapida');
+      if (!inp) return;
+      const val = inp.value.trim().replace(/^@/, '');
+      if (!val) {
+        showToast('⚠️ Escribe el nombre del espectador.');
+        return;
+      }
+      inp.value = '';
+      await window.pasarListaManual(val);
+    };
+
+    // Quitar / deshacer asistencia de un stream específico
+    window.quitarAsistenciaDeStreamUI = async function(username) {
+      if (!username || !streamSeleccionadoId) return;
+      if (!confirm(`¿Deseas remover la asistencia de @${username} de esta transmisión?`)) return;
+      const ok = await StreamDB.removerAsistenciaDeStream(username, streamSeleccionadoId);
+      if (ok) {
+        showToast(`🗑️ Asistencia de <b>@${username}</b> removida de esta sesión.`);
+        cargarContrasteStream(streamSeleccionadoId);
+      } else {
+        showToast('⚠️ No se pudo remover la asistencia de esta sesión.');
       }
     };
 

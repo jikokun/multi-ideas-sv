@@ -416,7 +416,7 @@
 
   /* Contenedor exacto sobre la superficie de la mesa de madera de mesero.png */
   .mesero-mesa{
-    position:absolute;bottom:6%;left:2%;right:2%;height:58%;
+    position:absolute;bottom:11%;left:3%;right:3%;height:55%;
     pointer-events:none;z-index:2;
   }
 
@@ -429,15 +429,15 @@
     padding:0 12px;
   }
   .mesa-fila-atras{
-    bottom:27%;height:46%;z-index:1;justify-content:space-evenly;
+    bottom:24%;height:46%;z-index:1;justify-content:space-evenly;
   }
   .mesa-fila-adelante{
-    bottom:2%;height:54%;z-index:3;justify-content:space-evenly;
+    bottom:1%;height:54%;z-index:3;justify-content:space-evenly;
   }
 
   /* MODO 1 ITEM (SOLO): Máxima presencia y tamaño en el centro de la mesa */
   .mesero-mesa.modo-solo .mesa-fila-adelante{
-    bottom:3%;
+    bottom:2%;
     height:82%;
     justify-content:center;
   }
@@ -1989,7 +1989,7 @@
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
-  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js';
+  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261016_3';
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
@@ -3251,15 +3251,27 @@
   renderCarouselTrack();
 
   // Sincronización en tiempo real del catálogo dinámico desde Firebase RTDB
-  if (window.StreamDB && typeof window.StreamDB.onTiendaItems === 'function') {
-    window.StreamDB.onTiendaItems((itemsDb) => {
-      if (itemsDb && Array.isArray(itemsDb) && itemsDb.length > 0) {
-        console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
-        ITEMS = itemsDb;
-        renderCarouselTrack();
-      }
-    });
+  let catalogSubscribed = false;
+  function conectarCatalogoFirebase() {
+    if (catalogSubscribed) return;
+    if (window.StreamDB && typeof window.StreamDB.onTiendaItems === 'function') {
+      catalogSubscribed = true;
+      window.StreamDB.onTiendaItems((itemsDb) => {
+        if (itemsDb && Array.isArray(itemsDb) && itemsDb.length > 0) {
+          console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
+          ITEMS = itemsDb;
+          renderCarouselTrack();
+        }
+      });
+    }
   }
+
+  conectarCatalogoFirebase();
+  const prevOnStreamDBReady = window.onStreamDBReady;
+  window.onStreamDBReady = function() {
+    if (typeof prevOnStreamDBReady === 'function') prevOnStreamDBReady();
+    conectarCatalogoFirebase();
+  };
 
 
 
@@ -3621,6 +3633,7 @@
     }
 
     // Pago exitoso
+    const platosAServir = [...ordenActual];
     saldoActual -= total;
     setUserPoints(user, saldoActual, 'compra_tiendita');
     animarPuntos(saldoActual);
@@ -3633,9 +3646,9 @@
     if (window.StreamDB) {
       window.StreamDB.registrarCompra({
         comprador: user,
-        items: ordenActual.map(i => i.nombre),
-        itemsKeys: ordenActual.map(i => i.key),
-        cantidad: ordenActual.length,
+        items: platosAServir.map(i => i.nombre),
+        itemsKeys: platosAServir.map(i => i.key),
+        cantidad: platosAServir.length,
         costoTotal: total,
         nuevoSaldo: saldoActual,
         xpGanada: xpGanada
@@ -3649,7 +3662,7 @@
       }).catch(err => console.warn('[Tiendita] Error al registrar compra en Firebase:', err));
 
       // Decrementar stock en tiempo real en Firebase RTDB si el producto tiene stock finito
-      if (window.StreamDB && typeof window.StreamDB.decrementarStockItem === 'function') {
+      if (typeof window.StreamDB.decrementarStockItem === 'function') {
         platosAServir.forEach(plato => {
           window.StreamDB.decrementarStockItem(plato.key, 1).catch(()=>{});
         });
@@ -3663,9 +3676,9 @@
         action:{name:'Tiendita_ConfirmarCompra'},
         args:{
           comprador: user,
-          items: ordenActual.map(i => i.nombre).join(', '),
-          itemsKeys: ordenActual.map(i => i.key),
-          cantidad: ordenActual.length,
+          items: platosAServir.map(i => i.nombre).join(', '),
+          itemsKeys: platosAServir.map(i => i.key),
+          cantidad: platosAServir.length,
           costoTotal: total,
           nuevoSaldo: saldoActual,
           xpGanada: xpGanada
@@ -3674,9 +3687,8 @@
       }));
     }
 
-    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${ordenActual.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡ (50%)</span>`);
+    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${platosAServir.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡ (50%)</span>`);
 
-    const platosAServir = [...ordenActual];
     vaciarOrden();
 
     // 1. Ocultar la vitrina de la tienda suavemente
@@ -3782,7 +3794,8 @@
         platoDiv.className = 'plato-servido';
         platoDiv.style.animationDelay = `${(delayAcumulado + (i * 0.08)).toFixed(2)}s`;
         platoDiv.style.zIndex = i + 1;
-        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre}">`;
+        const localFallback = c.item.localImg || '';
+        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre}" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry && '${localFallback}'){ this.dataset.retry='1'; this.src='${localFallback}'; } else { this.style.display='none'; }">`;
         clusterDiv.appendChild(platoDiv);
       }
 

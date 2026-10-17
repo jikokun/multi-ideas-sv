@@ -1856,7 +1856,7 @@ class StreamFirebaseService {
   }
 
   // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
-  async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero' }) {
+  async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero', streamId = null }) {
     const key = norm(usuario);
     if (!key) return null;
 
@@ -1893,19 +1893,26 @@ class StreamFirebaseService {
     }
 
     try {
-      // 1. Obtener stream activo si existe, o auto-iniciar si estamos en directo
-      let streamActivoId = null;
+      // 1. Obtener stream activo si existe, o usar el streamId especificado
+      let streamActivoId = streamId || null;
       let numeroStream = null;
-      try {
-        const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
-        if (statsSnap.exists()) {
-          const stats = statsSnap.val();
-          if (stats.isLive === true && stats.streamActivoId) {
-            streamActivoId = stats.streamActivoId;
-            numeroStream = stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null;
+      if (!streamActivoId) {
+        try {
+          const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
+          if (statsSnap.exists()) {
+            const stats = statsSnap.val();
+            if (stats.isLive === true && stats.streamActivoId) {
+              streamActivoId = stats.streamActivoId;
+              numeroStream = stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null;
+            }
           }
-        }
-      } catch (e) {}
+        } catch (e) {}
+      } else {
+        try {
+          const sSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/numeroStream`));
+          numeroStream = sSnap.exists() ? sSnap.val() : null;
+        } catch(e) {}
+      }
 
       // Si no hay stream activo pero estamos recibiendo un saludo de Lobito en vivo:
       // Auto-iniciar o asegurar la sesión de transmisión activa
@@ -2154,6 +2161,29 @@ class StreamFirebaseService {
     }
   }
 
+  // Remover asistencia de un stream específico (deshacer asistencia errónea)
+  async removerAsistenciaDeStream(usuario, streamId) {
+    await this.init();
+    const key = norm(usuario);
+    if (!key || !streamId) return false;
+    try {
+      await set(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes/${key}`), null);
+      const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`);
+      await runTransaction(transRef, (s) => {
+        if (s && s.asistentes) {
+          delete s.asistentes[key];
+          s.totalAsistentes = Object.keys(s.asistentes).length;
+        }
+        return s;
+      });
+      console.log(`[StreamDB] Asistencia de @${usuario} retirada de stream ${streamId}`);
+      return true;
+    } catch(e) {
+      console.warn('[StreamDB] Error al remover asistente de stream:', e);
+      return false;
+    }
+  }
+
   // Contrastar quiénes asistieron vs quiénes estuvieron ausentes en una transmisión
   async contrastarAsistenciasTransmision(streamId) {
     try {
@@ -2258,31 +2288,33 @@ class StreamFirebaseService {
   }
 
   // Obtener historial de transmisiones realizadas
-  async getTransmisionesHistorial(limit = 20) {
+  async getTransmisionesHistorial(limit = 50) {
     try {
-      const q = query(ref(this.rtdb, NODE_TRANSMISSIONS), limitToLast(limit));
-      const snap = await get(q);
+      const snap = await get(ref(this.rtdb, NODE_TRANSMISSIONS));
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
-          lista.unshift(child.val()); // Más recientes primero
+          lista.push(child.val());
         });
+        lista.sort((a, b) => (b.inicioTimestamp || 0) - (a.inicioTimestamp || 0));
       }
-      return lista;
+      return lista.slice(0, limit);
     } catch (e) {
       return [];
     }
   }
 
-  onTransmisionesHistorial(callback, limit = 20) {
+  onTransmisionesHistorial(callback, limit = 50) {
     if (typeof callback !== 'function') return () => {};
-    const q = query(ref(this.rtdb, NODE_TRANSMISSIONS), limitToLast(limit));
-    return onValue(q, (snap) => {
+    return onValue(ref(this.rtdb, NODE_TRANSMISSIONS), (snap) => {
       const lista = [];
       if (snap.exists()) {
-        snap.forEach(child => lista.unshift(child.val()));
+        snap.forEach(child => {
+          lista.push(child.val());
+        });
+        lista.sort((a, b) => (b.inicioTimestamp || 0) - (a.inicioTimestamp || 0));
       }
-      callback(lista);
+      callback(lista.slice(0, limit));
     });
   }
 
@@ -2567,27 +2599,31 @@ class StreamFirebaseService {
     return onValue(ref(this.rtdb, NODE_STATS), snap => callback(snap.val() || {}));
   }
 
-  onTransacciones(callback, limit = 25) {
+  onTransacciones(callback, limit = 50) {
     if (typeof callback !== 'function') return () => {};
-    const txQuery = query(ref(this.rtdb, NODE_TRANSACTIONS), limitToLast(limit));
-    return onValue(txQuery, snap => {
+    return onValue(ref(this.rtdb, NODE_TRANSACTIONS), snap => {
       const lista = [];
       if (snap.exists()) {
-        snap.forEach(child => lista.unshift(child.val()));
+        snap.forEach(child => {
+          lista.push(child.val());
+        });
+        lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
-      callback(lista);
+      callback(lista.slice(0, limit));
     });
   }
 
-  onAsistencias(callback, limit = 25) {
+  onAsistencias(callback, limit = 200) {
     if (typeof callback !== 'function') return () => {};
-    const asisQuery = query(ref(this.rtdb, NODE_ATTENDANCE), limitToLast(limit));
-    return onValue(asisQuery, snap => {
+    return onValue(ref(this.rtdb, NODE_ATTENDANCE), snap => {
       const lista = [];
       if (snap.exists()) {
-        snap.forEach(child => lista.unshift(child.val()));
+        snap.forEach(child => {
+          lista.push(child.val());
+        });
+        lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
-      callback(lista);
+      callback(lista.slice(0, limit));
     });
   }
 
