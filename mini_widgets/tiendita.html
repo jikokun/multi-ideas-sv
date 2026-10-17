@@ -31,7 +31,7 @@
 
   /* ════════════ WIDGET TIENDA (TIRA GRANDE) ════════════ */
   #tiendita-menu{
-    position:absolute;bottom:35px;right:-1150px;width:840px;max-width:calc(100vw - 30px);z-index:10;opacity:0;
+    position:absolute;bottom:35px;right:-1150px;width:840px;max-width:calc(100vw - 30px);z-index:9999;
     filter:drop-shadow(0 26px 60px rgba(0,0,0,.85)) drop-shadow(0 0 35px rgba(83,252,24,.22));
     transition:right .75s cubic-bezier(.18,.9,.24,1.15),opacity .45s ease;
   }
@@ -308,40 +308,83 @@
     margin-left:1px;
   }
 
-  /* ════════════ PANEL DE CONFIRMACIÓN & CARRITO ("¿AÑADIR O PAGAR?") ════════════ */
+  /* ═══════════ NAVEGACIÓN POR CATEGORÍAS & SECCIONES ═══════════ */
+  .categorias-nav-bar{
+    display:flex;align-items:center;justify-content:center;gap:6px;padding:4px 8px 10px;
+    overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;flex-wrap:wrap;
+  }
+  .categorias-nav-bar::-webkit-scrollbar{display:none}
+  .cat-pill{
+    display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);color:var(--tinta);
+    font-family:var(--f-cuerpo);font-size:12px;font-weight:700;cursor:pointer;
+    transition:all .2s cubic-bezier(.16,1,.3,1);white-space:nowrap;user-select:none;
+  }
+  .cat-pill:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25);transform:translateY(-1px);color:#fff}
+  .cat-pill.active{
+    background:linear-gradient(135deg,rgba(83,252,24,.25) 0%,rgba(83,252,24,.08) 100%);
+    border-color:var(--kick);color:var(--kick);box-shadow:0 0 14px rgba(83,252,24,.35);font-weight:800;
+  }
+  .cat-pill .cat-count{
+    font-size:10.5px;padding:1px 5px;border-radius:999px;background:rgba(0,0,0,.45);color:var(--apagado);
+  }
+  .cat-pill.active .cat-count{background:rgba(83,252,24,.22);color:var(--kick)}
+
+  /* ════════════ PANEL DE CONFIRMACIÓN & CARRITO CON TOTAL PROMINENTE ════════════ */
   #confirm-box{
     margin-top:10px;padding:12px 18px;border-radius:16px;
-    background:linear-gradient(180deg,rgba(255,211,92,.14),rgba(18,12,6,.96));
-    border:1.5px solid rgba(255,211,92,.5);
+    background:linear-gradient(180deg,rgba(255,211,92,.16),rgba(14,10,4,.97));
+    border:1.5px solid rgba(255,211,92,.55);
     display:none;flex-direction:column;gap:10px;
-    box-shadow:0 8px 25px rgba(0,0,0,.6),0 0 25px rgba(255,211,92,.22);
+    box-shadow:0 8px 25px rgba(0,0,0,.7),0 0 25px rgba(255,211,92,.25);
     animation:slideDown .35s cubic-bezier(.2,.9,.3,1.2);
   }
   #confirm-box.activo{display:flex}
   @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 
   .confirm-header-row{
-    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
   }
   .confirm-title-wrap{
-    display:flex;align-items:center;gap:10px;min-width:0;
+    display:flex;align-items:center;gap:10px;min-width:0;flex:1;
   }
-  .confirm-visual{font-size:26px;flex:none;filter:drop-shadow(0 0 8px var(--oro))}
+  .confirm-visual{font-size:28px;flex:none;filter:drop-shadow(0 0 8px var(--oro))}
+  .confirm-headings{display:flex;flex-direction:column;gap:2px}
   .confirm-question{
-    font-size:15.5px;font-weight:800;color:#ffffff;letter-spacing:.3px;
+    font-size:15px;font-weight:800;color:#ffffff;letter-spacing:.2px;
     text-shadow:0 0 10px rgba(255,211,92,.4);line-height:1.2;
   }
-  .confirm-total-badge{
-    display:inline-flex;align-items:center;gap:6px;padding:4px 12px;border-radius:999px;
-    background:rgba(255,211,92,.15);border:1px solid var(--oro);color:var(--oro);
-    font-size:13.5px;font-weight:900;white-space:nowrap;text-shadow:0 0 8px rgba(255,211,92,.6);
+  .confirm-subinfo{
+    font-size:11.5px;color:var(--apagado);font-family:var(--f-cuerpo);font-weight:600;
+  }
+
+  /* Caja Destacada y Grande del Total */
+  .confirm-total-box{
+    display:flex;flex-direction:column;align-items:flex-end;gap:1px;
+    padding:6px 14px;border-radius:12px;
+    background:linear-gradient(135deg,rgba(255,211,92,.22) 0%,rgba(24,16,4,.95) 100%);
+    border:1.5px solid var(--oro);
+    box-shadow:0 0 16px rgba(255,211,92,.35),inset 0 0 10px rgba(255,211,92,.1);
     flex-shrink:0;
+  }
+  .confirm-total-lbl{
+    font-size:10px;font-weight:900;color:#ffd35c;letter-spacing:.08em;text-transform:uppercase;
+  }
+  .confirm-total-display{
+    display:inline-flex;align-items:center;gap:6px;
+  }
+  .total-pts-huge{
+    font-family:var(--f-cuerpo);font-size:26px;font-weight:900;color:var(--oro);line-height:1;
+    text-shadow:0 0 15px rgba(255,211,92,.75);letter-spacing:-.02em;
+  }
+  .total-pts-unit{
+    font-size:13px;font-weight:900;color:#fef08a;text-transform:uppercase;
   }
 
   /* Listado visual de platos añadidos a la orden */
   .orden-chips-row{
     display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;
-    background:rgba(0,0,0,.45);border:1px dashed rgba(255,211,92,.35);min-height:38px;
+    background:rgba(0,0,0,.5);border:1px dashed rgba(255,211,92,.35);min-height:38px;
     max-height:86px;overflow-y:auto;
   }
   .orden-chips-row::-webkit-scrollbar{width:4px}
@@ -365,27 +408,25 @@
   }
   .orden-chip .chip-del:hover{color:var(--rojo)}
 
-  /* Botones de acción: Añadir Más / Pagar Todo / Cancelar */
-  .confirm-actions-row{display:flex;align-items:center;gap:10px;margin-top:2px}
+  /* Botones de acción: Pagar Todo / Cancelar (Botón añadir eliminado según pedido) */
+  .confirm-actions-row{display:flex;align-items:center;gap:12px;margin-top:2px}
   .btn-decision{
     flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;
-    padding:10px 14px;border-radius:12px;font-family:var(--f-cuerpo);font-size:13.5px;font-weight:800;
+    padding:11px 16px;border-radius:12px;font-family:var(--f-cuerpo);font-size:14px;font-weight:900;
     cursor:pointer;transition:all .2s ease;white-space:nowrap;border:none;
   }
   .btn-anadir{
-    background:rgba(255,211,92,.16);border:1.5px solid var(--oro);color:var(--oro);
-    box-shadow:0 0 12px rgba(255,211,92,.25);
+    display:none !important; /* Ocultado por solicitud: el comprador se enfoca en pagar */
   }
-  .btn-anadir:hover{background:rgba(255,211,92,.32);transform:translateY(-1px);box-shadow:0 0 18px rgba(255,211,92,.5)}
   .btn-pagar{
-    background:linear-gradient(180deg,#7efc3a,#41e309);color:#04120a;
-    box-shadow:0 3px 0 #23770b,0 0 20px rgba(83,252,24,.5);
+    background:linear-gradient(180deg,#7efc3a,#3de005);color:#021205;
+    box-shadow:0 3px 0 #217009,0 0 24px rgba(83,252,24,.6);font-size:15px;
   }
-  .btn-pagar:hover{filter:brightness(1.15);transform:translateY(-1px);box-shadow:0 4px 0 #23770b,0 0 28px rgba(83,252,24,.8)}
-  .btn-pagar:active{transform:translateY(2px);box-shadow:0 1px 0 #23770b}
+  .btn-pagar:hover{filter:brightness(1.12);transform:translateY(-1px);box-shadow:0 4px 0 #217009,0 0 32px rgba(83,252,24,.85)}
+  .btn-pagar:active{transform:translateY(2px);box-shadow:0 1px 0 #217009}
   .btn-cancel-mini{
     background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2);color:var(--apagado);
-    padding:9px 12px;border-radius:10px;cursor:pointer;font-size:12px;font-family:var(--f-cuerpo);
+    padding:11px 16px;border-radius:11px;cursor:pointer;font-size:12.5px;font-family:var(--f-cuerpo);
     font-weight:700;transition:all .2s;flex-shrink:0;
   }
   .btn-cancel-mini:hover{color:var(--rojo);border-color:var(--rojo)}
@@ -574,8 +615,8 @@
 
   /* ════════════ ZONA DE PRUEBA / INTERACCIÓN OBS ════════════ */
   #demo-zone{
-    position:fixed;left:20px;bottom:20px;z-index:9000;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
-    max-width:calc(100vw - 40px);max-height:85vh;overflow-y:auto;
+    position:fixed;left:20px;bottom:20px;z-index:500;display:flex;flex-wrap:wrap;gap:8px;align-items:center;
+    max-width:480px;max-height:85vh;overflow-y:auto;
     padding:12px 16px;border-radius:16px;background:rgba(8,14,9,.96);
     border:1.5px solid rgba(83,252,24,.45);box-shadow:0 12px 40px rgba(0,0,0,.85);backdrop-filter:blur(10px);
     transition:transform .55s cubic-bezier(.4,.9,.4,1),opacity .4s;
@@ -1724,6 +1765,28 @@
           <div class="saldo"><span class="coin"><svg class="coin-icon" viewBox="0 0 20 20" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#f59e0b" stroke="#fef08a" stroke-width="1.2"/><circle cx="10" cy="10" r="6.5" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="2 1" opacity="0.85"/><polygon points="10,5.5 11.4,8.2 14.3,8.7 12.2,10.7 12.7,13.6 10,12.2 7.3,13.6 7.8,10.7 5.7,8.7 8.6,8.2" fill="#ffffff"/></svg></span><b id="pts-val">1000</b><small>pts</small></div>
         </div>
 
+        <!-- BARRA DE CATEGORÍAS & SECCIONES -->
+        <div class="categorias-nav-bar" id="categorias-nav-bar">
+          <button type="button" class="cat-pill active" data-cat="todos" onclick="filtrarCategoriaTienda('todos')">
+            <span>🍽️</span> Todos (<span id="cat-count-todos">0</span>)
+          </button>
+          <button type="button" class="cat-pill" data-cat="comida" onclick="filtrarCategoriaTienda('comida')">
+            <span>🫓</span> Comidas (<span id="cat-count-comida">0</span>)
+          </button>
+          <button type="button" class="cat-pill" data-cat="bebida" onclick="filtrarCategoriaTienda('bebida')">
+            <span>☕</span> Bebidas (<span id="cat-count-bebida">0</span>)
+          </button>
+          <button type="button" class="cat-pill" data-cat="postre" onclick="filtrarCategoriaTienda('postre')">
+            <span>🍰</span> Postres (<span id="cat-count-postre">0</span>)
+          </button>
+          <button type="button" class="cat-pill" data-cat="especial" onclick="filtrarCategoriaTienda('especial')">
+            <span>⭐</span> Especiales (<span id="cat-count-especial">0</span>)
+          </button>
+          <button type="button" class="cat-pill" data-cat="recurso" onclick="filtrarCategoriaTienda('recurso')">
+            <span>🐺</span> Extras (<span id="cat-count-recurso">0</span>)
+          </button>
+        </div>
+
         <!-- TIRA CONTINUA / CARRUSEL -->
         <div class="stage" id="stage">
           <button type="button" class="btn-nav-arrow prev" id="btn-nav-prev" title="Ver anteriores 5 platillos (!atras)">‹</button>
@@ -1733,15 +1796,29 @@
           <button type="button" class="btn-nav-arrow next" id="btn-nav-next" title="Ver siguientes 5 platillos (!rotar / !siguiente / !mas)">›</button>
         </div>
 
-        <!-- PANEL DE CONFIRMACIÓN DE COMPRA & CARRITO ("¿AÑADIR O PAGAR?") -->
+        <!-- PANEL DE CONFIRMACIÓN DE COMPRA & CARRITO CON TOTAL PROMINENTE -->
         <div id="confirm-box">
           <div class="confirm-header-row">
             <div class="confirm-title-wrap">
               <span class="confirm-visual">🍽️</span>
-              <span class="confirm-question">¿Quieres añadir algo más o pagar todo?</span>
+              <div class="confirm-headings">
+                <span class="confirm-question">¿Confirmas tu orden?</span>
+                <span class="confirm-subinfo"><b id="cart-items-count">1</b> platillo(s) en bandeja</span>
+              </div>
             </div>
-            <div class="confirm-total-badge" id="confirm-total-badge">
-              Total: <b id="cart-total-pts">0</b> pts
+
+            <!-- TOTAL DE COMPRA DESTACADO Y EN GRANDE -->
+            <div class="confirm-total-box" id="confirm-total-box">
+              <span class="confirm-total-lbl">TOTAL A PAGAR:</span>
+              <div class="confirm-total-display">
+                <svg class="coin-icon" viewBox="0 0 20 20" width="22" height="22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="10" cy="10" r="9" fill="#f59e0b" stroke="#fef08a" stroke-width="1.2"/>
+                  <circle cx="10" cy="10" r="6.5" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="2 1" opacity="0.85"/>
+                  <polygon points="10,5.5 11.4,8.2 14.3,8.7 12.2,10.7 12.7,13.6 10,12.2 7.3,13.6 7.8,10.7 5.7,8.7 8.6,8.2" fill="#ffffff"/>
+                </svg>
+                <b id="cart-total-pts" class="total-pts-huge">0</b>
+                <small class="total-pts-unit">pts</small>
+              </div>
             </div>
           </div>
 
@@ -1749,9 +1826,6 @@
           <div class="orden-chips-row" id="orden-chips-row"></div>
 
           <div class="confirm-actions-row">
-            <button type="button" class="btn-decision btn-anadir" id="btn-anadir" title="Elige otro platillo del carrusel o escribe !anadir">
-              <span>➕ Añadir algo más</span>
-            </button>
             <button type="button" class="btn-decision btn-pagar" id="btn-pagar" title="Pagar toda la orden y servir con el mesero">
               <span>💳 Pagar todo (<b id="btn-pagar-pts">0</b> pts)</span>
             </button>
@@ -1989,7 +2063,7 @@
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
-  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261016_3';
+  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261016_5';
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
@@ -1997,15 +2071,17 @@
   window.extraerUsuarioDeBienvenidaGlobal = extraerUsuarioDeBienvenidaGlobal;
   StreamDB.init().then(() => {
     console.log('[Tiendita] 🔥 Firebase RTDB StreamDB inicializado correctamente (nodo: stream)');
-    StreamDB.obtenerUsuarios().then(users => {
-      if (Array.isArray(users)) {
-        users.forEach(u => {
-          if (u && u.username && u.avatar && window.avatarCache) {
-            window.avatarCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
-          }
-        });
-      }
-    }).catch(() => {});
+    if (typeof StreamDB.obtenerUsuarios === 'function') {
+      StreamDB.obtenerUsuarios().then(users => {
+        if (Array.isArray(users)) {
+          users.forEach(u => {
+            if (u && u.username && u.avatar && window.avatarCache) {
+              window.avatarCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
+            }
+          });
+        }
+      }).catch(() => {});
+    }
     StreamDB.onUsers((users) => {
       if (Array.isArray(users)) {
         users.forEach(u => {
@@ -2030,8 +2106,21 @@
         });
       }
     });
-    // Iniciar detector interno e independiente de Kick (sin Streamer.bot)
-    StreamDB.startKickStreamMonitor('jikokun', 25000);
+    // Carga inmediata y escucha en tiempo real del catálogo desde Firebase RTDB
+    StreamDB.obtenerTiendaItems().then(itemsDb => {
+      if (typeof window.actualizarCatalogoTiendita === 'function') {
+        window.actualizarCatalogoTiendita(itemsDb);
+      }
+    }).catch(err => {
+      console.warn('[Tiendita] Error al cargar tienda items:', err);
+    });
+
+    StreamDB.onTiendaItems((itemsDb) => {
+      if (typeof window.actualizarCatalogoTiendita === 'function') {
+        window.actualizarCatalogoTiendita(itemsDb);
+      }
+    });
+
     if (typeof window.onStreamDBReady === 'function') {
       window.onStreamDBReady();
     }
@@ -2052,8 +2141,9 @@
   const isPreview = urlParams.get('preview') === 'true';
   const isOverlayMode = urlParams.has('overlay') || location.search.includes('overlay');
 
-  // Catálogo dinámico de 44 productos típicos y bebidas (migrados a Google Drive con fallback local)
+  // Catálogo dinámico de 45 productos típicos y bebidas (migrados a Google Drive con fallback local)
   let ITEMS = [
+    { key: 'pizza', nombre: 'Pizza', precio: 176, stock: -1, emoji: '🍕', img: 'https://lh3.googleusercontent.com/d/1qYvZfdQ0eU8VbQdYUmjy_1fENtdBsVDC', localImg: '../imagenes/tiendita_jiko/pizza.png', categoria: 'comida', aliases: ["pizza","pizzita","slice","pizzas"] },
     { key: 'pupusas', nombre: 'Pupusas', precio: 200, stock: -1, emoji: '🫓', img: 'https://lh3.googleusercontent.com/d/1feo3VprYT0ZmM9U2oQgUiIDjEu6IMPBW', localImg: '../imagenes/tiendita_jiko/pupusas.png', categoria: 'comida', aliases: ["pupusa","pupusitas","revueltas"] },
     { key: 'tamal', nombre: 'Tamal', precio: 180, stock: -1, emoji: '🫔', img: 'https://lh3.googleusercontent.com/d/16QUetNCPIwXBqlx7R9ciKULkplMQW-ut', localImg: '../imagenes/tiendita_jiko/tamal.png', categoria: 'comida', aliases: ["tamales","tamalito","tamalitos"] },
     { key: 'pollofrito', nombre: 'Pollo Frito', precio: 280, stock: -1, emoji: '🍗', img: 'https://lh3.googleusercontent.com/d/1i5A7AkuPb91E6vUSihug4NraYx4tHPeZ', localImg: '../imagenes/tiendita_jiko/pollofrito.png', categoria: 'comida', aliases: ["pollo","pollito","pollo frito"] },
@@ -3224,45 +3314,94 @@
     } catch(e){}
   }
 
-  /* ═══════════ RENDER DE LA TIRA CONTINUA ═══════════ */
+  /* ═══════════ RENDER DE LA TIRA CONTINUA & CATEGORÍAS ═══════════ */
   const COIN_SVG = `<svg class="coin-icon" viewBox="0 0 20 20" width="21" height="21" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="9" fill="#f59e0b" stroke="#fef08a" stroke-width="1.2"/><circle cx="10" cy="10" r="6.5" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="2 1" opacity="0.85"/><polygon points="10,5.5 11.4,8.2 14.3,8.7 12.2,10.7 12.7,13.6 10,12.2 7.3,13.6 7.8,10.7 5.7,8.7 8.6,8.2" fill="#ffffff"/></svg>`;
+
+  let categoriaActiva = 'todos';
+  window.categoriaActiva = 'todos';
 
   function cardHTML(it, idx) {
     const agotado = it.stock === 0;
     const imgSrc = it.img || it.driveUrl || it.localImg;
     const fallbackSrc = it.localImg || '';
     return `
-      <div class="item-card ${!imgSrc ? 'sin-img' : ''} ${agotado ? 'agotado' : ''}" data-key="${it.key}" data-idx="${idx}">
+      <div class="item-card ${!imgSrc ? 'sin-img' : ''} ${agotado ? 'agotado' : ''}" data-key="${it.key}" data-idx="${idx}" data-categoria="${it.categoria || 'comida'}">
         <div class="item-visual">
           <span class="emoji-fallback">${it.emoji || '🍽️'}</span>
-          ${imgSrc ? `<img src="${imgSrc}" alt="${it.key}" onerror="this.onerror=null; if('${fallbackSrc}' && this.src!=='${fallbackSrc}') this.src='${fallbackSrc}'; else this.closest('.item-card').classList.add('sin-img');">` : ''}
+          ${imgSrc ? `<img src="${imgSrc}" alt="${it.key}" referrerpolicy="no-referrer" onerror="this.onerror=null; if('${fallbackSrc}' && this.src!=='${fallbackSrc}') this.src='${fallbackSrc}'; else this.closest('.item-card').classList.add('sin-img');">` : ''}
         </div>
         <div class="item-cmd">${it.comando || ('!' + it.key)}</div>
         <div class="item-price">${COIN_SVG} ${it.precio} <small>pts</small></div>
       </div>`;
   }
 
+  function actualizarContadoresCategorias() {
+    const counts = { todos: 0, comida: 0, bebida: 0, postre: 0, especial: 0, recurso: 0 };
+    ITEMS.forEach(it => {
+      if (it.activo !== false) {
+        counts.todos++;
+        const c = it.categoria || 'comida';
+        if (counts[c] !== undefined) counts[c]++;
+      }
+    });
+    for (const k in counts) {
+      const el = document.getElementById('cat-count-' + k);
+      if (el) el.textContent = counts[k];
+    }
+  }
+
   function renderCarouselTrack() {
-    const itemsActivos = ITEMS.filter(it => it.activo !== false && (it.precio > 0 || it.key === 'mesero'));
+    let itemsActivos = ITEMS.filter(it => it.activo !== false && (it.precio > 0 || it.key === 'mesero'));
+    if (categoriaActiva && categoriaActiva !== 'todos') {
+      itemsActivos = itemsActivos.filter(it => (it.categoria || 'comida') === categoriaActiva);
+    }
     const itemsCiclo = itemsActivos.length > 0 ? [...itemsActivos, ...itemsActivos] : [];
     $track.innerHTML = itemsCiclo.map((it, idx) => cardHTML(it, idx)).join('');
+    actualizarContadoresCategorias();
   }
+
+  window.filtrarCategoriaTienda = function(cat) {
+    categoriaActiva = cat || 'todos';
+    window.categoriaActiva = categoriaActiva;
+
+    // Actualizar píldoras activas
+    const pills = document.querySelectorAll('.cat-pill');
+    pills.forEach(p => {
+      if (p.getAttribute('data-cat') === categoriaActiva) p.classList.add('active');
+      else p.classList.remove('active');
+    });
+
+    playSfx('select');
+    renderCarouselTrack();
+    scrollPos = 0;
+    if ($track) $track.style.transform = `translateX(0px)`;
+  };
 
   renderCarouselTrack();
 
   // Sincronización en tiempo real del catálogo dinámico desde Firebase RTDB
+  window.actualizarCatalogoTiendita = function(itemsDb) {
+    if (!itemsDb || !Array.isArray(itemsDb) || itemsDb.length === 0) return;
+    console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
+    ITEMS = itemsDb;
+    window.ITEMS = itemsDb;
+    renderCarouselTrack();
+  };
+
   let catalogSubscribed = false;
   function conectarCatalogoFirebase() {
-    if (catalogSubscribed) return;
-    if (window.StreamDB && typeof window.StreamDB.onTiendaItems === 'function') {
-      catalogSubscribed = true;
-      window.StreamDB.onTiendaItems((itemsDb) => {
-        if (itemsDb && Array.isArray(itemsDb) && itemsDb.length > 0) {
-          console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
-          ITEMS = itemsDb;
-          renderCarouselTrack();
-        }
-      });
+    if (window.StreamDB) {
+      if (typeof window.StreamDB.obtenerTiendaItems === 'function') {
+        window.StreamDB.obtenerTiendaItems().then(itemsDb => {
+          window.actualizarCatalogoTiendita(itemsDb);
+        }).catch(() => {});
+      }
+      if (!catalogSubscribed && typeof window.StreamDB.onTiendaItems === 'function') {
+        catalogSubscribed = true;
+        window.StreamDB.onTiendaItems((itemsDb) => {
+          window.actualizarCatalogoTiendita(itemsDb);
+        });
+      }
     }
   }
 
@@ -3514,8 +3653,10 @@
     }
 
     const total = ordenActual.reduce((acc, it) => acc + it.precio, 0);
-    $totalPts.textContent = total;
-    $btnPts.textContent = total;
+    if($totalPts) $totalPts.textContent = total;
+    if($btnPts) $btnPts.textContent = total;
+    const $countEl = document.getElementById('cart-items-count');
+    if($countEl) $countEl.textContent = ordenActual.length;
 
     // Agrupar platos idénticos para presentación limpia y compacta
     const grupos = [];
@@ -3529,14 +3670,17 @@
       }
     });
 
-    $chips.innerHTML = grupos.map(g => `
+    $chips.innerHTML = grupos.map(g => {
+      const chipImg = g.item.img || g.item.driveUrl || g.item.localImg || '';
+      const fallbackLocal = g.item.localImg || '';
+      return `
       <div class="orden-chip" title="${g.item.nombre} (${g.cantidad} uds)">
-        <img src="${g.item.img}" alt="${g.item.key}" onerror="this.style.display='none'">
+        ${chipImg ? `<img src="${chipImg}" alt="${g.item.key}" referrerpolicy="no-referrer" onerror="if(!this.dataset.tried && '${fallbackLocal}'){ this.dataset.tried='1'; this.src='${fallbackLocal}'; } else { this.style.display='none'; }">` : ''}
         <span class="chip-name">${g.item.nombre}${g.cantidad > 1 ? `<span class="chip-qty">x${g.cantidad}</span>` : ''}</span>
         <span class="chip-price">${g.precioTotal} pts</span>
         <span class="chip-del" onclick="removerItemPorKey('${g.item.key}')" title="Quitar 1 unidad">✕</span>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
 
     $confirmBox.classList.add('activo');
   }
@@ -4308,6 +4452,23 @@
         toast(`ℹ️ <b>@${user}</b>: Usa <b>!tienda</b> o <b>!tiendita</b> para abrir el mostrador primero.`,'warn');
         playSfx('error');
       }
+      return;
+    }
+
+    // 1.5. Filtrar categorías y secciones desde el chat (ej: !menu comida, !bebidas, !postres, !especiales, !todos)
+    const cmdSinExcl = t.replace(/^!/, '').trim();
+    if(cmdSinExcl.startsWith('menu ') || cmdSinExcl.startsWith('categoria ') || ['comidas', 'bebidas', 'postres', 'especiales', 'extras', 'todos'].includes(cmdSinExcl)){
+      let cat = cmdSinExcl.replace(/^(?:menu|categoria)\s+/, '').trim();
+      if(['comida', 'comidas', 'alimento', 'salados'].includes(cat)) cat = 'comida';
+      else if(['bebida', 'bebidas', 'tragos', 'refrescos', 'refresco'].includes(cat)) cat = 'bebida';
+      else if(['postre', 'postres', 'dulces', 'dulce'].includes(cat)) cat = 'postre';
+      else if(['especial', 'especiales', 'combos', 'combo'].includes(cat)) cat = 'especial';
+      else if(['recurso', 'recursos', 'extras', 'extra', 'mesero'].includes(cat)) cat = 'recurso';
+      else cat = 'todos';
+
+      window.filtrarCategoriaTienda(cat);
+      toast(`📂 <b>@${user}</b> filtró la sección: <b>${cat.toUpperCase()}</b>`);
+      iniciarCd(AUTO_CIERRE_MS);
       return;
     }
 

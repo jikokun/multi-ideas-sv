@@ -972,6 +972,57 @@ class StreamFirebaseService {
     });
   }
 
+  // Obtener lista completa de usuarios con cálculo de nivel y estadísticas
+  async obtenerUsuarios() {
+    await this.init();
+    try {
+      const snap = await get(ref(this.rtdb, NODE_USERS));
+      const usersList = [];
+      if (snap.exists()) {
+        snap.forEach(child => {
+          const uKey = child.key;
+          if (!uKey || uKey === 'undefined' || uKey === 'null') return;
+          const u = child.val();
+          if (!u || !u.username || u.username === 'undefined' || u.username === 'null') return;
+          const asistencias = u.asistenciasCount || 0;
+          const xp = (u.experiencia !== undefined && u.experiencia !== null)
+            ? (parseInt(u.experiencia, 10) || 0)
+            : (asistencias * 200);
+          const tiempoMin = parseInt(u.tiempoVistoMinutos, 10) || 0;
+          const customTitle = u.tituloPersonalizado || null;
+
+          const nivelInfo = calcularNivelUsuario({
+            experiencia: xp,
+            asistenciasCount: asistencias,
+            tituloPersonalizado: customTitle
+          });
+
+          u.experiencia = xp;
+          u.tiempoVistoMinutos = tiempoMin;
+          u.tiempoVistoLegible = formatearTiempoVisto(tiempoMin);
+          u.tiempoVistoHoras = formatearHorasDecimal(tiempoMin);
+          u.tituloPersonalizado = customTitle;
+          u.esTituloPersonalizado = nivelInfo.esTituloPersonalizado;
+          u.tituloAutomatico = nivelInfo.tituloAutomatico;
+          u.nivel = nivelInfo.nivel;
+          u.rangoTitulo = nivelInfo.rangoTitulo;
+          u.insigniaEmoji = nivelInfo.insigniaEmoji;
+          u.bonoAsistencia = nivelInfo.puntosPorAsistencia;
+          u.porcentajeProgreso = nivelInfo.porcentajeProgreso;
+          u.xpEnNivel = nivelInfo.xpEnNivel;
+          u.xpParaSubir = nivelInfo.xpParaSubir;
+          u.xpFaltante = nivelInfo.xpFaltante;
+          u.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
+          usersList.push(u);
+        });
+      }
+      return usersList;
+    } catch(err) {
+      console.warn('[StreamDB] Error al obtener usuarios:', err);
+      return [];
+    }
+  }
+
   // ==========================================================================
   // 2. DETECTOR INTERNO DE KICK (SIN STREAMER.BOT) & HISTORIAL DE TRANSMISIONES
   // ==========================================================================
