@@ -405,6 +405,21 @@
                         <option value="inverso">⏳ Inverso / Nuevas primero</option>
                     </select>
                 </div>
+
+                <div>
+                    <label for="tcg-pause" style="display: block; font-size: 0.85rem; font-weight: 700; color: #a855f7; margin-bottom: 6px;">⏸️ Pausa en Centro (s):</label>
+                    <input type="number" id="tcg-pause" value="3.5" min="1" max="15" step="0.5" class="gate-input" style="padding: 10px 14px; font-size: 0.9rem; letter-spacing: normal; text-align: left;" oninput="updateTarjeteroPrivateWidget()">
+                </div>
+
+                <div>
+                    <label for="tcg-speed" style="display: block; font-size: 0.85rem; font-weight: 700; color: #06b6d4; margin-bottom: 6px;">🌀 Velocidad Giro (s):</label>
+                    <input type="number" id="tcg-speed" value="1.2" min="0.5" max="4" step="0.1" class="gate-input" style="padding: 10px 14px; font-size: 0.9rem; letter-spacing: normal; text-align: left;" oninput="updateTarjeteroPrivateWidget()">
+                </div>
+
+                <div>
+                    <label for="tcg-duration" style="display: block; font-size: 0.85rem; font-weight: 700; color: #facc15; margin-bottom: 6px;">⏱️ Zoom Grande (s):</label>
+                    <input type="number" id="tcg-duration" value="15" min="5" max="60" step="1" class="gate-input" style="padding: 10px 14px; font-size: 0.9rem; letter-spacing: normal; text-align: left;" oninput="updateTarjeteroPrivateWidget()">
+                </div>
             </div>
 
             <!-- Enlace Generado para OBS Studio -->
@@ -1450,29 +1465,42 @@
             const scale = scaleEl ? scaleEl.value : "1.0";
             const orderEl = document.getElementById("tcg-order");
             const order = orderEl ? orderEl.value : "secuencial";
+            const pauseEl = document.getElementById("tcg-pause");
+            const pause = pauseEl ? (parseFloat(pauseEl.value) || 3.5) : 3.5;
+            const speedEl = document.getElementById("tcg-speed");
+            const speed = speedEl ? (parseFloat(speedEl.value) || 1.2) : 1.2;
+            const durationEl = document.getElementById("tcg-duration");
+            const duration = durationEl ? (parseFloat(durationEl.value) || 15) : 15;
 
             let baseUrl = window.location.href.split('?')[0].split('#')[0];
             const lastSlash = baseUrl.lastIndexOf('/');
             const dirUrl = lastSlash !== -1 ? baseUrl.substring(0, lastSlash + 1) : '';
 
-            const obsUrl = `${dirUrl}laboratorio/tarjetero.html?obs=true&pos=${pos}&scale=${scale}&order=${order}`;
+            const obsUrl = `${dirUrl}laboratorio/tarjetero.html?obs=true&pos=${pos}&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
             window.currentTarjeteroObsUrl = obsUrl;
 
             const displayInput = document.getElementById("tarjetero-url-display");
             if (displayInput) displayInput.value = obsUrl;
 
             const openLinkBtn = document.getElementById("btn-open-tarjetero-tab");
-            if (openLinkBtn) openLinkBtn.href = `${dirUrl}laboratorio/tarjetero.html?pos=${pos}&scale=${scale}&order=${order}`;
+            if (openLinkBtn) openLinkBtn.href = `${dirUrl}laboratorio/tarjetero.html?pos=${pos}&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
 
             const sync = new BroadcastChannel('jikokun_tarjetas_channel');
             sync.postMessage({
                 action: 'update_config',
-                config: { position: pos, scale: parseFloat(scale) || 1.0, order: order }
+                config: {
+                    position: pos,
+                    scale: parseFloat(scale) || 1.0,
+                    order: order,
+                    centerPauseTime: pause,
+                    spinSpeed: speed,
+                    showcaseDuration: duration
+                }
             });
 
             const preview = document.getElementById("preview-tarjetero-test");
             if (preview && !preview.getAttribute('data-loaded')) {
-                preview.src = `laboratorio/tarjetero.html?preview=true&pos=centro&scale=${scale}&order=${order}`;
+                preview.src = `laboratorio/tarjetero.html?preview=true&pos=centro&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
                 preview.setAttribute('data-loaded', 'true');
             }
         }

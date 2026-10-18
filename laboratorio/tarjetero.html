@@ -16,6 +16,7 @@
             --card-art-radius: 8px;
             --primary-glow: #00f3ff;
             --secondary-glow: #ff0055;
+            --spin-transition: 1.2s;
         }
 
         * {
@@ -56,13 +57,14 @@
             transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
 
-        /* Contenedor de posicionamiento en el carrusel */
+        /* Contenedor de posicionamiento en el carrusel con giro suave */
         .card-slot {
             position: absolute;
             inset: 0;
             transform-style: preserve-3d;
-            transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all var(--spin-transition, 1.2s) cubic-bezier(0.2, 0.8, 0.2, 1);
             cursor: pointer;
+            will-change: transform, opacity;
         }
 
         /* Contenedor de rotación 3D (Frente y Reverso) */
@@ -143,6 +145,53 @@
 
         .card-slot.is-selected {
             z-index: 50;
+        }
+
+        /* Flotación viva y respiración de la carta al centro para admirarla en pausa */
+        .card-slot.is-front-center:not(.is-selected) .card-rotator {
+            animation: centerCardBreath 3.4s ease-in-out infinite alternate;
+        }
+
+        @keyframes centerCardBreath {
+            0% {
+                transform: translateY(0px) rotateY(0deg) rotateX(0deg);
+            }
+            50% {
+                transform: translateY(-9px) rotateY(2.2deg) rotateX(2deg);
+            }
+            100% {
+                transform: translateY(-3px) rotateY(-2.2deg) rotateX(-1deg);
+            }
+        }
+
+        /* Destello iridiscente suave mientras se admira la carta al centro */
+        .card-slot.is-front-center:not(.is-selected) .holo-sheen {
+            animation: centerHoloGlimmer 4.2s ease-in-out infinite;
+        }
+
+        @keyframes centerHoloGlimmer {
+            0%, 20% {
+                transform: translateX(-120%) rotate(25deg);
+                opacity: 0.2;
+            }
+            60%, 100% {
+                transform: translateX(120%) rotate(25deg);
+                opacity: 0.65;
+            }
+        }
+
+        /* Micro-flotación orgánica para las cartas en la órbita (no lucen estáticas) */
+        .card-slot:not(.is-front-center):not(.is-selected):not(.in-deck-stack) .card-rotator {
+            animation: orbitalCardBreath 5.6s ease-in-out infinite alternate;
+        }
+
+        @keyframes orbitalCardBreath {
+            0% {
+                transform: translateY(0px) rotateZ(0deg);
+            }
+            100% {
+                transform: translateY(-5px) rotateZ(0.8deg);
+            }
         }
 
         /* ═══════════ RESPLANDORES POR NIVEL DE RAREZA ═══════════ */
@@ -262,17 +311,65 @@
             }
         }
 
-        /* Transición de cambio de lote (Batch Transition) */
-        .carousel-stage.batch-exit .card-slot {
-            transform: translate3d(0, -40px, -450px) scale(0.4) rotateY(180deg) !important;
-            opacity: 0 !important;
+        /* ═══════════ TRANSICIÓN ANTI-SPOILER: MAZO CERRADO Y FAN-OUT ═══════════ */
+        /* 1. Mazo recogido en el centro mostrando estrictamente el REVERSO */
+        .card-slot.in-deck-stack {
+            transform: translate3d(0, 0, var(--stack-z, 0px)) rotateY(180deg) scale(0.88) !important;
+            opacity: 1 !important;
             pointer-events: none !important;
-            transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-shadow: 0 16px 45px rgba(0, 0, 0, 0.85), 0 0 35px var(--rarity-glow-primary, rgba(0, 243, 255, 0.5));
+            transition: all 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
         }
 
-        .carousel-stage.batch-enter .card-slot {
+        .card-slot.in-deck-stack .card-rotator {
+            animation: deckStackFloat 2.2s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes deckStackFloat {
+            0% {
+                transform: translateY(0px) rotateZ(0deg);
+            }
+            100% {
+                transform: translateY(-7px) rotateZ(0.6deg);
+            }
+        }
+
+        /* 2. Recogida del lote anterior: las 5 cartas se juntan al centro girando hacia su reverso */
+        .carousel-stage.deck-gathering .card-slot {
+            transform: translate3d(0, 0, -80px) rotateY(180deg) scale(0.82) !important;
+            opacity: 0.9 !important;
+            pointer-events: none !important;
+            transition: all 0.52s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        /* 3. Salida del lote anterior hundiéndose en el fondo */
+        .carousel-stage.deck-exit .card-slot {
+            transform: translate3d(0, -50px, -550px) scale(0.25) rotateY(180deg) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: all 0.48s cubic-bezier(0.55, 0.05, 0.67, 0.19) !important;
+        }
+
+        /* 4. Aura de invocación del nuevo mazo */
+        .deck-summon-aura {
+            position: absolute;
+            width: calc(var(--card-width) + 60px);
+            height: calc(var(--card-height) + 60px);
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(0.6);
+            border-radius: 26px;
+            border: 2px solid #00f3ff;
+            box-shadow: 0 0 65px rgba(0, 243, 255, 0.7), inset 0 0 35px rgba(255, 0, 85, 0.5);
             opacity: 0;
-            transform: translate3d(0, 40px, -300px) scale(0.5);
+            pointer-events: none;
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 5;
+        }
+
+        .deck-summon-aura.active {
+            opacity: 0.9;
+            transform: translate(-50%, -50%) scale(1.06);
         }
 
         /* Onda expansiva de energía */
@@ -414,6 +511,8 @@
 
         <!-- Ancla Posicionable y Escalable del Carrusel -->
         <div id="carousel-anchor" class="carousel-anchor pos-centro">
+            <!-- Aura luminosa del mazo cerrado -->
+            <div id="deck-aura" class="deck-summon-aura"></div>
             <!-- Escenario del Carrusel 3D -->
             <div id="carousel-stage" class="carousel-stage">
                 <!-- Las 5 tarjetas activas del lote se inyectan dinámicamente -->
@@ -468,6 +567,20 @@
             Fondo OBS
         </button>
         
+        <!-- Controles de Tiempos Manuales Personalizados -->
+        <div class="flex items-center gap-1.5 ml-1 border-l border-cyan-500/30 pl-2">
+            <label class="text-[10px] text-cyan-300 font-bold" title="Pausa al centro para admirar la carta">⏸️ Pausa:</label>
+            <input type="number" id="hud-pause-time" value="3.5" min="1" max="15" step="0.5" 
+                   class="w-12 bg-slate-900 border border-cyan-500/40 rounded px-1 py-0.5 text-xs text-white text-center font-mono">
+            <span class="text-[10px] text-slate-400">s</span>
+        </div>
+        <div class="flex items-center gap-1.5 ml-1">
+            <label class="text-[10px] text-pink-300 font-bold" title="Velocidad del giro orbital entre cartas">🌀 Giro:</label>
+            <input type="number" id="hud-spin-speed" value="1.2" min="0.5" max="4" step="0.1" 
+                   class="w-12 bg-slate-900 border border-pink-500/40 rounded px-1 py-0.5 text-xs text-white text-center font-mono">
+            <span class="text-[10px] text-slate-400">s</span>
+        </div>
+
         <a href="admintarjetas.html" target="_blank" class="px-2.5 py-1 bg-purple-900/40 hover:bg-purple-800/60 text-purple-300 rounded text-xs font-semibold border border-purple-500/40 transition flex items-center gap-1" title="Abrir Administrador Visual de Tarjetas">
             ⚙️ Admin
         </a>
@@ -551,7 +664,6 @@
 
         // Constantes del mostrador 3D
         const BATCH_SIZE = 5;                  // Mostrador limitado estrictamente a 5 tarjetas
-        const ROTATE_STEP_TIME = 3600;         // Tiempo que cada carta se queda al frente (3.6s)
         const CAROUSEL_RADIUS = 280;           // Radio ideal y espacioso para 5 cartas
         let SHOWCASE_DURATION_MS = 15000;      // Duración de la exhibición al hacer clic
 
@@ -563,7 +675,8 @@
         let turnsInCurrentBatch = 0;           // Cuántas cartas han pasado al frente en este lote
         let widgetState = 'CAROUSEL';          // 'CAROUSEL' | 'SHOWCASE' | 'EXITING' | 'TRANSITIONING' | 'EMPTY'
         
-        let autoRotateTimer = null;
+        let cycleStepTimer = null;             // Temporizador para la transición de giro entre cartas
+        let centerPauseTimeout = null;         // Temporizador de pausa para admirar la carta al centro
         let showcaseTimeout = null;
         let countdownInterval = null;
         let cardElements = [];
@@ -574,6 +687,7 @@
         // Referencias DOM
         const carouselAnchor = document.getElementById('carousel-anchor');
         const carouselStage = document.getElementById('carousel-stage');
+        const deckAura = document.getElementById('deck-aura');
         const timerHud = document.getElementById('timer-hud');
         const timerSeconds = document.getElementById('timer-seconds');
         const timerRarity = document.getElementById('timer-rarity');
@@ -584,7 +698,7 @@
         const btnFastExit = document.getElementById('btn-fast-exit');
         const btnRestore = document.getElementById('btn-restore');
 
-        // Configuración Global del Widget
+        // Configuración Global del Widget con Tiempos Personalizados Detallados
         let widgetConfig = {
             order: 'secuencial',
             position: 'centro',
@@ -592,12 +706,15 @@
             visibilityMode: 'continuous',
             ondemandDuration: 60,
             hideAfterShowcase: false,
-            showcaseDuration: 15
+            showcaseDuration: 15,     // Segundos en pantalla grande (80%)
+            centerPauseTime: 3.5,     // Segundos para admirar detenidamente la carta al centro
+            spinSpeed: 1.2,           // Velocidad de giro/órbita suave (segundos)
+            fastRotateSpeed: 0.45     // Velocidad de giro rápido al recibir !rotar (segundos)
         };
         let ondemandTimer = null;
 
         /**
-         * Aplicar configuración visual del widget (Posición, Escala, Visibilidad)
+         * Aplicar configuración visual del widget (Posición, Escala, Visibilidad, Tiempos)
          */
         function applyWidgetConfig(cfg) {
             if (!cfg) return;
@@ -605,6 +722,21 @@
 
             if (widgetConfig.showcaseDuration) {
                 SHOWCASE_DURATION_MS = widgetConfig.showcaseDuration * 1000;
+            }
+
+            // Actualizar velocidad CSS de rotación del carrusel
+            if (carouselStage) {
+                carouselStage.style.setProperty('--spin-transition', `${widgetConfig.spinSpeed || 1.2}s`);
+            }
+
+            // Reflejar en inputs del HUD si están en el DOM
+            const hudPause = document.getElementById('hud-pause-time');
+            if (hudPause && widgetConfig.centerPauseTime) {
+                hudPause.value = widgetConfig.centerPauseTime;
+            }
+            const hudSpin = document.getElementById('hud-spin-speed');
+            if (hudSpin && widgetConfig.spinSpeed) {
+                hudSpin.value = widgetConfig.spinSpeed;
             }
 
             // 1. Aplicar posición automática
@@ -668,6 +800,93 @@
         }
 
         /**
+         * Disparar aura luminosa sobre el paquete de cartas entrante
+         */
+        function triggerDeckAura() {
+            const aura = document.getElementById('deck-aura');
+            if (aura) {
+                aura.classList.remove('active');
+                void aura.offsetWidth;
+                aura.classList.add('active');
+                setTimeout(() => aura.classList.remove('active'), 1300);
+            }
+        }
+
+        /**
+         * Asignar carta al centro para activar su flotación y respiración viva en pausa
+         */
+        function setFrontCenterCard(index) {
+            cardElements.forEach((slot, i) => {
+                if (i === index) {
+                    slot.classList.add('is-front-center');
+                } else {
+                    slot.classList.remove('is-front-center');
+                }
+            });
+        }
+
+        function removeFrontCenterCard() {
+            cardElements.forEach(slot => slot.classList.remove('is-front-center'));
+        }
+
+        /**
+         * Ciclo automático continuo y suave con pausa en el centro para admirar la carta
+         */
+        function startAutoCycle() {
+            stopAutoCycle();
+            if (widgetState !== 'CAROUSEL' || activeBatchCards.length === 0) return;
+
+            // La carta actual al centro comienza a flotar y respirar suavemente
+            setFrontCenterCard(currentSlotIndex);
+
+            // Pausar los segundos configurados para que el espectador la admire
+            const pauseMs = Math.max(800, (widgetConfig.centerPauseTime || 3.5) * 1000);
+            centerPauseTimeout = setTimeout(() => {
+                advanceCarouselStep();
+            }, pauseMs);
+        }
+
+        /**
+         * Avanzar el carrusel de manera suave hacia la siguiente carta
+         */
+        function advanceCarouselStep() {
+            if (widgetState !== 'CAROUSEL' || activeBatchCards.length === 0) return;
+            turnsInCurrentBatch++;
+
+            // Si ya pasaron las 5 cartas de este lote al frente una vez, realizar cambio de lote
+            if (turnsInCurrentBatch >= activeBatchCards.length) {
+                transitionToNextBatch();
+            } else {
+                removeFrontCenterCard();
+                currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
+                updateCarouselPositions();
+
+                // Esperar a que concluya la rotación orbital suave
+                const spinMs = Math.max(350, (widgetConfig.spinSpeed || 1.2) * 1000);
+                cycleStepTimer = setTimeout(() => {
+                    if (widgetState === 'CAROUSEL') {
+                        setFrontCenterCard(currentSlotIndex);
+                        const pauseMs = Math.max(800, (widgetConfig.centerPauseTime || 3.5) * 1000);
+                        centerPauseTimeout = setTimeout(() => {
+                            advanceCarouselStep();
+                        }, pauseMs);
+                    }
+                }, spinMs);
+            }
+        }
+
+        /**
+         * Detener el ciclo automático (al hacer clic, comando manual o exhibición)
+         */
+        function stopAutoCycle() {
+            clearTimeout(centerPauseTimeout);
+            clearTimeout(cycleStepTimer);
+            centerPauseTimeout = null;
+            cycleStepTimer = null;
+            removeFrontCenterCard();
+        }
+
+        /**
          * Giro rápido de las 5 cartas del lote al recibir !rotar
          */
         function fastRotateCurrentBatch() {
@@ -675,17 +894,90 @@
             stopAutoCycle();
 
             let count = activeBatchCards.length;
+            const fastSpeed = widgetConfig.fastRotateSpeed || 0.45;
+            const fastSpeedMs = Math.max(200, fastSpeed * 1000);
+
+            // Acelerar temporalmente la transición CSS del carrusel
+            carouselStage.style.setProperty('--spin-transition', `${fastSpeed}s`);
+
             const fastTimer = setInterval(() => {
                 currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
                 updateCarouselPositions();
                 count--;
                 if (count <= 0) {
                     clearInterval(fastTimer);
+                    // Restaurar velocidad normal de giro
+                    carouselStage.style.setProperty('--spin-transition', `${widgetConfig.spinSpeed || 1.2}s`);
                     setTimeout(() => {
                         transitionToNextBatch();
-                    }, 550);
+                    }, fastSpeedMs + 120);
                 }
-            }, 600);
+            }, fastSpeedMs);
+        }
+
+        /**
+         * Transición elegante y misteriosa al siguiente lote (Anti-Spoiler)
+         * 1. Las cartas actuales se juntan al centro girando hacia su reverso.
+         * 2. El mazo recogido sale hacia el fondo.
+         * 3. El nuevo lote aparece como un MAZO CERRADO en el centro mostrando estrictamente
+         *    el REVERSO OFICIAL (raro, épico, común, etc.) de una de las cartas que vienen.
+         * 4. Desde ese mazo cerrado, las 5 cartas se expanden (Fan-Out) en 3D girando hacia
+         *    el frente a sus respectivas órbitas, revelando el arte sin spoilers previos.
+         */
+        function transitionToNextBatch() {
+            if (widgetState !== 'CAROUSEL' && widgetState !== 'EMPTY') return;
+            widgetState = 'TRANSITIONING';
+            stopAutoCycle();
+
+            // 1. Las 5 cartas actuales se juntan en el centro girándose hacia su reverso
+            carouselStage.classList.add('deck-gathering');
+
+            setTimeout(() => {
+                // 2. El mazo recogido sale hacia el fondo
+                carouselStage.classList.remove('deck-gathering');
+                carouselStage.classList.add('deck-exit');
+
+                setTimeout(() => {
+                    carouselStage.classList.remove('deck-exit');
+
+                    // 3. Montar el nuevo lote directamente en modo MAZO CERRADO (reverso hacia el frente)
+                    const totalBatches = Math.ceil(fullCollection.length / BATCH_SIZE);
+                    currentBatchIndex = (currentBatchIndex + 1) % totalBatches;
+
+                    const start = currentBatchIndex * BATCH_SIZE;
+                    activeBatchCards = fullCollection.slice(start, start + BATCH_SIZE);
+                    if (activeBatchCards.length < BATCH_SIZE && fullCollection.length >= BATCH_SIZE) {
+                        const deficit = BATCH_SIZE - activeBatchCards.length;
+                        activeBatchCards = activeBatchCards.concat(fullCollection.slice(0, deficit));
+                    }
+
+                    currentSlotIndex = 0;
+                    turnsInCurrentBatch = 0;
+
+                    const loteNum = currentBatchIndex + 1;
+                    batchInfoText.textContent = `LOTE ${loteNum}/${totalBatches} (${activeBatchCards.length} CARTAS // TOTAL ${fullCollection.length})`;
+
+                    // Renderizar con startInDeckStack = true (Cero caras frontales visibles)
+                    renderBatchCards(true);
+
+                    // Pequeño pulso de onda / brillo misterioso en el mazo cerrado
+                    triggerDeckAura();
+
+                    // 4. Mantener el paquete cerrado unos instantes para generar intriga
+                    setTimeout(() => {
+                        // Expandir (Fan-out) a posiciones orbitales girando al frente
+                        cardElements.forEach(slot => slot.classList.remove('in-deck-stack'));
+                        updateCarouselPositions();
+
+                        const fanOutMs = Math.max(600, (widgetConfig.spinSpeed || 1.2) * 1000);
+                        setTimeout(() => {
+                            widgetState = 'CAROUSEL';
+                            startAutoCycle();
+                        }, fanOutMs);
+                    }, 650);
+
+                }, 480);
+            }, 520);
         }
 
         /**
@@ -773,7 +1065,6 @@
             if (!fullCollection || fullCollection.length === 0) return;
 
             if (orderType === 'aleatorio') {
-                // Mezclar aleatoriamente (Fisher-Yates)
                 for (let i = fullCollection.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [fullCollection[i], fullCollection[j]] = [fullCollection[j], fullCollection[i]];
@@ -784,7 +1075,6 @@
             } else if (orderType === 'inverso') {
                 fullCollection.sort((a, b) => parseInt(b.num !== undefined ? b.num : b.id, 10) - parseInt(a.num !== undefined ? a.num : a.id, 10));
             } else {
-                // Secuencial por defecto (00 a 33 o 001 a 100)
                 fullCollection.sort((a, b) => parseInt(a.num !== undefined ? a.num : a.id, 10) - parseInt(b.num !== undefined ? b.num : b.id, 10));
             }
 
@@ -797,7 +1087,7 @@
         /**
          * Montar un lote específico de 5 tarjetas en el carrusel
          */
-        function mountBatch(batchIdx) {
+        function mountBatch(batchIdx, immediate = false) {
             if (fullCollection.length === 0) return;
 
             const totalBatches = Math.ceil(fullCollection.length / BATCH_SIZE);
@@ -806,7 +1096,6 @@
             const start = currentBatchIndex * BATCH_SIZE;
             activeBatchCards = fullCollection.slice(start, start + BATCH_SIZE);
 
-            // Si el último lote tiene menos de 5 tarjetas, rellenar de forma circular para mantener los 5 slots
             if (activeBatchCards.length < BATCH_SIZE && fullCollection.length >= BATCH_SIZE) {
                 const deficit = BATCH_SIZE - activeBatchCards.length;
                 activeBatchCards = activeBatchCards.concat(fullCollection.slice(0, deficit));
@@ -815,20 +1104,33 @@
             currentSlotIndex = 0;
             turnsInCurrentBatch = 0;
 
-            // Actualizar HUD informativo
             const loteNum = currentBatchIndex + 1;
             batchInfoText.textContent = `LOTE ${loteNum}/${totalBatches} (${activeBatchCards.length} CARTAS // TOTAL ${fullCollection.length})`;
 
-            // Renderizar slots limpios
-            renderBatchCards();
-            updateCarouselPositions();
-            startAutoCycle();
+            if (immediate) {
+                renderBatchCards(false);
+                updateCarouselPositions();
+                startAutoCycle();
+            } else {
+                // Entrada misteriosa anti-spoiler: aparece como mazo cerrado con su reverso y luego se expande
+                renderBatchCards(true);
+                triggerDeckAura();
+                setTimeout(() => {
+                    cardElements.forEach(slot => slot.classList.remove('in-deck-stack'));
+                    updateCarouselPositions();
+                    const fanOutMs = Math.max(600, (widgetConfig.spinSpeed || 1.2) * 1000);
+                    setTimeout(() => {
+                        widgetState = 'CAROUSEL';
+                        startAutoCycle();
+                    }, fanOutMs);
+                }, 550);
+            }
         }
 
         /**
-         * Renderizar las 5 tarjetas LIMPIAS (Sin texto, puro arte, marco y holograma)
+         * Renderizar las 5 tarjetas LIMPIAS (Sin texto, puro arte, marco, holograma y reverso oficial)
          */
-        function renderBatchCards() {
+        function renderBatchCards(startInDeckStack = false) {
             carouselStage.innerHTML = '';
             cardElements = [];
 
@@ -837,10 +1139,11 @@
                 const rarityConfig = RARITY_STYLES[rarityKey] || RARITY_STYLES["COMÚN"];
                 
                 const slot = document.createElement('div');
-                slot.className = `card-slot ${rarityConfig.className}`;
+                slot.className = `card-slot ${rarityConfig.className}${startInDeckStack ? ' in-deck-stack' : ''}`;
                 slot.dataset.index = index;
                 slot.dataset.id = card.id;
                 slot.style.setProperty('--rarity-glow-primary', rarityConfig.holoColor);
+                slot.style.setProperty('--stack-z', `${(4 - index) * 6}px`);
 
                 const frontCoverUrl = card.frontImage || "";
                 const backCoverUrl = card.backImage || OFFICIAL_BACKS[rarityKey] || OFFICIAL_BACKS["COMÚN"];
@@ -892,7 +1195,7 @@
             if (total === 0) return;
             const theta = 360 / total; // 72 grados por ranura
 
-            if (widgetState === 'CAROUSEL') {
+            if (widgetState === 'CAROUSEL' || widgetState === 'TRANSITIONING') {
                 cardElements.forEach((slot, index) => {
                     slot.classList.remove('is-selected', 'epic-exit');
                     
@@ -916,68 +1219,23 @@
             }
         }
 
-        /**
-         * Ciclo automático: rota cada carta una vez al frente y luego cambia de lote
-         */
-        function startAutoCycle() {
-            stopAutoCycle();
-            autoRotateTimer = setInterval(() => {
-                if (widgetState === 'CAROUSEL') {
-                    turnsInCurrentBatch++;
-
-                    // Si ya pasaron las 5 cartas de este lote al frente una vez, pasar al siguiente lote
-                    if (turnsInCurrentBatch >= activeBatchCards.length) {
-                        transitionToNextBatch();
-                    } else {
-                        currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
-                        updateCarouselPositions();
-                    }
-                }
-            }, ROTATE_STEP_TIME);
-        }
-
-        function stopAutoCycle() {
-            if (autoRotateTimer) {
-                clearInterval(autoRotateTimer);
-                autoRotateTimer = null;
-            }
-        }
-
-        /**
-         * Transición elegante al siguiente lote de 5 tarjetas
-         */
-        function transitionToNextBatch() {
-            if (widgetState !== 'CAROUSEL') return;
-            widgetState = 'TRANSITIONING';
-            stopAutoCycle();
-
-            // Salida de las 5 cartas actuales hacia el fondo
-            carouselStage.classList.add('batch-exit');
-
-            setTimeout(() => {
-                carouselStage.classList.remove('batch-exit');
-                carouselStage.classList.add('batch-enter');
-
-                // Montar el siguiente lote
-                mountBatch(currentBatchIndex + 1);
-
-                requestAnimationFrame(() => {
-                    setTimeout(() => {
-                        carouselStage.classList.remove('batch-enter');
-                        widgetState = 'CAROUSEL';
-                    }, 50);
-                });
-            }, 650);
-        }
-
         function handleCardClick(index) {
             if (widgetState !== 'CAROUSEL') return;
+            stopAutoCycle();
 
             if (index !== currentSlotIndex) {
-                // Si la carta tocada NO es la principal, solo se coloca al centro para observarla
+                // Si la carta tocada NO es la principal, se traslada directamente al centro con movimiento suave
                 currentSlotIndex = index;
                 turnsInCurrentBatch = 0; // Reiniciar conteo para darle tiempo de observación
                 updateCarouselPositions();
+
+                // Al llegar al centro tras el giro, reactivar la pausa y ciclo
+                const spinMs = Math.max(350, (widgetConfig.spinSpeed || 1.2) * 1000);
+                setTimeout(() => {
+                    if (widgetState === 'CAROUSEL') {
+                        startAutoCycle();
+                    }
+                }, spinMs);
             } else {
                 // Si la carta ya está al centro, entonces SÍ se amplía a pantalla grande
                 selectCard(index);
@@ -1214,6 +1472,27 @@
             document.body.classList.toggle('preview-bg');
         });
 
+        // Listeners para ajustes de tiempos manuales en el HUD
+        const hudPauseInput = document.getElementById('hud-pause-time');
+        if (hudPauseInput) {
+            hudPauseInput.addEventListener('change', (e) => {
+                const val = parseFloat(e.target.value) || 3.5;
+                applyWidgetConfig({ centerPauseTime: val });
+                localStorage.setItem('jikokun_tcg_config', JSON.stringify(widgetConfig));
+                syncChannel.postMessage({ action: 'update_config', config: widgetConfig });
+            });
+        }
+
+        const hudSpinInput = document.getElementById('hud-spin-speed');
+        if (hudSpinInput) {
+            hudSpinInput.addEventListener('change', (e) => {
+                const val = parseFloat(e.target.value) || 1.2;
+                applyWidgetConfig({ spinSpeed: val });
+                localStorage.setItem('jikokun_tcg_config', JSON.stringify(widgetConfig));
+                syncChannel.postMessage({ action: 'update_config', config: widgetConfig });
+            });
+        }
+
         function toggleHud() {
             const isHidden = controlHud.classList.toggle('opacity-0');
             controlHud.classList.toggle('pointer-events-none', isHidden);
@@ -1382,9 +1661,24 @@
                 applyCollectionOrder(orderParam);
             }
 
-            const dur = parseFloat(params.get('duration'));
+            const dur = parseFloat(params.get('duration') || params.get('showcase'));
             if (!isNaN(dur) && dur > 0) {
-                SHOWCASE_DURATION_MS = dur * 1000;
+                applyWidgetConfig({ showcaseDuration: dur });
+            }
+
+            const pauseParam = parseFloat(params.get('pause') || params.get('centerPause'));
+            if (!isNaN(pauseParam) && pauseParam > 0) {
+                applyWidgetConfig({ centerPauseTime: pauseParam });
+            }
+
+            const speedParam = parseFloat(params.get('speed') || params.get('spinSpeed'));
+            if (!isNaN(speedParam) && speedParam > 0) {
+                applyWidgetConfig({ spinSpeed: speedParam });
+            }
+
+            const fastParam = parseFloat(params.get('fastspeed') || params.get('fastRotateSpeed'));
+            if (!isNaN(fastParam) && fastParam > 0) {
+                applyWidgetConfig({ fastRotateSpeed: fastParam });
             }
         }
 

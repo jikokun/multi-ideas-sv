@@ -313,6 +313,70 @@
         </div>
       </div>
 
+      <!-- Fila 2 de Ajustes: Tiempos y Cinemáticas 3D Personalizados (Manual) -->
+      <div class="mt-3 pt-3 border-t border-cyan-500/20">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-orbitron font-bold text-cyan-400 flex items-center gap-1.5">
+            <span>⏱️</span> TIEMPOS Y CINEMÁTICAS 3D PERSONALIZADOS (MANUAL)
+          </span>
+          <span class="text-[11px] text-slate-400">Personaliza la duración exacta de cada movimiento en OBS</span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          <!-- 1. Pausa al Centro -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-300 font-orbitron">⏸️ PAUSA EN CENTRO</label>
+              <span id="label-pause-time" class="text-xs font-mono text-cyan-400 font-bold">3.5s</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="input-center-pause" value="3.5" min="1.0" max="15.0" step="0.5"
+                     class="w-full bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-mono font-bold">
+            </div>
+            <span class="text-[10px] text-slate-400">Segundos que la carta se detiene al frente para admirarla.</span>
+          </div>
+
+          <!-- 2. Velocidad de Giro Órbita -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-300 font-orbitron">🌀 VELOCIDAD DE GIRO</label>
+              <span id="label-spin-speed" class="text-xs font-mono text-pink-400 font-bold">1.2s</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="input-spin-speed" value="1.2" min="0.5" max="4.0" step="0.1"
+                     class="w-full bg-slate-900 border border-pink-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-pink-300 font-mono font-bold">
+            </div>
+            <span class="text-[10px] text-slate-400">Duración del desplazamiento suave entre cartas.</span>
+          </div>
+
+          <!-- 3. Duración de Exhibición Zoom (80%) -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-300 font-orbitron">🔍 ZOOM GRANDE (80%)</label>
+              <span id="label-showcase-time" class="text-xs font-mono text-amber-400 font-bold">15s</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="input-showcase-duration" value="15" min="5" max="60" step="1"
+                     class="w-full bg-slate-900 border border-amber-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-300 font-mono font-bold">
+            </div>
+            <span class="text-[10px] text-slate-400">Segundos que la carta seleccionada flota en grande.</span>
+          </div>
+
+          <!-- 4. Velocidad Giro Rápido (!rotar) -->
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <label class="text-[11px] font-bold text-slate-300 font-orbitron">⚡ VELOCIDAD !ROTAR</label>
+              <span id="label-fast-rotate" class="text-xs font-mono text-emerald-400 font-bold">0.45s</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <input type="number" id="input-fast-rotate-speed" value="0.45" min="0.2" max="1.5" step="0.05"
+                     class="w-full bg-slate-900 border border-emerald-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-emerald-300 font-mono font-bold">
+            </div>
+            <span class="text-[10px] text-slate-400">Rapidez de paso por carta al pedir rotación rápida.</span>
+          </div>
+        </div>
+      </div>
+
       <!-- Barra de Comandos Kick & Streamer.bot -->
       <div class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div class="flex flex-wrap items-center gap-2">
@@ -796,7 +860,7 @@
       showToast(`¡Colección "${allCollections[activeCollectionId]?.name}" transmitida a OBS!`, 'success');
     });
 
-    // Configuración completa del Expositor 3D (Posición, Escala, Visibilidad, Streamer.bot)
+    // Configuración completa del Expositor 3D (Posición, Escala, Visibilidad, Tiempos, Streamer.bot)
     let widgetConfig = {
       order: 'secuencial',
       position: 'centro',
@@ -804,7 +868,10 @@
       visibilityMode: 'continuous',
       ondemandDuration: 60,
       hideAfterShowcase: false,
-      showcaseDuration: 15
+      showcaseDuration: 15,
+      centerPauseTime: 3.5,
+      spinSpeed: 1.2,
+      fastRotateSpeed: 0.45
     };
 
     function loadWidgetConfig() {
@@ -834,6 +901,27 @@
       const hideChk = document.getElementById('chk-hide-after-showcase');
       if (hideChk) hideChk.checked = !!widgetConfig.hideAfterShowcase;
 
+      // Nuevos tiempos configurables
+      const pauseInput = document.getElementById('input-center-pause');
+      if (pauseInput) pauseInput.value = widgetConfig.centerPauseTime || 3.5;
+      const pauseLabel = document.getElementById('label-pause-time');
+      if (pauseLabel) pauseLabel.textContent = `${widgetConfig.centerPauseTime || 3.5}s`;
+
+      const spinInput = document.getElementById('input-spin-speed');
+      if (spinInput) spinInput.value = widgetConfig.spinSpeed || 1.2;
+      const spinLabel = document.getElementById('label-spin-speed');
+      if (spinLabel) spinLabel.textContent = `${widgetConfig.spinSpeed || 1.2}s`;
+
+      const showcaseInput = document.getElementById('input-showcase-duration');
+      if (showcaseInput) showcaseInput.value = widgetConfig.showcaseDuration || 15;
+      const showcaseLabel = document.getElementById('label-showcase-time');
+      if (showcaseLabel) showcaseLabel.textContent = `${widgetConfig.showcaseDuration || 15}s`;
+
+      const fastInput = document.getElementById('input-fast-rotate-speed');
+      if (fastInput) fastInput.value = widgetConfig.fastRotateSpeed || 0.45;
+      const fastLabel = document.getElementById('label-fast-rotate');
+      if (fastLabel) fastLabel.textContent = `${widgetConfig.fastRotateSpeed || 0.45}s`;
+
       const scalePercent = Math.round(parseFloat(widgetConfig.scale || 1.0) * 100);
       const scaleLabel = document.getElementById('scale-value-label');
       if (scaleLabel) scaleLabel.textContent = `${scalePercent}%`;
@@ -847,6 +935,27 @@
       widgetConfig.ondemandDuration = parseInt(document.getElementById('select-ondemand-duration').value, 10) || 60;
       widgetConfig.hideAfterShowcase = document.getElementById('chk-hide-after-showcase').checked;
 
+      // Leer tiempos manuales
+      const pauseVal = parseFloat(document.getElementById('input-center-pause').value) || 3.5;
+      widgetConfig.centerPauseTime = pauseVal;
+      const pauseLabel = document.getElementById('label-pause-time');
+      if (pauseLabel) pauseLabel.textContent = `${pauseVal}s`;
+
+      const spinVal = parseFloat(document.getElementById('input-spin-speed').value) || 1.2;
+      widgetConfig.spinSpeed = spinVal;
+      const spinLabel = document.getElementById('label-spin-speed');
+      if (spinLabel) spinLabel.textContent = `${spinVal}s`;
+
+      const showcaseVal = parseInt(document.getElementById('input-showcase-duration').value, 10) || 15;
+      widgetConfig.showcaseDuration = showcaseVal;
+      const showcaseLabel = document.getElementById('label-showcase-time');
+      if (showcaseLabel) showcaseLabel.textContent = `${showcaseVal}s`;
+
+      const fastVal = parseFloat(document.getElementById('input-fast-rotate-speed').value) || 0.45;
+      widgetConfig.fastRotateSpeed = fastVal;
+      const fastLabel = document.getElementById('label-fast-rotate');
+      if (fastLabel) fastLabel.textContent = `${fastVal}s`;
+
       const scalePercent = Math.round(widgetConfig.scale * 100);
       const scaleLabel = document.getElementById('scale-value-label');
       if (scaleLabel) scaleLabel.textContent = `${scalePercent}%`;
@@ -857,7 +966,7 @@
         action: 'update_config',
         config: widgetConfig
       });
-      showToast('Configuración del expositor OBS actualizada', 'info');
+      showToast('Configuración del expositor y tiempos OBS actualizados', 'info');
     }
 
     document.getElementById('btn-apply-order').addEventListener('click', saveAndBroadcastWidgetConfig);
@@ -867,6 +976,12 @@
     document.getElementById('select-visibility-mode').addEventListener('change', saveAndBroadcastWidgetConfig);
     document.getElementById('select-ondemand-duration').addEventListener('change', saveAndBroadcastWidgetConfig);
     document.getElementById('chk-hide-after-showcase').addEventListener('change', saveAndBroadcastWidgetConfig);
+
+    // Eventos para nuevos controles de tiempo
+    document.getElementById('input-center-pause').addEventListener('input', saveAndBroadcastWidgetConfig);
+    document.getElementById('input-spin-speed').addEventListener('input', saveAndBroadcastWidgetConfig);
+    document.getElementById('input-showcase-duration').addEventListener('input', saveAndBroadcastWidgetConfig);
+    document.getElementById('input-fast-rotate-speed').addEventListener('input', saveAndBroadcastWidgetConfig);
 
     document.getElementById('btn-trigger-test-summon').addEventListener('click', () => {
       syncChannel.postMessage({ action: 'command', command: '!tarjetasjikokun' });
