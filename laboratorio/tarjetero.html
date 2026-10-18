@@ -484,6 +484,7 @@
 
     <!-- Respaldo de datos por defecto (Cero CORS, compatible con file:// en OBS) -->
     <script src="../data/tarjetas_default_data.js"></script>
+    <script src="../data/tarjetas_coleccion_00_33.js"></script>
 
     <script>
         /**
@@ -608,19 +609,26 @@
 
             // 1. Aplicar posición automática
             if (carouselAnchor) {
+                const urlParams = new URLSearchParams(window.location.search);
+                const isPreviewOrIframe = urlParams.get('preview') === 'true' || window.self !== window.top;
+                const effectivePos = isPreviewOrIframe ? 'centro' : (widgetConfig.position || 'centro');
                 const positions = [
                     'pos-centro', 'pos-arriba-centro', 'pos-arriba-izquierda', 'pos-arriba-derecha',
                     'pos-izquierda-centro', 'pos-derecha-centro', 'pos-abajo-centro', 'pos-abajo-izquierda', 'pos-abajo-derecha'
                 ];
                 positions.forEach(p => carouselAnchor.classList.remove(p));
-                carouselAnchor.classList.add(`pos-${widgetConfig.position || 'centro'}`);
+                carouselAnchor.classList.add(`pos-${effectivePos}`);
 
                 // 2. Aplicar escala proporcional
                 carouselAnchor.style.setProperty('--carousel-scale', widgetConfig.scale || 1.0);
             }
 
-            // 3. Aplicar modo de visibilidad
-            if (widgetConfig.visibilityMode === 'ondemand') {
+            // 3. Aplicar modo de visibilidad (Sólo ocultar si mode=ondemand está explícito en URL y NO está en iframe/preview)
+            const urlParams = new URLSearchParams(window.location.search);
+            const isExplicitOnDemand = urlParams.get('mode') === 'ondemand';
+            const isPreviewOrIframe = urlParams.get('preview') === 'true' || window.self !== window.top;
+
+            if (widgetConfig.visibilityMode === 'ondemand' && isExplicitOnDemand && !isPreviewOrIframe) {
                 if (widgetState === 'CAROUSEL' && !ondemandTimer) {
                     dismissWidget();
                 }
@@ -709,8 +717,44 @@
                     if (window.DEFAULT_JIKOKUN_CARDS_00_33 && window.DEFAULT_JIKOKUN_CARDS_00_33.length > 0) {
                         fullCollection = JSON.parse(JSON.stringify(window.DEFAULT_JIKOKUN_CARDS_00_33));
                     } else {
-                        const res = await fetch('../data/tarjetas_coleccion_00_33.json');
-                        if (res.ok) fullCollection = await res.json();
+                        try {
+                            const res = await fetch('../data/tarjetas_coleccion_00_33.json');
+                            if (res.ok) fullCollection = await res.json();
+                        } catch(fErr) {}
+                    }
+                }
+
+                // 2.1 Respaldo final: si los archivos locales fallaran, consultar el script de Google Drive en vivo
+                if (!fullCollection || fullCollection.length === 0) {
+                    try {
+                        const driveRes = await fetch('https://script.google.com/macros/s/AKfycbz5Zq7CYZTgrA6QoCAWCLzIRx-Y_fLyex_OMS124dCQPCxj-fJTd6okjS6Bovv4PT_w/exec?folder=tarjetas_jikokun');
+                        if (driveRes.ok) {
+                            const driveJson = await driveRes.json();
+                            const subfolders = driveJson.data?.subfolders || [];
+                            const colFolder = subfolders.find(s => s.name && (s.name.includes('00-33') || s.name.includes('00_33'))) || subfolders[0];
+                            if (colFolder && colFolder.files) {
+                                fullCollection = colFolder.files.map((file, i) => {
+                                    const fn = file.name.replace(/\.png$/i, '');
+                                    let rarity = 'COMÚN';
+                                    const lower = fn.toLowerCase();
+                                    if (lower.includes('ultra_rara') || lower.includes('mitic')) rarity = 'MÍTICO';
+                                    else if (lower.includes('legendari')) rarity = 'LEGENDARIO';
+                                    else if (lower.includes('epic')) rarity = 'ÉPICO';
+                                    else if (lower.includes('rar')) rarity = 'RARO';
+                                    else if (lower.includes('especial')) rarity = 'ESPECIAL';
+                                    return {
+                                        id: i,
+                                        num: String(i).padStart(2, '0'),
+                                        title: fn,
+                                        rarity: rarity,
+                                        frontImage: file.cdnUrl,
+                                        backImage: OFFICIAL_BACKS[rarity] || OFFICIAL_BACKS['COMÚN']
+                                    };
+                                });
+                            }
+                        }
+                    } catch(dErr) {
+                        console.warn('[Tarjetero] Respaldo Drive no disponible:', dErr);
                     }
                 }
 
