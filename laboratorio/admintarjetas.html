@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jikokun TCG // Gestor Visual de Colecciones y Tarjetas 3D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --card-bg: #0c1017;
+      --primary-cyan: #00f3ff;
+      --primary-pink: #ff0055;
+      --accent-purple: #a855f7;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: #e2e8f0;
+      font-family: 'Rajdhani', sans-serif;
+      min-height: 100vh;
+    }
+
+    .font-orbitron {
+      font-family: 'Orbitron', sans-serif;
+    }
+
+    .cyber-panel {
+      background: rgba(13, 17, 26, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 243, 255, 0.2);
+      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.8);
+    }
+
+    .cyber-panel:hover {
+      border-color: rgba(0, 243, 255, 0.4);
+    }
+
+    /* Previsualización 3D Limpia en el Modal */
+    .modal-preview-scene {
+      perspective: 1000px;
+      width: 240px;
+      height: 350px;
+    }
+
+    .modal-card-rotator {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .modal-card-rotator.is-flipped {
+      transform: rotateY(180deg);
+    }
+
+    .modal-card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+      padding: 3.5px;
+    }
+
+    .modal-card-back {
+      transform: rotateY(180deg);
+    }
+
+    /* Tarjetas del Grid con Flip interactivo */
+    .grid-card-rotator {
+      transform-style: preserve-3d;
+      transition: transform 0.6s ease;
+    }
+
+    .grid-card-item:hover .grid-card-rotator.flip-on-hover {
+      transform: rotateY(180deg);
+    }
+
+    .grid-card-rotator.is-flipped-manual {
+      transform: rotateY(180deg) !important;
+    }
+
+    .grid-card-face {
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+    }
+
+    .grid-card-back {
+      transform: rotateY(180deg);
+    }
+
+    /* Bordes y resplandores de rareza */
+    .border-comun { border-color: #38bdf8; }
+    .border-especial { border-color: #ec4899; }
+    .border-raro { border-color: #10b981; }
+    .border-epico { border-color: #a855f7; }
+    .border-legendario { border-color: #facc15; }
+    .border-mitico { border-color: #ff0055; }
+
+    /* Efecto holográfico */
+    .holo-sheen-preview {
+      position: absolute;
+      inset: -100%;
+      background: linear-gradient(
+        45deg,
+        transparent 40%,
+        rgba(255, 255, 255, 0.28) 48%,
+        rgba(0, 243, 255, 0.45) 50%,
+        rgba(255, 255, 255, 0.28) 52%,
+        transparent 60%
+      );
+      transform: translateX(-100%) rotate(25deg);
+      pointer-events: none;
+      animation: holoSwipe 4s ease-in-out infinite;
+    }
+
+    @keyframes holoSwipe {
+      0%, 20% { transform: translateX(-120%) rotate(25deg); }
+      60%, 100% { transform: translateX(120%) rotate(25deg); }
+    }
+
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #080b11;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f3ff;
+    }
+  </style>
+</head>
+<body class="p-4 md:p-6 lg:p-8">
+
+  <!-- Toast de Notificaciones -->
+  <div id="toast-zone" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Contenedor Principal -->
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <!-- ═══════════ HEADER SUPERIOR ═══════════ -->
+    <header class="cyber-panel p-5 rounded-2xl flex flex-col lg:flex-row items-center justify-between gap-4 border-b border-cyan-500/30">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-fuchsia-600 p-0.5 flex items-center justify-center shadow-lg shadow-cyan-500/20">
+          <div class="w-full h-full bg-slate-950 rounded-[10px] flex items-center justify-center text-2xl">
+            🎴
+          </div>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl md:text-2xl font-orbitron font-black text-white tracking-wider flex items-center gap-2">
+              JIKOKUN TCG <span class="text-cyan-400 text-sm font-semibold tracking-normal border border-cyan-500/40 px-2 py-0.5 rounded-full bg-cyan-950/40">ADMIN MULTI-COLECCIONES</span>
+            </h1>
+          </div>
+          <p class="text-xs text-slate-400 tracking-wide mt-0.5">
+            Gestión Visual de Colecciones // Mostrador 3D en Lotes de 5 Tarjetas // OBS Studio
+          </p>
+        </div>
+      </div>
+
+      <!-- Botones de Acción Global -->
+      <div class="flex flex-wrap items-center justify-center gap-2">
+        <button id="btn-sync-all-drive" class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl text-xs font-bold font-orbitron tracking-wide transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-emerald-950/50">
+          <span>🔄</span> Sincronizar Drive
+        </button>
+
+        <button id="btn-new-card" class="px-4 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-orbitron tracking-wide transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-cyan-950/50">
+          <span>➕</span> Nueva Tarjeta
+        </button>
+
+        <button id="btn-save-all" class="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-cyan-300 rounded-xl text-xs font-bold border border-cyan-500/40 transition active:scale-95 flex items-center gap-1.5">
+          <span>💾</span> Guardar
+        </button>
+
+        <a href="tarjetero.html" target="_blank" class="px-4 py-2 bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 text-white rounded-xl text-xs font-bold font-orbitron tracking-wide transition active:scale-95 flex items-center gap-1.5 shadow-lg shadow-purple-950/50">
+          <span>👁️</span> Abrir Tarjetero 3D
+        </a>
+      </div>
+    </header>
+
+    <!-- ═══════════ GESTOR DE COLECCIONES Y ORDEN DE MOSTRADOR ═══════════ -->
+    <div class="cyber-panel p-4 rounded-xl flex flex-col lg:flex-row items-center justify-between gap-4 border border-cyan-500/30">
+      
+      <!-- Selector de Colección Activa -->
+      <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+        <span class="text-xs font-orbitron text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5 mr-1">
+          📁 Colección:
+        </span>
+        <select id="select-active-collection" class="bg-slate-900 border border-cyan-500/40 text-xs font-orbitron text-white rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-300 font-bold">
+          <!-- Opciones de colecciones inyectadas dinámicamente -->
+        </select>
+
+        <button id="btn-create-collection" class="px-2.5 py-2 bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-slate-700 rounded-lg text-xs font-semibold" title="Crear una nueva colección vacía o importar">
+          ➕ Crear Colección
+        </button>
+
+        <button id="btn-send-to-tarjetero" class="px-3 py-2 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-lg text-xs font-orbitron font-bold shadow-md active:scale-95 transition" title="Enviar esta colección activa al widget tarjetero en OBS">
+          🚀 Activar en OBS
+        </button>
+      </div>
+
+      <!-- Configuración del Modo de Exhibición para Tarjetero -->
+      <div class="flex flex-wrap items-center gap-2 w-full lg:w-auto justify-end">
+        <span class="text-xs font-orbitron text-pink-400 font-bold uppercase tracking-wider flex items-center gap-1 mr-1">
+          🎬 Orden Mostrador (5 cartas):
+        </span>
+        <select id="select-display-order" class="bg-slate-900 border border-pink-500/40 text-xs text-white rounded-lg px-3 py-2 focus:outline-none focus:border-pink-300 font-semibold">
+          <option value="secuencial">🔢 Secuencial (#00 a #33 / #001 a #100)</option>
+          <option value="aleatorio">🎲 Aleatorio (Barajar en lotes de 5)</option>
+          <option value="rareza">👑 Por Rareza (Mítico → Común)</option>
+          <option value="inverso">⏳ Inverso / Nuevas primero</option>
+        </select>
+
+        <button id="btn-apply-order" class="px-3 py-2 bg-slate-900 hover:bg-pink-950/60 text-pink-300 border border-pink-500/40 rounded-lg text-xs font-semibold active:scale-95 transition">
+          Aplicar Orden
+        </button>
+      </div>
+
+    </div>
+
+    <!-- ═══════════ CONFIGURACIÓN DEL EXPOSITOR 3D (OBS & STREAMER.BOT) ═══════════ -->
+    <div class="cyber-panel p-4 rounded-xl border border-cyan-500/30 space-y-4">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
+        <div class="flex items-center gap-2">
+          <span class="text-xs md:text-sm font-orbitron font-bold text-cyan-300 flex items-center gap-1.5">
+            <span>🖥️</span> POSICIÓN, ESCALA & COMANDOS STREAMER.BOT (KICK)
+          </span>
+          <span id="sb-status-badge" class="px-2 py-0.5 text-[10px] font-orbitron font-bold rounded-full bg-slate-900 border border-slate-700 text-slate-400">
+            ⚪ Streamer.bot Inactivo
+          </span>
+        </div>
+        <span class="text-xs text-slate-400">
+          Ajustes en vivo reflejados automáticamente en <span class="text-cyan-400 font-mono">tarjetero.html</span>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <!-- 1. Posición en Pantalla -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-bold text-slate-300 flex items-center gap-1 font-orbitron">
+            📍 POSICIÓN EN PANTALLA
+          </label>
+          <select id="select-widget-position" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
+            <option value="centro">🎯 Centro Pantalla</option>
+            <option value="arriba-centro">⬆️ Arriba Centro</option>
+            <option value="arriba-izquierda">↖️ Arriba Izquierda</option>
+            <option value="arriba-derecha">↗️ Arriba Derecha</option>
+            <option value="izquierda-centro">⬅️ Izquierda Centro</option>
+            <option value="derecha-centro">➡️ Derecha Centro</option>
+            <option value="abajo-centro">⬇️ Abajo Centro</option>
+            <option value="abajo-izquierda">↙️ Abajo Izquierda</option>
+            <option value="abajo-derecha">↘️ Abajo Derecha</option>
+          </select>
+        </div>
+
+        <!-- 2. Tamaño / Escala -->
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-slate-300 font-orbitron">📐 TAMAÑO (ESCALA)</label>
+            <span id="scale-value-label" class="text-xs font-mono text-cyan-400 font-bold">100%</span>
+          </div>
+          <select id="select-widget-scale" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
+            <option value="0.6">60% (Miniatura)</option>
+            <option value="0.75">75% (Compacto)</option>
+            <option value="0.85">85% (Medio)</option>
+            <option value="1.0" selected>100% (Estándar)</option>
+            <option value="1.15">115% (Destacado)</option>
+            <option value="1.25">125% (Grande)</option>
+            <option value="1.4">140% (Máximo)</option>
+          </select>
+        </div>
+
+        <!-- 3. Modo de Visibilidad -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-bold text-slate-300 font-orbitron">👁️ VISIBILIDAD EN OBS</label>
+          <select id="select-visibility-mode" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
+            <option value="continuous">♾️ Siempre Visible (Continuo)</option>
+            <option value="ondemand">⚡ Bajo Demanda (!tarjetasjikokun)</option>
+          </select>
+        </div>
+
+        <!-- 4. Tiempo de Pantalla en modo comando -->
+        <div class="flex flex-col gap-1">
+          <label class="text-[11px] font-bold text-slate-300 font-orbitron">⏱️ TIEMPO EN PANTALLA</label>
+          <select id="select-ondemand-duration" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
+            <option value="30">30 Segundos</option>
+            <option value="45">45 Segundos</option>
+            <option value="60" selected>60 Segundos (1 min)</option>
+            <option value="90">90 Segundos (1.5 min)</option>
+            <option value="120">120 Segundos (2 min)</option>
+            <option value="180">180 Segundos (3 min)</option>
+          </select>
+        </div>
+
+        <!-- 5. Ocultar tras ver una carta ampliada -->
+        <div class="flex flex-col gap-1 justify-center">
+          <label class="text-[11px] font-bold text-slate-300 font-orbitron">🚪 TRAS VER CARTA</label>
+          <label class="flex items-center gap-2 cursor-pointer bg-slate-900 border border-slate-700 hover:border-cyan-500/40 px-2.5 py-1.5 rounded-lg text-xs transition">
+            <input type="checkbox" id="chk-hide-after-showcase" class="accent-cyan-500 rounded">
+            <span class="text-slate-300 text-[11px] leading-tight">Auto-ocultar tarjetero</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Barra de Comandos Kick & Streamer.bot -->
+      <div class="p-2.5 rounded-lg bg-slate-950/70 border border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-orbitron font-bold text-fuchsia-400 flex items-center gap-1">
+            <span>💬</span> Comandos Kick:
+          </span>
+          <code class="px-1.5 py-0.5 rounded bg-slate-900 text-cyan-300 font-mono text-[11px] border border-cyan-500/30">!tarjetasjikokun</code>
+          <code class="px-1.5 py-0.5 rounded bg-slate-900 text-pink-300 font-mono text-[11px] border border-pink-500/30">!rotar</code>
+          <code class="px-1.5 py-0.5 rounded bg-slate-900 text-amber-300 font-mono text-[11px] border border-amber-500/30">!carta 1..5</code>
+          <code class="px-1.5 py-0.5 rounded bg-slate-900 text-emerald-300 font-mono text-[11px] border border-emerald-500/30">!siguiente</code>
+          <code class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 font-mono text-[11px] border border-slate-700">!ocultartarjetas</code>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btn-trigger-test-summon" class="px-2.5 py-1 bg-cyan-950/60 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/40 rounded text-xs font-semibold active:scale-95 transition" title="Simular comando !tarjetasjikokun">
+            ⚡ Probar !tarjetasjikokun
+          </button>
+          <button id="btn-trigger-test-rotate" class="px-2.5 py-1 bg-pink-950/60 hover:bg-pink-900/60 text-pink-300 border border-pink-500/40 rounded text-xs font-semibold active:scale-95 transition" title="Simular comando !rotar">
+            🔄 Probar !rotar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════ TARJETAS DE MÉTRICAS KPI ═══════════ -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-cyan-400">
+        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">TOTAL EN COLECCIÓN</span>
+        <span id="stat-total" class="text-2xl font-orbitron font-black text-white">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-sky-400">
+        <span class="text-[10px] font-bold text-sky-400 uppercase tracking-widest block">★ COMÚN</span>
+        <span id="stat-comun" class="text-2xl font-orbitron font-black text-sky-300">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-pink-400">
+        <span class="text-[10px] font-bold text-pink-400 uppercase tracking-widest block">★ ESPECIAL</span>
+        <span id="stat-especial" class="text-2xl font-orbitron font-black text-pink-300">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-emerald-400">
+        <span class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest block">★ RARO</span>
+        <span id="stat-raro" class="text-2xl font-orbitron font-black text-emerald-300">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-purple-400">
+        <span class="text-[10px] font-bold text-purple-400 uppercase tracking-widest block">★ ÉPICO</span>
+        <span id="stat-epico" class="text-2xl font-orbitron font-black text-purple-300">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-amber-400">
+        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest block">★ LEGENDARIO</span>
+        <span id="stat-legendario" class="text-2xl font-orbitron font-black text-amber-300">0</span>
+      </div>
+      <div class="cyber-panel p-3.5 rounded-xl border-l-4 border-l-rose-500">
+        <span class="text-[10px] font-bold text-rose-400 uppercase tracking-widest block">★ MÍTICO</span>
+        <span id="stat-mitico" class="text-2xl font-orbitron font-black text-rose-300">0</span>
+      </div>
+    </div>
+
+    <!-- ═══════════ BARRA DE FILTROS Y BÚSQUEDA ═══════════ -->
+    <div class="cyber-panel p-4 rounded-xl flex flex-col md:flex-row items-center justify-between gap-3">
+      <!-- Buscador -->
+      <div class="w-full md:w-80 relative">
+        <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+        <input type="text" id="input-search" placeholder="Buscar por nombre, número o archivo..." 
+               class="w-full pl-9 pr-4 py-2 bg-slate-900/90 border border-slate-700 focus:border-cyan-400 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none transition">
+      </div>
+
+      <!-- Filtros de Rareza -->
+      <div class="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
+        <button class="filter-btn active px-3 py-1.5 rounded-lg text-xs font-bold transition bg-cyan-500 text-slate-950 font-orbitron" data-rarity="TODOS">
+          TODOS
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-sky-500/40 text-sky-400 hover:bg-sky-950/30" data-rarity="COMÚN">
+          COMÚN
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-pink-500/40 text-pink-400 hover:bg-pink-950/30" data-rarity="ESPECIAL">
+          ESPECIAL
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-emerald-500/40 text-emerald-400 hover:bg-emerald-950/30" data-rarity="RARO">
+          RARO
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-purple-500/40 text-purple-400 hover:bg-purple-950/30" data-rarity="ÉPICO">
+          ÉPICO
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-amber-500/40 text-amber-400 hover:bg-amber-950/30" data-rarity="LEGENDARIO">
+          LEGENDARIO
+        </button>
+        <button class="filter-btn px-2.5 py-1.5 rounded-lg text-xs font-bold transition bg-slate-900 border border-rose-500/40 text-rose-400 hover:bg-rose-950/30" data-rarity="MÍTICO">
+          MÍTICO
+        </button>
+      </div>
+
+      <!-- Exportar JSON -->
+      <div class="flex items-center gap-2 w-full md:w-auto justify-end">
+        <button id="btn-export-json" class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg text-xs font-semibold" title="Exportar la colección actual a JSON">
+          📥 Exportar JSON
+        </button>
+      </div>
+    </div>
+
+    <!-- ═══════════ CUADRÍCULA DE TARJETAS ═══════════ -->
+    <div id="cards-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <!-- Inyectado vía JavaScript -->
+    </div>
+
+    <!-- Estado vacío -->
+    <div id="empty-state" class="hidden cyber-panel p-12 text-center rounded-2xl">
+      <div class="text-4xl mb-3">🔍</div>
+      <h3 class="text-lg font-orbitron font-bold text-white">No se encontraron tarjetas</h3>
+      <p class="text-xs text-slate-400 mt-1">Intenta con otro término de búsqueda o selecciona otra rareza.</p>
+    </div>
+
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- MODAL DE EDICIÓN / CREACIÓN VISUAL DE TARJETA                 -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="card-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="cyber-panel w-full max-w-4xl rounded-2xl overflow-hidden border border-cyan-500/40 shadow-2xl relative my-8">
+      
+      <div class="p-4 px-6 border-b border-cyan-500/30 flex items-center justify-between bg-slate-950/80">
+        <h3 id="modal-title" class="text-base font-orbitron font-black text-white flex items-center gap-2">
+          <span>✏️</span> EDITAR TARJETA TCG
+        </h3>
+        <button id="btn-modal-close" class="text-slate-400 hover:text-white text-lg px-2">✕</button>
+      </div>
+
+      <div class="p-6 grid grid-cols-1 md:grid-cols-12 gap-6 bg-slate-950/90 max-h-[80vh] overflow-y-auto">
+        
+        <!-- Previsualización 3D Limpia (Sin textos en el arte de la carta) -->
+        <div class="md:col-span-5 flex flex-col items-center justify-start gap-4 p-4 rounded-xl bg-slate-900/60 border border-slate-800">
+          <div class="text-xs font-orbitron text-cyan-400 uppercase tracking-widest flex items-center justify-between w-full">
+            <span>PREVIEW CARTA TCG LIMPIA</span>
+            <button type="button" id="btn-flip-preview" class="text-[11px] text-fuchsia-400 hover:text-fuchsia-300 font-semibold underline">
+              🔄 Girar Tarjeta
+            </button>
+          </div>
+
+          <!-- Escena 3D -->
+          <div class="modal-preview-scene cursor-pointer" id="modal-scene-container" title="Haz clic para ver frente y contraportada">
+            <div id="modal-card-rotator" class="modal-card-rotator">
+              
+              <!-- Frente Limpio -->
+              <div id="modal-preview-front-face" class="modal-card-face bg-gradient-to-tr from-cyan-500 via-white/40 to-blue-500">
+                <div class="w-full h-full bg-slate-950 rounded-[9px] relative overflow-hidden flex flex-col justify-end p-1 border border-white/10">
+                  <div class="holo-sheen-preview"></div>
+                  
+                  <div class="absolute inset-1 rounded-md overflow-hidden bg-slate-900 border border-white/10">
+                    <img id="modal-preview-img-front" src="" alt="Frente" class="w-full h-full object-cover object-center">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Reverso Limpio -->
+              <div id="modal-preview-back-face" class="modal-card-face modal-card-back bg-gradient-to-tr from-fuchsia-600 via-slate-900 to-cyan-500">
+                <div class="w-full h-full bg-slate-950 rounded-[9px] relative overflow-hidden flex items-center justify-center p-1 border border-white/10">
+                  <div class="holo-sheen-preview"></div>
+                  <div class="absolute inset-1 rounded-md overflow-hidden bg-slate-900 border border-white/10">
+                    <img id="modal-preview-img-back" src="" alt="Contraportada" class="w-full h-full object-cover object-center">
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <p class="text-[11px] text-slate-400 text-center">
+            La carta se muestra 100% limpia sin textos sobreimpresos, luciendo su ilustración y reverso completo.
+          </p>
+        </div>
+
+        <!-- Formulario -->
+        <div class="md:col-span-7 space-y-4">
+          <input type="hidden" id="edit-card-index" value="-1">
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">NÚMERO / ID</label>
+              <input type="text" id="inp-card-num" placeholder="00" 
+                     class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400 font-orbitron">
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-300 mb-1">PODER SYNC</label>
+              <input type="text" id="inp-card-power" placeholder="4,500" 
+                     class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400 font-orbitron">
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">TÍTULO DE LA TARJETA</label>
+            <input type="text" id="inp-card-title" placeholder="LOBITO ALEGRE" 
+                   class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400 font-orbitron font-bold">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">SUBTÍTULO / TIPO</label>
+            <input type="text" id="inp-card-sub" placeholder="MASCOTA // SERIE 00-33" 
+                   class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400">
+          </div>
+
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">NIVEL DE RAREZA</label>
+            <select id="inp-card-rarity" class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400 font-semibold">
+              <option value="COMÚN">★ COMÚN (Husky / Celeste)</option>
+              <option value="ESPECIAL">★ ESPECIAL (Iridiscente / Sakura)</option>
+              <option value="RARO">★ RARO (Amatista / Esmeralda)</option>
+              <option value="ÉPICO">★ ÉPICO (Carmesí y Cobre)</option>
+              <option value="LEGENDARIO">★ LEGENDARIO (Obsidiana y Oro)</option>
+              <option value="MÍTICO">★ MÍTICO (Platino Ultra Raro)</option>
+            </select>
+          </div>
+
+          <!-- Portada -->
+          <div class="pt-2 border-t border-slate-800">
+            <label class="block text-xs font-bold text-cyan-400 mb-1 flex items-center justify-between">
+              <span>IMAGEN FRONTAL (PORTADA)</span>
+              <span class="text-[10px] text-slate-400 font-normal">Google Drive CDN o URL web</span>
+            </label>
+            <div class="flex gap-2">
+              <input type="text" id="inp-card-front" placeholder="https://lh3.googleusercontent.com/d/..." 
+                     class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-400 font-mono">
+              <button type="button" id="btn-fix-drive-front" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 rounded-lg border border-slate-700" title="Convertir enlace Drive a CDN">
+                Convertir
+              </button>
+            </div>
+          </div>
+
+          <!-- Contraportada -->
+          <div class="pt-2 border-t border-slate-800">
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="text-xs font-bold text-pink-400">
+                CONTRAPORTADA (REVERSO)
+              </label>
+              <label class="flex items-center gap-1.5 text-[11px] text-slate-300 cursor-pointer">
+                <input type="checkbox" id="check-auto-back" checked class="rounded accent-cyan-500">
+                <span>Asignar reverso por rareza automáticamente</span>
+              </label>
+            </div>
+
+            <!-- Selector visual de 6 reversos oficiales -->
+            <div class="grid grid-cols-6 gap-1.5 mb-2" id="reversos-selector">
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-sky-400 bg-slate-900 text-center" data-rarity="COMÚN" title="Reverso Común (Husky)">
+                <img src="https://lh3.googleusercontent.com/d/1ZXeStFshIwz17abshEZk2vN5S5U2spoP" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-sky-400 font-bold truncate">Común</span>
+              </div>
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-pink-400 bg-slate-900 text-center" data-rarity="ESPECIAL" title="Reverso Especial (Iridiscente)">
+                <img src="https://lh3.googleusercontent.com/d/176O8_28j-BkbGQw-ZP6QkVj0uA5MPi2I" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-pink-400 font-bold truncate">Especial</span>
+              </div>
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-emerald-400 bg-slate-900 text-center" data-rarity="RARO" title="Reverso Raro (Amatista)">
+                <img src="https://lh3.googleusercontent.com/d/1x4v_Ww6aALa0JCBW15Hjd2LEapiXEbro" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-emerald-400 font-bold truncate">Raro</span>
+              </div>
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-purple-400 bg-slate-900 text-center" data-rarity="ÉPICO" title="Reverso Épico (Carmesí y Cobre)">
+                <img src="https://lh3.googleusercontent.com/d/1JBAM1EjFD_ABmAKiML89OYzDorURbFeM" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-purple-400 font-bold truncate">Épico</span>
+              </div>
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-amber-400 bg-slate-900 text-center" data-rarity="LEGENDARIO" title="Reverso Legendario (Obsidiana y Oro)">
+                <img src="https://lh3.googleusercontent.com/d/1q_5d9qw09uI_Bpl1WppeYAFZEXwbUuHG" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-amber-400 font-bold truncate">Legendario</span>
+              </div>
+              <div class="reverso-pill cursor-pointer p-1 rounded border border-slate-700 hover:border-rose-400 bg-slate-900 text-center" data-rarity="MÍTICO" title="Reverso Mítico (Platino Ultra Raro)">
+                <img src="https://lh3.googleusercontent.com/d/1OnQ1h9MO7SjwNiBhPDCNNt2tesa1-qrY" class="w-full h-12 object-cover rounded mb-1">
+                <span class="text-[9px] block text-rose-400 font-bold truncate">Mítico</span>
+              </div>
+            </div>
+
+            <input type="text" id="inp-card-back" placeholder="URL del reverso..." 
+                   class="w-full px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-pink-400 font-mono">
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- Pie del Modal -->
+      <div class="p-4 px-6 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between">
+        <span class="text-xs text-slate-400">Los cambios se guardan localmente y se transmiten al tarjetero al instante.</span>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-modal-cancel" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold">
+            Cancelar
+          </button>
+          <button type="button" id="btn-modal-save" class="px-5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-xl text-xs font-bold font-orbitron tracking-wide shadow-lg shadow-cyan-950/50">
+            💾 Guardar Tarjeta
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ═══════════ MODAL CREAR NUEVA COLECCIÓN ═══════════ -->
+  <div id="new-collection-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="cyber-panel w-full max-w-md rounded-2xl overflow-hidden border border-cyan-500/40 p-6 space-y-4">
+      <h3 class="text-base font-orbitron font-bold text-white flex items-center gap-2">
+        <span>➕</span> CREAR NUEVA COLECCIÓN
+      </h3>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">NOMBRE DE LA COLECCIÓN</label>
+        <input type="text" id="inp-new-col-name" placeholder="Ej. Colección Kick VIP" 
+               class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400">
+      </div>
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1">ID IDENTIFICADOR (Sin espacios)</label>
+        <input type="text" id="inp-new-col-id" placeholder="ej. coleccion_kick_vip" 
+               class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-cyan-400 font-mono">
+      </div>
+      <div class="flex justify-end gap-2 pt-2 border-t border-slate-800">
+        <button type="button" id="btn-cancel-new-col" class="px-3 py-1.5 bg-slate-800 text-slate-300 rounded-lg text-xs font-semibold">
+          Cancelar
+        </button>
+        <button type="button" id="btn-confirm-new-col" class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-bold font-orbitron">
+          Crear Colección
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Respaldo de datos por defecto (Cero CORS, compatible con file://) -->
+  <script src="../data/tarjetas_default_data.js"></script>
+
+  <!-- ═══════════ SCRIPT PRINCIPAL DEL ADMINISTRADOR ═══════════ -->
+  <script>
+    const APPS_SCRIPT_DRIVE_URL = 'https://script.google.com/macros/s/AKfycbz5Zq7CYZTgrA6QoCAWCLzIRx-Y_fLyex_OMS124dCQPCxj-fJTd6okjS6Bovv4PT_w/exec';
+
+    const OFFICIAL_BACKS = {
+      "COMÚN": "https://lh3.googleusercontent.com/d/1ZXeStFshIwz17abshEZk2vN5S5U2spoP",
+      "ESPECIAL": "https://lh3.googleusercontent.com/d/176O8_28j-BkbGQw-ZP6QkVj0uA5MPi2I",
+      "RARO": "https://lh3.googleusercontent.com/d/1x4v_Ww6aALa0JCBW15Hjd2LEapiXEbro",
+      "ÉPICO": "https://lh3.googleusercontent.com/d/1JBAM1EjFD_ABmAKiML89OYzDorURbFeM",
+      "LEGENDARIO": "https://lh3.googleusercontent.com/d/1q_5d9qw09uI_Bpl1WppeYAFZEXwbUuHG",
+      "MÍTICO": "https://lh3.googleusercontent.com/d/1OnQ1h9MO7SjwNiBhPDCNNt2tesa1-qrY"
+    };
+
+    const RARITY_THEMES = {
+      "COMÚN": { border: "border-sky-500", text: "text-sky-400" },
+      "ESPECIAL": { border: "border-pink-500", text: "text-pink-400" },
+      "RARO": { border: "border-emerald-500", text: "text-emerald-400" },
+      "ÉPICO": { border: "border-purple-500", text: "text-purple-400" },
+      "LEGENDARIO": { border: "border-amber-500", text: "text-amber-400" },
+      "MÍTICO": { border: "border-rose-500", text: "text-rose-400" }
+    };
+
+    const syncChannel = new BroadcastChannel('jikokun_tarjetas_channel');
+
+    // Estado Global de Colecciones
+    let allCollections = {};
+    let activeCollectionId = 'Coleccion_Jikokun_00-33';
+    let currentCards = [];
+    let activeFilter = 'TODOS';
+    let searchQuery = '';
+
+    function showToast(message, type = 'info') {
+      const zone = document.getElementById('toast-zone');
+      const t = document.createElement('div');
+      t.className = 'px-4 py-2.5 rounded-xl text-xs font-semibold shadow-2xl flex items-center gap-2 border backdrop-blur-md pointer-events-auto transition duration-300';
+      if (type === 'success') {
+        t.className += ' bg-emerald-950/90 text-emerald-200 border-emerald-500/50';
+        t.innerHTML = `<span>✅</span> <span>${message}</span>`;
+      } else if (type === 'error') {
+        t.className += ' bg-rose-950/90 text-rose-200 border-rose-500/50';
+        t.innerHTML = `<span>⚠️</span> <span>${message}</span>`;
+      } else {
+        t.className += ' bg-slate-950/90 text-cyan-200 border-cyan-500/50';
+        t.innerHTML = `<span>ℹ️</span> <span>${message}</span>`;
+      }
+      zone.appendChild(t);
+      setTimeout(() => {
+        t.style.opacity = '0';
+        t.style.transform = 'translateY(-10px)';
+        setTimeout(() => t.remove(), 300);
+      }, 3500);
+    }
+
+    /**
+     * Inicializar Colecciones
+     */
+    function initCollections() {
+      // 1. Cargar del localStorage si existe
+      const stored = localStorage.getItem('jikokun_tcg_all_collections');
+      if (stored) {
+        try {
+          allCollections = JSON.parse(stored);
+        } catch(e) {}
+      }
+
+      // 2. Si no hay o falta alguna de las predeterminadas, tomarlas de window.DEFAULT_JIKOKUN_COLLECTIONS
+      if (!allCollections || Object.keys(allCollections).length === 0) {
+        if (window.DEFAULT_JIKOKUN_COLLECTIONS) {
+          allCollections = JSON.parse(JSON.stringify(window.DEFAULT_JIKOKUN_COLLECTIONS));
+        }
+      } else {
+        // Asegurar que existan ambas colecciones base
+        if (window.DEFAULT_JIKOKUN_COLLECTIONS) {
+          if (!allCollections['Coleccion_Jikokun_00-33']) {
+            allCollections['Coleccion_Jikokun_00-33'] = window.DEFAULT_JIKOKUN_COLLECTIONS['Coleccion_Jikokun_00-33'];
+          }
+          if (!allCollections['Coleccion_Jikokun_001-100']) {
+            allCollections['Coleccion_Jikokun_001-100'] = window.DEFAULT_JIKOKUN_COLLECTIONS['Coleccion_Jikokun_001-100'];
+          }
+        }
+      }
+
+      // Colección activa guardada
+      const savedActive = localStorage.getItem('jikokun_active_collection_id');
+      if (savedActive && allCollections[savedActive]) {
+        activeCollectionId = savedActive;
+      } else {
+        activeCollectionId = Object.keys(allCollections)[0] || 'Coleccion_Jikokun_00-33';
+      }
+
+      // Cargar configuración completa del expositor
+      loadWidgetConfig();
+
+      updateCollectionSelectOptions();
+      loadCurrentCollectionCards();
+    }
+
+    function updateCollectionSelectOptions() {
+      const sel = document.getElementById('select-active-collection');
+      sel.innerHTML = '';
+      Object.keys(allCollections).forEach(colId => {
+        const col = allCollections[colId];
+        const opt = document.createElement('option');
+        opt.value = colId;
+        opt.textContent = `${col.name} (${col.cards ? col.cards.length : 0} cartas)`;
+        if (colId === activeCollectionId) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+
+    function loadCurrentCollectionCards() {
+      if (allCollections[activeCollectionId]) {
+        currentCards = allCollections[activeCollectionId].cards || [];
+      } else {
+        currentCards = [];
+      }
+      updateUI();
+    }
+
+    function saveAllCollections(broadcast = true) {
+      if (allCollections[activeCollectionId]) {
+        allCollections[activeCollectionId].cards = currentCards;
+      }
+      localStorage.setItem('jikokun_tcg_all_collections', JSON.stringify(allCollections));
+      localStorage.setItem('jikokun_active_collection_id', activeCollectionId);
+      localStorage.setItem('jikokun_tarjetas_data', JSON.stringify(currentCards));
+
+      if (broadcast) {
+        syncChannel.postMessage({
+          action: 'switch_collection',
+          collectionId: activeCollectionId,
+          collectionName: allCollections[activeCollectionId]?.name,
+          cards: currentCards
+        });
+      }
+      updateMetrics();
+      updateCollectionSelectOptions();
+    }
+
+    // Cambiar de colección activa
+    document.getElementById('select-active-collection').addEventListener('change', (e) => {
+      activeCollectionId = e.target.value;
+      loadCurrentCollectionCards();
+      saveAllCollections(true);
+      showToast(`Colección activa cambiada a: ${allCollections[activeCollectionId]?.name}`, 'info');
+    });
+
+    // Activar en OBS de inmediato
+    document.getElementById('btn-send-to-tarjetero').addEventListener('click', () => {
+      saveAllCollections(true);
+      showToast(`¡Colección "${allCollections[activeCollectionId]?.name}" transmitida a OBS!`, 'success');
+    });
+
+    // Configuración completa del Expositor 3D (Posición, Escala, Visibilidad, Streamer.bot)
+    let widgetConfig = {
+      order: 'secuencial',
+      position: 'centro',
+      scale: 1.0,
+      visibilityMode: 'continuous',
+      ondemandDuration: 60,
+      hideAfterShowcase: false,
+      showcaseDuration: 15
+    };
+
+    function loadWidgetConfig() {
+      const savedConfig = localStorage.getItem('jikokun_tcg_config');
+      if (savedConfig) {
+        try {
+          const cfg = JSON.parse(savedConfig);
+          widgetConfig = { ...widgetConfig, ...cfg };
+        } catch(e) {}
+      }
+
+      const orderEl = document.getElementById('select-display-order');
+      if (orderEl) orderEl.value = widgetConfig.order || 'secuencial';
+
+      const posEl = document.getElementById('select-widget-position');
+      if (posEl) posEl.value = widgetConfig.position || 'centro';
+
+      const scaleEl = document.getElementById('select-widget-scale');
+      if (scaleEl) scaleEl.value = String(widgetConfig.scale || 1.0);
+
+      const visEl = document.getElementById('select-visibility-mode');
+      if (visEl) visEl.value = widgetConfig.visibilityMode || 'continuous';
+
+      const durEl = document.getElementById('select-ondemand-duration');
+      if (durEl) durEl.value = String(widgetConfig.ondemandDuration || 60);
+
+      const hideChk = document.getElementById('chk-hide-after-showcase');
+      if (hideChk) hideChk.checked = !!widgetConfig.hideAfterShowcase;
+
+      const scalePercent = Math.round(parseFloat(widgetConfig.scale || 1.0) * 100);
+      const scaleLabel = document.getElementById('scale-value-label');
+      if (scaleLabel) scaleLabel.textContent = `${scalePercent}%`;
+    }
+
+    function saveAndBroadcastWidgetConfig() {
+      widgetConfig.order = document.getElementById('select-display-order').value;
+      widgetConfig.position = document.getElementById('select-widget-position').value;
+      widgetConfig.scale = parseFloat(document.getElementById('select-widget-scale').value) || 1.0;
+      widgetConfig.visibilityMode = document.getElementById('select-visibility-mode').value;
+      widgetConfig.ondemandDuration = parseInt(document.getElementById('select-ondemand-duration').value, 10) || 60;
+      widgetConfig.hideAfterShowcase = document.getElementById('chk-hide-after-showcase').checked;
+
+      const scalePercent = Math.round(widgetConfig.scale * 100);
+      const scaleLabel = document.getElementById('scale-value-label');
+      if (scaleLabel) scaleLabel.textContent = `${scalePercent}%`;
+
+      localStorage.setItem('jikokun_tcg_config', JSON.stringify(widgetConfig));
+
+      syncChannel.postMessage({
+        action: 'update_config',
+        config: widgetConfig
+      });
+      showToast('Configuración del expositor OBS actualizada', 'info');
+    }
+
+    document.getElementById('btn-apply-order').addEventListener('click', saveAndBroadcastWidgetConfig);
+    document.getElementById('select-display-order').addEventListener('change', saveAndBroadcastWidgetConfig);
+    document.getElementById('select-widget-position').addEventListener('change', saveAndBroadcastWidgetConfig);
+    document.getElementById('select-widget-scale').addEventListener('change', saveAndBroadcastWidgetConfig);
+    document.getElementById('select-visibility-mode').addEventListener('change', saveAndBroadcastWidgetConfig);
+    document.getElementById('select-ondemand-duration').addEventListener('change', saveAndBroadcastWidgetConfig);
+    document.getElementById('chk-hide-after-showcase').addEventListener('change', saveAndBroadcastWidgetConfig);
+
+    document.getElementById('btn-trigger-test-summon').addEventListener('click', () => {
+      syncChannel.postMessage({ action: 'command', command: '!tarjetasjikokun' });
+      showToast('Comando !tarjetasjikokun enviado a OBS', 'success');
+    });
+
+    document.getElementById('btn-trigger-test-rotate').addEventListener('click', () => {
+      syncChannel.postMessage({ action: 'command', command: '!rotar' });
+      showToast('Comando !rotar enviado a OBS', 'info');
+    });
+
+    // Escuchar estado de Streamer.bot desde tarjetero.html
+    syncChannel.onmessage = (event) => {
+      if (!event.data) return;
+      if (event.data.action === 'sb_status') {
+        const badge = document.getElementById('sb-status-badge');
+        if (badge) {
+          if (event.data.connected) {
+            badge.className = 'px-2 py-0.5 text-[10px] font-orbitron font-bold rounded-full bg-emerald-950/80 border border-emerald-500/50 text-emerald-300';
+            badge.innerHTML = `🟢 Streamer.bot Conectado (${event.data.port})`;
+          } else {
+            badge.className = 'px-2 py-0.5 text-[10px] font-orbitron font-bold rounded-full bg-slate-900 border border-slate-700 text-slate-400';
+            badge.innerHTML = `⚪ Streamer.bot Inactivo`;
+          }
+        }
+      }
+    };
+
+    /**
+     * Métricas
+     */
+    function updateMetrics() {
+      document.getElementById('stat-total').textContent = currentCards.length;
+      document.getElementById('stat-comun').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'COMÚN').length;
+      document.getElementById('stat-especial').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'ESPECIAL').length;
+      document.getElementById('stat-raro').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'RARO').length;
+      document.getElementById('stat-epico').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'ÉPICO').length;
+      document.getElementById('stat-legendario').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'LEGENDARIO').length;
+      document.getElementById('stat-mitico').textContent = currentCards.filter(c => (c.rarity || '').toUpperCase() === 'MÍTICO').length;
+    }
+
+    /**
+     * Cuadrícula de tarjetas
+     */
+    function renderGrid() {
+      const grid = document.getElementById('cards-grid');
+      const empty = document.getElementById('empty-state');
+      grid.innerHTML = '';
+
+      let filtered = currentCards.filter(c => {
+        const rKey = (c.rarity || 'COMÚN').toUpperCase();
+        if (activeFilter !== 'TODOS' && rKey !== activeFilter) return false;
+
+        if (searchQuery) {
+          const q = searchQuery.toLowerCase();
+          const matchTitle = (c.title || '').toLowerCase().includes(q);
+          const matchSub = (c.subtitle || '').toLowerCase().includes(q);
+          const matchNum = String(c.num || c.id || '').toLowerCase().includes(q);
+          const matchFile = (c.filename || '').toLowerCase().includes(q);
+          if (!matchTitle && !matchSub && !matchNum && !matchFile) return false;
+        }
+        return true;
+      });
+
+      if (filtered.length === 0) {
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+
+      filtered.forEach((card) => {
+        const realIndex = currentCards.indexOf(card);
+        const rarityKey = (card.rarity || 'COMÚN').toUpperCase();
+        const theme = RARITY_THEMES[rarityKey] || RARITY_THEMES["COMÚN"];
+        const numDisplay = card.num !== undefined ? String(card.num) : (card.id < 10 ? '0' + card.id : String(card.id));
+
+        const cardEl = document.createElement('div');
+        cardEl.className = `cyber-panel rounded-xl overflow-hidden p-3 border ${theme.border}/40 hover:${theme.border} transition flex flex-col justify-between group grid-card-item`;
+
+        cardEl.innerHTML = `
+          <!-- Miniatura con Flip al Hover -->
+          <div class="relative w-full aspect-[260/380] rounded-lg overflow-hidden bg-slate-950 mb-3 border border-white/10 [perspective:800px] cursor-pointer" onclick="toggleCardFlip(this)">
+            <div class="w-full h-full grid-card-rotator flip-on-hover relative">
+              
+              <!-- Frente Limpio -->
+              <div class="absolute inset-0 grid-card-face bg-slate-950 p-1">
+                <img src="${card.frontImage}" alt="${card.title}" class="w-full h-full object-cover rounded" loading="lazy" onerror="this.src='https://placehold.co/260x380/0f172a/00f3ff?text=JIKOKUN+${numDisplay}'">
+                
+                <div class="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none">
+                  <span class="px-1.5 py-0.5 text-[9px] font-orbitron font-extrabold rounded backdrop-blur-md border ${theme.border} ${theme.text} bg-black/70">
+                    ★ ${rarityKey}
+                  </span>
+                  <span class="text-[10px] font-orbitron font-bold text-white bg-black/75 px-1.5 py-0.5 rounded border border-white/20">
+                    #${numDisplay}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Reverso Limpio -->
+              <div class="absolute inset-0 grid-card-face grid-card-back bg-slate-950 p-1">
+                <img src="${card.backImage || OFFICIAL_BACKS[rarityKey]}" alt="Reverso" class="w-full h-full object-cover rounded" loading="lazy">
+                <div class="absolute bottom-2 text-center w-full pointer-events-none">
+                  <span class="text-[8px] font-orbitron font-bold text-white/80 bg-black/70 px-2 py-0.5 rounded border border-white/10">
+                    REVERSO ${rarityKey}
+                  </span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Información descriptiva fuera de la carta -->
+          <div class="space-y-1 mb-3">
+            <div class="flex items-center justify-between text-[10px] font-bold text-slate-400">
+              <span class="truncate">${card.subtitle || 'COLECCIÓN'}</span>
+              <span class="${theme.text} font-orbitron font-semibold">⚡ ${card.power || '4,000'}</span>
+            </div>
+            <h4 class="font-orbitron font-black text-sm text-white truncate tracking-wide" title="${card.title}">
+              ${card.title}
+            </h4>
+          </div>
+
+          <!-- Acciones -->
+          <div class="grid grid-cols-4 gap-1.5 pt-2 border-t border-slate-800">
+            <button onclick="openEditModal(${realIndex})" class="col-span-2 px-2 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center gap-1">
+              <span>✏️</span> Editar
+            </button>
+            <button onclick="previewInTarjetero('${card.id}')" class="px-2 py-1.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center" title="Exhibir en Tarjetero 3D">
+              👁️
+            </button>
+            <button onclick="deleteCard(${realIndex})" class="px-2 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center" title="Eliminar tarjeta">
+              🗑️
+            </button>
+          </div>
+        `;
+
+        grid.appendChild(cardEl);
+      });
+    }
+
+    function updateUI() {
+      updateMetrics();
+      renderGrid();
+    }
+
+    function toggleCardFlip(container) {
+      const rotator = container.querySelector('.grid-card-rotator');
+      if (rotator) rotator.classList.toggle('is-flipped-manual');
+    }
+
+    function previewInTarjetero(cardId) {
+      window.open(`tarjetero.html?card=${cardId}`, '_blank');
+    }
+
+    /**
+     * Modal de Edición
+     */
+    const modal = document.getElementById('card-modal');
+    const modalRotator = document.getElementById('modal-card-rotator');
+
+    window.openEditModal = function(index) {
+      document.getElementById('edit-card-index').value = index;
+      modalRotator.classList.remove('is-flipped');
+
+      if (index >= 0 && index < currentCards.length) {
+        const c = currentCards[index];
+        document.getElementById('modal-title').innerHTML = `<span>✏️</span> EDITAR TARJETA #${c.num || c.id} // ${c.title}`;
+        document.getElementById('inp-card-num').value = c.num !== undefined ? c.num : (c.id < 10 ? '0' + c.id : c.id);
+        document.getElementById('inp-card-title').value = c.title || '';
+        document.getElementById('inp-card-sub').value = c.subtitle || 'MASCOTA';
+        document.getElementById('inp-card-rarity').value = (c.rarity || 'COMÚN').toUpperCase();
+        document.getElementById('inp-card-power').value = c.power || '4,000';
+        document.getElementById('inp-card-front').value = c.frontImage || '';
+        document.getElementById('inp-card-back').value = c.backImage || OFFICIAL_BACKS[(c.rarity || 'COMÚN').toUpperCase()];
+      } else {
+        const nextId = currentCards.length;
+        const nextNum = nextId < 10 ? '0' + nextId : String(nextId);
+        document.getElementById('modal-title').innerHTML = `<span>➕</span> CREAR NUEVA TARJETA TCG`;
+        document.getElementById('inp-card-num').value = nextNum;
+        document.getElementById('inp-card-title').value = 'NUEVA CARTA';
+        document.getElementById('inp-card-sub').value = 'COLECCIÓN JIKOKUN';
+        document.getElementById('inp-card-rarity').value = 'COMÚN';
+        document.getElementById('inp-card-power').value = '4,500';
+        document.getElementById('inp-card-front').value = '';
+        document.getElementById('inp-card-back').value = OFFICIAL_BACKS['COMÚN'];
+      }
+
+      updateModalLivePreview();
+      modal.classList.remove('hidden');
+    };
+
+    function closeModal() {
+      modal.classList.add('hidden');
+    }
+
+    document.getElementById('btn-modal-close').addEventListener('click', closeModal);
+    document.getElementById('btn-modal-cancel').addEventListener('click', closeModal);
+
+    document.getElementById('btn-new-card').addEventListener('click', () => {
+      openEditModal(-1);
+    });
+
+    function flipModalCard() {
+      modalRotator.classList.toggle('is-flipped');
+    }
+    document.getElementById('btn-flip-preview').addEventListener('click', flipModalCard);
+    document.getElementById('modal-scene-container').addEventListener('click', flipModalCard);
+
+    function updateModalLivePreview() {
+      const rarity = document.getElementById('inp-card-rarity').value || 'COMÚN';
+      const front = document.getElementById('inp-card-front').value || 'https://placehold.co/240x350/0f172a/00f3ff?text=PORTADA';
+      const back = document.getElementById('inp-card-back').value || OFFICIAL_BACKS[rarity];
+
+      document.getElementById('modal-preview-img-front').src = front;
+      document.getElementById('modal-preview-img-back').src = back;
+    }
+
+    ['inp-card-front', 'inp-card-back', 'inp-card-rarity'].forEach(id => {
+      document.getElementById(id).addEventListener('input', updateModalLivePreview);
+    });
+
+    document.getElementById('inp-card-rarity').addEventListener('change', (e) => {
+      const newRarity = e.target.value;
+      const autoBack = document.getElementById('check-auto-back').checked;
+      if (autoBack && OFFICIAL_BACKS[newRarity]) {
+        document.getElementById('inp-card-back').value = OFFICIAL_BACKS[newRarity];
+      }
+      updateModalLivePreview();
+    });
+
+    document.querySelectorAll('.reverso-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const r = pill.dataset.rarity;
+        if (OFFICIAL_BACKS[r]) {
+          document.getElementById('inp-card-back').value = OFFICIAL_BACKS[r];
+          updateModalLivePreview();
+          showToast(`Contraportada seleccionada: Reverso ${r}`);
+        }
+      });
+    });
+
+    document.getElementById('btn-fix-drive-front').addEventListener('click', () => {
+      const inp = document.getElementById('inp-card-front');
+      const val = inp.value.trim();
+      const m = val.match(/\/d\/([a-zA-Z0-9_-]+)/) || val.match(/id=([a-zA-Z0-9_-]+)/);
+      if (m && m[1]) {
+        inp.value = `https://lh3.googleusercontent.com/d/${m[1]}`;
+        updateModalLivePreview();
+        showToast('Enlace de Drive convertido a CDN directo.', 'success');
+      } else {
+        showToast('Pega un enlace válido de Drive para convertir', 'error');
+      }
+    });
+
+    // Guardar tarjeta
+    document.getElementById('btn-modal-save').addEventListener('click', () => {
+      const idx = parseInt(document.getElementById('edit-card-index').value, 10);
+      const num = document.getElementById('inp-card-num').value.trim() || '00';
+      const title = document.getElementById('inp-card-title').value.trim().toUpperCase() || 'LOBITO';
+      const sub = document.getElementById('inp-card-sub').value.trim() || 'COLECCIÓN JIKOKUN';
+      const rarity = document.getElementById('inp-card-rarity').value || 'COMÚN';
+      const power = document.getElementById('inp-card-power').value.trim() || '4,000';
+      const front = document.getElementById('inp-card-front').value.trim();
+      const back = document.getElementById('inp-card-back').value.trim() || OFFICIAL_BACKS[rarity];
+
+      const cardObj = {
+        id: parseInt(num, 10) || (idx >= 0 ? currentCards[idx].id : currentCards.length),
+        num: num,
+        title: title,
+        subtitle: sub,
+        rarity: rarity,
+        power: power,
+        frontImage: front,
+        backImage: back,
+        filename: idx >= 0 ? currentCards[idx].filename : `${num}_${title}.png`
+      };
+
+      if (idx >= 0 && idx < currentCards.length) {
+        currentCards[idx] = cardObj;
+        showToast(`Tarjeta #${num} "${title}" actualizada`, 'success');
+      } else {
+        currentCards.push(cardObj);
+        showToast(`Nueva tarjeta #${num} agregada a la colección`, 'success');
+      }
+
+      saveAllCollections(true);
+      closeModal();
+      updateUI();
+    });
+
+    window.deleteCard = function(index) {
+      if (confirm(`¿Eliminar la tarjeta #${currentCards[index].num || currentCards[index].id} "${currentCards[index].title}"?`)) {
+        currentCards.splice(index, 1);
+        saveAllCollections(true);
+        updateUI();
+        showToast('Tarjeta eliminada.', 'info');
+      }
+    };
+
+    /**
+     * Modal de Nueva Colección
+     */
+    const newColModal = document.getElementById('new-collection-modal');
+    document.getElementById('btn-create-collection').addEventListener('click', () => {
+      document.getElementById('inp-new-col-name').value = '';
+      document.getElementById('inp-new-col-id').value = '';
+      newColModal.classList.remove('hidden');
+    });
+
+    document.getElementById('btn-cancel-new-col').addEventListener('click', () => {
+      newColModal.classList.add('hidden');
+    });
+
+    document.getElementById('btn-confirm-new-col').addEventListener('click', () => {
+      const name = document.getElementById('inp-new-col-name').value.trim();
+      const rawId = document.getElementById('inp-new-col-id').value.trim().toLowerCase().replace(/\s+/g, '_');
+
+      if (!name || !rawId) {
+        showToast('Por favor escribe un nombre e ID válido.', 'error');
+        return;
+      }
+
+      if (allCollections[rawId]) {
+        showToast('Ya existe una colección con ese ID.', 'error');
+        return;
+      }
+
+      allCollections[rawId] = {
+        id: rawId,
+        name: name,
+        cards: []
+      };
+
+      activeCollectionId = rawId;
+      newColModal.classList.add('hidden');
+      saveAllCollections(true);
+      loadCurrentCollectionCards();
+      showToast(`¡Colección "${name}" creada con éxito!`, 'success');
+    });
+
+    /**
+     * Sincronizar TODAS las colecciones desde Google Drive
+     */
+    document.getElementById('btn-sync-all-drive').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-sync-all-drive');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<span>⏳</span> Leyendo Drive...';
+      btn.disabled = true;
+
+      try {
+        showToast('Explorando carpetas de colecciones en Google Drive...', 'info');
+        const res = await fetch(`${APPS_SCRIPT_DRIVE_URL}?folder=tarjetas_jikokun`);
+        if (!res.ok) throw new Error('Error de conexión con Google Apps Script');
+
+        const json = await res.json();
+        if (json.status !== 'success' || !json.data) {
+          throw new Error(json.message || 'Respuesta inválida');
+        }
+
+        const driveFolder = json.data;
+        const subfolders = driveFolder.subfolders || [];
+
+        // 1. Extraer y actualizar reversos
+        const folderReversos = subfolders.find(s => s.name && s.name.toLowerCase().includes('reverso'));
+        if (folderReversos && folderReversos.files) {
+          folderReversos.files.forEach(f => {
+            const fn = f.name.toLowerCase();
+            if (fn.includes('comun')) OFFICIAL_BACKS['COMÚN'] = f.cdnUrl;
+            if (fn.includes('especial')) OFFICIAL_BACKS['ESPECIAL'] = f.cdnUrl;
+            if (fn.includes('raro') || fn.includes('amatista')) OFFICIAL_BACKS['RARO'] = f.cdnUrl;
+            if (fn.includes('epica') || fn.includes('épica')) OFFICIAL_BACKS['ÉPICO'] = f.cdnUrl;
+            if (fn.includes('legendaria') || fn.includes('obsidiana')) OFFICIAL_BACKS['LEGENDARIO'] = f.cdnUrl;
+            if (fn.includes('ultra') || fn.includes('platino')) OFFICIAL_BACKS['MÍTICO'] = f.cdnUrl;
+          });
+        }
+
+        // 2. Procesar cada subcarpeta de colección encontrada en Drive
+        let collectionsDetected = 0;
+        subfolders.forEach(sf => {
+          if (sf.name.toLowerCase().includes('reverso')) return;
+
+          const colId = sf.name;
+          const colName = sf.name.replace(/_/g, ' ');
+
+          // Procesar las cartas de esta carpeta
+          const importedCards = sf.files.map((file, i) => {
+            const fn = file.name.replace(/\.png$/i, '');
+            let rarity = 'COMÚN';
+            const lower = fn.toLowerCase();
+            if (lower.includes('ultra_rara') || lower.includes('mitic')) rarity = 'MÍTICO';
+            else if (lower.includes('legendari')) rarity = 'LEGENDARIO';
+            else if (lower.includes('epic')) rarity = 'ÉPICO';
+            else if (lower.includes('rar')) rarity = 'RARO';
+            else if (lower.includes('especial')) rarity = 'ESPECIAL';
+
+            const numMatch = fn.match(/^(\d+)/);
+            const id = numMatch ? parseInt(numMatch[1], 10) : i;
+            const numStr = String(id).padStart(2, '0');
+
+            return {
+              id: id,
+              num: numStr,
+              title: fn.replace(/^\d+[-_]?\d*[_]/, '').replace(/_(comun|especial|rara|raro|epica|epico|legendaria|legendario|ultra_rara|mitica|mitico)$/i, '').replace(/_/g, ' ').toUpperCase(),
+              subtitle: colName.toUpperCase(),
+              rarity: rarity,
+              power: '5,000',
+              frontImage: file.cdnUrl,
+              backImage: OFFICIAL_BACKS[rarity],
+              filename: file.name,
+              driveFileId: file.id
+            };
+          });
+
+          allCollections[colId] = {
+            id: colId,
+            name: colName,
+            driveFolderId: sf.id,
+            cards: importedCards
+          };
+          collectionsDetected++;
+        });
+
+        saveAllCollections(true);
+        loadCurrentCollectionCards();
+        showToast(`¡Drive Sincronizado! Se detectaron ${collectionsDetected} colecciones.`, 'success');
+
+      } catch (err) {
+        console.error('Error sincronizando colecciones:', err);
+        showToast(`Error al sincronizar colecciones: ${err.message}`, 'error');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-save-all').addEventListener('click', () => {
+      saveAllCollections(true);
+      showToast('¡Todas las colecciones guardadas y sincronizadas!', 'success');
+    });
+
+    document.getElementById('btn-export-json').addEventListener('click', () => {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentCards, null, 2));
+      const dl = document.createElement('a');
+      dl.setAttribute("href", dataStr);
+      dl.setAttribute("download", `${activeCollectionId}.json`);
+      dl.click();
+      dl.remove();
+      showToast('Archivo JSON exportado.');
+    });
+
+    // Filtros
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => {
+          b.classList.remove('bg-cyan-500', 'text-slate-950');
+          b.classList.add('bg-slate-900');
+        });
+        btn.classList.remove('bg-slate-900');
+        btn.classList.add('bg-cyan-500', 'text-slate-950');
+        activeFilter = btn.dataset.rarity;
+        renderGrid();
+      });
+    });
+
+    document.getElementById('input-search').addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderGrid();
+    });
+
+    window.onload = () => {
+      initCollections();
+    };
+  </script>
+</body>
+</html>

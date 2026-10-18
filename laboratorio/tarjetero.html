@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jikokun - OBS 3D Card Showcase Widget</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --card-width: 260px;
+            --card-height: 380px;
+            --card-radius: 14px;
+            --card-inner-radius: 11px;
+            --card-art-radius: 8px;
+            --primary-glow: #00f3ff;
+            --secondary-glow: #ff0055;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background-color: transparent;
+            font-family: 'Rajdhani', sans-serif;
+            user-select: none;
+        }
+
+        body.preview-bg {
+            background: radial-gradient(circle at center, #131826 0%, #06080e 100%);
+        }
+
+        /* Escena 3D Principal */
+        .scene {
+            width: 100%;
+            height: 100%;
+            perspective: 1400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .carousel-stage {
+            width: var(--card-width);
+            height: var(--card-height);
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+        }
+
+        /* Contenedor de posicionamiento en el carrusel */
+        .card-slot {
+            position: absolute;
+            inset: 0;
+            transform-style: preserve-3d;
+            transition: all 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+            cursor: pointer;
+        }
+
+        /* Contenedor de rotación 3D (Frente y Reverso) */
+        .card-rotator {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease;
+        }
+
+        /* Esquinas redondeadas clásicas estilo TCG */
+        .tcg-card-outer {
+            border-radius: var(--card-radius);
+            overflow: hidden;
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25), 0 10px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .tcg-card-inner {
+            border-radius: var(--card-inner-radius);
+            overflow: hidden;
+        }
+
+        .tcg-card-art {
+            border-radius: var(--card-art-radius);
+            overflow: hidden;
+        }
+
+        /* Caras de la tarjeta (Sin texto, puro arte y marco TCG) */
+        .card-face {
+            position: absolute;
+            inset: 0;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            padding: 3.5px;
+            background: linear-gradient(135deg, var(--primary-glow), rgba(255,255,255,0.25), var(--secondary-glow));
+        }
+
+        .card-inner {
+            width: 100%;
+            height: 100%;
+            background: #090d16;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Cara Trasera (Giro 180deg) */
+        .card-back {
+            transform: rotateY(180deg);
+            background: linear-gradient(135deg, var(--secondary-glow), #1e1b4b, var(--primary-glow));
+        }
+
+        /* Efecto Holográfico / Brillo Iridiscente */
+        .holo-sheen {
+            position: absolute;
+            inset: -100%;
+            background: linear-gradient(
+                45deg,
+                transparent 40%,
+                rgba(255, 255, 255, 0.28) 48%,
+                var(--rarity-glow-primary, rgba(0, 243, 255, 0.4)) 50%,
+                rgba(255, 255, 255, 0.28) 52%,
+                transparent 60%
+            );
+            transform: translateX(-100%) rotate(25deg);
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Animación de la carta seleccionada (ciclo de flotación y giro 3D completo de 360°) */
+        .card-slot.is-selected .card-rotator {
+            animation: showcaseSpinAndFloat 7.5s cubic-bezier(0.35, 0, 0.25, 1) infinite;
+        }
+
+        .card-slot.is-selected .holo-sheen {
+            animation: holoSwipe 3.5s ease-in-out infinite;
+        }
+
+        .card-slot.is-selected {
+            z-index: 50;
+        }
+
+        /* ═══════════ RESPLANDORES POR NIVEL DE RAREZA ═══════════ */
+        .card-slot.rarity-comun {
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.35));
+        }
+        .card-slot.rarity-comun.is-selected {
+            filter: drop-shadow(0 0 24px rgba(56, 189, 248, 0.85)) drop-shadow(0 0 45px rgba(2, 132, 199, 0.4));
+        }
+
+        .card-slot.rarity-especial {
+            filter: drop-shadow(0 0 14px rgba(236, 72, 153, 0.45));
+        }
+        .card-slot.rarity-especial.is-selected {
+            filter: drop-shadow(0 0 28px rgba(236, 72, 153, 0.85)) drop-shadow(0 0 55px rgba(6, 182, 212, 0.5));
+        }
+
+        .card-slot.rarity-raro {
+            filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.35));
+        }
+        .card-slot.rarity-raro.is-selected {
+            filter: drop-shadow(0 0 26px rgba(16, 185, 129, 0.85)) drop-shadow(0 0 50px rgba(6, 182, 212, 0.45));
+        }
+
+        .card-slot.rarity-epico {
+            filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.45));
+        }
+        .card-slot.rarity-epico.is-selected {
+            filter: drop-shadow(0 0 32px rgba(168, 85, 247, 0.9)) drop-shadow(0 0 65px rgba(236, 72, 153, 0.55));
+        }
+
+        .card-slot.rarity-legendario {
+            filter: drop-shadow(0 0 20px rgba(250, 204, 21, 0.55));
+        }
+        .card-slot.rarity-legendario.is-selected {
+            animation: pulseLegendaryGlow 2.2s ease-in-out infinite alternate;
+        }
+
+        .card-slot.rarity-mitico {
+            filter: drop-shadow(0 0 24px rgba(255, 0, 85, 0.65)) drop-shadow(0 0 40px rgba(0, 243, 255, 0.35));
+        }
+        .card-slot.rarity-mitico.is-selected {
+            animation: pulseMythicGlow 1.5s ease-in-out infinite alternate;
+        }
+
+        @keyframes pulseLegendaryGlow {
+            0% {
+                filter: drop-shadow(0 0 30px rgba(250, 204, 21, 0.85)) drop-shadow(0 0 65px rgba(245, 158, 11, 0.55));
+            }
+            100% {
+                filter: drop-shadow(0 0 48px rgba(254, 240, 138, 1)) drop-shadow(0 0 95px rgba(239, 68, 68, 0.8));
+            }
+        }
+
+        @keyframes pulseMythicGlow {
+            0% {
+                filter: drop-shadow(0 0 38px rgba(255, 0, 85, 0.95)) drop-shadow(0 0 80px rgba(0, 243, 255, 0.75)) drop-shadow(0 0 120px rgba(168, 85, 247, 0.6));
+            }
+            100% {
+                filter: drop-shadow(0 0 55px rgba(0, 243, 255, 1)) drop-shadow(0 0 105px rgba(255, 0, 85, 0.95)) drop-shadow(0 0 150px rgba(250, 204, 21, 0.8));
+            }
+        }
+
+        /* Giro 360° en Y mostrando reverso y frente */
+        @keyframes showcaseSpinAndFloat {
+            0% {
+                transform: translateY(0px) rotateY(0deg) rotateX(0deg) rotateZ(0deg);
+            }
+            28% {
+                transform: translateY(-14px) rotateY(360deg) rotateX(6deg) rotateZ(1deg);
+            }
+            45% {
+                transform: translateY(-4px) rotateY(372deg) rotateX(-5deg) rotateZ(-1.5deg);
+            }
+            65% {
+                transform: translateY(-12px) rotateY(348deg) rotateX(5deg) rotateZ(1.5deg);
+            }
+            85% {
+                transform: translateY(-6px) rotateY(365deg) rotateX(-3deg) rotateZ(-0.5deg);
+            }
+            100% {
+                transform: translateY(0px) rotateY(360deg) rotateX(0deg) rotateZ(0deg);
+            }
+        }
+
+        @keyframes holoSwipe {
+            0%, 20% { transform: translateX(-120%) rotate(25deg); }
+            60%, 100% { transform: translateX(120%) rotate(25deg); }
+        }
+
+        /* Salida Épica */
+        .card-slot.epic-exit {
+            pointer-events: none;
+            animation: epicHyperdriveOut 1.65s cubic-bezier(0.55, 0.05, 0.67, 0.19) forwards !important;
+        }
+
+        @keyframes epicHyperdriveOut {
+            0% {
+                transform: translate3d(0, 0, 240px) scale(1.25) rotateY(0deg);
+                filter: brightness(1) drop-shadow(0 0 30px #00f3ff);
+                opacity: 1;
+            }
+            25% {
+                transform: translate3d(0, 15px, 90px) scale(0.92) rotateY(-35deg) rotateZ(-6deg);
+                filter: brightness(2.5) contrast(1.4) drop-shadow(0 0 70px #ff0055) drop-shadow(0 0 110px #00f3ff);
+                opacity: 1;
+            }
+            65% {
+                transform: translate3d(0, -180px, 650px) scale(1.6) rotateY(540deg) rotateX(25deg);
+                filter: brightness(4) drop-shadow(0 0 140px #ffffff);
+                opacity: 0.9;
+            }
+            100% {
+                transform: translate3d(0, -900px, 1400px) scale(0.05) rotateY(1080deg) rotateX(55deg);
+                filter: brightness(6) blur(16px);
+                opacity: 0;
+            }
+        }
+
+        /* Transición de cambio de lote (Batch Transition) */
+        .carousel-stage.batch-exit .card-slot {
+            transform: translate3d(0, -40px, -450px) scale(0.4) rotateY(180deg) !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+
+        .carousel-stage.batch-enter .card-slot {
+            opacity: 0;
+            transform: translate3d(0, 40px, -300px) scale(0.5);
+        }
+
+        /* Onda expansiva de energía */
+        .shockwave-ring {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 4px solid #00f3ff;
+            box-shadow: 0 0 50px #00f3ff, inset 0 0 40px #ff0055;
+            opacity: 0;
+            pointer-events: none;
+            transform: translate(-50%, -50%) scale(0);
+            left: 50%;
+            top: 50%;
+        }
+
+        .shockwave-ring.active {
+            animation: shockwaveBlast 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        @keyframes shockwaveBlast {
+            0% {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(0.2);
+                border-width: 18px;
+            }
+            100% {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(14);
+                border-width: 1px;
+            }
+        }
+
+        /* Contenedor Ancla Posicionable y Escalable */
+        .carousel-anchor {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform-style: preserve-3d;
+            transition: all 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+            transform-origin: center center;
+            pointer-events: none;
+            will-change: transform, top, left, opacity;
+        }
+
+        /* 9 Posiciones Clave Automáticas */
+        .carousel-anchor.pos-centro {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-arriba-centro {
+            top: 25%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-arriba-izquierda {
+            top: 25%;
+            left: 20%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-arriba-derecha {
+            top: 25%;
+            left: 80%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-izquierda-centro {
+            top: 50%;
+            left: 20%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-derecha-centro {
+            top: 50%;
+            left: 80%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-abajo-centro {
+            top: 75%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-abajo-izquierda {
+            top: 75%;
+            left: 20%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        .carousel-anchor.pos-abajo-derecha {
+            top: 75%;
+            left: 80%;
+            transform: translate(-50%, -50%) scale(var(--carousel-scale, 1));
+        }
+
+        /* Cuando la carta es ampliada, el ancla viaja al centro exacto de la pantalla */
+        .carousel-anchor.showcase-center-override {
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) scale(1) !important;
+            z-index: 100;
+        }
+
+        /* Ocultar carrusel en modo bajo demanda (!tarjetasjikokun) */
+        .carousel-anchor.widget-hidden {
+            opacity: 0 !important;
+            transform: translate(-50%, 50%) scale(0.15) !important;
+            pointer-events: none !important;
+            transition: all 0.75s cubic-bezier(0.55, 0.05, 0.67, 0.19) !important;
+        }
+
+        /* Modo stream limpio: sin guías textuales, sólo carrusel y barra de duración */
+        body.clean-stream-mode #timer-hud-text,
+        body.clean-stream-mode #batch-hud {
+            display: none !important;
+        }
+
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+    </style>
+</head>
+<body class="preview-bg">
+
+    <!-- Canvas para explosión de partículas en la salida épica -->
+    <canvas id="fx-canvas" class="fixed inset-0 pointer-events-none z-40"></canvas>
+
+    <!-- Escena Principal -->
+    <div id="main-scene" class="scene">
+        <!-- Onda de choque para la salida -->
+        <div id="shockwave" class="shockwave-ring z-30"></div>
+
+        <!-- Ancla Posicionable y Escalable del Carrusel -->
+        <div id="carousel-anchor" class="carousel-anchor pos-centro">
+            <!-- Escenario del Carrusel 3D -->
+            <div id="carousel-stage" class="carousel-stage">
+                <!-- Las 5 tarjetas activas del lote se inyectan dinámicamente -->
+            </div>
+        </div>
+
+        <!-- Indicador de tiempo restante discreto durante la exhibición -->
+        <div id="timer-hud" class="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 opacity-0 pointer-events-none transition-all duration-500 flex flex-col items-center gap-1.5">
+            <div id="timer-hud-text" class="text-[11px] font-orbitron tracking-[0.25em] text-cyan-300 uppercase drop-shadow-[0_0_8px_rgba(0,243,255,0.8)]">
+                EXHIBICIÓN // <span id="timer-rarity" class="font-bold"></span> // <span id="timer-seconds">15</span>s
+            </div>
+            <div class="w-64 h-1.5 bg-slate-900/80 overflow-hidden rounded-full border border-cyan-500/40 shadow-[0_0_15px_rgba(0,243,255,0.4)]">
+                <div id="timer-bar" class="h-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-cyan-400 w-full origin-left transition-transform duration-100 ease-linear"></div>
+            </div>
+        </div>
+
+        <!-- Indicador sutil de Lote en la esquina inferior -->
+        <div id="batch-hud" class="fixed bottom-4 left-6 z-40 flex items-center gap-2 pointer-events-none opacity-80 transition-opacity duration-300">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span id="batch-info-text" class="text-xs font-orbitron text-slate-300 tracking-wider">
+                LOTE 1/7 (5 CARTAS)
+            </span>
+        </div>
+    </div>
+
+    <!-- Panel de Control para pruebas / OBS Interact (Se oculta con la tecla 'H' o botón ✕) -->
+    <div id="control-hud" class="fixed top-4 right-4 z-50 flex flex-wrap items-center gap-2 bg-slate-950/90 backdrop-blur-md border border-cyan-500/30 px-4 py-2.5 rounded-xl text-slate-200 shadow-2xl transition-opacity duration-300">
+        <span class="text-xs font-orbitron text-cyan-400 tracking-wider mr-2 flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            TARJETERO (5 POR LOTE)
+        </span>
+        
+        <button id="btn-prev" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded text-xs font-semibold border border-slate-700 transition" title="Girar a la izquierda (←)">
+            ◀ Ant
+        </button>
+        <button id="btn-next" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 active:scale-95 rounded text-xs font-semibold border border-slate-700 transition" title="Girar a la derecha (→)">
+            Sig ▶
+        </button>
+        <button id="btn-next-batch" class="px-2.5 py-1 bg-slate-800 hover:bg-cyan-950/60 text-cyan-300 active:scale-95 rounded text-xs font-semibold border border-cyan-500/40 transition" title="Pasar al siguiente grupo de 5 cartas">
+            ⏭️ Siguiente Lote
+        </button>
+        <button id="btn-random" class="px-3 py-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 active:scale-95 rounded text-xs font-bold tracking-wide shadow-lg shadow-cyan-950/50 transition" title="Seleccionar carta del lote al azar">
+            ★ Seleccionar
+        </button>
+        <button id="btn-fast-exit" class="hidden px-3 py-1 bg-gradient-to-r from-rose-600 to-pink-600 hover:from-rose-500 hover:to-pink-500 active:scale-95 rounded text-xs font-bold tracking-wide transition">
+            ⚡ Salida Épica
+        </button>
+        <button id="btn-reset" class="px-2.5 py-1 bg-slate-800 hover:bg-emerald-900/60 text-emerald-300 active:scale-95 rounded text-xs font-semibold border border-emerald-500/30 transition" title="Reiniciar carrusel (R)">
+            ↺ Reiniciar
+        </button>
+        <button id="btn-bg" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 rounded text-xs text-slate-400 border border-slate-700 transition" title="Alternar fondo transparente para OBS">
+            Fondo OBS
+        </button>
+        
+        <a href="admintarjetas.html" target="_blank" class="px-2.5 py-1 bg-purple-900/40 hover:bg-purple-800/60 text-purple-300 rounded text-xs font-semibold border border-purple-500/40 transition flex items-center gap-1" title="Abrir Administrador Visual de Tarjetas">
+            ⚙️ Admin
+        </a>
+
+        <button id="btn-hide-hud" class="ml-1 text-slate-400 hover:text-white text-xs px-1.5" title="Ocultar controles (Presiona tecla 'H' para recuperar)">
+            ✕
+        </button>
+    </div>
+
+    <!-- Botón flotante para restaurar controles si están ocultos -->
+    <button id="btn-restore" class="fixed bottom-4 right-4 z-50 opacity-0 hover:opacity-100 focus:opacity-100 bg-slate-900/80 text-cyan-400 border border-cyan-500/40 px-3 py-1.5 rounded-lg text-xs font-orbitron transition duration-300">
+        Controles (H)
+    </button>
+
+    <!-- Respaldo de datos por defecto (Cero CORS, compatible con file:// en OBS) -->
+    <script src="../data/tarjetas_default_data.js"></script>
+
+    <script>
+        /**
+         * ════════════════════════════════════════════════════════════════════════════
+         * JIKOKUN OBS 3D CARD SHOWCASE WIDGET - CICLO DE 5 TARJETAS
+         * ════════════════════════════════════════════════════════════════════════════
+         * Características:
+         * 1. Cartas 100% limpias: Sin textos, etiquetas ni badges encima de la carta.
+         * 2. Muestra únicamente 5 tarjetas a la vez en el mostrador 3D.
+         * 3. Gira automáticamente pasando una vez cada tarjeta al frente (0 a 4).
+         * 4. Al completar el giro del grupo, realiza una transición suave hacia las
+         *    siguientes 5 tarjetas y repite el ciclo continuamente.
+         * 5. Sincronización en vivo con 'admintarjetas.html' (orden, colecciones, etc.).
+         * ════════════════════════════════════════════════════════════════════════════
+         */
+
+        const RARITY_STYLES = {
+            "COMÚN": {
+                className: "rarity-comun",
+                primary: "#38bdf8",
+                secondary: "#0284c7",
+                holoColor: "rgba(56, 189, 248, 0.45)"
+            },
+            "ESPECIAL": {
+                className: "rarity-especial",
+                primary: "#ec4899",
+                secondary: "#06b6d4",
+                holoColor: "rgba(236, 72, 153, 0.55)"
+            },
+            "RARO": {
+                className: "rarity-raro",
+                primary: "#10b981",
+                secondary: "#06b6d4",
+                holoColor: "rgba(16, 185, 129, 0.45)"
+            },
+            "ÉPICO": {
+                className: "rarity-epico",
+                primary: "#a855f7",
+                secondary: "#ec4899",
+                holoColor: "rgba(217, 70, 239, 0.55)"
+            },
+            "LEGENDARIO": {
+                className: "rarity-legendario",
+                primary: "#facc15",
+                secondary: "#f97316",
+                holoColor: "rgba(250, 204, 21, 0.65)"
+            },
+            "MÍTICO": {
+                className: "rarity-mitico",
+                primary: "#ff0055",
+                secondary: "#00f3ff",
+                holoColor: "rgba(0, 243, 255, 0.75)"
+            }
+        };
+
+        const OFFICIAL_BACKS = {
+            "COMÚN": "https://lh3.googleusercontent.com/d/1ZXeStFshIwz17abshEZk2vN5S5U2spoP",
+            "ESPECIAL": "https://lh3.googleusercontent.com/d/176O8_28j-BkbGQw-ZP6QkVj0uA5MPi2I",
+            "RARO": "https://lh3.googleusercontent.com/d/1x4v_Ww6aALa0JCBW15Hjd2LEapiXEbro",
+            "ÉPICO": "https://lh3.googleusercontent.com/d/1JBAM1EjFD_ABmAKiML89OYzDorURbFeM",
+            "LEGENDARIO": "https://lh3.googleusercontent.com/d/1q_5d9qw09uI_Bpl1WppeYAFZEXwbUuHG",
+            "MÍTICO": "https://lh3.googleusercontent.com/d/1OnQ1h9MO7SjwNiBhPDCNNt2tesa1-qrY"
+        };
+
+        // Constantes del mostrador 3D
+        const BATCH_SIZE = 5;                  // Mostrador limitado estrictamente a 5 tarjetas
+        const ROTATE_STEP_TIME = 3600;         // Tiempo que cada carta se queda al frente (3.6s)
+        const CAROUSEL_RADIUS = 280;           // Radio ideal y espacioso para 5 cartas
+        let SHOWCASE_DURATION_MS = 15000;      // Duración de la exhibición al hacer clic
+
+        // Estado del Widget
+        let fullCollection = [];               // Todas las tarjetas de la colección activa
+        let activeBatchCards = [];             // Las 5 tarjetas cargadas actualmente en el mostrador
+        let currentBatchIndex = 0;             // Índice del lote actual (0, 1, 2...)
+        let currentSlotIndex = 0;              // Índice de la tarjeta que está al frente dentro del lote (0 a 4)
+        let turnsInCurrentBatch = 0;           // Cuántas cartas han pasado al frente en este lote
+        let widgetState = 'CAROUSEL';          // 'CAROUSEL' | 'SHOWCASE' | 'EXITING' | 'TRANSITIONING' | 'EMPTY'
+        
+        let autoRotateTimer = null;
+        let showcaseTimeout = null;
+        let countdownInterval = null;
+        let cardElements = [];
+
+        // Canal de sincronización
+        const syncChannel = new BroadcastChannel('jikokun_tarjetas_channel');
+
+        // Referencias DOM
+        const carouselAnchor = document.getElementById('carousel-anchor');
+        const carouselStage = document.getElementById('carousel-stage');
+        const timerHud = document.getElementById('timer-hud');
+        const timerSeconds = document.getElementById('timer-seconds');
+        const timerRarity = document.getElementById('timer-rarity');
+        const timerBar = document.getElementById('timer-bar');
+        const batchInfoText = document.getElementById('batch-info-text');
+        const shockwave = document.getElementById('shockwave');
+        const controlHud = document.getElementById('control-hud');
+        const btnFastExit = document.getElementById('btn-fast-exit');
+        const btnRestore = document.getElementById('btn-restore');
+
+        // Configuración Global del Widget
+        let widgetConfig = {
+            order: 'secuencial',
+            position: 'centro',
+            scale: 1.0,
+            visibilityMode: 'continuous',
+            ondemandDuration: 60,
+            hideAfterShowcase: false,
+            showcaseDuration: 15
+        };
+        let ondemandTimer = null;
+
+        /**
+         * Aplicar configuración visual del widget (Posición, Escala, Visibilidad)
+         */
+        function applyWidgetConfig(cfg) {
+            if (!cfg) return;
+            widgetConfig = { ...widgetConfig, ...cfg };
+
+            if (widgetConfig.showcaseDuration) {
+                SHOWCASE_DURATION_MS = widgetConfig.showcaseDuration * 1000;
+            }
+
+            // 1. Aplicar posición automática
+            if (carouselAnchor) {
+                const positions = [
+                    'pos-centro', 'pos-arriba-centro', 'pos-arriba-izquierda', 'pos-arriba-derecha',
+                    'pos-izquierda-centro', 'pos-derecha-centro', 'pos-abajo-centro', 'pos-abajo-izquierda', 'pos-abajo-derecha'
+                ];
+                positions.forEach(p => carouselAnchor.classList.remove(p));
+                carouselAnchor.classList.add(`pos-${widgetConfig.position || 'centro'}`);
+
+                // 2. Aplicar escala proporcional
+                carouselAnchor.style.setProperty('--carousel-scale', widgetConfig.scale || 1.0);
+            }
+
+            // 3. Aplicar modo de visibilidad
+            if (widgetConfig.visibilityMode === 'ondemand') {
+                if (widgetState === 'CAROUSEL' && !ondemandTimer) {
+                    dismissWidget();
+                }
+            } else {
+                if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
+                clearTimeout(ondemandTimer);
+                ondemandTimer = null;
+            }
+        }
+
+        /**
+         * Hacer visible el widget al recibir un comando de Kick / OBS
+         */
+        function summonWidget() {
+            if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
+            if (widgetState === 'EMPTY') {
+                resetCarousel();
+            } else if (widgetState === 'CAROUSEL') {
+                startAutoCycle();
+            }
+
+            if (widgetConfig.visibilityMode === 'ondemand' && widgetConfig.ondemandDuration > 0) {
+                clearTimeout(ondemandTimer);
+                ondemandTimer = setTimeout(() => {
+                    dismissWidget();
+                }, widgetConfig.ondemandDuration * 1000);
+            }
+        }
+
+        /**
+         * Ocultar el widget de pantalla
+         */
+        function dismissWidget() {
+            if (widgetState === 'SHOWCASE') return;
+            stopAutoCycle();
+            if (carouselAnchor) carouselAnchor.classList.add('widget-hidden');
+        }
+
+        /**
+         * Giro rápido de las 5 cartas del lote al recibir !rotar
+         */
+        function fastRotateCurrentBatch() {
+            if (widgetState !== 'CAROUSEL') return;
+            stopAutoCycle();
+
+            let count = activeBatchCards.length;
+            const fastTimer = setInterval(() => {
+                currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
+                updateCarouselPositions();
+                count--;
+                if (count <= 0) {
+                    clearInterval(fastTimer);
+                    setTimeout(() => {
+                        transitionToNextBatch();
+                    }, 550);
+                }
+            }, 600);
+        }
+
+        /**
+         * Cargar colección y aplicar orden configurado
+         */
+        async function loadCollection() {
+            try {
+                // 1. Verificar configuración guardada
+                const storedConfig = localStorage.getItem('jikokun_tcg_config');
+                let displayOrder = 'secuencial';
+                if (storedConfig) {
+                    try {
+                        const cfg = JSON.parse(storedConfig);
+                        applyWidgetConfig(cfg);
+                        if (cfg.order) displayOrder = cfg.order;
+                    } catch(e) {}
+                }
+
+                // 2. Cargar tarjetas de la colección activa
+                const storedCards = localStorage.getItem('jikokun_tarjetas_data');
+                if (storedCards) {
+                    const parsed = JSON.parse(storedCards);
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        fullCollection = parsed;
+                    }
+                }
+
+                if (!fullCollection || fullCollection.length === 0) {
+                    if (window.DEFAULT_JIKOKUN_CARDS_00_33 && window.DEFAULT_JIKOKUN_CARDS_00_33.length > 0) {
+                        fullCollection = JSON.parse(JSON.stringify(window.DEFAULT_JIKOKUN_CARDS_00_33));
+                    } else {
+                        const res = await fetch('../data/tarjetas_coleccion_00_33.json');
+                        if (res.ok) fullCollection = await res.json();
+                    }
+                }
+
+                // 3. Aplicar orden (secuencial, aleatorio, rareza, inverso)
+                applyCollectionOrder(displayOrder);
+
+            } catch (err) {
+                console.warn('[Tarjetero] Error al cargar la colección:', err);
+            }
+        }
+
+        /**
+         * Aplicar orden a la colección
+         */
+        function applyCollectionOrder(orderType) {
+            if (!fullCollection || fullCollection.length === 0) return;
+
+            if (orderType === 'aleatorio') {
+                // Mezclar aleatoriamente (Fisher-Yates)
+                for (let i = fullCollection.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [fullCollection[i], fullCollection[j]] = [fullCollection[j], fullCollection[i]];
+                }
+            } else if (orderType === 'rareza') {
+                const ranks = { "MÍTICO": 6, "LEGENDARIO": 5, "ÉPICO": 4, "RARO": 3, "ESPECIAL": 2, "COMÚN": 1 };
+                fullCollection.sort((a, b) => (ranks[b.rarity] || 0) - (ranks[a.rarity] || 0));
+            } else if (orderType === 'inverso') {
+                fullCollection.sort((a, b) => parseInt(b.num !== undefined ? b.num : b.id, 10) - parseInt(a.num !== undefined ? a.num : a.id, 10));
+            } else {
+                // Secuencial por defecto (00 a 33 o 001 a 100)
+                fullCollection.sort((a, b) => parseInt(a.num !== undefined ? a.num : a.id, 10) - parseInt(b.num !== undefined ? b.num : b.id, 10));
+            }
+
+            currentBatchIndex = 0;
+            currentSlotIndex = 0;
+            turnsInCurrentBatch = 0;
+            mountBatch(currentBatchIndex);
+        }
+
+        /**
+         * Montar un lote específico de 5 tarjetas en el carrusel
+         */
+        function mountBatch(batchIdx) {
+            if (fullCollection.length === 0) return;
+
+            const totalBatches = Math.ceil(fullCollection.length / BATCH_SIZE);
+            currentBatchIndex = batchIdx % totalBatches;
+
+            const start = currentBatchIndex * BATCH_SIZE;
+            activeBatchCards = fullCollection.slice(start, start + BATCH_SIZE);
+
+            // Si el último lote tiene menos de 5 tarjetas, rellenar de forma circular para mantener los 5 slots
+            if (activeBatchCards.length < BATCH_SIZE && fullCollection.length >= BATCH_SIZE) {
+                const deficit = BATCH_SIZE - activeBatchCards.length;
+                activeBatchCards = activeBatchCards.concat(fullCollection.slice(0, deficit));
+            }
+
+            currentSlotIndex = 0;
+            turnsInCurrentBatch = 0;
+
+            // Actualizar HUD informativo
+            const loteNum = currentBatchIndex + 1;
+            batchInfoText.textContent = `LOTE ${loteNum}/${totalBatches} (${activeBatchCards.length} CARTAS // TOTAL ${fullCollection.length})`;
+
+            // Renderizar slots limpios
+            renderBatchCards();
+            updateCarouselPositions();
+            startAutoCycle();
+        }
+
+        /**
+         * Renderizar las 5 tarjetas LIMPIAS (Sin texto, puro arte, marco y holograma)
+         */
+        function renderBatchCards() {
+            carouselStage.innerHTML = '';
+            cardElements = [];
+
+            activeBatchCards.forEach((card, index) => {
+                const rarityKey = (card.rarity || 'COMÚN').toUpperCase();
+                const rarityConfig = RARITY_STYLES[rarityKey] || RARITY_STYLES["COMÚN"];
+                
+                const slot = document.createElement('div');
+                slot.className = `card-slot ${rarityConfig.className}`;
+                slot.dataset.index = index;
+                slot.dataset.id = card.id;
+                slot.style.setProperty('--rarity-glow-primary', rarityConfig.holoColor);
+
+                const frontCoverUrl = card.frontImage || "";
+                const backCoverUrl = card.backImage || OFFICIAL_BACKS[rarityKey] || OFFICIAL_BACKS["COMÚN"];
+
+                // Estructura 100% limpia de texto para arte TCG completo
+                slot.innerHTML = `
+                    <div class="card-rotator">
+                        <!-- CARA FRONTAL (PORTADA LIMPIA SIN TEXTO) -->
+                        <div class="card-face tcg-card-outer" style="background: linear-gradient(135deg, ${rarityConfig.primary}, rgba(255,255,255,0.45), ${rarityConfig.secondary});">
+                            <div class="card-inner tcg-card-inner">
+                                <div class="holo-sheen"></div>
+                                <div class="absolute inset-1.5 tcg-card-art bg-slate-950 border border-white/10 overflow-hidden">
+                                    <img src="${frontCoverUrl}" 
+                                         alt="Carta Jikokun" 
+                                         class="w-full h-full object-cover object-center transform hover:scale-105 transition duration-500"
+                                         loading="lazy"
+                                         onerror="this.src='https://placehold.co/260x380/0f172a/00f3ff?text=JIKOKUN'">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- CARA TRASERA (CONTRAPORTADA LIMPIA SIN TEXTO) -->
+                        <div class="card-face card-back tcg-card-outer" style="background: linear-gradient(135deg, ${rarityConfig.secondary}, #1e1b4b, ${rarityConfig.primary});">
+                            <div class="card-inner tcg-card-inner flex items-center justify-center bg-[#090d16] relative">
+                                <div class="holo-sheen"></div>
+                                <div class="absolute inset-1.5 tcg-card-art overflow-hidden bg-slate-950 border border-white/10">
+                                    <img src="${backCoverUrl}" 
+                                         alt="Contraportada" 
+                                         class="w-full h-full object-cover object-center"
+                                         loading="lazy"
+                                         onerror="this.src='https://placehold.co/260x380/090d16/ff0055?text=REVERSO'">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                slot.addEventListener('click', () => handleCardClick(index));
+                carouselStage.appendChild(slot);
+                cardElements.push(slot);
+            });
+        }
+
+        /**
+         * Actualizar posiciones 3D para las 5 tarjetas en el carrusel
+         */
+        function updateCarouselPositions() {
+            const total = cardElements.length;
+            if (total === 0) return;
+            const theta = 360 / total; // 72 grados por ranura
+
+            if (widgetState === 'CAROUSEL') {
+                cardElements.forEach((slot, index) => {
+                    slot.classList.remove('is-selected', 'epic-exit');
+                    
+                    const offset = index - currentSlotIndex;
+                    const angle = offset * theta;
+                    const rad = (angle * Math.PI) / 180;
+
+                    const x = Math.sin(rad) * CAROUSEL_RADIUS;
+                    const z = Math.cos(rad) * CAROUSEL_RADIUS - CAROUSEL_RADIUS;
+                    const rotateY = angle;
+
+                    const normalizedCos = (Math.cos(rad) + 1) / 2;
+                    const scale = 0.72 + normalizedCos * 0.28;
+                    const opacity = 0.38 + normalizedCos * 0.62;
+
+                    slot.style.transform = `translate3d(${x.toFixed(1)}px, 0px, ${z.toFixed(1)}px) rotateY(${rotateY.toFixed(1)}deg) scale(${scale.toFixed(3)})`;
+                    slot.style.opacity = opacity.toFixed(2);
+                    slot.style.pointerEvents = 'auto';
+                    slot.style.zIndex = Math.round(normalizedCos * 30);
+                });
+            }
+        }
+
+        /**
+         * Ciclo automático: rota cada carta una vez al frente y luego cambia de lote
+         */
+        function startAutoCycle() {
+            stopAutoCycle();
+            autoRotateTimer = setInterval(() => {
+                if (widgetState === 'CAROUSEL') {
+                    turnsInCurrentBatch++;
+
+                    // Si ya pasaron las 5 cartas de este lote al frente una vez, pasar al siguiente lote
+                    if (turnsInCurrentBatch >= activeBatchCards.length) {
+                        transitionToNextBatch();
+                    } else {
+                        currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
+                        updateCarouselPositions();
+                    }
+                }
+            }, ROTATE_STEP_TIME);
+        }
+
+        function stopAutoCycle() {
+            if (autoRotateTimer) {
+                clearInterval(autoRotateTimer);
+                autoRotateTimer = null;
+            }
+        }
+
+        /**
+         * Transición elegante al siguiente lote de 5 tarjetas
+         */
+        function transitionToNextBatch() {
+            if (widgetState !== 'CAROUSEL') return;
+            widgetState = 'TRANSITIONING';
+            stopAutoCycle();
+
+            // Salida de las 5 cartas actuales hacia el fondo
+            carouselStage.classList.add('batch-exit');
+
+            setTimeout(() => {
+                carouselStage.classList.remove('batch-exit');
+                carouselStage.classList.add('batch-enter');
+
+                // Montar el siguiente lote
+                mountBatch(currentBatchIndex + 1);
+
+                requestAnimationFrame(() => {
+                    setTimeout(() => {
+                        carouselStage.classList.remove('batch-enter');
+                        widgetState = 'CAROUSEL';
+                    }, 50);
+                });
+            }, 650);
+        }
+
+        function handleCardClick(index) {
+            if (widgetState !== 'CAROUSEL') return;
+
+            if (index !== currentSlotIndex) {
+                // Si la carta tocada NO es la principal, solo se coloca al centro para observarla
+                currentSlotIndex = index;
+                turnsInCurrentBatch = 0; // Reiniciar conteo para darle tiempo de observación
+                updateCarouselPositions();
+            } else {
+                // Si la carta ya está al centro, entonces SÍ se amplía a pantalla grande
+                selectCard(index);
+            }
+        }
+
+        /**
+         * Seleccionar una carta para exhibirla en pantalla grande al centro
+         */
+        function selectCard(index) {
+            if (widgetState !== 'CAROUSEL') return;
+            widgetState = 'SHOWCASE';
+            stopAutoCycle();
+
+            btnFastExit.classList.remove('hidden');
+
+            // El carrusel viaja suavemente al centro absoluto de la pantalla sin importar su posición base
+            if (carouselAnchor) carouselAnchor.classList.add('showcase-center-override');
+
+            // Calcular ampliación para ocupar hasta el 78-80% de la altura de la pantalla
+            const viewportH = window.innerHeight || 800;
+            const targetHeight = viewportH * 0.78;
+            const cardHeight = 380;
+            const showcaseScale = Math.min(2.35, Math.max(1.3, targetHeight / cardHeight));
+
+            cardElements.forEach((slot, i) => {
+                if (i === index) {
+                    slot.style.transform = `translate3d(0px, 0px, 120px) scale(${showcaseScale.toFixed(2)})`;
+                    slot.style.opacity = '1';
+                    slot.style.zIndex = '50';
+                    slot.classList.add('is-selected');
+                } else {
+                    const angle = (i - index) * (360 / cardElements.length);
+                    const rad = (angle * Math.PI) / 180;
+                    const x = Math.sin(rad) * (CAROUSEL_RADIUS * 1.5);
+                    const z = -700;
+                    slot.style.transform = `translate3d(${x.toFixed(1)}px, 80px, ${z}px) rotateY(${angle}deg) scale(0.3)`;
+                    slot.style.opacity = '0';
+                    slot.style.pointerEvents = 'none';
+                }
+            });
+
+            startShowcaseTimer(index);
+        }
+
+        function startShowcaseTimer(selectedIndex) {
+            const startTime = performance.now();
+            const cardData = activeBatchCards[selectedIndex];
+            const rarityKey = (cardData.rarity || 'COMÚN').toUpperCase();
+            const rarityConfig = RARITY_STYLES[rarityKey] || RARITY_STYLES["COMÚN"];
+
+            timerRarity.textContent = rarityKey;
+            timerRarity.style.color = rarityConfig.primary;
+            timerBar.style.background = `linear-gradient(90deg, ${rarityConfig.primary}, ${rarityConfig.secondary})`;
+            timerHud.classList.remove('opacity-0');
+
+            clearInterval(countdownInterval);
+            clearTimeout(showcaseTimeout);
+
+            countdownInterval = setInterval(() => {
+                const elapsed = performance.now() - startTime;
+                const remaining = Math.max(0, SHOWCASE_DURATION_MS - elapsed);
+                const secs = Math.ceil(remaining / 1000);
+                const progress = remaining / SHOWCASE_DURATION_MS;
+
+                timerSeconds.textContent = secs;
+                timerBar.style.transform = `scaleX(${progress})`;
+
+                if (remaining <= 0) {
+                    clearInterval(countdownInterval);
+                }
+            }, 80);
+
+            showcaseTimeout = setTimeout(() => {
+                triggerEpicExit(selectedIndex);
+            }, SHOWCASE_DURATION_MS);
+        }
+
+        function triggerEpicExit(selectedIndex) {
+            if (widgetState !== 'SHOWCASE') return;
+            widgetState = 'EXITING';
+
+            clearInterval(countdownInterval);
+            clearTimeout(showcaseTimeout);
+            timerHud.classList.add('opacity-0');
+            btnFastExit.classList.add('hidden');
+
+            const selectedSlot = cardElements[selectedIndex];
+            const cardData = activeBatchCards[selectedIndex];
+            const rarityKey = (cardData.rarity || 'COMÚN').toUpperCase();
+            const rarityConfig = RARITY_STYLES[rarityKey] || RARITY_STYLES["COMÚN"];
+
+            if (selectedSlot) {
+                selectedSlot.classList.remove('is-selected');
+                selectedSlot.classList.add('epic-exit');
+            }
+
+            setTimeout(() => {
+                shockwave.style.borderColor = rarityConfig.primary;
+                shockwave.style.boxShadow = `0 0 50px ${rarityConfig.primary}, inset 0 0 40px ${rarityConfig.secondary}`;
+                shockwave.classList.remove('active');
+                void shockwave.offsetWidth;
+                shockwave.classList.add('active');
+                spawnEpicParticles(rarityConfig.primary, rarityConfig.secondary);
+            }, 350);
+
+            // Reanudar carrusel o auto-ocultar según configuración
+            setTimeout(() => {
+                if (carouselAnchor) carouselAnchor.classList.remove('showcase-center-override');
+
+                if (widgetConfig.hideAfterShowcase || widgetConfig.visibilityMode === 'ondemand') {
+                    dismissWidget();
+                    widgetState = 'CAROUSEL';
+                    transitionToNextBatch();
+                } else {
+                    widgetState = 'CAROUSEL';
+                    transitionToNextBatch();
+                }
+            }, 1700);
+        }
+
+        function resetCarousel() {
+            clearInterval(countdownInterval);
+            clearTimeout(showcaseTimeout);
+            timerHud.classList.add('opacity-0');
+            btnFastExit.classList.add('hidden');
+            shockwave.classList.remove('active');
+            if (carouselAnchor) carouselAnchor.classList.remove('showcase-center-override');
+
+            widgetState = 'CAROUSEL';
+            mountBatch(currentBatchIndex);
+        }
+
+        // ═══════════ SISTEMA DE PARTÍCULAS CANVAS ═══════════
+        const canvas = document.getElementById('fx-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function spawnEpicParticles(color1, color2) {
+            const centerX = window.innerWidth / 2;
+            const centerY = window.innerHeight / 2;
+
+            for (let i = 0; i < 110; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 3 + Math.random() * 18;
+                particles.push({
+                    x: centerX + (Math.random() - 0.5) * 120,
+                    y: centerY + (Math.random() - 0.5) * 180,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed - 2,
+                    size: 2 + Math.random() * 5,
+                    color: Math.random() > 0.5 ? color1 : (Math.random() > 0.3 ? color2 : '#ffffff'),
+                    alpha: 1,
+                    decay: 0.012 + Math.random() * 0.02
+                });
+            }
+        }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vx *= 0.97;
+                p.vy *= 0.97;
+                p.alpha -= p.decay;
+
+                if (p.alpha <= 0) {
+                    particles.splice(i, 1);
+                    continue;
+                }
+
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.shadowColor = p.color;
+                ctx.shadowBlur = 14;
+                
+                ctx.translate(p.x, p.y);
+                ctx.rotate(Math.PI / 4);
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+                ctx.restore();
+            }
+
+            requestAnimationFrame(animateParticles);
+        }
+
+        // ═══════════ BOTONES Y CONTROLES ═══════════
+        document.getElementById('btn-prev').addEventListener('click', () => {
+            if (widgetState !== 'CAROUSEL') return;
+            stopAutoCycle();
+            currentSlotIndex = (currentSlotIndex - 1 + activeBatchCards.length) % activeBatchCards.length;
+            updateCarouselPositions();
+        });
+
+        document.getElementById('btn-next').addEventListener('click', () => {
+            if (widgetState !== 'CAROUSEL') return;
+            stopAutoCycle();
+            currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
+            updateCarouselPositions();
+        });
+
+        document.getElementById('btn-next-batch').addEventListener('click', () => {
+            transitionToNextBatch();
+        });
+
+        document.getElementById('btn-random').addEventListener('click', () => {
+            if (widgetState !== 'CAROUSEL') {
+                resetCarousel();
+                return;
+            }
+            const randIdx = Math.floor(Math.random() * activeBatchCards.length);
+            currentSlotIndex = randIdx;
+            updateCarouselPositions();
+            setTimeout(() => selectCard(randIdx), 400);
+        });
+
+        btnFastExit.addEventListener('click', () => {
+            triggerEpicExit(currentSlotIndex);
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', resetCarousel);
+
+        document.getElementById('btn-bg').addEventListener('click', () => {
+            document.body.classList.toggle('preview-bg');
+        });
+
+        function toggleHud() {
+            const isHidden = controlHud.classList.toggle('opacity-0');
+            controlHud.classList.toggle('pointer-events-none', isHidden);
+            document.body.classList.toggle('clean-stream-mode', isHidden);
+            document.getElementById('batch-hud').classList.toggle('opacity-0', isHidden);
+        }
+
+        document.getElementById('btn-hide-hud').addEventListener('click', toggleHud);
+        btnRestore.addEventListener('click', () => {
+            controlHud.classList.remove('opacity-0', 'pointer-events-none');
+            document.body.classList.remove('clean-stream-mode');
+            document.getElementById('batch-hud').classList.remove('opacity-0');
+            if (widgetState === 'EMPTY') resetCarousel();
+        });
+
+        // Controles de teclado para OBS
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && widgetState === 'CAROUSEL') {
+                stopAutoCycle();
+                currentSlotIndex = (currentSlotIndex - 1 + activeBatchCards.length) % activeBatchCards.length;
+                updateCarouselPositions();
+            } else if (e.key === 'ArrowRight' && widgetState === 'CAROUSEL') {
+                stopAutoCycle();
+                currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
+                updateCarouselPositions();
+            } else if (e.key === 'Enter' || e.key === ' ') {
+                if (widgetState === 'CAROUSEL') selectCard(currentSlotIndex);
+            } else if (e.key.toLowerCase() === 'n') {
+                transitionToNextBatch();
+            } else if (e.key.toLowerCase() === 'r') {
+                resetCarousel();
+            } else if (e.key.toLowerCase() === 'h') {
+                toggleHud();
+            }
+        });
+
+        // ═══════════ INTEGRACIÓN STREAMER.BOT (KICK / TWITCH) ═══════════
+        const SB_PORTS = [8080, 7474, 8081, 7475];
+        let sbPortIndex = 0;
+        let sbSocket = null;
+        let sbReconnectTimer = null;
+
+        function connectStreamerBot() {
+            if (sbSocket) {
+                try { sbSocket.close(); } catch(e) {}
+                sbSocket = null;
+            }
+
+            const activePort = SB_PORTS[sbPortIndex];
+            const wsUrl = `ws://127.0.0.1:${activePort}/`;
+
+            try {
+                sbSocket = new WebSocket(wsUrl);
+
+                sbSocket.onopen = function() {
+                    console.log(`[Streamer.bot TCG] 🟢 Conectado exitosamente en puerto ${activePort}`);
+                    syncChannel.postMessage({ action: 'sb_status', connected: true, port: activePort });
+
+                    try {
+                        sbSocket.send(JSON.stringify({
+                            request: "Subscribe",
+                            id: "jikokun-tcg-sub",
+                            events: {
+                                Kick: ["ChatMessage"],
+                                Twitch: ["ChatMessage"],
+                                General: ["Custom"]
+                            }
+                        }));
+                    } catch(err) {
+                        console.warn("[Streamer.bot TCG] Error en suscripción:", err);
+                    }
+                };
+
+                sbSocket.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        parseStreamerBotMessage(data);
+                    } catch(e) {}
+                };
+
+                sbSocket.onerror = function() {
+                    syncChannel.postMessage({ action: 'sb_status', connected: false });
+                };
+
+                sbSocket.onclose = function() {
+                    syncChannel.postMessage({ action: 'sb_status', connected: false });
+                    sbPortIndex = (sbPortIndex + 1) % SB_PORTS.length;
+                    const waitMs = sbPortIndex === 0 ? 5000 : 1500;
+                    clearTimeout(sbReconnectTimer);
+                    sbReconnectTimer = setTimeout(connectStreamerBot, waitMs);
+                };
+
+            } catch(e) {
+                sbPortIndex = (sbPortIndex + 1) % SB_PORTS.length;
+                clearTimeout(sbReconnectTimer);
+                sbReconnectTimer = setTimeout(connectStreamerBot, 4000);
+            }
+        }
+
+        function parseStreamerBotMessage(data) {
+            if (!data) return;
+            let messageText = '';
+            let userName = '';
+
+            if (data.data && data.data.message) {
+                messageText = data.data.message.message || data.data.message || '';
+                userName = data.data.message.username || data.data.user?.name || '';
+            } else if (data.message) {
+                messageText = typeof data.message === 'string' ? data.message : (data.message.text || '');
+            }
+
+            if (messageText) {
+                handleChatMessage(userName, messageText);
+            }
+        }
+
+        function handleChatMessage(user, message) {
+            const clean = (message || '').trim().toLowerCase();
+            console.log(`[Streamer.bot TCG] Comando recibido de ${user}: ${clean}`);
+
+            if (clean === '!tarjetasjikokun' || clean === '!tarjetas') {
+                summonWidget();
+            } else if (clean === '!rotar') {
+                fastRotateCurrentBatch();
+            } else if (clean.startsWith('!carta')) {
+                const parts = clean.split(' ');
+                const num = parseInt(parts[1], 10);
+                if (!isNaN(num) && num >= 1 && num <= activeBatchCards.length) {
+                    handleCardClick(num - 1);
+                }
+            } else if (clean === '!siguiente' || clean === '!lote') {
+                transitionToNextBatch();
+            } else if (clean === '!ocultartarjetas') {
+                dismissWidget();
+            }
+        }
+
+        // ═══════════ PARÁMETROS URL OBS ═══════════
+        function checkUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.get('obs') === 'true') {
+                document.body.classList.remove('preview-bg');
+                document.body.classList.add('clean-stream-mode');
+                controlHud.classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('batch-hud').classList.add('opacity-0');
+            }
+
+            const posParam = params.get('pos');
+            if (posParam) {
+                applyWidgetConfig({ position: posParam });
+            }
+
+            const scaleParam = parseFloat(params.get('scale'));
+            if (!isNaN(scaleParam) && scaleParam > 0) {
+                applyWidgetConfig({ scale: scaleParam });
+            }
+
+            const modeParam = params.get('mode');
+            if (modeParam) {
+                applyWidgetConfig({ visibilityMode: modeParam });
+            }
+
+            const orderParam = params.get('order');
+            if (orderParam) {
+                applyCollectionOrder(orderParam);
+            }
+
+            const dur = parseFloat(params.get('duration'));
+            if (!isNaN(dur) && dur > 0) {
+                SHOWCASE_DURATION_MS = dur * 1000;
+            }
+        }
+
+        // ═══════════ SINCRONIZACIÓN EN TIEMPO REAL CON ADMINTARJETAS ═══════════
+        syncChannel.onmessage = (event) => {
+            if (event.data) {
+                if (event.data.action === 'update' && Array.isArray(event.data.cards)) {
+                    console.log('[Tarjetero] Tarjetas actualizadas en vivo:', event.data.cards.length);
+                    fullCollection = event.data.cards;
+                    applyCollectionOrder(widgetConfig.order);
+                } else if (event.data.action === 'change_order' && event.data.order) {
+                    console.log('[Tarjetero] Cambio de orden en vivo:', event.data.order);
+                    widgetConfig.order = event.data.order;
+                    applyCollectionOrder(event.data.order);
+                } else if (event.data.action === 'update_config' && event.data.config) {
+                    console.log('[Tarjetero] Configuración recibida:', event.data.config);
+                    applyWidgetConfig(event.data.config);
+                    if (event.data.config.order) {
+                        applyCollectionOrder(event.data.config.order);
+                    }
+                } else if (event.data.action === 'command' && event.data.command) {
+                    console.log('[Tarjetero] Comando manual recibido:', event.data.command);
+                    handleChatMessage('Admin', event.data.command);
+                } else if (event.data.action === 'switch_collection' && Array.isArray(event.data.cards)) {
+                    console.log('[Tarjetero] Colección cambiada en vivo:', event.data.collectionName);
+                    fullCollection = event.data.cards;
+                    applyCollectionOrder(widgetConfig.order);
+                }
+            }
+        };
+
+        window.onload = async () => {
+            await loadCollection();
+            animateParticles();
+            checkUrlParams();
+            connectStreamerBot();
+        };
+    </script>
+</body>
+</html>
