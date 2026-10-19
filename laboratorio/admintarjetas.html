@@ -597,27 +597,69 @@
             </button>
           </div>
 
-          <!-- Escena 3D -->
-          <div class="modal-preview-scene cursor-pointer" id="modal-scene-container" title="Haz clic para ver frente y contraportada">
+          <!-- Escena 3D y Zona Drop para Subir a Drive -->
+          <div class="modal-preview-scene relative" id="modal-scene-container">
             <div id="modal-card-rotator" class="modal-card-rotator">
               
-              <!-- Frente Limpio -->
-              <div id="modal-preview-front-face" class="modal-card-face bg-gradient-to-tr from-cyan-500 via-white/40 to-blue-500">
+              <!-- Frente Limpio con Soporte Drag & Drop y Clic para Subir -->
+              <div id="modal-preview-front-face" class="modal-card-face bg-gradient-to-tr from-cyan-500 via-white/40 to-blue-500 group/dropzone cursor-pointer">
                 <div class="w-full h-full bg-slate-950 rounded-[9px] relative overflow-hidden flex flex-col justify-end p-1 border border-white/10">
                   <div class="holo-sheen-preview"></div>
                   
-                  <div class="absolute inset-1 rounded-md overflow-hidden bg-slate-900 border border-white/10">
-                    <img id="modal-preview-img-front" src="" alt="Frente" class="w-full h-full object-cover object-center">
+                  <div class="absolute inset-1 rounded-md overflow-hidden bg-slate-900 border border-white/10" id="front-card-dropzone">
+                    <img id="modal-preview-img-front" src="" alt="Frente" class="w-full h-full object-cover object-center pointer-events-none">
+
+                    <!-- Overlay de invitación a soltar imagen o explorar archivo -->
+                    <div id="front-drop-prompt" class="absolute inset-0 flex flex-col items-center justify-center p-3 text-center bg-black/60 backdrop-blur-[2px] transition-all opacity-0 group-hover/dropzone:opacity-100">
+                      <div class="w-12 h-12 rounded-xl bg-cyan-950/90 border border-cyan-400/80 flex items-center justify-center text-2xl mb-2 text-cyan-300 shadow-lg shadow-cyan-500/30 group-hover/dropzone:scale-110 transition">
+                        ☁️
+                      </div>
+                      <span class="text-xs font-orbitron font-extrabold text-white tracking-wide drop-shadow">
+                        SOLTAR IMAGEN AQUÍ
+                      </span>
+                      <span class="text-[10px] text-cyan-300 font-semibold mt-0.5">
+                        o clic para explorar archivo
+                      </span>
+                      <span class="text-[9px] text-slate-300 mt-2 font-mono px-2 py-0.5 rounded bg-slate-900/90 border border-cyan-500/30" id="dropzone-target-col-name">
+                        Drive: Colección Jikokun
+                      </span>
+                    </div>
+
+                    <!-- Overlay Activo mientras se arrastra archivo encima (DragOver) -->
+                    <div id="front-dragover-overlay" class="absolute inset-0 bg-cyan-950/95 border-2 border-dashed border-cyan-400 flex flex-col items-center justify-center p-3 text-center pointer-events-none z-20 hidden">
+                      <div class="text-4xl mb-2 animate-bounce">📥</div>
+                      <span class="text-sm font-orbitron font-black text-cyan-200 tracking-wider">
+                        ¡SUELTA TU IMAGEN!
+                      </span>
+                      <span class="text-[11px] text-cyan-300 mt-1 font-semibold">
+                        Subir a Google Drive en esta colección
+                      </span>
+                    </div>
+
+                    <!-- Overlay de Progreso de Subida a Drive -->
+                    <div id="front-upload-loading-overlay" class="absolute inset-0 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4 text-center z-30 hidden">
+                      <div class="w-10 h-10 border-3 border-cyan-500/20 border-t-cyan-400 rounded-full animate-spin mb-3"></div>
+                      <span class="text-xs font-orbitron font-bold text-cyan-300" id="front-upload-status-text">
+                        Subiendo a Google Drive...
+                      </span>
+                      <div class="w-full bg-slate-800 rounded-full h-2 mt-2.5 overflow-hidden border border-slate-700">
+                        <div id="front-upload-progress-bar" class="bg-gradient-to-r from-cyan-400 via-teal-400 to-fuchsia-500 h-full w-1/4 transition-all duration-300"></div>
+                      </div>
+                      <span class="text-[9px] text-slate-400 font-mono mt-1.5" id="front-upload-folder-indicator">
+                        Carpeta: Colección
+                      </span>
+                    </div>
+
                   </div>
                 </div>
               </div>
 
               <!-- Reverso Limpio -->
-              <div id="modal-preview-back-face" class="modal-card-face modal-card-back bg-gradient-to-tr from-fuchsia-600 via-slate-900 to-cyan-500">
+              <div id="modal-preview-back-face" class="modal-card-face modal-card-back bg-gradient-to-tr from-fuchsia-600 via-slate-900 to-cyan-500 cursor-pointer" title="Clic para volver al frente">
                 <div class="w-full h-full bg-slate-950 rounded-[9px] relative overflow-hidden flex items-center justify-center p-1 border border-white/10">
                   <div class="holo-sheen-preview"></div>
                   <div class="absolute inset-1 rounded-md overflow-hidden bg-slate-900 border border-white/10">
-                    <img id="modal-preview-img-back" src="" alt="Contraportada" class="w-full h-full object-cover object-center">
+                    <img id="modal-preview-img-back" src="" alt="Contraportada" class="w-full h-full object-cover object-center pointer-events-none">
                   </div>
                 </div>
               </div>
@@ -625,9 +667,18 @@
             </div>
           </div>
 
-          <p class="text-[11px] text-slate-400 text-center">
-            La carta se muestra 100% limpia sin textos sobreimpresos, luciendo su ilustración y reverso completo.
-          </p>
+          <!-- Input oculto para carga de archivos desde el explorador -->
+          <input type="file" id="inp-card-file-drop" accept="image/png, image/jpeg, image/jpg, image/webp, image/gif" class="hidden">
+
+          <!-- Botón de acción rápida debajo del mostrador -->
+          <div class="flex flex-col items-center gap-1.5 w-full">
+            <button type="button" id="btn-trigger-file-upload" class="w-full py-1.5 px-3 bg-gradient-to-r from-cyan-900/60 to-blue-900/60 hover:from-cyan-800 hover:to-blue-800 text-cyan-200 text-xs font-orbitron font-bold border border-cyan-500/40 rounded-lg flex items-center justify-center gap-2 transition active:scale-95 shadow-md">
+              <span>☁️</span> Subir Imagen a Google Drive
+            </button>
+            <p class="text-[10px] text-slate-400 text-center leading-tight">
+              Arrastra una imagen sobre la portada o haz clic para subirla directo a Drive en esta colección.
+            </p>
+          </div>
         </div>
 
         <!-- Formulario -->
@@ -680,6 +731,9 @@
             <div class="flex gap-2">
               <input type="text" id="inp-card-front" placeholder="https://lh3.googleusercontent.com/d/..." 
                      class="flex-1 px-3 py-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 focus:outline-none focus:border-cyan-400 font-mono">
+              <button type="button" id="btn-browse-drive-front" class="px-2.5 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-xs text-cyan-300 rounded-lg border border-cyan-500/40 flex items-center gap-1 font-semibold transition active:scale-95" title="Subir archivo desde tu computadora a Drive">
+                <span>☁️</span> Subir
+              </button>
               <button type="button" id="btn-fix-drive-front" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-xs text-cyan-300 rounded-lg border border-slate-700" title="Convertir enlace Drive a CDN">
                 Convertir
               </button>
@@ -1673,6 +1727,14 @@
         document.getElementById('inp-card-back').value = OFFICIAL_BACKS['COMÚN'];
       }
 
+      // Mostrar carpeta de destino de la colección activa
+      const col = allCollections[activeCollectionId] || {};
+      const colName = col.name || activeCollectionId || 'Colección Jikokun';
+      const colIndicator = document.getElementById('dropzone-target-col-name');
+      if (colIndicator) {
+        colIndicator.textContent = `Drive: ${colName}`;
+      }
+
       updateModalLivePreview();
       modal.classList.remove('hidden');
     };
@@ -1692,15 +1754,214 @@
       modalRotator.classList.toggle('is-flipped');
     }
     document.getElementById('btn-flip-preview').addEventListener('click', flipModalCard);
-    document.getElementById('modal-scene-container').addEventListener('click', flipModalCard);
+
+    // Clic en el reverso para voltear al frente
+    const backFaceEl = document.getElementById('modal-preview-back-face');
+    if (backFaceEl) {
+      backFaceEl.addEventListener('click', () => {
+        modalRotator.classList.remove('is-flipped');
+      });
+    }
 
     function updateModalLivePreview() {
       const rarity = document.getElementById('inp-card-rarity').value || 'COMÚN';
-      const front = document.getElementById('inp-card-front').value || 'https://placehold.co/240x350/0f172a/00f3ff?text=PORTADA';
+      const frontVal = (document.getElementById('inp-card-front').value || '').trim();
+      const front = frontVal || 'https://placehold.co/240x350/0f172a/00f3ff?text=PORTADA';
       const back = document.getElementById('inp-card-back').value || OFFICIAL_BACKS[rarity];
 
       document.getElementById('modal-preview-img-front').src = front;
       document.getElementById('modal-preview-img-back').src = back;
+
+      // Mostrar prompt de soltar si no hay imagen asignada
+      const dropPrompt = document.getElementById('front-drop-prompt');
+      if (dropPrompt) {
+        if (!frontVal) {
+          dropPrompt.classList.remove('opacity-0');
+          dropPrompt.classList.add('opacity-100');
+        } else {
+          dropPrompt.classList.remove('opacity-100');
+          dropPrompt.classList.add('opacity-0');
+        }
+      }
+    }
+
+    // ═══════════ SUBIDA Y DROPZONE DE PORTADA A GOOGLE DRIVE ═══════════
+    async function uploadCardImageToDrive(file) {
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        showToast('El archivo debe ser una imagen válida (PNG, JPG, WEBP, GIF)', 'error');
+        return;
+      }
+
+      // Asegurar que la tarjeta esté mostrando el frente
+      if (modalRotator && modalRotator.classList.contains('is-flipped')) {
+        modalRotator.classList.remove('is-flipped');
+      }
+
+      const uploadOverlay = document.getElementById('front-upload-loading-overlay');
+      const uploadStatus = document.getElementById('front-upload-status-text');
+      const uploadProgress = document.getElementById('front-upload-progress-bar');
+      const uploadFolderInd = document.getElementById('front-upload-folder-indicator');
+
+      const col = allCollections[activeCollectionId] || {};
+      const targetSubfolder = col.name || activeCollectionId || 'Coleccion_Jikokun_00-33';
+
+      if (uploadOverlay) {
+        uploadOverlay.classList.remove('hidden');
+        if (uploadStatus) uploadStatus.textContent = 'Leyendo archivo local...';
+        if (uploadProgress) uploadProgress.style.width = '20%';
+        if (uploadFolderInd) uploadFolderInd.textContent = `Carpeta: ${targetSubfolder}`;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64Data = e.target.result;
+        // Vista previa inmediata
+        document.getElementById('modal-preview-img-front').src = base64Data;
+
+        try {
+          if (uploadStatus) uploadStatus.textContent = 'Subiendo a Google Drive...';
+          if (uploadProgress) uploadProgress.style.width = '60%';
+
+          const base64Clean = base64Data.split(',')[1] || base64Data;
+
+          // Autocompletar título si es "NUEVA CARTA" o está vacío
+          const titleInput = document.getElementById('inp-card-title');
+          if (titleInput && (!titleInput.value.trim() || titleInput.value.trim() === 'NUEVA CARTA')) {
+            const rawName = file.name.replace(/\.[^/.]+$/, '');
+            const cleanName = rawName
+              .replace(/^[0-9]+[_\s-]+/, '')
+              .replace(/[_\s-]+/g, ' ')
+              .trim()
+              .toUpperCase();
+            if (cleanName) titleInput.value = cleanName;
+          }
+
+          // Autocompletar número si el archivo inicia con números
+          const numMatch = file.name.match(/^#?([0-9]{1,4})/);
+          const numInput = document.getElementById('inp-card-num');
+          if (numMatch && numInput && (numInput.value === '00' || !numInput.value.trim())) {
+            numInput.value = numMatch[1];
+          }
+
+          const res = await fetch(APPS_SCRIPT_DRIVE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify({
+              folderName: 'Tarjetas_jikokun',
+              subfolderName: targetSubfolder,
+              userName: 'Jikokun_TCG',
+              filename: file.name,
+              mimeType: file.type || 'image/png',
+              base64: base64Clean,
+              keepFiles: true,
+              mode: 'append',
+              isMultiple: true
+            })
+          });
+
+          if (uploadProgress) uploadProgress.style.width = '90%';
+          const data = await res.json();
+
+          if (data && data.status === 'success' && (data.fileUrl || data.fileId)) {
+            const cdnUrl = data.fileUrl || `https://lh3.googleusercontent.com/d/${data.fileId}`;
+            const inpFront = document.getElementById('inp-card-front');
+            if (inpFront) inpFront.value = cdnUrl;
+
+            updateModalLivePreview();
+            if (uploadProgress) uploadProgress.style.width = '100%';
+            if (uploadStatus) uploadStatus.textContent = '¡Subida exitosa!';
+
+            showToast(`☁️ ¡Imagen "${file.name}" subida a Drive en "${targetSubfolder}"!`, 'success');
+          } else {
+            throw new Error(data ? data.message : 'Error al procesar subida en Google Drive');
+          }
+        } catch (err) {
+          console.error('[Drive Upload Error]', err);
+          showToast(`⚠️ Error al subir a Drive: ${err.message}. Se mantiene vista previa.`, 'error');
+        } finally {
+          setTimeout(() => {
+            if (uploadOverlay) uploadOverlay.classList.add('hidden');
+          }, 700);
+        }
+      };
+
+      reader.onerror = () => {
+        if (uploadOverlay) uploadOverlay.classList.add('hidden');
+        showToast('Error al leer el archivo de imagen', 'error');
+      };
+
+      reader.readAsDataURL(file);
+    }
+
+    // Configurar Eventos DropZone y Clic en la Portada
+    const frontDropzone = document.getElementById('front-card-dropzone');
+    const dragoverOverlay = document.getElementById('front-dragover-overlay');
+    const fileInputCard = document.getElementById('inp-card-file-drop');
+
+    // Evitar que el navegador abra la imagen si se suelta por fuera
+    window.addEventListener('dragover', (e) => e.preventDefault());
+    window.addEventListener('drop', (e) => e.preventDefault());
+
+    if (frontDropzone) {
+      ['dragenter', 'dragover'].forEach(eventName => {
+        frontDropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (dragoverOverlay) dragoverOverlay.classList.remove('hidden');
+        });
+      });
+
+      ['dragleave', 'dragend'].forEach(eventName => {
+        frontDropzone.addEventListener(eventName, (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.currentTarget.contains(e.relatedTarget)) return;
+          if (dragoverOverlay) dragoverOverlay.classList.add('hidden');
+        });
+      });
+
+      frontDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (dragoverOverlay) dragoverOverlay.classList.add('hidden');
+
+        const dt = e.dataTransfer;
+        if (dt && dt.files && dt.files.length > 0) {
+          uploadCardImageToDrive(dt.files[0]);
+        }
+      });
+
+      frontDropzone.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (modalRotator && modalRotator.classList.contains('is-flipped')) return;
+        if (fileInputCard) fileInputCard.click();
+      });
+    }
+
+    const btnTriggerUpload = document.getElementById('btn-trigger-file-upload');
+    if (btnTriggerUpload) {
+      btnTriggerUpload.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (fileInputCard) fileInputCard.click();
+      });
+    }
+
+    const btnBrowseDriveFront = document.getElementById('btn-browse-drive-front');
+    if (btnBrowseDriveFront) {
+      btnBrowseDriveFront.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (fileInputCard) fileInputCard.click();
+      });
+    }
+
+    if (fileInputCard) {
+      fileInputCard.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          uploadCardImageToDrive(e.target.files[0]);
+          e.target.value = '';
+        }
+      });
     }
 
     ['inp-card-front', 'inp-card-back', 'inp-card-rarity'].forEach(id => {
