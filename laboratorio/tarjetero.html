@@ -599,6 +599,11 @@
     <script src="../data/tarjetas_default_data.js"></script>
     <script src="../data/tarjetas_coleccion_00_33.js"></script>
 
+    <!-- Firebase Realtime Database (Sincronización Universal en la Red y OBS Studio) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+
     <script>
         /**
          * ════════════════════════════════════════════════════════════════════════════
@@ -1315,7 +1320,10 @@
         }
 
         function triggerEpicExit(selectedIndex) {
-            if (widgetState !== 'SHOWCASE') return;
+            if (typeof selectedIndex !== 'number' || selectedIndex < 0 || selectedIndex >= activeBatchCards.length) {
+                selectedIndex = currentSlotIndex;
+            }
+            stopAutoCycle();
             widgetState = 'EXITING';
 
             clearInterval(countdownInterval);
@@ -1324,7 +1332,7 @@
             btnFastExit.classList.add('hidden');
 
             const selectedSlot = cardElements[selectedIndex];
-            const cardData = activeBatchCards[selectedIndex];
+            const cardData = activeBatchCards[selectedIndex] || {};
             const rarityKey = (cardData.rarity || 'COMÚN').toUpperCase();
             const rarityConfig = RARITY_STYLES[rarityKey] || RARITY_STYLES["COMÚN"];
 
@@ -1530,7 +1538,7 @@
         });
 
         // ═══════════ INTEGRACIÓN STREAMER.BOT (KICK / TWITCH) ═══════════
-        const SB_PORTS = [8080, 7474, 8081, 7475];
+        const SB_PORTS = [4445, 8080, 7474, 8081, 7475];
         let sbPortIndex = 0;
         let sbSocket = null;
         let sbReconnectTimer = null;
@@ -1539,6 +1547,12 @@
             if (sbSocket) {
                 try { sbSocket.close(); } catch(e) {}
                 sbSocket = null;
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const customWsPort = parseInt(urlParams.get('port') || urlParams.get('wsport'), 10);
+            if (!isNaN(customWsPort) && customWsPort > 0 && !SB_PORTS.includes(customWsPort)) {
+                SB_PORTS.unshift(customWsPort);
             }
 
             const activePort = SB_PORTS[sbPortIndex];
@@ -1611,9 +1625,9 @@
 
         function handleChatMessage(user, message) {
             const clean = (message || '').trim().toLowerCase();
-            console.log(`[Streamer.bot TCG] Comando recibido de ${user}: ${clean}`);
+            console.log(`[TCG Control] 💬 Comando procesado de ${user}: ${clean}`);
 
-            if (clean === '!tarjetasjikokun' || clean === '!tarjetas') {
+            if (clean === '!tarjetasjikokun' || clean === '!tarjetas' || clean === '!mostrar') {
                 summonWidget();
             } else if (clean === '!rotar') {
                 fastRotateCurrentBatch();
@@ -1621,14 +1635,45 @@
                 const parts = clean.split(' ');
                 const num = parseInt(parts[1], 10);
                 if (!isNaN(num) && num >= 1 && num <= activeBatchCards.length) {
-                    handleCardClick(num - 1);
+                    selectCard(num - 1);
                 }
-            } else if (clean === '!siguiente' || clean === '!lote') {
+            } else if (clean === '!siguiente' || clean === '!lote' || clean === '!sig' || clean === '!next') {
                 transitionToNextBatch();
-            } else if (clean === '!ocultartarjetas') {
+            } else if (clean === '!ocultartarjetas' || clean === '!ocultar') {
                 dismissWidget();
+            } else if (clean === '!salidaepica' || clean === '!epica' || clean === '!exit') {
+                triggerEpicExit(currentSlotIndex);
+            } else if (clean === '!reset' || clean === '!reiniciar') {
+                resetCarousel();
+            } else if (clean === '!azar' || clean === '!random') {
+                if (activeBatchCards.length > 0) {
+                    const rIdx = Math.floor(Math.random() * activeBatchCards.length);
+                    selectCard(rIdx);
+                }
             }
         }
+
+        // ═══════════ ESCUCHA DIRECTA DE POSTMESSAGE (DESDE IFRAME EN PRUEBA.HTML) ═══════════
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+            if (event.data.type === 'COMMAND' && event.data.command) {
+                console.log('[Tarjetero PostMessage] ⚡ Comando directo:', event.data.command);
+                handleChatMessage(event.data.user || 'ParentFrame', event.data.command);
+            } else if (event.data.type === 'UPDATE_CONFIG' && event.data.config) {
+                console.log('[Tarjetero PostMessage] ⚙️ Configuración recibida:', event.data.config);
+                applyWidgetConfig(event.data.config);
+                if (event.data.config.order) applyCollectionOrder(event.data.config.order);
+            } else if (event.data.type === 'ZOOM_CARD') {
+                const idx = (typeof event.data.index === 'number' && event.data.index >= 0 && event.data.index < activeBatchCards.length) 
+                    ? event.data.index 
+                    : currentSlotIndex;
+                selectCard(idx);
+            } else if (event.data.type === 'FAST_EXIT') {
+                triggerEpicExit(currentSlotIndex);
+            } else if (event.data.type === 'RESET') {
+                resetCarousel();
+            }
+        });
 
         // ═══════════ PARÁMETROS URL OBS ═══════════
         function checkUrlParams() {
@@ -1682,7 +1727,7 @@
             }
         }
 
-        // ═══════════ SINCRONIZACIÓN EN TIEMPO REAL CON ADMINTARJETAS ═══════════
+        // ═══════════ SINCRONIZACIÓN EN TIEMPO REAL CON ADMINTARJETAS (BROADCASTCHANNEL) ═══════════
         syncChannel.onmessage = (event) => {
             if (event.data) {
                 if (event.data.action === 'update' && Array.isArray(event.data.cards)) {
@@ -1710,11 +1755,90 @@
             }
         };
 
+        // ═══════════ SINCRONIZACIÓN UNIVERSAL CON FIREBASE REALTIME DATABASE ═══════════
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
+            authDomain: "sensunshopweb.firebaseapp.com",
+            databaseURL: "https://sensunshopweb-default-rtdb.firebaseio.com",
+            projectId: "sensunshopweb",
+            storageBucket: "sensunshopweb.firebasestorage.app",
+            messagingSenderId: "618261314687",
+            appId: "1:618261314687:web:b71c592f23538e2ca2d34a",
+            measurementId: "G-WYP6KJ6B0J"
+        };
+
+        let fbApp = null;
+        let fbDb = null;
+        let fbTarjetasNode = null;
+        let lastFirebaseCmdTs = Date.now() - 1000;
+
+        function initFirebaseRealtime() {
+            try {
+                if (!window.firebase) {
+                    console.warn('[TCG Firebase] SDK de Firebase no disponible, usando fallback local.');
+                    return;
+                }
+
+                if (!firebase.apps.length) {
+                    fbApp = firebase.initializeApp(FIREBASE_CONFIG);
+                } else {
+                    fbApp = firebase.app();
+                }
+
+                try {
+                    firebase.auth().signInAnonymously().catch(err => {
+                        console.log('[TCG Firebase Auth]', err.message);
+                    });
+                } catch(e) {}
+
+                fbDb = firebase.database();
+                fbTarjetasNode = fbDb.ref('stream/widgets/tarjetas');
+
+                // 1. Escucha en tiempo real de COMANDOS (!rotar, !tarjetasjikokun, !carta 1, etc.)
+                fbTarjetasNode.child('command').on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (!data || !data.command) return;
+
+                    const cmdTs = data.timestamp || 0;
+                    if (cmdTs > lastFirebaseCmdTs) {
+                        lastFirebaseCmdTs = cmdTs;
+                        console.log(`[TCG Firebase] ⚡ Comando recibido en vivo: "${data.command}" de ${data.sender || 'Remoto'}`);
+                        handleChatMessage(data.sender || 'FirebaseRemote', data.command);
+                    }
+                });
+
+                // 2. Escucha en tiempo real de CONFIGURACIÓN (Posición, Escala, Orden, Tiempos)
+                fbTarjetasNode.child('config').on('value', (snapshot) => {
+                    const cfg = snapshot.val();
+                    if (!cfg) return;
+                    console.log('[TCG Firebase] ⚙️ Configuración del expositor sincronizada en vivo:', cfg);
+                    applyWidgetConfig(cfg);
+                    if (cfg.order) {
+                        applyCollectionOrder(cfg.order);
+                    }
+                });
+
+                // 3. Escucha en tiempo real de COLECCIÓN ACTIVA (Cartas, rarezas, reversos)
+                fbTarjetasNode.child('activeCollection').on('value', (snapshot) => {
+                    const col = snapshot.val();
+                    if (!col || !Array.isArray(col.cards) || col.cards.length === 0) return;
+                    console.log(`[TCG Firebase] 🎴 Colección activa sincronizada en vivo: ${col.collectionName || 'Colección'} (${col.cards.length} cartas)`);
+                    fullCollection = col.cards;
+                    applyCollectionOrder(widgetConfig.order);
+                });
+
+                console.log('[TCG Firebase] 🟢 Firebase RTDB conectado exitosamente bajo stream/widgets/tarjetas');
+            } catch (err) {
+                console.warn('[TCG Firebase] Error al inicializar Firebase RTDB:', err);
+            }
+        }
+
         window.onload = async () => {
             await loadCollection();
             animateParticles();
             checkUrlParams();
             connectStreamerBot();
+            initFirebaseRealtime();
         };
     </script>
 </body>

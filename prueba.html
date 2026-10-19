@@ -1163,7 +1163,31 @@
     </footer>
 
     <script src="script.js"></script>
+
+    <!-- Firebase Realtime Database (Sincronización Universal para Widgets OBS) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script>
+        const TCG_FIREBASE_CONFIG = {
+            apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
+            authDomain: "sensunshopweb.firebaseapp.com",
+            databaseURL: "https://sensunshopweb-default-rtdb.firebaseio.com",
+            projectId: "sensunshopweb",
+            storageBucket: "sensunshopweb.firebasestorage.app",
+            messagingSenderId: "618261314687",
+            appId: "1:618261314687:web:b71c592f23538e2ca2d34a",
+            measurementId: "G-WYP6KJ6B0J"
+        };
+        try {
+            if (window.firebase) {
+                if (!firebase.apps.length) firebase.initializeApp(TCG_FIREBASE_CONFIG);
+                try { firebase.auth().signInAnonymously().catch(() => {}); } catch(e) {}
+                window.fbTarjetasRef = firebase.database().ref('stream/widgets/tarjetas');
+                console.log('[Prueba Lab] 🔥 Firebase RTDB conectado para Tarjetero OBS en stream/widgets/tarjetas');
+            }
+        } catch(e) { console.warn('[Prueba Firebase]', e); }
+
         window.log = function(msg, type = "info") {
             console.log(`[Seguridad ${type.toUpperCase()}] ${msg}`);
         };
@@ -1485,53 +1509,74 @@
             const openLinkBtn = document.getElementById("btn-open-tarjetero-tab");
             if (openLinkBtn) openLinkBtn.href = `${dirUrl}laboratorio/tarjetero.html?pos=${pos}&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
 
+            const cfgData = {
+                position: pos,
+                scale: parseFloat(scale) || 1.0,
+                order: order,
+                centerPauseTime: pause,
+                spinSpeed: speed,
+                showcaseDuration: duration,
+                updatedAt: Date.now()
+            };
+
+            // 1. Envío instantáneo a la vista previa (iframe)
+            const preview = document.getElementById("preview-tarjetero-test");
+            if (preview && preview.contentWindow) {
+                preview.contentWindow.postMessage({
+                    type: 'UPDATE_CONFIG',
+                    config: cfgData
+                }, '*');
+            }
+
+            // 2. BroadcastChannel para pestañas locales
             const sync = new BroadcastChannel('jikokun_tarjetas_channel');
             sync.postMessage({
                 action: 'update_config',
-                config: {
-                    position: pos,
-                    scale: parseFloat(scale) || 1.0,
-                    order: order,
-                    centerPauseTime: pause,
-                    spinSpeed: speed,
-                    showcaseDuration: duration
-                }
+                config: cfgData
             });
 
-            const preview = document.getElementById("preview-tarjetero-test");
-            if (preview && !preview.getAttribute('data-loaded')) {
-                preview.src = `laboratorio/tarjetero.html?preview=true&pos=centro&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
-                preview.setAttribute('data-loaded', 'true');
+            // 3. Firebase RTDB para OBS Studio y la Red
+            if (window.fbTarjetasRef) {
+                window.fbTarjetasRef.child('config').set(cfgData).catch(e => console.warn('[FB Config Sync]', e));
             }
         }
 
         window.updateTarjeteroPrivateWidget = updateTarjeteroPrivateWidget;
 
         window.triggerTarjeteroPrivateTest = function(actionType) {
-            const sync = new BroadcastChannel('jikokun_tarjetas_channel');
-            if (actionType === 'SUMMON') {
-                sync.postMessage({ action: 'command', command: '!tarjetasjikokun' });
-                log('[Jikokun TCG] Comando !tarjetasjikokun enviado a la vista previa', 'success');
-            } else if (actionType === 'ROTATE') {
-                sync.postMessage({ action: 'command', command: '!rotar' });
-                log('[Jikokun TCG] Comando !rotar (giro rápido) enviado', 'info');
-            } else if (actionType === 'NEXT_BATCH') {
-                sync.postMessage({ action: 'command', command: '!siguiente' });
-                log('[Jikokun TCG] Avanzando al siguiente lote de 5 cartas', 'info');
-            } else if (actionType === 'ZOOM_CARD') {
-                sync.postMessage({ action: 'command', command: '!carta 1' });
-                log('[Jikokun TCG] Seleccionando carta 1 al centro (pantalla grande)', 'info');
-            } else if (actionType === 'FAST_EXIT') {
-                const previewIframe = document.getElementById("preview-tarjetero-test");
-                if (previewIframe && previewIframe.contentWindow) {
-                    const btn = previewIframe.contentWindow.document.getElementById('btn-fast-exit');
-                    if (btn) btn.click();
+            let cmd = '';
+            if (actionType === 'SUMMON') cmd = '!tarjetasjikokun';
+            else if (actionType === 'ROTATE') cmd = '!rotar';
+            else if (actionType === 'NEXT_BATCH') cmd = '!siguiente';
+            else if (actionType === 'ZOOM_CARD') cmd = '!carta 1';
+            else if (actionType === 'FAST_EXIT') cmd = '!salidaepica';
+            else if (actionType === 'DISMISS') cmd = '!ocultartarjetas';
+
+            // 1. Envío directo al Iframe (0ms de retraso para vista previa)
+            const previewIframe = document.getElementById("preview-tarjetero-test");
+            if (previewIframe && previewIframe.contentWindow) {
+                previewIframe.contentWindow.postMessage({ type: 'COMMAND', command: cmd }, '*');
+                if (actionType === 'ZOOM_CARD') {
+                    previewIframe.contentWindow.postMessage({ type: 'ZOOM_CARD', index: 0 }, '*');
+                } else if (actionType === 'FAST_EXIT') {
+                    previewIframe.contentWindow.postMessage({ type: 'FAST_EXIT' }, '*');
                 }
-                log('[Jikokun TCG] Salida épica disparada', 'info');
-            } else if (actionType === 'DISMISS') {
-                sync.postMessage({ action: 'command', command: '!ocultartarjetas' });
-                log('[Jikokun TCG] Widget ocultado', 'info');
             }
+
+            // 2. Canal BroadcastChannel
+            const sync = new BroadcastChannel('jikokun_tarjetas_channel');
+            sync.postMessage({ action: 'command', command: cmd });
+
+            // 3. Firebase RTDB (Sincronización en vivo con OBS Studio y la Red)
+            if (window.fbTarjetasRef) {
+                window.fbTarjetasRef.child('command').set({
+                    command: cmd,
+                    timestamp: Date.now(),
+                    sender: 'Prueba_Lab'
+                }).catch(e => console.warn('[FB Command Send]', e));
+            }
+
+            log(`[Jikokun TCG] Comando "${cmd}" ejecutado en vivo y transmitido a OBS`, 'success');
         };
 
         window.copyTarjeteroObsUrl = function(btn) {
