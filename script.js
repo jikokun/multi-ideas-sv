@@ -1923,13 +1923,32 @@ async function connectFirebaseToAuth(authUI, fb) {
 
             try {
                 if (currentMode === 'login') {
-                    await signInWithEmailAndPassword(auth, email, password);
+                    const cred = await signInWithEmailAndPassword(auth, email, password);
+                    if (cred && cred.user) {
+                        try {
+                            localStorage.setItem('multiideas_user_authed', 'true');
+                            localStorage.setItem('multiideas_user_uid', cred.user.uid);
+                            if (cred.user.email) localStorage.setItem('multiideas_user_email', cred.user.email);
+                            if (cred.user.displayName) localStorage.setItem('multiideas_user_name', cred.user.displayName);
+                            if (cred.user.photoURL) localStorage.setItem('multiideas_user_photo', cred.user.photoURL);
+                        } catch(e) {}
+                    }
+                    window.dispatchEvent(new Event('multiideas_auth_changed'));
                     showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()}!`, 'success');
                 } else {
                     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                     if (displayName) {
                         await updateProfile(userCredential.user, { displayName });
                     }
+                    if (userCredential && userCredential.user) {
+                        try {
+                            localStorage.setItem('multiideas_user_authed', 'true');
+                            localStorage.setItem('multiideas_user_uid', userCredential.user.uid);
+                            if (userCredential.user.email) localStorage.setItem('multiideas_user_email', userCredential.user.email);
+                            localStorage.setItem('multiideas_user_name', displayName || userCredential.user.email.split('@')[0]);
+                        } catch(e) {}
+                    }
+                    window.dispatchEvent(new Event('multiideas_auth_changed'));
                     showNotification('Registro Completado', '¡Tu cuenta ha sido creada con éxito!', 'success');
                 }
                 closeModal();
@@ -1999,6 +2018,17 @@ async function connectFirebaseToAuth(authUI, fb) {
                         googleBtn.classList.add('is-success');
                         if (googleText) googleText.textContent = '¡Sesión iniciada con éxito! 🎉';
                         
+                        if (result && result.user) {
+                            try {
+                                localStorage.setItem('multiideas_user_authed', 'true');
+                                localStorage.setItem('multiideas_user_uid', result.user.uid);
+                                if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
+                                if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
+                                if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+                            } catch(e) {}
+                        }
+                        window.dispatchEvent(new Event('multiideas_auth_changed'));
+
                         // Micro-pausa agradable para ver la celebración
                         await new Promise(r => setTimeout(r, 850));
                         
@@ -2016,6 +2046,17 @@ async function connectFirebaseToAuth(authUI, fb) {
                     googleBtn.classList.add('is-success');
                     if (googleText) googleText.textContent = '¡Cuenta registrada con éxito! 🎉';
                     
+                    if (result && result.user) {
+                        try {
+                            localStorage.setItem('multiideas_user_authed', 'true');
+                            localStorage.setItem('multiideas_user_uid', result.user.uid);
+                            if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
+                            if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
+                            if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+                        } catch(e) {}
+                    }
+                    window.dispatchEvent(new Event('multiideas_auth_changed'));
+
                     await new Promise(r => setTimeout(r, 850));
 
                     showNotification('Registro Completado', '¡Tu cuenta de Google ha sido registrada e iniciada con éxito!', 'success');
@@ -2208,13 +2249,22 @@ async function connectFirebaseToAuth(authUI, fb) {
             try {
                 localStorage.setItem('multiideas_user_authed', 'true');
                 localStorage.setItem('multiideas_user_uid', user.uid);
+                if (user.email) localStorage.setItem('multiideas_user_email', user.email);
+                if (user.displayName) localStorage.setItem('multiideas_user_name', user.displayName);
+                if (user.photoURL) localStorage.setItem('multiideas_user_photo', user.photoURL);
             } catch(e) {}
             syncUserProfile(user);
         } else {
-            try {
-                localStorage.removeItem('multiideas_user_authed');
-                localStorage.removeItem('multiideas_user_uid');
-            } catch(e) {}
+            // Solo limpiar almacenamiento si el usuario solicitó cerrar sesión explícitamente
+            if (window.__isExplicitLoggingOut) {
+                try {
+                    localStorage.removeItem('multiideas_user_authed');
+                    localStorage.removeItem('multiideas_user_uid');
+                    localStorage.removeItem('multiideas_user_email');
+                    localStorage.removeItem('multiideas_user_name');
+                    localStorage.removeItem('multiideas_user_photo');
+                } catch(e) {}
+            }
         }
         initPresence(user);
         updateHeaderUI(user, window.openAuthModal, signOut, auth);
@@ -2294,15 +2344,28 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
     const text = window.location.pathname.includes('sensunshop') ? 'Acceder' : 'Iniciar Sesión';
 
     containers.forEach(container => {
-        if (user) {
-            const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-            const displayName = user.displayName || user.email.split('@')[0];
+        const savedAuthed = localStorage.getItem('multiideas_user_authed') === 'true';
+        const savedUid = localStorage.getItem('multiideas_user_uid');
+        const savedEmail = localStorage.getItem('multiideas_user_email') || '';
+        const savedName = localStorage.getItem('multiideas_user_name') || (savedEmail ? savedEmail.split('@')[0] : 'Usuario');
+        const savedPhoto = localStorage.getItem('multiideas_user_photo') || '';
+
+        const effectiveUser = user || (savedAuthed && savedUid && !window.__isExplicitLoggingOut ? {
+            displayName: savedName,
+            email: savedEmail,
+            photoURL: savedPhoto,
+            uid: savedUid
+        } : null);
+
+        if (effectiveUser) {
+            const initials = (effectiveUser.displayName || effectiveUser.email || 'U').charAt(0).toUpperCase();
+            const displayName = effectiveUser.displayName || (effectiveUser.email ? effectiveUser.email.split('@')[0] : 'Usuario');
 
             container.innerHTML = `
                 <div class="user-profile-menu" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">
                     <div class="user-profile-info" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <div class="user-profile-badge" title="${user.email}">${initials}</div>
-                        <span class="user-profile-email" title="${user.email}">${displayName}</span>
+                        <div class="user-profile-badge" title="${effectiveUser.email}">${initials}</div>
+                        <span class="user-profile-email" title="${effectiveUser.email}">${displayName}</span>
                     </div>
                     <button class="btn-logout-round" title="Cerrar Sesión">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
@@ -2313,7 +2376,7 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
             // Aplicar avatar e iniciales si tiene un avatar guardado en Firebase photoURL
             const badge = container.querySelector('.user-profile-badge');
             if (badge) {
-                applyAvatarToElement(badge, user.photoURL, initials);
+                applyAvatarToElement(badge, effectiveUser.photoURL, initials);
             }
         } else {
             container.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">${text}</button>`;
@@ -3071,13 +3134,25 @@ function connectFirebaseToProfile(profileUI, fb) {
     if (logoutYesBtn) {
         logoutYesBtn.addEventListener('click', () => {
             if (typeof closeConfirmLogout === 'function') closeConfirmLogout();
+            window.__isExplicitLoggingOut = true;
+            try {
+                localStorage.removeItem('multiideas_user_authed');
+                localStorage.removeItem('multiideas_user_uid');
+                localStorage.removeItem('multiideas_user_email');
+                localStorage.removeItem('multiideas_user_name');
+                localStorage.removeItem('multiideas_user_photo');
+            } catch(e) {}
+            window.dispatchEvent(new Event('multiideas_auth_changed'));
             signOut(auth)
                 .then(() => {
                     showNotification('Sesión Cerrada', 'Has cerrado tu sesión correctamente.', 'info');
+                    window.dispatchEvent(new Event('multiideas_auth_changed'));
+                    setTimeout(() => { window.__isExplicitLoggingOut = false; }, 1000);
                 })
                 .catch(err => {
                     console.error("Error al cerrar sesión:", err);
                     showNotification('Error', 'No se pudo cerrar la sesión.', 'error');
+                    window.__isExplicitLoggingOut = false;
                 });
         });
     }

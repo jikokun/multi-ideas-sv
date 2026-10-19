@@ -915,8 +915,8 @@
         }
       }
 
-      function playAlertSound(type) {
-        if (isMuted) return;
+      function playAlertSound(type, forceSound = false) {
+        if (isMuted && !forceSound) return;
         try {
           initAudio();
           if (!audioCtx) return;
@@ -1183,8 +1183,8 @@
       }
 
       // Disparar Alerta y ponerla en cola
-      window.triggerAlert = function (type, data = {}) {
-        alertQueue.push({ type, data });
+      window.triggerAlert = function (type, data = {}, forceSound = false) {
+        alertQueue.push({ type, data, forceSound });
         processQueue();
       };
 
@@ -1205,7 +1205,7 @@
         deckWrap.classList.add('active');
 
         // 4. Reproducir sonido de alerta
-        playAlertSound(nextAlert.type);
+        playAlertSound(nextAlert.type, !!nextAlert.forceSound);
 
         // 5. PASO 2: Dejar la baraja visible 1.8s y luego lanzar la carta de Jikokun hacia atrás revelando el evento
         setTimeout(() => {
@@ -1564,7 +1564,7 @@
             testData.text = '¡Muchísimas gracias por tu donación!';
           }
 
-          triggerAlert(aType, testData);
+          triggerAlert(aType, testData, true);
         }
       });
 

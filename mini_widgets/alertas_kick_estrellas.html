@@ -672,8 +672,8 @@
             return audioCtx;
         }
 
-        function playAlertSound(type) {
-            if (isMuted) return;
+        function playAlertSound(type, forceSound = false) {
+            if (isMuted && !forceSound) return;
             try {
                 const ctx = getAudioContext();
                 const now = ctx.currentTime;
@@ -750,7 +750,7 @@
             followerName.textContent = data.username || 'Usuario';
 
             // 3. Reproducir audio sintetizado
-            playAlertSound(data.type);
+            playAlertSound(data.type, data.forceSound);
 
             // 4. Forzar reinicio limpio de la animación
             overlay.classList.remove('active', 'exiting');
@@ -785,7 +785,7 @@
         // =====================================================================
         const mockUsers = ["NinjaEspacial", "EstrellaFugaz_99", "CapitanKick", "NovaGamerZ", "Astro_Boy", "CosmicLuna", "Jikokun"];
 
-        function triggerAlertByType(type) {
+        function triggerAlertByType(type, forceSound = false) {
             if (alertTimeout) {
                 clearTimeout(alertTimeout);
                 alertTimeout = null;
@@ -800,7 +800,8 @@
                         type: 'follow',
                         title: '¡Nuevo Seguidor!',
                         subtitle: formatAlertSubtitle(customTexts.follow, { user: randomName }),
-                        username: randomName
+                        username: randomName,
+                        forceSound: forceSound
                     });
                     break;
                 case 'sub':
@@ -815,7 +816,8 @@
                         months: months,
                         title: isResub ? '¡Resuscripción!' : '¡Nueva Suscripción!',
                         subtitle: formatAlertSubtitle(subTpl, { months: months, count: months, user: randomName }),
-                        username: randomName
+                        username: randomName,
+                        forceSound: forceSound
                     });
                     break;
                 case 'gift':
@@ -830,7 +832,8 @@
                         subs: gifts,
                         title: gifts > 1 ? '¡Lluvia de Subs!' : '¡Sub Regalada!',
                         subtitle: giftSubtitle,
-                        username: randomName
+                        username: randomName,
+                        forceSound: forceSound
                     });
                     break;
                 case 'raid':
@@ -841,7 +844,8 @@
                         viewers: viewers,
                         title: '¡Raid Entrante!',
                         subtitle: formatAlertSubtitle(customTexts.raid, { viewers: viewers, count: viewers, user: randomName }),
-                        username: randomName
+                        username: randomName,
+                        forceSound: forceSound
                     });
                     break;
                 case 'kicks':
@@ -852,7 +856,8 @@
                         kicks: kicks,
                         title: '¡Kicks Aportados!',
                         subtitle: formatAlertSubtitle(customTexts.kicks, { kicks: kicks, count: kicks, user: randomName }),
-                        username: randomName
+                        username: randomName,
+                        forceSound: forceSound
                     });
                     break;
             }
@@ -1213,7 +1218,7 @@
             if (!event.data) return;
 
             if (event.data.type === 'TRIGGER_TEST_ALERT') {
-                triggerAlertByType(event.data.alertType || 'follow');
+                triggerAlertByType(event.data.alertType || 'follow', true);
             } else if (event.data.type === 'SET_STREAMERBOT_CONFIG') {
                 let changed = false;
                 if (event.data.host && event.data.host !== streamerBotHost) {

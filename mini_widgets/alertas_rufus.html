@@ -559,7 +559,13 @@
           isLoopMode = event.data.loop;
         }
         if (event.data.type === 'TRIGGER_TEST_ALERT') {
-          triggerTestAlert(event.data.alertType || 'follow');
+          if (event.data.soundUrl) {
+            customSoundUrls[event.data.alertType || 'follow'] = event.data.soundUrl;
+          }
+          if (typeof event.data.volume === 'number') {
+            alertVolume = Math.max(0, Math.min(1, event.data.volume));
+          }
+          triggerTestAlert(event.data.alertType || 'follow', true);
         } else if (event.data.type === 'SET_LOOP_MODE') {
           isLoopMode = !!event.data.isLoop;
           const stage = document.getElementById('alert-stage');
@@ -575,8 +581,8 @@
     // -----------------------------------------------------------------------
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
-    function playSynthesizedAlertSound(theme) {
-      if (isMuted) return;
+    function playSynthesizedAlertSound(theme, forceSound = false) {
+      if (isMuted && !forceSound) return;
 
       const targetSoundUrl = customSoundUrls[theme] || globalDefaultSound;
       const rawOriginal = rawSoundUrls[theme] || targetSoundUrl;
@@ -717,7 +723,7 @@
       }
 
       // Reproducir sonido de alerta
-      playSynthesizedAlertSound(alert.theme);
+      playSynthesizedAlertSound(alert.theme, alert.forceSound);
 
       // Activar animación de entrada AGRUPADA (Marco WebM + Texto)
       glow.style.opacity = '1';
@@ -942,7 +948,7 @@
     // -----------------------------------------------------------------------
     // GENERADOR DE ALERTAS DE PRUEBA
     // -----------------------------------------------------------------------
-    function triggerTestAlert(type) {
+    function triggerTestAlert(type, forceSound = false) {
       if (currentAlertTimeout) {
         clearTimeout(currentAlertTimeout);
         currentAlertTimeout = null;
@@ -960,7 +966,8 @@
             icon: '💚',
             badgeText: 'NUEVO SEGUIDOR',
             username: randomUser,
-            detailHtml: '¡Se ha unido a la manada!'
+            detailHtml: '¡Se ha unido a la manada!',
+            forceSound: forceSound
           });
           break;
 
@@ -972,7 +979,8 @@
             badgeText: months > 1 ? '¡RESUSCRIPCIÓN!' : 'NUEVA SUSCRIPCIÓN',
             username: randomUser,
             detailHtml: months > 1 ? `Lleva <span class="highlight">${months} meses</span> en el canal` : '¡Nuevo Suscriptor!',
-            message: months > 1 ? '¡Gracias por seguir apoyando el canal bro!' : ''
+            message: months > 1 ? '¡Gracias por seguir apoyando el canal bro!' : '',
+            forceSound: forceSound
           });
           break;
 
@@ -983,7 +991,8 @@
             icon: '🎁',
             badgeText: '¡SUB REGALADA!',
             username: randomUser,
-            detailHtml: gifts > 1 ? `Ha regalado <span class="highlight">${gifts} Suscripciones</span>` : `Le regaló una sub a <span class="highlight">ViewerKicker</span>`
+            detailHtml: gifts > 1 ? `Ha regalado <span class="highlight">${gifts} Suscripciones</span>` : `Le regaló una sub a <span class="highlight">ViewerKicker</span>`,
+            forceSound: forceSound
           });
           break;
 
@@ -994,7 +1003,8 @@
             icon: '🚀',
             badgeText: '¡NUEVA RAID!',
             username: randomUser,
-            detailHtml: `¡Nos visita con <span class="highlight">${viewers} espectadores</span>!`
+            detailHtml: `¡Nos visita con <span class="highlight">${viewers} espectadores</span>!`,
+            forceSound: forceSound
           });
           break;
 
@@ -1007,7 +1017,8 @@
             badgeText: '¡NUEVO APORTE / KICKS!',
             username: randomUser,
             detailHtml: `Ha apoyado con <span class="highlight">${amount}</span>`,
-            message: '¡Excelente stream! Sigue así 🚀'
+            message: '¡Excelente stream! Sigue así 🚀',
+            forceSound: forceSound
           });
           break;
       }

@@ -1113,6 +1113,8 @@
         try {
           localStorage.setItem('multiideas_user_authed', 'true');
           localStorage.setItem('multiideas_user_uid', validUser.uid);
+          if (validUser.email) localStorage.setItem('multiideas_user_email', validUser.email);
+          if (validUser.displayName) localStorage.setItem('multiideas_user_name', validUser.displayName);
         } catch(e) {}
         document.getElementById('unauth-view').style.display = 'none';
         document.getElementById('auth-view').style.display = 'block';
@@ -1126,12 +1128,32 @@
         await registerWidgetUserInFirebase(validUser);
         await loadUserWidgetsFromFirebase(validUser.uid);
       } else {
-        try {
-          localStorage.removeItem('multiideas_user_authed');
-          localStorage.removeItem('multiideas_user_uid');
-        } catch(e) {}
-        document.getElementById('auth-view').style.display = 'none';
-        document.getElementById('unauth-view').style.display = 'block';
+        const hasGeneralSession = localStorage.getItem('multiideas_user_authed') === 'true';
+        if (hasGeneralSession && !window.__isExplicitLoggingOut) {
+          const savedUid = localStorage.getItem('multiideas_user_uid');
+          const savedEmail = localStorage.getItem('multiideas_user_email') || '';
+          const savedName = localStorage.getItem('multiideas_user_name') || (savedEmail ? savedEmail.split('@')[0] : 'Usuario');
+
+          document.getElementById('unauth-view').style.display = 'none';
+          document.getElementById('auth-view').style.display = 'block';
+          document.getElementById('hero-avatar-char').textContent = savedName.charAt(0).toUpperCase();
+          document.getElementById('hero-user-title').innerHTML = `Widgets de <span class="gradient-text">${savedName}</span>`;
+          document.getElementById('hero-user-subtitle').textContent = `Tus overlays favoritos sincronizados en tu cuenta${savedEmail ? ' (' + savedEmail + ')' : ''}.`;
+
+          if (savedUid) {
+            await loadUserWidgetsFromFirebase(savedUid);
+          }
+        } else {
+          try {
+            localStorage.removeItem('multiideas_user_authed');
+            localStorage.removeItem('multiideas_user_uid');
+            localStorage.removeItem('multiideas_user_email');
+            localStorage.removeItem('multiideas_user_name');
+            localStorage.removeItem('multiideas_user_photo');
+          } catch(e) {}
+          document.getElementById('auth-view').style.display = 'none';
+          document.getElementById('unauth-view').style.display = 'block';
+        }
       }
     });
 

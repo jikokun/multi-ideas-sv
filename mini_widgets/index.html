@@ -44,8 +44,20 @@
                 });
             }
           }
-          if (localStorage.getItem('multiideas_user_authed') === 'true') {
+          const isAuthed = localStorage.getItem('multiideas_user_authed') === 'true';
+          if (isAuthed) {
             document.documentElement.classList.add('user-pre-authed');
+          } else {
+            document.documentElement.classList.add('auth-gate-active');
+            if (document.body) {
+              document.body.classList.add('auth-gate-active');
+            } else {
+              document.addEventListener('DOMContentLoaded', () => {
+                if (localStorage.getItem('multiideas_user_authed') !== 'true') {
+                  document.body.classList.add('auth-gate-active');
+                }
+              });
+            }
           }
 
           // Limpieza instantánea de URL en la barra de direcciones (.html o index.html)
@@ -711,11 +723,24 @@
     /* =======================================================================
        PANTALLA DE BLOQUEO / INICIO DE SESIÓN OBLIGATORIO (WIDGETS OBS)
        ======================================================================= */
-    html.user-pre-authed #widgets-auth-gate {
+    html.user-pre-authed #widgets-auth-gate,
+    body.user-pre-authed #widgets-auth-gate,
+    #widgets-auth-gate.unlocked,
+    #widgets-auth-gate.hidden-gate {
       display: none !important;
       opacity: 0 !important;
       visibility: hidden !important;
       pointer-events: none !important;
+    }
+
+    /* Bloqueo estricto del scroll de fondo cuando la pantalla de inicio de sesión está visible */
+    html.auth-gate-active,
+    body.auth-gate-active {
+      overflow: hidden !important;
+      height: 100vh !important;
+      max-height: 100vh !important;
+      touch-action: none !important;
+      overscroll-behavior: none !important;
     }
 
     .widgets-auth-gate {
@@ -731,6 +756,8 @@
       padding: 20px;
       transition: opacity 0.35s ease, visibility 0.35s ease;
       overflow-y: auto;
+      overscroll-behavior: contain;
+      -webkit-overflow-scrolling: touch;
     }
     .auth-modal-overlay,
     #auth-modal.auth-modal-overlay,
@@ -740,9 +767,10 @@
 
     .widgets-auth-gate.unlocked,
     .widgets-auth-gate.hidden-gate {
-      opacity: 0;
-      visibility: hidden;
-      pointer-events: none;
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
     }
 
     .auth-gate-card {
@@ -1645,7 +1673,7 @@
           <!-- Contenedor Superior de Previsualización Escalado (Muestra el widget completo sin recortes) -->
           <div class="card-preview-stage">
             <div class="card-iframe-scaler" style="width: 480px; height: 280px; transform: translate(-50%, -50%) scale(0.54);">
-              <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true" scrolling="no" loading="lazy"></iframe>
+              <iframe id="preview-alerts" src="alertas_rufus.html?preview=true&loop=true&mute=true" scrolling="no" loading="lazy"></iframe>
             </div>
             <div class="card-hover-overlay group-hover:opacity-100">
               <span class="btn-hover-config">
@@ -2953,15 +2981,61 @@
       return Boolean(user && !user.isAnonymous && (user.email || (user.providerData && user.providerData.length > 0)));
     }
 
-    // Comprobar estado previo guardado para evitar bloqueos innecesarios al navegar entre páginas
-    if (localStorage.getItem('multiideas_user_authed') === 'true') {
-      const gateEl = document.getElementById('widgets-auth-gate');
-      if (gateEl) {
-        gateEl.classList.add('unlocked');
-        gateEl.classList.add('hidden-gate');
-        gateEl.style.display = 'none';
+    // Sincronizar visibilidad del Auth Gate y bloqueo de scroll de fondo
+    function syncAuthGateVisibility(user) {
+      const gate = document.getElementById('widgets-auth-gate');
+      const hasGeneralSession = localStorage.getItem('multiideas_user_authed') === 'true' && !window.__isExplicitLoggingOut;
+      const isAuthed = isVerifiedUser(user) || hasGeneralSession;
+
+      if (isAuthed) {
+        if (gate) {
+          gate.classList.add('unlocked', 'hidden-gate');
+          gate.style.display = 'none';
+        }
+        document.documentElement.classList.add('user-pre-authed');
+        document.documentElement.classList.remove('auth-gate-active');
+        if (document.body) document.body.classList.remove('auth-gate-active');
+      } else {
+        if (gate) {
+          gate.classList.remove('unlocked', 'hidden-gate');
+          gate.style.display = 'flex';
+        }
+        document.documentElement.classList.remove('user-pre-authed');
+        document.documentElement.classList.add('auth-gate-active');
+        if (document.body) document.body.classList.add('auth-gate-active');
       }
-      document.documentElement.classList.add('user-pre-authed');
+    }
+
+    // Comprobar estado previo guardado de inmediato al cargar el script
+    syncAuthGateVisibility(null);
+
+    // Prevención de Scroll Leak: Bloquear que la rueda del ratón o el scroll táctil muevan el fondo
+    const gateElement = document.getElementById('widgets-auth-gate');
+    if (gateElement) {
+      gateElement.addEventListener('wheel', (e) => {
+        if (!gateElement.classList.contains('unlocked') && !gateElement.classList.contains('hidden-gate')) {
+          const isScrollable = gateElement.scrollHeight > gateElement.clientHeight;
+          if (!isScrollable) {
+            e.preventDefault();
+            e.stopPropagation();
+          } else {
+            const atTop = gateElement.scrollTop <= 0 && e.deltaY < 0;
+            const atBottom = (gateElement.scrollTop + gateElement.clientHeight >= gateElement.scrollHeight - 1) && e.deltaY > 0;
+            if (atTop || atBottom) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }
+        }
+      }, { passive: false });
+
+      gateElement.addEventListener('touchmove', (e) => {
+        if (!gateElement.classList.contains('unlocked') && !gateElement.classList.contains('hidden-gate')) {
+          if (gateElement.scrollHeight <= gateElement.clientHeight) {
+            e.preventDefault();
+          }
+        }
+      }, { passive: false });
     }
 
     // Captura y resolución automática de sesiones tras redirección (móviles / navegadores con bloqueo estricto de popups)
@@ -2971,7 +3045,11 @@
           console.log("[Auth Gate] Sesión completada tras redirección exitosa:", result.user.uid);
           localStorage.setItem('multiideas_user_authed', 'true');
           localStorage.setItem('multiideas_user_uid', result.user.uid);
-          updateAuthGateUI(result.user);
+          if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
+          if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
+          if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+          window.dispatchEvent(new Event('multiideas_auth_changed'));
+          syncAuthGateVisibility(result.user);
           registerWidgetUserInFirebase(result.user).catch(e => console.warn(e));
         }
       }).catch(redirectErr => {
@@ -2989,44 +3067,61 @@
         try {
           localStorage.setItem('multiideas_user_authed', 'true');
           localStorage.setItem('multiideas_user_uid', validUser.uid);
+          if (validUser.email) localStorage.setItem('multiideas_user_email', validUser.email);
+          if (validUser.displayName) localStorage.setItem('multiideas_user_name', validUser.displayName);
+          if (validUser.photoURL) localStorage.setItem('multiideas_user_photo', validUser.photoURL);
         } catch(e) {}
-        updateAuthGateUI(validUser);
+        syncAuthGateVisibility(validUser);
         updateSyncBannerUI(validUser);
         await registerWidgetUserInFirebase(validUser);
         await loadUserDataFromFirebase(validUser.uid);
       } else {
-        try {
-          localStorage.removeItem('multiideas_user_authed');
-          localStorage.removeItem('multiideas_user_uid');
-        } catch(e) {}
-        updateAuthGateUI(null);
-        updateSyncBannerUI(null);
-        userWidgetsConfig = {};
-        resetFavoriteButtonsUI();
+        // ¿El usuario ya tiene una sesión activa en el sitio general?
+        const hasGeneralSession = localStorage.getItem('multiideas_user_authed') === 'true';
+        if (hasGeneralSession && !window.__isExplicitLoggingOut) {
+          console.log("[Auth Gate] Sesión general detectada. Manteniendo acceso a Widgets OBS.");
+          syncAuthGateVisibility(null);
+          updateSyncBannerUI(null);
+          const savedUid = localStorage.getItem('multiideas_user_uid');
+          if (savedUid) {
+            await loadUserDataFromFirebase(savedUid);
+          }
+        } else {
+          try {
+            localStorage.removeItem('multiideas_user_authed');
+            localStorage.removeItem('multiideas_user_uid');
+            localStorage.removeItem('multiideas_user_email');
+            localStorage.removeItem('multiideas_user_name');
+            localStorage.removeItem('multiideas_user_photo');
+          } catch(e) {}
+          syncAuthGateVisibility(null);
+          updateSyncBannerUI(null);
+          userWidgetsConfig = {};
+          resetFavoriteButtonsUI();
+        }
       }
     });
 
     // Control de la pantalla de bloqueo (Auth Gate)
     function updateAuthGateUI(user) {
-      const gate = document.getElementById('widgets-auth-gate');
-      const isAuthed = isVerifiedUser(user);
-
-      if (isAuthed) {
-        if (gate) {
-          gate.classList.add('unlocked');
-          gate.classList.add('hidden-gate');
-          gate.style.display = 'none';
-        }
-        document.documentElement.classList.add('user-pre-authed');
-      } else {
-        if (gate) {
-          gate.classList.remove('unlocked');
-          gate.classList.remove('hidden-gate');
-          gate.style.display = 'flex';
-        }
-        document.documentElement.classList.remove('user-pre-authed');
-      }
+      syncAuthGateVisibility(user);
     }
+
+    // Sincronización en tiempo real si el usuario inicia o cierra sesión en otra pestaña o en el header
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'multiideas_user_authed') {
+        syncAuthGateVisibility(null);
+        if (e.newValue === 'true') {
+          const uid = localStorage.getItem('multiideas_user_uid');
+          if (uid) loadUserDataFromFirebase(uid);
+        }
+      }
+    });
+    window.addEventListener('multiideas_auth_changed', () => {
+      syncAuthGateVisibility(null);
+      const uid = localStorage.getItem('multiideas_user_uid');
+      if (uid) loadUserDataFromFirebase(uid);
+    });
 
     // Registro obligatorio de los usuarios de widgets en Firebase RTDB
     async function registerWidgetUserInFirebase(user) {
@@ -3111,10 +3206,19 @@
 
         if (isVerifiedUser(user)) {
           if (text) text.textContent = '¡Bienvenido! Accediendo...';
-          localStorage.setItem('multiideas_user_authed', 'true');
-          localStorage.setItem('multiideas_user_uid', user.uid);
+          currentUser = user;
+          try {
+            localStorage.setItem('multiideas_user_authed', 'true');
+            localStorage.setItem('multiideas_user_uid', user.uid);
+            if (user.email) localStorage.setItem('multiideas_user_email', user.email);
+            if (user.displayName) localStorage.setItem('multiideas_user_name', user.displayName);
+            if (user.photoURL) localStorage.setItem('multiideas_user_photo', user.photoURL);
+          } catch(e) {}
+          window.dispatchEvent(new Event('multiideas_auth_changed'));
           updateAuthGateUI(user);
-          registerWidgetUserInFirebase(user).catch(e => console.warn("[Async Register]:", e));
+          updateSyncBannerUI(user);
+          await registerWidgetUserInFirebase(user).catch(e => console.warn("[Async Register]:", e));
+          await loadUserDataFromFirebase(user.uid);
         } else {
           updateAuthGateUI(null);
           if (btn) btn.disabled = false;
@@ -3172,10 +3276,19 @@
 
       if (!banner) return;
 
-      if (user) {
+      const savedAuthed = localStorage.getItem('multiideas_user_authed') === 'true';
+      const savedEmail = localStorage.getItem('multiideas_user_email') || '';
+      const savedName = localStorage.getItem('multiideas_user_name') || (savedEmail ? savedEmail.split('@')[0] : 'Usuario');
+
+      const effectiveUser = user || (savedAuthed && !window.__isExplicitLoggingOut ? {
+        displayName: savedName,
+        email: savedEmail
+      } : null);
+
+      if (effectiveUser) {
         banner.classList.add('logged-in');
         if (icon) icon.textContent = '☁️';
-        if (title) title.innerHTML = `Personalización Activa: <span class="sync-user-highlight">${user.displayName || user.email.split('@')[0]}</span>`;
+        if (title) title.innerHTML = `Personalización Activa: <span class="sync-user-highlight">${effectiveUser.displayName}</span>`;
         if (desc) desc.innerHTML = `Tus cambios de colores, usuarios y enlaces se guardan automáticamente en tu perfil. Accede a tu resumen en <strong>Mis Widgets OBS</strong>.`;
         if (actions) {
           actions.innerHTML = `
@@ -3902,10 +4015,11 @@
       generatedUrls['url-alerts'] = getAbsoluteUrl(obsPath);
         window.syncModalIframeLive('alerts', generatedUrls['url-alerts']);
 
-      // URL para el iframe de vista previa en la web
+      // URL para el iframe de vista previa en la web (siempre silenciada para no ser molesta)
       const previewParams = new URLSearchParams(obsParams);
       previewParams.set('preview', 'true');
       previewParams.set('loop', 'true');
+      previewParams.set('mute', 'true');
 
       const previewPath = `${model}?${previewParams.toString()}`;
       const previewIframe = document.getElementById('preview-alerts');
@@ -3956,7 +4070,8 @@
           type: 'TRIGGER_TEST_ALERT',
           alertType: alertType || 'follow',
           soundUrl: customSoundUrl,
-          volume: volumeVal
+          volume: volumeVal,
+          forceSound: true
         }, '*');
       }
 
@@ -3994,7 +4109,8 @@
       if (iframe && iframe.contentWindow) {
         iframe.contentWindow.postMessage({
           type: 'TRIGGER_TEST_ALERT',
-          alertType: alertType || 'follow'
+          alertType: alertType || 'follow',
+          forceSound: true
         }, '*');
       }
 
@@ -4080,7 +4196,8 @@
         iframe.contentWindow.postMessage({
           type: 'TRIGGER_TEST_ALERT',
           alertType: alertType || 'follow',
-          volume: volumeVal
+          volume: volumeVal,
+          forceSound: true
         }, '*');
       }
 
@@ -4292,7 +4409,8 @@
         iframe.contentWindow.postMessage({
           type: 'TRIGGER_TEST_ALERT',
           alertType: alertType || 'follow',
-          volume: volumeVal
+          volume: volumeVal,
+          forceSound: true
         }, '*');
       }
 
@@ -4563,7 +4681,7 @@
     // -----------------------------------------------------------------------
     // CONTROLADOR DE MODAL Y GALERÍA (CON BLOQUEO DE SCROLL Y FILTRO STREAMER.BOT)
     // -----------------------------------------------------------------------
-    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Widget Clima & Reloj en Vivo", "desc": "Un reloj digital limpio con pronóstico del clima y temperatura en tiempo real. Perfecto para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador Kick Live (Espectadores)", "desc": "Muestra en tiempo real tu avatar oficial, canal y número de espectadores en vivo conectados a Kick en directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Muestra tus redes sociales (Kick, Twitch, X, TikTok, Instagram, YouTube, Discord) con transición continua personalizada.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Atrás de Stream", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos con energía.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Futurista", "desc": "Reloj de estética neón con fecha completa, formato 12/24 horas y segundero dinámico para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat de Kick en Vivo", "desc": "Overlay de chat para directos de Kick conectado a Streamer.bot con badges VIP, moderador y estilo translúcido para OBS.", "type": "free", "category": "kick", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun&port=4445", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas (Streamer.bot)", "desc": "Alertas dinámicas interactivas con marco animado y banners patrocinados para eventos de Kick con Streamer.bot.", "type": "premium", "category": "alertas", "streamerbot": true, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D (Jikokun Edition)", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir Follows, Subs, Raids y Kicks.", "type": "premium", "category": "alertas", "streamerbot": true, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica Kick Relámpago", "desc": "Alerta de alta intensidad con efectos de relámpago neón, sintetizador de audio y animaciones de impacto para directos.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón (Webcam)", "desc": "Borde neón reactivo para tu cámara con selector de relación de aspecto (16:9 y 1:1) y resplandor ciberpunk personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar Kick (Streamer.bot)", "desc": "Alertas estelares animadas con efectos cósmicos para Follow, Sub, Regalo, Raid y Kicks conectadas a Streamer.bot con 0 ms de latencia.", "type": "free", "category": "alertas", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&port=4445&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante Kick (Streamer.bot)", "desc": "Burbujas futuristas en tiempo real con insignias oficiales, color de usuario, stickers animados y alertas integradas con Streamer.bot.", "type": "free", "category": "kick", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&port=4445&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}};
+    window.WIDGETS_METADATA = {"weather": {"id": "weather", "number": "1", "title": "Widget Clima & Reloj en Vivo", "desc": "Un reloj digital limpio con pronóstico del clima y temperatura en tiempo real. Perfecto para escenas de descanso y Just Chatting.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_clima_reloj.html", "urlKey": "url-weather", "scalerW": 440, "scalerH": 260, "scalerScale": 0.58}, "kick": {"id": "kick", "number": "2", "title": "Contador Kick Live (Espectadores)", "desc": "Muestra en tiempo real tu avatar oficial, canal y número de espectadores en vivo conectados a Kick en directo.", "type": "free", "category": "kick", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_kick_counter.html?channel=jikokun", "urlKey": "url-kick", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "social": {"id": "social", "number": "3", "title": "Rotador de Redes Sociales", "desc": "Muestra tus redes sociales (Kick, Twitch, X, TikTok, Instagram, YouTube, Discord) con transición continua personalizada.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_redes_sociales.html?kick=jikokun&x=jikokun_x&instagram=jikokun_official&tiktok=jikokun_tv", "urlKey": "url-social", "scalerW": 460, "scalerH": 240, "scalerScale": 0.56}, "countdown": {"id": "countdown", "number": "4", "title": "Cuenta Atrás de Stream", "desc": "Temporizador regresivo con título personalizable y aviso al llegar a cero para iniciar tus directos con energía.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_contador_cuenta_atras.html?min=5&title=Estamos+Por+Empezar", "urlKey": "url-countdown", "scalerW": 440, "scalerH": 240, "scalerScale": 0.58}, "digital": {"id": "digital", "number": "5", "title": "Reloj Digital Futurista", "desc": "Reloj de estética neón con fecha completa, formato 12/24 horas y segundero dinámico para tus pantallas de streaming.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_reloj_digital.html", "urlKey": "url-digital", "scalerW": 480, "scalerH": 260, "scalerScale": 0.54}, "chat": {"id": "chat", "number": "6", "title": "Chat de Kick en Vivo", "desc": "Overlay de chat para directos de Kick conectado a Streamer.bot con badges VIP, moderador y estilo translúcido para OBS.", "type": "free", "category": "kick", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_live.html?channel=jikokun&port=4445", "urlKey": "url-chat", "scalerW": 440, "scalerH": 280, "scalerScale": 0.55}, "alerts": {"id": "alerts", "number": "7", "title": "Alertas Patrocinadas (Streamer.bot)", "desc": "Alertas dinámicas interactivas con marco animado y banners patrocinados para eventos de Kick con Streamer.bot.", "type": "premium", "category": "alertas", "streamerbot": true, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_rufus.html?preview=true&loop=true&mute=true", "urlKey": "url-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "jikokun-deck": {"id": "jikokun-deck", "number": "8", "title": "Baraja de Alertas 3D (Jikokun Edition)", "desc": "Efecto cinemático de cartas 3D holográficas que vuelan en directo al recibir Follows, Subs, Raids y Kicks.", "type": "premium", "category": "alertas", "streamerbot": true, "badgeText": "Premium", "badgeIcon": "fa-star", "badgeClass": "bg-purple-500/20 text-purple-300 font-bold border border-purple-500/40", "badgeClassLight": "bg-purple-100 text-purple-700 font-bold border border-purple-200", "defaultUrl": "alertas_jikokun.html?preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-jikokun-deck", "scalerW": 480, "scalerH": 300, "scalerScale": 0.52}, "electric": {"id": "electric", "number": "9", "title": "Alerta Eléctrica Kick Relámpago", "desc": "Alerta de alta intensidad con efectos de relámpago neón, sintetizador de audio y animaciones de impacto para directos.", "type": "free", "category": "alertas", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_electrica.html?channel=jikokun&preview=true&loop=true&mute=true&hidecontrols=true", "urlKey": "url-electric", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "camframe": {"id": "camframe", "number": "10", "title": "Marco de Cámara Neón (Webcam)", "desc": "Borde neón reactivo para tu cámara con selector de relación de aspecto (16:9 y 1:1) y resplandor ciberpunk personalizable.", "type": "free", "category": "utilidades", "streamerbot": false, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "marcocamara1.html?preview=true&obs=true", "urlKey": "url-camframe", "scalerW": 600, "scalerH": 340, "scalerScale": 0.44}, "star-alerts": {"id": "star-alerts", "number": "11", "title": "Alerta Estelar Kick (Streamer.bot)", "desc": "Alertas estelares animadas con efectos cósmicos para Follow, Sub, Regalo, Raid y Kicks conectadas a Streamer.bot con 0 ms de latencia.", "type": "free", "category": "alertas", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "alertas_kick_estrellas.html?channel=jikokun&port=4445&preview=true&loop=true&mute=true", "urlKey": "url-star-alerts", "scalerW": 480, "scalerH": 280, "scalerScale": 0.54}, "chat-kick": {"id": "chat-kick", "number": "12", "title": "Chat Flotante Kick (Streamer.bot)", "desc": "Burbujas futuristas en tiempo real con insignias oficiales, color de usuario, stickers animados y alertas integradas con Streamer.bot.", "type": "free", "category": "kick", "streamerbot": true, "badgeText": "Gratis", "badgeIcon": "fa-check", "badgeClass": "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30", "badgeClassLight": "bg-emerald-100 text-emerald-700 border border-emerald-200", "defaultUrl": "widget_chat_kick_live.html?channel=jikokun&port=4445&preview=true&obs=true", "urlKey": "url-chat-kick", "scalerW": 440, "scalerH": 320, "scalerScale": 0.51}};
     window.currentActiveModalWidget = null;
 
     window.openWidgetConfigModal = function(widgetId) {
@@ -4592,16 +4710,18 @@
         activePanel.classList.remove('hidden');
       }
 
-      // 3. Cargar el iframe interactivo con la URL calculada en tiempo real
+      // 3. Cargar el iframe interactivo con la URL calculada en tiempo real (silenciado por defecto para no molestar)
       const modalIframe = document.getElementById('modal-live-iframe');
       let currentUrl = generatedUrls[meta.urlKey] || meta.defaultUrl;
-      if (widgetId === 'chat-kick') {
-        try {
-          const u = new URL(currentUrl, window.location.href);
-          u.searchParams.set('preview', 'true');
-          currentUrl = u.toString();
-        } catch(e) {}
-      }
+      try {
+        const u = new URL(currentUrl, window.location.href);
+        u.searchParams.set('preview', 'true');
+        if (['alerts', 'jikokun-deck', 'electric', 'star-alerts'].includes(widgetId)) {
+          u.searchParams.set('mute', 'true');
+          u.searchParams.set('loop', 'true');
+        }
+        currentUrl = u.toString();
+      } catch(e) {}
       if (modalIframe) {
         modalIframe.src = currentUrl;
       }
@@ -4650,6 +4770,10 @@
           document.documentElement.style.overflow = '';
           document.body.style.overflow = '';
           window.currentActiveModalWidget = null;
+          const modalIframe = document.getElementById('modal-live-iframe');
+          if (modalIframe) {
+            modalIframe.src = 'about:blank';
+          }
         }, 300);
       }
     };

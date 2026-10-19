@@ -904,8 +904,8 @@
         host: [392.00, 523.25, 659.25, 783.99]          // Sol Mayor
       };
 
-      function playSynthesizedSound(themeKey) {
-        if (isMuted || masterVolume <= 0) return;
+      function playSynthesizedSound(themeKey, forceSound = false) {
+        if ((isMuted && !forceSound) || masterVolume <= 0) return;
 
         const customUrl = customSounds[themeKey] || (themeKey === 'kicks' ? customSounds.tip : '');
         if (customUrl) {
@@ -1025,7 +1025,7 @@
         }
 
         startLightningEngine();
-        playSynthesizedSound(type);
+        playSynthesizedSound(type, data.forceSound);
 
         alertStage.classList.remove('exiting');
         alertStage.classList.add('active');
@@ -1207,7 +1207,7 @@
       // --------------------------------------------------
       // MÓDULO 6: PANEL DE PRUEBAS & INTERACCIÓN
       // --------------------------------------------------
-      window.testAlert = function (themeType) {
+      window.testAlert = function (themeType, forceSound = false) {
         getAudioContext();
 
         const sampleNames = ['FoxMaster', 'CyberKick', 'NekoGamer', 'ShadowBlade', 'Valkyrie', 'NeonStrike'];
@@ -1243,7 +1243,7 @@
         };
 
         const alertItem = testDataMap[themeType] || testDataMap.seguidor;
-        queueAlert(alertItem);
+        queueAlert({ ...alertItem, forceSound });
       };
 
       window.toggleTestControls = function (e, forceState) {
@@ -1307,7 +1307,7 @@
             masterVolume = event.data.volume;
           }
 
-          window.testAlert(mappedType);
+          window.testAlert(mappedType, true);
         } else if (event.data.type === 'SET_CHANNEL') {
           if (event.data.channel) {
             loadKickAvatar(event.data.channel);
