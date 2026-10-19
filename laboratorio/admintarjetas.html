@@ -78,8 +78,10 @@
       transition: transform 0.6s ease;
     }
 
-    .grid-card-item:hover .grid-card-rotator.flip-on-hover {
-      transform: rotateY(180deg);
+    /* Tarjetas del Grid: Frente siempre visible sin giros accidentales por hover */
+    .grid-card-rotator {
+      transform-style: preserve-3d;
+      transition: transform 0.6s ease;
     }
 
     .grid-card-rotator.is-flipped-manual {
@@ -93,6 +95,56 @@
 
     .grid-card-back {
       transform: rotateY(180deg);
+    }
+
+    /* ═══════════ VISOR 3D INTERACTIVO ZOOM MODAL ═══════════ */
+    .zoom-3d-scene {
+      perspective: 1200px;
+      width: 300px;
+      height: 440px;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
+    }
+    @media (min-width: 640px) {
+      .zoom-3d-scene {
+        width: 350px;
+        height: 510px;
+      }
+    }
+    .zoom-card-rotator {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      transform-style: preserve-3d;
+      transition: transform 0.08s ease-out;
+      transform-origin: center center;
+    }
+    .zoom-card-rotator.smooth-transition {
+      transition: transform 0.65s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    }
+    .zoom-card-face {
+      position: absolute;
+      inset: 0;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.9), 0 0 45px -8px var(--zoom-glow, rgba(0, 243, 255, 0.4));
+      padding: 4px;
+    }
+    .zoom-card-back {
+      transform: rotateY(180deg);
+    }
+    .zoom-holo-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.35) 45%, rgba(0, 243, 255, 0.35) 50%, rgba(255, 0, 85, 0.35) 55%, transparent 80%);
+      mix-blend-mode: color-dodge;
+      opacity: 0.8;
+      transform: translate3d(var(--holo-x, 0px), var(--holo-y, 0px), 1px);
+      transition: opacity 0.3s ease;
     }
 
     /* Bordes y resplandores de rareza */
@@ -725,6 +777,87 @@
     </div>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <!-- MODAL VISOR 3D INTERACTIVO CON MANIPULACIÓN POR MOUSE        -->
+  <!-- ══════════════════════════════════════════════════════════════ -->
+  <div id="card-zoom-modal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="cyber-panel w-full max-w-xl rounded-2xl overflow-hidden border border-cyan-500/50 shadow-2xl relative flex flex-col items-center p-6 space-y-4 my-auto">
+      
+      <!-- Encabezado con datos de la carta y botón cerrar -->
+      <div class="w-full flex items-center justify-between pb-3 border-b border-cyan-500/30">
+        <div class="flex items-center gap-2 flex-wrap">
+          <span id="zoom-badge-num" class="px-2 py-0.5 text-xs font-orbitron font-extrabold text-cyan-300 bg-cyan-950/80 rounded border border-cyan-500/50">
+            #00
+          </span>
+          <h3 id="zoom-card-title" class="text-base sm:text-lg font-orbitron font-black text-white tracking-wide">
+            LOBITO TCG
+          </h3>
+          <span id="zoom-badge-rarity" class="px-2 py-0.5 text-[10px] font-orbitron font-extrabold rounded backdrop-blur-md border border-cyan-500 text-cyan-300 bg-black/60">
+            ★ COMÚN
+          </span>
+        </div>
+        <button id="btn-close-zoom-modal" class="text-slate-400 hover:text-white text-xl px-2.5 py-1 rounded-lg hover:bg-slate-800 transition active:scale-90" title="Cerrar visor (Esc)">
+          ✕
+        </button>
+      </div>
+
+      <!-- Escena 3D Ampliada Interactiva con el Mouse -->
+      <div class="relative flex items-center justify-center w-full py-2">
+        <div class="zoom-3d-scene cursor-grab active:cursor-grabbing" id="zoom-scene-container" title="Arrastra con el mouse para girar la tarjeta en 3D">
+          <div id="zoom-card-rotator" class="zoom-card-rotator">
+            
+            <!-- Cara Frontal (Frente) -->
+            <div id="zoom-front-face" class="zoom-card-face bg-gradient-to-tr from-cyan-500 via-white/40 to-blue-500">
+              <div class="w-full h-full bg-slate-950 rounded-[12px] relative overflow-hidden flex flex-col justify-end p-1 border border-white/10">
+                <div class="zoom-holo-overlay" id="zoom-holo-front"></div>
+                <div class="absolute inset-1 rounded-lg overflow-hidden bg-slate-900 border border-white/10">
+                  <img id="zoom-img-front" src="" alt="Frente" class="w-full h-full object-cover object-center pointer-events-none">
+                </div>
+              </div>
+            </div>
+
+            <!-- Cara Trasera (Reverso Oficial) -->
+            <div id="zoom-back-face" class="zoom-card-face zoom-card-back bg-gradient-to-tr from-fuchsia-600 via-indigo-500 to-cyan-500">
+              <div class="w-full h-full bg-[#0a0d16] rounded-[12px] relative overflow-hidden flex flex-col justify-end p-1 border border-white/10">
+                <div class="zoom-holo-overlay" id="zoom-holo-back"></div>
+                <div class="absolute inset-1 rounded-lg overflow-hidden bg-slate-950 border border-white/10">
+                  <img id="zoom-img-back" src="" alt="Reverso" class="w-full h-full object-cover object-center pointer-events-none">
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Barra de Controles 3D Interactivas -->
+      <div class="w-full flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-xs">
+        <div class="flex items-center gap-1.5">
+          <button type="button" id="btn-zoom-flip" class="px-3 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-500/50 rounded-lg font-bold font-orbitron transition active:scale-95 flex items-center gap-1">
+            <span>🔄</span> Voltear Reverso / Frente
+          </button>
+          <button type="button" id="btn-zoom-auto-rotate" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 rounded-lg font-semibold transition active:scale-95 flex items-center gap-1">
+            <span>🌀</span> Auto-Giro 3D
+          </button>
+          <button type="button" id="btn-zoom-reset-rot" class="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-400 border border-slate-800 rounded-lg text-[11px] transition active:scale-95" title="Centrar al frente">
+            ↺ Centrar
+          </button>
+        </div>
+
+        <div class="flex items-center gap-3 text-slate-400 font-mono text-[11px]">
+          <span id="zoom-card-sub" class="truncate max-w-[140px]">MASCOTA</span>
+          <span id="zoom-card-power" class="text-pink-400 font-bold font-orbitron">⚡ 4,000</span>
+        </div>
+      </div>
+
+      <!-- Instrucción sutil para el usuario -->
+      <p class="text-[11px] text-slate-400 text-center tracking-wide">
+        🖱️ <span class="text-cyan-400 font-semibold">Arrastra con el mouse</span> para manipular y girar la tarjeta en 3D libremente en cualquier ángulo.
+      </p>
+
+    </div>
+  </div>
+
   <!-- Respaldo de datos por defecto (Cero CORS, compatible con file://) -->
   <script src="../data/tarjetas_default_data.js"></script>
 
@@ -1239,13 +1372,13 @@
         cardEl.className = `cyber-panel rounded-xl overflow-hidden p-3 border ${theme.border}/40 hover:${theme.border} transition flex flex-col justify-between group grid-card-item`;
 
         cardEl.innerHTML = `
-          <!-- Miniatura con Flip al Hover -->
-          <div class="relative w-full aspect-[260/380] rounded-lg overflow-hidden bg-slate-950 mb-3 border border-white/10 [perspective:800px] cursor-pointer" onclick="toggleCardFlip(this)">
-            <div class="w-full h-full grid-card-rotator flip-on-hover relative">
+          <!-- Miniatura con Clic para Ampliar y Rotar en 3D (Sin auto-flip al pasar el mouse) -->
+          <div class="relative w-full aspect-[260/380] rounded-lg overflow-hidden bg-slate-950 mb-3 border border-white/10 cursor-pointer group/cardimg" onclick="openCard3DZoom(${realIndex})" title="Clic sobre la carta para ampliar y rotar en 3D con el mouse">
+            <div class="w-full h-full relative">
               
-              <!-- Frente Limpio -->
-              <div class="absolute inset-0 grid-card-face bg-slate-950 p-1">
-                <img src="${card.frontImage}" alt="${card.title}" class="w-full h-full object-cover rounded" loading="lazy" onerror="this.src='https://placehold.co/260x380/0f172a/00f3ff?text=JIKOKUN+${numDisplay}'">
+              <!-- Frente Limpio Visible Siempre -->
+              <div class="absolute inset-0 bg-slate-950 p-1">
+                <img src="${card.frontImage}" alt="${card.title}" class="w-full h-full object-cover rounded transition-transform duration-300 group-hover/cardimg:scale-105" loading="lazy" onerror="this.src='https://placehold.co/260x380/0f172a/00f3ff?text=JIKOKUN+${numDisplay}'">
                 
                 <div class="absolute top-2 left-2 right-2 flex justify-between items-center pointer-events-none">
                   <span class="px-1.5 py-0.5 text-[9px] font-orbitron font-extrabold rounded backdrop-blur-md border ${theme.border} ${theme.text} bg-black/70">
@@ -1255,14 +1388,11 @@
                     #${numDisplay}
                   </span>
                 </div>
-              </div>
 
-              <!-- Reverso Limpio -->
-              <div class="absolute inset-0 grid-card-face grid-card-back bg-slate-950 p-1">
-                <img src="${card.backImage || OFFICIAL_BACKS[rarityKey]}" alt="Reverso" class="w-full h-full object-cover rounded" loading="lazy">
-                <div class="absolute bottom-2 text-center w-full pointer-events-none">
-                  <span class="text-[8px] font-orbitron font-bold text-white/80 bg-black/70 px-2 py-0.5 rounded border border-white/10">
-                    REVERSO ${rarityKey}
+                <!-- Indicador visual sutil al pasar el mouse -->
+                <div class="absolute inset-0 bg-cyan-950/25 opacity-0 group-hover/cardimg:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                  <span class="px-2.5 py-1 bg-black/85 text-cyan-300 rounded-lg text-xs font-orbitron font-bold border border-cyan-500/50 backdrop-blur-sm shadow-xl flex items-center gap-1.5">
+                    <span>🔍</span> Ver 3D
                   </span>
                 </div>
               </div>
@@ -1286,7 +1416,7 @@
             <button onclick="openEditModal(${realIndex})" class="col-span-2 px-2 py-1.5 bg-cyan-950/40 hover:bg-cyan-900/60 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center gap-1">
               <span>✏️</span> Editar
             </button>
-            <button onclick="previewInTarjetero('${card.id}')" class="px-2 py-1.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center" title="Exhibir en Tarjetero 3D">
+            <button onclick="openCard3DZoom(${realIndex})" class="px-2 py-1.5 bg-purple-950/40 hover:bg-purple-900/60 text-purple-300 border border-purple-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center gap-1" title="Ampliar y manipular en 3D">
               👁️
             </button>
             <button onclick="deleteCard(${realIndex})" class="px-2 py-1.5 bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold transition active:scale-95 flex items-center justify-center" title="Eliminar tarjeta">
@@ -1304,13 +1434,210 @@
       renderGrid();
     }
 
-    function toggleCardFlip(container) {
-      const rotator = container.querySelector('.grid-card-rotator');
-      if (rotator) rotator.classList.toggle('is-flipped-manual');
+    // ═══════════ CONTROLADOR DEL VISOR 3D ZOOM INTERACTIVO CON EL MOUSE ═══════════
+    const zoomModal = document.getElementById('card-zoom-modal');
+    const zoomRotator = document.getElementById('zoom-card-rotator');
+    const zoomScene = document.getElementById('zoom-scene-container');
+    const btnCloseZoom = document.getElementById('btn-close-zoom-modal');
+    const btnFlipZoom = document.getElementById('btn-zoom-flip');
+    const btnAutoRotateZoom = document.getElementById('btn-zoom-auto-rotate');
+    const btnResetRotZoom = document.getElementById('btn-zoom-reset-rot');
+
+    let isZoomDragging = false;
+    let zoomStartX = 0;
+    let zoomStartY = 0;
+    let zoomRotX = 0;
+    let zoomRotY = 0;
+    let isAutoRotating = false;
+    let autoRotateReqId = null;
+
+    function updateZoomCardTransform(smooth = false) {
+      if (!zoomRotator) return;
+      if (smooth) {
+        zoomRotator.classList.add('smooth-transition');
+      } else {
+        zoomRotator.classList.remove('smooth-transition');
+      }
+      zoomRotator.style.transform = `rotateX(${zoomRotX}deg) rotateY(${zoomRotY}deg)`;
+
+      // Ajustar reflejo holográfico según la orientación
+      const holoX = (zoomRotY % 360) * 0.8;
+      const holoY = zoomRotX * 0.8;
+      document.documentElement.style.setProperty('--holo-x', `${holoX}px`);
+      document.documentElement.style.setProperty('--holo-y', `${holoY}px`);
+    }
+
+    window.openCard3DZoom = function(index) {
+      if (index < 0 || index >= currentCards.length) return;
+      const card = currentCards[index];
+      const rarityKey = (card.rarity || 'COMÚN').toUpperCase();
+      const theme = RARITY_THEMES[rarityKey] || RARITY_THEMES["COMÚN"];
+      const numDisplay = card.num !== undefined ? String(card.num) : (card.id < 10 ? '0' + card.id : String(card.id));
+
+      document.getElementById('zoom-badge-num').textContent = `#${numDisplay}`;
+      document.getElementById('zoom-card-title').textContent = card.title || 'Carta TCG';
+      const rarityBadge = document.getElementById('zoom-badge-rarity');
+      rarityBadge.textContent = `★ ${rarityKey}`;
+      rarityBadge.className = `px-2 py-0.5 text-[10px] font-orbitron font-extrabold rounded backdrop-blur-md border ${theme.border} ${theme.text} bg-black/60`;
+
+      document.getElementById('zoom-card-sub').textContent = card.subtitle || 'JIKOKUN TCG';
+      document.getElementById('zoom-card-power').textContent = `⚡ ${card.power || '4,000'}`;
+
+      const frontImg = document.getElementById('zoom-img-front');
+      const backImg = document.getElementById('zoom-img-back');
+      frontImg.src = card.frontImage || '';
+      backImg.src = card.backImage || OFFICIAL_BACKS[rarityKey] || OFFICIAL_BACKS['COMÚN'];
+
+      const frontFace = document.getElementById('zoom-front-face');
+      const backFace = document.getElementById('zoom-back-face');
+      const rarityBorderTheme = theme.border.replace('border-', '') || 'cyan-500';
+
+      frontFace.className = `zoom-card-face bg-gradient-to-tr from-${rarityBorderTheme} via-white/30 to-blue-500`;
+      backFace.className = `zoom-card-face zoom-card-back bg-gradient-to-tr from-fuchsia-600 via-indigo-500 to-${rarityBorderTheme}`;
+
+      // Resetear posición de rotación hacia el frente
+      zoomRotX = 0;
+      zoomRotY = 0;
+      isAutoRotating = false;
+      cancelAnimationFrame(autoRotateReqId);
+      if (btnAutoRotateZoom) {
+        btnAutoRotateZoom.classList.remove('text-cyan-400', 'border-cyan-500');
+      }
+      updateZoomCardTransform(true);
+
+      if (zoomModal) zoomModal.classList.remove('hidden');
+    };
+
+    function closeCard3DZoom() {
+      if (zoomModal) zoomModal.classList.add('hidden');
+      isAutoRotating = false;
+      cancelAnimationFrame(autoRotateReqId);
+      if (btnAutoRotateZoom) {
+        btnAutoRotateZoom.classList.remove('text-cyan-400', 'border-cyan-500');
+      }
+    }
+
+    if (btnCloseZoom) btnCloseZoom.addEventListener('click', closeCard3DZoom);
+    if (zoomModal) {
+      zoomModal.addEventListener('click', (e) => {
+        if (e.target === zoomModal) closeCard3DZoom();
+      });
+    }
+
+    // Tecla Escape para cerrar visor
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && zoomModal && !zoomModal.classList.contains('hidden')) {
+        closeCard3DZoom();
+      }
+    });
+
+    // Manipulación 3D interactiva arrastrando con el Mouse o Pantalla Táctil
+    if (zoomScene) {
+      zoomScene.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isZoomDragging = true;
+        isAutoRotating = false;
+        zoomStartX = e.clientX;
+        zoomStartY = e.clientY;
+        if (zoomRotator) zoomRotator.classList.remove('smooth-transition');
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (!isZoomDragging) return;
+        const deltaX = e.clientX - zoomStartX;
+        const deltaY = e.clientY - zoomStartY;
+
+        zoomRotY += deltaX * 0.65;
+        zoomRotX = Math.max(-45, Math.min(45, zoomRotX - deltaY * 0.45));
+
+        zoomStartX = e.clientX;
+        zoomStartY = e.clientY;
+        updateZoomCardTransform(false);
+      });
+
+      window.addEventListener('mouseup', () => {
+        isZoomDragging = false;
+      });
+
+      // Eventos Touch para móviles
+      zoomScene.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          isZoomDragging = true;
+          isAutoRotating = false;
+          zoomStartX = e.touches[0].clientX;
+          zoomStartY = e.touches[0].clientY;
+          if (zoomRotator) zoomRotator.classList.remove('smooth-transition');
+        }
+      }, { passive: true });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isZoomDragging || e.touches.length !== 1) return;
+        const deltaX = e.touches[0].clientX - zoomStartX;
+        const deltaY = e.touches[0].clientY - zoomStartY;
+
+        zoomRotY += deltaX * 0.65;
+        zoomRotX = Math.max(-45, Math.min(45, zoomRotX - deltaY * 0.45));
+
+        zoomStartX = e.touches[0].clientX;
+        zoomStartY = e.touches[0].clientY;
+        updateZoomCardTransform(false);
+      }, { passive: true });
+
+      window.addEventListener('touchend', () => {
+        isZoomDragging = false;
+      });
+    }
+
+    // Botón Voltear Reverso / Frente
+    if (btnFlipZoom) {
+      btnFlipZoom.addEventListener('click', () => {
+        isAutoRotating = false;
+        const normalized = Math.round((zoomRotY % 360 + 360) % 360);
+        if (normalized >= 90 && normalized <= 270) {
+          zoomRotY = 0;
+        } else {
+          zoomRotY = 180;
+        }
+        zoomRotX = 0;
+        updateZoomCardTransform(true);
+      });
+    }
+
+    // Botón Centrar
+    if (btnResetRotZoom) {
+      btnResetRotZoom.addEventListener('click', () => {
+        isAutoRotating = false;
+        zoomRotX = 0;
+        zoomRotY = 0;
+        updateZoomCardTransform(true);
+      });
+    }
+
+    // Botón Auto-Giro
+    if (btnAutoRotateZoom) {
+      btnAutoRotateZoom.addEventListener('click', () => {
+        isAutoRotating = !isAutoRotating;
+        btnAutoRotateZoom.classList.toggle('text-cyan-400', isAutoRotating);
+        btnAutoRotateZoom.classList.toggle('border-cyan-500', isAutoRotating);
+        if (isAutoRotating) {
+          if (zoomRotator) zoomRotator.classList.remove('smooth-transition');
+          const stepAuto = () => {
+            if (!isAutoRotating || isZoomDragging) return;
+            zoomRotY = (zoomRotY + 0.8) % 360;
+            updateZoomCardTransform(false);
+            autoRotateReqId = requestAnimationFrame(stepAuto);
+          };
+          autoRotateReqId = requestAnimationFrame(stepAuto);
+        } else {
+          cancelAnimationFrame(autoRotateReqId);
+        }
+      });
     }
 
     function previewInTarjetero(cardId) {
-      window.open(`tarjetero.html?card=${cardId}`, '_blank');
+      const idx = currentCards.findIndex(c => String(c.id) === String(cardId) || String(c.num) === String(cardId));
+      if (idx !== -1) openCard3DZoom(idx);
+      else if (currentCards.length > 0) openCard3DZoom(0);
     }
 
     /**
