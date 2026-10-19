@@ -293,17 +293,27 @@
           </select>
         </div>
 
-        <!-- 4. Tiempo de Pantalla en modo comando -->
+        <!-- 4. Tiempo de Pantalla en modo comando (Presets + Tiempo Exacto Manual) -->
         <div class="flex flex-col gap-1">
-          <label class="text-[11px] font-bold text-slate-300 font-orbitron">⏱️ TIEMPO EN PANTALLA</label>
-          <select id="select-ondemand-duration" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
-            <option value="30">30 Segundos</option>
-            <option value="45">45 Segundos</option>
-            <option value="60" selected>60 Segundos (1 min)</option>
-            <option value="90">90 Segundos (1.5 min)</option>
-            <option value="120">120 Segundos (2 min)</option>
-            <option value="180">180 Segundos (3 min)</option>
-          </select>
+          <div class="flex items-center justify-between">
+            <label class="text-[11px] font-bold text-slate-300 font-orbitron">⏱️ TIEMPO EN PANTALLA</label>
+            <span id="label-ondemand-duration" class="text-xs font-mono text-cyan-400 font-bold">60s</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <select id="select-ondemand-duration" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold flex-1">
+              <option value="15">15s</option>
+              <option value="30">30s</option>
+              <option value="45">45s</option>
+              <option value="60" selected>60s (1m)</option>
+              <option value="90">90s (1.5m)</option>
+              <option value="120">120s (2m)</option>
+              <option value="180">180s (3m)</option>
+              <option value="custom">✏️ Manual</option>
+            </select>
+            <input type="number" id="input-ondemand-duration" value="60" min="5" max="900" step="1"
+                   class="w-16 bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2 py-1.5 focus:outline-none focus:border-cyan-300 font-mono font-bold text-center"
+                   title="Segundos exactos que permanece el widget en pantalla sin interacción">
+          </div>
         </div>
 
         <!-- 5. Ocultar tras ver una carta ampliada -->
@@ -403,13 +413,15 @@
           <button id="btn-trigger-test-next" class="px-2.5 py-1 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/40 rounded text-xs font-semibold active:scale-95 transition" title="Simular comando !siguiente">
             ⏭️ !siguiente
           </button>
-          <div class="flex items-center gap-1 bg-slate-900 border border-amber-500/40 rounded px-2 py-0.5" title="Simular comando !carta (1 a 5)">
+          <div class="flex items-center gap-1 bg-slate-900 border border-amber-500/40 rounded px-2 py-0.5" title="Simular comando !carta (1 a 5 o número exacto)">
             <span class="text-[11px] text-amber-400 font-bold font-orbitron">🔍 !carta:</span>
             <button type="button" class="btn-test-carta px-1.5 py-0.5 bg-amber-950/80 hover:bg-amber-800 text-amber-300 rounded text-xs font-bold font-orbitron active:scale-95 transition" data-slot="1" title="!carta 1">1</button>
             <button type="button" class="btn-test-carta px-1.5 py-0.5 bg-amber-950/80 hover:bg-amber-800 text-amber-300 rounded text-xs font-bold font-orbitron active:scale-95 transition" data-slot="2" title="!carta 2">2</button>
             <button type="button" class="btn-test-carta px-1.5 py-0.5 bg-amber-950/80 hover:bg-amber-800 text-amber-300 rounded text-xs font-bold font-orbitron active:scale-95 transition" data-slot="3" title="!carta 3">3</button>
             <button type="button" class="btn-test-carta px-1.5 py-0.5 bg-amber-950/80 hover:bg-amber-800 text-amber-300 rounded text-xs font-bold font-orbitron active:scale-95 transition" data-slot="4" title="!carta 4">4</button>
             <button type="button" class="btn-test-carta px-1.5 py-0.5 bg-amber-950/80 hover:bg-amber-800 text-amber-300 rounded text-xs font-bold font-orbitron active:scale-95 transition" data-slot="5" title="!carta 5">5</button>
+            <input type="text" id="inp-test-carta-custom" placeholder="#..." class="w-12 bg-slate-950 border border-amber-500/40 text-[11px] text-amber-200 rounded px-1.5 py-0.5 text-center font-mono font-bold focus:outline-none focus:border-amber-400" title="Probar con número exacto de carta (ej. 18, 00, 01, 27)">
+            <button type="button" id="btn-test-carta-custom-go" class="px-2 py-0.5 bg-amber-600 hover:bg-amber-500 text-slate-950 rounded text-[11px] font-bold font-orbitron active:scale-95 transition" title="Enviar !carta con el número escrito">Ir</button>
           </div>
           <button id="btn-trigger-test-exit" class="px-2.5 py-1 bg-purple-950/60 hover:bg-purple-900/60 text-purple-300 border border-purple-500/40 rounded text-xs font-semibold active:scale-95 transition" title="Simular comando !salidaepica">
             💥 !salidaepica
@@ -991,8 +1003,20 @@
       const visEl = document.getElementById('select-visibility-mode');
       if (visEl) visEl.value = widgetConfig.visibilityMode || 'continuous';
 
+      const durVal = parseInt(widgetConfig.ondemandDuration, 10) || 60;
+      const durInput = document.getElementById('input-ondemand-duration');
+      if (durInput) durInput.value = durVal;
+      const durLabel = document.getElementById('label-ondemand-duration');
+      if (durLabel) durLabel.textContent = `${durVal}s`;
       const durEl = document.getElementById('select-ondemand-duration');
-      if (durEl) durEl.value = String(widgetConfig.ondemandDuration || 60);
+      if (durEl) {
+        const matchingOpt = Array.from(durEl.options).find(opt => opt.value === String(durVal));
+        if (matchingOpt) {
+          durEl.value = String(durVal);
+        } else {
+          durEl.value = 'custom';
+        }
+      }
 
       const hideChk = document.getElementById('chk-hide-after-showcase');
       if (hideChk) hideChk.checked = !!widgetConfig.hideAfterShowcase;
@@ -1028,7 +1052,13 @@
       widgetConfig.position = document.getElementById('select-widget-position').value;
       widgetConfig.scale = parseFloat(document.getElementById('select-widget-scale').value) || 1.0;
       widgetConfig.visibilityMode = document.getElementById('select-visibility-mode').value;
-      widgetConfig.ondemandDuration = parseInt(document.getElementById('select-ondemand-duration').value, 10) || 60;
+      
+      const exactDur = parseInt(document.getElementById('input-ondemand-duration')?.value, 10) || 
+                       parseInt(document.getElementById('select-ondemand-duration')?.value, 10) || 60;
+      widgetConfig.ondemandDuration = exactDur;
+      const durLabel = document.getElementById('label-ondemand-duration');
+      if (durLabel) durLabel.textContent = `${exactDur}s`;
+      
       widgetConfig.hideAfterShowcase = document.getElementById('chk-hide-after-showcase').checked;
 
       // Leer tiempos manuales
@@ -1076,7 +1106,28 @@
     document.getElementById('select-widget-position').addEventListener('change', saveAndBroadcastWidgetConfig);
     document.getElementById('select-widget-scale').addEventListener('change', saveAndBroadcastWidgetConfig);
     document.getElementById('select-visibility-mode').addEventListener('change', saveAndBroadcastWidgetConfig);
-    document.getElementById('select-ondemand-duration').addEventListener('change', saveAndBroadcastWidgetConfig);
+    
+    document.getElementById('select-ondemand-duration').addEventListener('change', (e) => {
+      if (e.target.value !== 'custom') {
+        const inp = document.getElementById('input-ondemand-duration');
+        if (inp) inp.value = e.target.value;
+      }
+      saveAndBroadcastWidgetConfig();
+    });
+    const durInp = document.getElementById('input-ondemand-duration');
+    if (durInp) {
+      durInp.addEventListener('input', (e) => {
+        const val = e.target.value;
+        const sel = document.getElementById('select-ondemand-duration');
+        if (sel) {
+          const matchingOpt = Array.from(sel.options).find(opt => opt.value === String(val));
+          if (matchingOpt) sel.value = String(val);
+          else sel.value = 'custom';
+        }
+        saveAndBroadcastWidgetConfig();
+      });
+    }
+
     document.getElementById('chk-hide-after-showcase').addEventListener('change', saveAndBroadcastWidgetConfig);
 
     // Eventos para nuevos controles de tiempo
@@ -1096,6 +1147,18 @@
         sendAdminCommand(`!carta ${slot}`);
       });
     });
+    const btnCustomCarta = document.getElementById('btn-test-carta-custom-go');
+    const inpCustomCarta = document.getElementById('inp-test-carta-custom');
+    if (btnCustomCarta && inpCustomCarta) {
+      const sendCustomCarta = () => {
+        const val = inpCustomCarta.value.trim();
+        if (val) sendAdminCommand(`!carta ${val}`);
+      };
+      btnCustomCarta.addEventListener('click', sendCustomCarta);
+      inpCustomCarta.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendCustomCarta();
+      });
+    }
     const btnZoom = document.getElementById('btn-trigger-test-zoom');
     if (btnZoom) btnZoom.addEventListener('click', () => sendAdminCommand('!carta 1'));
     const btnExit = document.getElementById('btn-trigger-test-exit');

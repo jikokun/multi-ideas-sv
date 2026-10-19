@@ -792,6 +792,217 @@
             fastRotateSpeed: 0.45     // Velocidad de giro rápido al recibir !rotar (segundos)
         };
         let ondemandTimer = null;
+        let isSpecialQueryBatch = false;
+
+        /**
+         * Comprobar si el expositor está actualmente oculto en OBS
+         */
+        function isWidgetHidden() {
+            if (!carouselAnchor) return true;
+            return carouselAnchor.classList.contains('widget-hidden') || widgetState === 'EMPTY';
+        }
+
+        /**
+         * Reiniciar o actualizar el temporizador de inactividad
+         * Si no hay interacción durante 'ondemandDuration' segundos, el widget desaparece solo.
+         */
+        function resetInactivityTimer() {
+            clearTimeout(ondemandTimer);
+            ondemandTimer = null;
+
+            // Se aplica en modo 'ondemand' o si el widget fue invocado temporalmente mientras estaba oculto
+            const isOndemand = widgetConfig.visibilityMode === 'ondemand';
+            if (!isOndemand && !isWidgetHidden()) return;
+
+            const durationSec = parseInt(widgetConfig.ondemandDuration, 10) || 60;
+            if (durationSec <= 0) return;
+
+            ondemandTimer = setTimeout(() => {
+                console.log(`[Tarjetero] ⏳ Tiempo de inactividad alcanzado (${durationSec}s sin interacción). Ocultando widget...`);
+                if (widgetState === 'CAROUSEL') {
+                    dismissWidget();
+                }
+            }, durationSec * 1000);
+        }
+
+        /**
+         * Obtener todas las colecciones disponibles (locales y predeterminadas)
+         */
+        function getAllAvailableCollections() {
+            let collections = {};
+            const stored = localStorage.getItem('jikokun_tcg_all_collections');
+            if (stored) {
+                try {
+                    collections = JSON.parse(stored);
+                } catch(e) {}
+            }
+            if (!collections || Object.keys(collections).length === 0) {
+                if (window.DEFAULT_JIKOKUN_COLLECTIONS) {
+                    collections = JSON.parse(JSON.stringify(window.DEFAULT_JIKOKUN_COLLECTIONS));
+                }
+            } else if (window.DEFAULT_JIKOKUN_COLLECTIONS) {
+                Object.keys(window.DEFAULT_JIKOKUN_COLLECTIONS).forEach(k => {
+                    if (!collections[k]) collections[k] = window.DEFAULT_JIKOKUN_COLLECTIONS[k];
+                });
+            }
+            return collections;
+        }
+
+        /**
+         * Verificar si una carta coincide con la numeración consultada
+         */
+        function cardMatchesNumber(card, queryStr) {
+            if (!card) return false;
+            const cleanQ = queryStr.toString().replace(/^#/, '').trim().toLowerCase();
+            const queryInt = parseInt(cleanQ, 10);
+
+            const cardNumStr = (card.num !== undefined ? String(card.num) : '').replace(/^#/, '').trim().toLowerCase();
+            const cardIdStr = (card.id !== undefined ? String(card.id) : '').trim().toLowerCase();
+            const cardNumInt = parseInt(cardNumStr, 10);
+            const cardIdInt = parseInt(cardIdStr, 10);
+
+            if (cardNumStr === cleanQ || cardIdStr === cleanQ) return true;
+
+            if (!isNaN(queryInt)) {
+                if (!isNaN(cardNumInt) && cardNumInt === queryInt) return true;
+                if (!isNaN(cardIdInt) && cardIdInt === queryInt) return true;
+            }
+
+            return false;
+        }
+
+        /**
+         * Buscar cartas con una numeración específica en todas las colecciones
+         */
+        function findCardsMatchingNumber(queryStr) {
+            const collections = getAllAvailableCollections();
+            const matches = [];
+            const seenKeys = new Set();
+
+            // 1. Priorizar la colección activa actual
+            (fullCollection || []).forEach(card => {
+                if (cardMatchesNumber(card, queryStr)) {
+                    const key = `${card.title || ''}_${card.num}_${card.frontImage}`;
+                    if (!seenKeys.has(key)) {
+                        seenKeys.add(key);
+                        matches.push({ ...card, _sourceCollection: 'Colección Activa' });
+                    }
+                }
+            });
+
+            // 2. Buscar en las demás colecciones registradas
+            Object.keys(collections).forEach(colId => {
+                const col = collections[colId];
+                const cards = col.cards || [];
+                cards.forEach(card => {
+                    if (cardMatchesNumber(card, queryStr)) {
+                        const key = `${card.title || ''}_${card.num}_${card.frontImage}`;
+                        if (!seenKeys.has(key)) {
+                            seenKeys.add(key);
+                            matches.push({ ...card, _sourceCollection: col.name || colId });
+                        }
+                    }
+                });
+            });
+
+            // 3. Respaldo directo en constantes por defecto
+            if (matches.length === 0) {
+                if (window.DEFAULT_JIKOKUN_CARDS_00_33) {
+                    window.DEFAULT_JIKOKUN_CARDS_00_33.forEach(card => {
+                        if (cardMatchesNumber(card, queryStr)) {
+                            const key = `${card.title || ''}_${card.num}_${card.frontImage}`;
+                            if (!seenKeys.has(key)) {
+                                seenKeys.add(key);
+                                matches.push({ ...card, _sourceCollection: 'Colección 00-33' });
+                            }
+                        }
+                    });
+                }
+                if (window.DEFAULT_JIKOKUN_CARDS_001_100) {
+                    window.DEFAULT_JIKOKUN_CARDS_001_100.forEach(card => {
+                        if (cardMatchesNumber(card, queryStr)) {
+                            const key = `${card.title || ''}_${card.num}_${card.frontImage}`;
+                            if (!seenKeys.has(key)) {
+                                seenKeys.add(key);
+                                matches.push({ ...card, _sourceCollection: 'Colección 001-100' });
+                            }
+                        }
+                    });
+                }
+            }
+
+            return matches;
+        }
+
+        /**
+         * Manejar consulta directa por número de carta (!carta <numero>)
+         * Si el carrusel está oculto o se especifica un número concreto:
+         * - Si hay 1 carta: aparece directamente en pantalla grande por el tiempo establecido.
+         * - Si hay varias de otras colecciones con el mismo número: carrusel sólo de esa numeración con 1..5.
+         */
+        function handleDirectCardQuery(rawArg, isHidden = false) {
+            if (!rawArg) return false;
+            const cleanArg = rawArg.toString().replace(/^!carta\s*/i, '').replace(/^#/, '').trim();
+            if (!cleanArg) return false;
+
+            console.log(`[TCG Query] 🔎 Buscando carta #${cleanArg} (Widget oculto: ${isHidden})`);
+            const matches = findCardsMatchingNumber(cleanArg);
+
+            if (matches.length === 0) {
+                console.log(`[TCG Query] ⚠️ Ninguna carta coincide con #${cleanArg}`);
+                return false;
+            }
+
+            // Despertar el widget si estaba oculto
+            if (isWidgetHidden()) {
+                if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
+            }
+
+            if (matches.length === 1) {
+                // EXACTAMENTE 1 CARTA: Mostrar directamente en pantalla grande (showcase)
+                const card = matches[0];
+                console.log(`[TCG Query] 🎯 1 coincidencia: "${card.title}" (#${card.num}). Mostrando en pantalla grande...`);
+
+                const colIdx = (fullCollection || []).findIndex(c => cardMatchesNumber(c, cleanArg));
+                if (colIdx !== -1) {
+                    isSpecialQueryBatch = false;
+                    const batchIdx = Math.floor(colIdx / BATCH_SIZE);
+                    const slotIdx = colIdx % BATCH_SIZE;
+                    mountBatch(batchIdx, true);
+                    currentSlotIndex = slotIdx;
+                    updateCarouselPositions();
+                    setTimeout(() => selectCard(slotIdx), 320);
+                } else {
+                    isSpecialQueryBatch = true;
+                    activeBatchCards = [card];
+                    currentBatchIndex = 0;
+                    currentSlotIndex = 0;
+                    renderBatchCards(false);
+                    updateCarouselPositions();
+                    setTimeout(() => selectCard(0), 320);
+                }
+                resetInactivityTimer();
+                return true;
+            } else {
+                // MÚLTIPLES CARTAS CON EL MISMO NÚMERO (distintas colecciones)
+                // "si hay mas cartas de otras colecciones con el mismo numero entonces se mostrará un carrusel solo de la numeracion para asi ver cual es la que quieren ver usando siempre del 1 al 5"
+                console.log(`[TCG Query] 🎴 ${matches.length} coincidencias para #${cleanArg}. Mostrando carrusel numerado (1..${Math.min(5, matches.length)})...`);
+                isSpecialQueryBatch = true;
+                activeBatchCards = matches.slice(0, BATCH_SIZE);
+                currentBatchIndex = 0;
+                currentSlotIndex = 0;
+                turnsInCurrentBatch = 0;
+
+                batchInfoText.textContent = `RESULTADOS #${cleanArg} (${activeBatchCards.length} COLECCIONES // USA !carta 1..${activeBatchCards.length})`;
+
+                renderBatchCards(false);
+                updateCarouselPositions();
+                widgetState = 'CAROUSEL';
+                startAutoCycle();
+                resetInactivityTimer();
+                return true;
+            }
+        }
 
         /**
          * Aplicar configuración visual del widget (Posición, Escala, Visibilidad, Tiempos)
@@ -848,9 +1059,10 @@
                 }
             } else {
                 if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
-                clearTimeout(ondemandTimer);
-                ondemandTimer = null;
             }
+
+            // Si hay duración configurada, actualizar timer de inactividad
+            resetInactivityTimer();
         }
 
         /**
@@ -864,12 +1076,7 @@
                 startAutoCycle();
             }
 
-            if (widgetConfig.visibilityMode === 'ondemand' && widgetConfig.ondemandDuration > 0) {
-                clearTimeout(ondemandTimer);
-                ondemandTimer = setTimeout(() => {
-                    dismissWidget();
-                }, widgetConfig.ondemandDuration * 1000);
-            }
+            resetInactivityTimer();
         }
 
         /**
@@ -878,6 +1085,8 @@
         function dismissWidget() {
             if (widgetState === 'SHOWCASE') return;
             stopAutoCycle();
+            clearTimeout(ondemandTimer);
+            ondemandTimer = null;
             if (carouselAnchor) carouselAnchor.classList.add('widget-hidden');
         }
 
@@ -1428,6 +1637,7 @@
 
         function handleCardClick(index) {
             if (widgetState !== 'CAROUSEL') return;
+            resetInactivityTimer();
             stopAutoCycle();
 
             if (index !== currentSlotIndex) {
@@ -1520,8 +1730,67 @@
             }, 80);
 
             showcaseTimeout = setTimeout(() => {
-                triggerEpicExit(selectedIndex);
+                finishShowcase(selectedIndex, false);
             }, SHOWCASE_DURATION_MS);
+        }
+
+        /**
+         * Finalizar la exhibición de una carta según la configuración:
+         * - Si hideAfterShowcase es true: salida épica con explosión y ocultar carrusel.
+         * - Si hideAfterShowcase es false: volver suavemente al carrusel y reanudar donde se quedó.
+         */
+        function finishShowcase(selectedIndex, forceEpicExit = false) {
+            clearInterval(countdownInterval);
+            clearTimeout(showcaseTimeout);
+            timerHud.classList.add('opacity-0');
+            btnFastExit.classList.add('hidden');
+
+            if (forceEpicExit || widgetConfig.hideAfterShowcase) {
+                triggerEpicExit(selectedIndex);
+            } else {
+                returnFromShowcaseToCarousel(selectedIndex);
+            }
+        }
+
+        /**
+         * Regresar suavemente la carta desde pantalla grande a su posición en el carrusel
+         * sin hiperespacio ni saltar de lote, retomando el giro donde se quedó.
+         */
+        function returnFromShowcaseToCarousel(selectedIndex) {
+            if (typeof selectedIndex !== 'number' || selectedIndex < 0 || selectedIndex >= activeBatchCards.length) {
+                selectedIndex = currentSlotIndex;
+            }
+
+            clearInterval(countdownInterval);
+            clearTimeout(showcaseTimeout);
+            timerHud.classList.add('opacity-0');
+            btnFastExit.classList.add('hidden');
+
+            const selectedSlot = cardElements[selectedIndex];
+            if (selectedSlot) {
+                selectedSlot.classList.remove('is-selected');
+            }
+
+            // Quitar anulación de centro para que vuelva a su posición configurada en el lienzo
+            if (carouselAnchor) {
+                carouselAnchor.classList.remove('showcase-center-override');
+            }
+
+            widgetState = 'CAROUSEL';
+            currentSlotIndex = selectedIndex;
+
+            // Restaurar suavemente las posiciones 3D del anfiteatro
+            updateCarouselPositions();
+
+            // Reanudar el ciclo de rotación y pausa exactamente donde se quedó
+            const spinMs = Math.max(400, (widgetConfig.spinSpeed || 1.2) * 1000);
+            setTimeout(() => {
+                if (widgetState === 'CAROUSEL') {
+                    startAutoCycle();
+                }
+            }, spinMs);
+
+            resetInactivityTimer();
         }
 
         function triggerEpicExit(selectedIndex) {
@@ -1558,13 +1827,18 @@
             // Reanudar carrusel o auto-ocultar según configuración
             setTimeout(() => {
                 if (carouselAnchor) carouselAnchor.classList.remove('showcase-center-override');
+                if (selectedSlot) selectedSlot.classList.remove('epic-exit');
 
+                // Si está activado auto-ocultar tarjetero o modo ondemand, ocultar el expositor
                 if (widgetConfig.hideAfterShowcase || widgetConfig.visibilityMode === 'ondemand') {
                     dismissWidget();
-                    widgetState = 'CAROUSEL';
-                    transitionToNextBatch();
+                }
+
+                widgetState = 'CAROUSEL';
+                if (isSpecialQueryBatch) {
+                    isSpecialQueryBatch = false;
+                    mountBatch(currentBatchIndex, true);
                 } else {
-                    widgetState = 'CAROUSEL';
                     transitionToNextBatch();
                 }
             }, 1700);
@@ -1648,6 +1922,7 @@
         // ═══════════ BOTONES Y CONTROLES ═══════════
         document.getElementById('btn-prev').addEventListener('click', () => {
             if (widgetState !== 'CAROUSEL') return;
+            resetInactivityTimer();
             stopAutoCycle();
             currentSlotIndex = (currentSlotIndex - 1 + activeBatchCards.length) % activeBatchCards.length;
             updateCarouselPositions();
@@ -1655,16 +1930,19 @@
 
         document.getElementById('btn-next').addEventListener('click', () => {
             if (widgetState !== 'CAROUSEL') return;
+            resetInactivityTimer();
             stopAutoCycle();
             currentSlotIndex = (currentSlotIndex + 1) % activeBatchCards.length;
             updateCarouselPositions();
         });
 
         document.getElementById('btn-next-batch').addEventListener('click', () => {
+            resetInactivityTimer();
             transitionToNextBatch();
         });
 
         document.getElementById('btn-random').addEventListener('click', () => {
+            resetInactivityTimer();
             if (widgetState !== 'CAROUSEL') {
                 resetCarousel();
                 return;
@@ -1676,10 +1954,13 @@
         });
 
         btnFastExit.addEventListener('click', () => {
-            triggerEpicExit(currentSlotIndex);
+            finishShowcase(currentSlotIndex, true);
         });
 
-        document.getElementById('btn-reset').addEventListener('click', resetCarousel);
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            resetInactivityTimer();
+            resetCarousel();
+        });
 
         document.getElementById('btn-bg').addEventListener('click', () => {
             document.body.classList.toggle('preview-bg');
@@ -1889,31 +2170,39 @@
             if (clean === '!tarjetasjikokun' || clean === '!tarjetas' || clean === '!mostrar') {
                 summonWidget();
             } else if (clean === '!rotar') {
+                resetInactivityTimer();
                 fastRotateCurrentBatch();
             } else if (clean.startsWith('!carta')) {
-                // Soporta "!carta 1", "!carta1", etc.
-                const matchCarta = clean.match(/^!carta\s*([1-5])$/);
-                if (matchCarta) {
-                    const num = parseInt(matchCarta[1], 10);
-                    if (num >= 1 && num <= activeBatchCards.length) {
-                        selectCard(num - 1);
-                    }
+                resetInactivityTimer();
+                const rawArg = clean.replace(/^!carta\s*/, '').trim();
+                const hidden = isWidgetHidden();
+
+                if (hidden) {
+                    // Cuando el carrusel está oculto, buscar inmersivamente por número de carta
+                    handleDirectCardQuery(rawArg, true);
                 } else {
-                    const parts = clean.split(' ');
-                    const num = parseInt(parts[1], 10);
-                    if (!isNaN(num) && num >= 1 && num <= activeBatchCards.length) {
-                        selectCard(num - 1);
+                    // Cuando el carrusel está visible en pantalla:
+                    // Si el argumento es un número del 1 al 5 y cabe en las cartas del lote:
+                    const slotNum = parseInt(rawArg, 10);
+                    if (!isNaN(slotNum) && slotNum >= 1 && slotNum <= activeBatchCards.length && /^[1-5]$/.test(rawArg)) {
+                        selectCard(slotNum - 1);
+                    } else {
+                        // Si es otro número (ej. !carta 18, !carta 00, !carta 25), buscar por número de carta
+                        handleDirectCardQuery(rawArg, false);
                     }
                 }
             } else if (clean === '!siguiente' || clean === '!lote' || clean === '!sig' || clean === '!next') {
+                resetInactivityTimer();
                 transitionToNextBatch();
             } else if (clean === '!ocultartarjetas' || clean === '!ocultar') {
                 dismissWidget();
             } else if (clean === '!salidaepica' || clean === '!epica' || clean === '!exit') {
-                triggerEpicExit(currentSlotIndex);
+                finishShowcase(currentSlotIndex, true);
             } else if (clean === '!reset' || clean === '!reiniciar') {
+                resetInactivityTimer();
                 resetCarousel();
             } else if (clean === '!azar' || clean === '!random') {
+                resetInactivityTimer();
                 if (activeBatchCards.length > 0) {
                     const rIdx = Math.floor(Math.random() * activeBatchCards.length);
                     selectCard(rIdx);
