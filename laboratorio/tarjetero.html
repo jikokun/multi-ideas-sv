@@ -195,6 +195,93 @@
         }
 
         /* ═══════════ RESPLANDORES POR NIVEL DE RAREZA ═══════════ */
+        /* ═══════════ BADGE INDICADOR DE COMANDO (!CARTA 1..5) ═══════════ */
+        .card-slot-badge {
+            position: absolute;
+            bottom: -20px;
+            left: 50%;
+            transform: translateX(-50%) translateZ(18px);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 3px 12px;
+            height: 28px;
+            background: linear-gradient(135deg, rgba(8, 14, 26, 0.96), rgba(15, 23, 42, 0.94));
+            border: 1.5px solid var(--rarity-glow-primary, rgba(0, 243, 255, 0.7));
+            border-radius: 9999px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.85), 0 0 12px var(--rarity-glow-primary, rgba(0, 243, 255, 0.45));
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 35;
+            cursor: pointer;
+            user-select: none;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+            pointer-events: auto;
+            white-space: nowrap;
+        }
+
+        .card-slot-badge .badge-prefix {
+            font-family: 'Rajdhani', 'Chakra Petch', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #94a3b8;
+            text-transform: uppercase;
+            line-height: 1;
+            transition: color 0.3s ease;
+        }
+
+        .card-slot-badge .badge-num {
+            font-family: 'Orbitron', 'Unbounded', sans-serif;
+            font-size: 15px;
+            font-weight: 900;
+            color: #ffffff;
+            text-shadow: 0 0 8px var(--rarity-glow-primary, #00f3ff);
+            line-height: 1;
+        }
+
+        /* Resaltado cuando la carta está en el frente central */
+        .card-slot.is-front-center .card-slot-badge {
+            transform: translateX(-50%) translateZ(24px) scale(1.08);
+            border-color: #ffffff;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.95), 0 0 20px var(--rarity-glow-primary, #00f3ff), 0 0 35px var(--rarity-glow-primary, #00f3ff);
+        }
+
+        .card-slot.is-front-center .card-slot-badge .badge-prefix {
+            color: var(--rarity-glow-primary, #38bdf8);
+        }
+
+        .card-slot.is-front-center .card-slot-badge .badge-num {
+            color: #ffffff;
+            text-shadow: 0 0 12px var(--rarity-glow-primary, #00f3ff), 0 0 20px #ffffff;
+        }
+
+        /* Hover interactivo sobre la tarjeta */
+        .card-slot:hover .card-slot-badge {
+            transform: translateX(-50%) translateZ(26px) scale(1.12);
+            border-color: #ffffff;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.95), 0 0 22px var(--rarity-glow-primary, #00f3ff);
+        }
+
+        /* Ocultar suavemente durante el gran Showcase ampliado (la carta luce 100% limpia) */
+        .card-slot.is-selected .card-slot-badge {
+            opacity: 0 !important;
+            transform: translateX(-50%) scale(0.6) !important;
+            pointer-events: none !important;
+        }
+
+        /* Ocultar durante la animación de mazo cerrado / reunión para no interferir con el reverso */
+        .card-slot.in-deck-stack .card-slot-badge,
+        .carousel-stage.deck-gathering .card-slot-badge,
+        .carousel-stage.deck-exit .card-slot-badge {
+            opacity: 0 !important;
+            transform: translateX(-50%) scale(0.5) !important;
+            pointer-events: none !important;
+        }
+
         .card-slot.rarity-comun {
             filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.35));
         }
@@ -1248,7 +1335,7 @@
                 const frontCoverUrl = card.frontImage || "";
                 const backCoverUrl = card.backImage || OFFICIAL_BACKS[rarityKey] || OFFICIAL_BACKS["COMÚN"];
 
-                // Estructura 100% limpia de texto para arte TCG completo
+                // Estructura 100% limpia de texto para arte TCG completo + Badge con número de ranura (!carta 1..5)
                 slot.innerHTML = `
                     <div class="card-rotator">
                         <!-- CARA FRONTAL (PORTADA LIMPIA SIN TEXTO) -->
@@ -1278,6 +1365,12 @@
                                 </div>
                             </div>
                         </div>
+
+                        <!-- BADGE INDICADOR DE RANURA / COMANDO KICK (!CARTA 1..5) -->
+                        <div class="card-slot-badge" data-slot="${index + 1}" title="Comando de Kick: !carta ${index + 1}">
+                            <span class="badge-prefix">!carta</span>
+                            <span class="badge-num">${index + 1}</span>
+                        </div>
                     </div>
                 `;
 
@@ -1293,28 +1386,53 @@
         function updateCarouselPositions() {
             const total = cardElements.length;
             if (total === 0) return;
-            const theta = 360 / total; // 72 grados por ranura
 
             if (widgetState === 'CAROUSEL' || widgetState === 'TRANSITIONING') {
                 cardElements.forEach((slot, index) => {
                     slot.classList.remove('is-selected', 'epic-exit');
                     
-                    const offset = index - currentSlotIndex;
-                    const angle = offset * theta;
-                    const rad = (angle * Math.PI) / 180;
+                    // Cálculo de offset circular en el rango [-2, 2] para 5 tarjetas
+                    let offset = (index - currentSlotIndex) % total;
+                    if (offset > total / 2) offset -= total;
+                    if (offset < -total / 2) offset += total;
 
-                    const x = Math.sin(rad) * CAROUSEL_RADIUS;
-                    const z = Math.cos(rad) * CAROUSEL_RADIUS - CAROUSEL_RADIUS;
-                    const rotateY = angle;
+                    const absOffset = Math.abs(offset);
+                    const sign = Math.sign(offset);
 
-                    const normalizedCos = (Math.cos(rad) + 1) / 2;
-                    const scale = 0.72 + normalizedCos * 0.28;
-                    const opacity = 0.38 + normalizedCos * 0.62;
+                    let x = 0;
+                    let z = 0;
+                    let rotateY = 0;
+                    let scale = 1.0;
+                    let opacity = 1.0;
+                    let zIndex = 30;
 
-                    slot.style.transform = `translate3d(${x.toFixed(1)}px, 0px, ${z.toFixed(1)}px) rotateY(${rotateY.toFixed(1)}deg) scale(${scale.toFixed(3)})`;
-                    slot.style.opacity = opacity.toFixed(2);
+                    if (absOffset === 0) {
+                        x = 0;
+                        z = 0;
+                        rotateY = 0;
+                        scale = 1.0;
+                        opacity = 1.0;
+                        zIndex = 30;
+                    } else if (absOffset === 1) {
+                        x = sign * 230;
+                        z = -90;
+                        rotateY = -sign * 22; // Inclinación suave hacia el centro para admirar el arte
+                        scale = 0.82;
+                        opacity = 0.88;
+                        zIndex = 20;
+                    } else { // absOffset === 2
+                        x = sign * 430;
+                        z = -220;
+                        rotateY = -sign * 36; // Inclinación suave hacia el centro
+                        scale = 0.68;
+                        opacity = 0.68;
+                        zIndex = 10;
+                    }
+
+                    slot.style.transform = `translate3d(${x}px, 0px, ${z}px) rotateY(${rotateY}deg) scale(${scale})`;
+                    slot.style.opacity = opacity;
                     slot.style.pointerEvents = 'auto';
-                    slot.style.zIndex = Math.round(normalizedCos * 30);
+                    slot.style.zIndex = zIndex;
                 });
             }
         }
@@ -1346,7 +1464,7 @@
          * Seleccionar una carta para exhibirla en pantalla grande al centro
          */
         function selectCard(index) {
-            if (widgetState !== 'CAROUSEL') return;
+            if (widgetState !== 'CAROUSEL' && widgetState !== 'SHOWCASE') return;
             widgetState = 'SHOWCASE';
             stopAutoCycle();
 
@@ -1362,12 +1480,15 @@
             const showcaseScale = Math.min(2.35, Math.max(1.3, targetHeight / cardHeight));
 
             cardElements.forEach((slot, i) => {
+                slot.classList.remove('is-front-center');
                 if (i === index) {
                     slot.style.transform = `translate3d(0px, 0px, 120px) scale(${showcaseScale.toFixed(2)})`;
                     slot.style.opacity = '1';
                     slot.style.zIndex = '50';
                     slot.classList.add('is-selected');
+                    slot.style.pointerEvents = 'auto';
                 } else {
+                    slot.classList.remove('is-selected');
                     const angle = (i - index) * (360 / cardElements.length);
                     const rad = (angle * Math.PI) / 180;
                     const x = Math.sin(rad) * (CAROUSEL_RADIUS * 1.5);
