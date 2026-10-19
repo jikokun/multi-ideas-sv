@@ -47,6 +47,19 @@
           if (localStorage.getItem('multiideas_user_authed') === 'true') {
             document.documentElement.classList.add('user-pre-authed');
           }
+
+          // Limpieza instantánea de URL en la barra de direcciones (.html o index.html)
+          try {
+            if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+              let p = window.location.pathname;
+              if (p.endsWith('/index.html')) p = p.slice(0, -10);
+              else if (p === '/index.html' || p === 'index.html') p = '/';
+              else if (p.endsWith('.html')) p = p.slice(0, -5);
+              if (p !== window.location.pathname) {
+                window.history.replaceState(null, document.title, p + window.location.search + window.location.hash);
+              }
+            }
+          } catch(e) {}
       })();
 
       // Despachador resiliente contra problemas de latencia o clics anticipados

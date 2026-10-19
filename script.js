@@ -1,4 +1,34 @@
 // ==========================================================================
+// MÓDULO DE URLS LIMPIAS (ELIMINA .html E index.html DE LA BARRA DE DIRECCIONES)
+// ==========================================================================
+(function cleanBrowserURL() {
+    try {
+        if (window.location.protocol !== 'http:' && window.location.protocol !== 'https:') return;
+        const { pathname, search, hash } = window.location;
+        let newPath = pathname;
+
+        // 1. Quitar /index.html o index.html dejando solo la barra /
+        if (newPath.endsWith('/index.html')) {
+            newPath = newPath.slice(0, -10);
+        } else if (newPath === '/index.html' || newPath === 'index.html') {
+            newPath = '/';
+        }
+
+        // 2. Quitar extensión .html de cualquier otra ruta interna
+        if (newPath.endsWith('.html')) {
+            newPath = newPath.slice(0, -5);
+        }
+
+        // 3. Actualizar la barra de navegación al instante sin recarga
+        if (newPath !== pathname) {
+            window.history.replaceState(null, document.title, newPath + search + hash);
+        }
+    } catch(e) {
+        console.warn("[Clean URL Warning]:", e);
+    }
+})();
+
+// ==========================================================================
 // MÓDULO GLOBAL DE PROTECCIÓN DE CONTENIDO Y CÓDIGO FUENTE (MULTI IDEAS SV)
 // ==========================================================================
 (function initGlobalSiteProtection() {
@@ -421,29 +451,30 @@ function handleLinkClick(e) {
 // RESALTADO AUTOMÁTICO DE LA PÁGINA ACTUAL
 // ==========================================================================
 function highlightCurrentPage() {
-    const path = window.location.pathname.split("/").pop() || "index.html";
+    const rawSegment = window.location.pathname.split("/").pop() || "index";
+    const cleanSegment = rawSegment.replace(/\.html$/, '') || "index";
     
     // Limpiar clases activas previas
     document.querySelectorAll("header nav a").forEach(a => a.classList.remove("active"));
-    // Si estamos en la subcarpeta SensunShop o en sensunshop.html, resaltar su propio menú
-    const inSensun = window.location.pathname.includes('/sensunshop/') || window.location.pathname.endsWith('/sensunshop.html');
+    // Si estamos en la subcarpeta SensunShop o en sensunshop.html / sensunshop, resaltar su propio menú
+    const inSensun = window.location.pathname.includes('/sensunshop/') || window.location.pathname.endsWith('/sensunshop.html') || window.location.pathname.endsWith('/sensunshop');
     if (inSensun) {
-        if (path === "negocioslocales.html") document.getElementById("nav-negocios")?.classList.add("active");
-        if (path === "emprendedores.html") document.getElementById("nav-emprendedores")?.classList.add("active");
-        if (path === "oficios.html") document.getElementById("nav-oficios")?.classList.add("active");
-        if (path === "profesionales.html") document.getElementById("nav-profesionales")?.classList.add("active");
-        if (path === "emergencias.html") document.getElementById("nav-emergencias")?.classList.add("active");
-        if (path === "ofertas.html") document.getElementById("nav-ofertas")?.classList.add("active");
+        if (cleanSegment === "negocioslocales") document.getElementById("nav-negocios")?.classList.add("active");
+        if (cleanSegment === "emprendedores") document.getElementById("nav-emprendedores")?.classList.add("active");
+        if (cleanSegment === "oficios") document.getElementById("nav-oficios")?.classList.add("active");
+        if (cleanSegment === "profesionales") document.getElementById("nav-profesionales")?.classList.add("active");
+        if (cleanSegment === "emergencias") document.getElementById("nav-emergencias")?.classList.add("active");
+        if (cleanSegment === "ofertas") document.getElementById("nav-ofertas")?.classList.add("active");
         return;
     }
 
-    // Mapeo automatizado de IDs asignados en tu menu.html
-    if (path === "index.html") document.getElementById("nav-index")?.classList.add("active");
-    if (path === "productos.html") document.getElementById("nav-productos")?.classList.add("active");
-    if (path === "servicios.html") document.getElementById("nav-servicios")?.classList.add("active");
-    if (path === "proyectos.html") document.getElementById("nav-proyectos")?.classList.add("active");
-    if (path === "nosotros.html") document.getElementById("nav-nosotros")?.classList.add("active");
-    if (path === "contacto.html") document.getElementById("nav-contacto")?.classList.add("active");
+    // Mapeo automatizado de IDs asignados en tu menu.html (soporta con o sin .html)
+    if (cleanSegment === "index" || cleanSegment === "") document.getElementById("nav-index")?.classList.add("active");
+    if (cleanSegment === "productos") document.getElementById("nav-productos")?.classList.add("active");
+    if (cleanSegment === "servicios") document.getElementById("nav-servicios")?.classList.add("active");
+    if (cleanSegment === "proyectos") document.getElementById("nav-proyectos")?.classList.add("active");
+    if (cleanSegment === "nosotros") document.getElementById("nav-nosotros")?.classList.add("active");
+    if (cleanSegment === "contacto") document.getElementById("nav-contacto")?.classList.add("active");
 }
 
 // ==========================================================================

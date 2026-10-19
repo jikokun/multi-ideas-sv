@@ -1,0 +1,18 @@
+# ==============================================================================
+# MULTI IDEAS SV - REGLAS DE REESCRITURA PARA URLS LIMPIAS (SIN .HTML NI INDEX)
+# ==============================================================================
+RewriteEngine On
+RewriteBase /
+
+# 1. Redirigir cualquier petición directa a index.html hacia la raíz correspondiente
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^/]+/)*index\.html(\?[^\ ]*)?\ HTTP/ [NC]
+RewriteRule ^(([^/]+/)*)index\.html$ /$1 [R=301,L]
+
+# 2. Redirigir de forma visible URLs con extensión .html hacia su versión limpia
+RewriteCond %{THE_REQUEST} ^[A-Z]{3,9}\ /([^\ ]+)\.html(\?[^\ ]*)?\ HTTP/ [NC]
+RewriteRule ^([^\ ]+)\.html$ /$1 [R=301,L]
+
+# 3. Resolver internamente la URL sin extensión hacia el archivo .html existente
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_FILENAME}.html -f
+RewriteRule ^(.*)$ $1.html [L]
