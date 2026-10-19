@@ -1632,168 +1632,131 @@
             }
         });
 
-        // ═══════════ INTEGRACIÓN DIRECTA CON KICK PUSHER WEBSOCKET (NUBE) ═══════════
-        const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
-        const KICK_PUSHER_CLUSTER = 'us2';
-        const KICK_CHATROOM_ID = '1866891'; // Chatroom oficial de Kick (kick.com/jikokun)
-        let kickWs = null;
-        let kickReconnectTimer = null;
-
-        function connectKickPusher() {
-            if (kickWs) {
-                try { kickWs.close(); } catch(e) {}
-                kickWs = null;
-            }
-
-            try {
-                const wsUrl = `wss://ws-${KICK_PUSHER_CLUSTER}.pusher.com/app/${KICK_PUSHER_KEY}?protocol=7&client=js&version=7.6.0&flash=false`;
-                console.log('[Kick Pusher TCG] 🔌 Conectando a Kick Chat WSS...');
-                kickWs = new WebSocket(wsUrl);
-
-                kickWs.onopen = () => {
-                    console.log(`[Kick Pusher TCG] 🟢 Conectado exitosamente. Suscribiendo a chatrooms.${KICK_CHATROOM_ID}.v2`);
-                    kickWs.send(JSON.stringify({
-                        event: 'pusher:subscribe',
-                        data: { auth: '', channel: `chatrooms.${KICK_CHATROOM_ID}.v2` }
-                    }));
-                    syncChannel.postMessage({ action: 'kick_status', connected: true });
-                };
-
-                kickWs.onmessage = (event) => {
-                    try {
-                        const msg = JSON.parse(event.data);
-                        if (msg.event === 'App\\Events\\ChatMessageEvent') {
-                            parseKickPusherChatMessage(msg.data);
-                        } else if (msg.event === 'pusher:ping') {
-                            kickWs.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
-                        }
-                    } catch (e) {}
-                };
-
-                kickWs.onclose = () => {
-                    console.log('[Kick Pusher TCG] ⚪ Desconectado. Reconectando en 6s...');
-                    syncChannel.postMessage({ action: 'kick_status', connected: false });
-                    clearTimeout(kickReconnectTimer);
-                    kickReconnectTimer = setTimeout(connectKickPusher, 6000);
-                };
-
-                kickWs.onerror = (err) => {
-                    console.warn('[Kick Pusher TCG] Error en WebSocket:', err);
-                };
-            } catch(e) {
-                clearTimeout(kickReconnectTimer);
-                kickReconnectTimer = setTimeout(connectKickPusher, 6000);
-            }
-        }
-
-        function parseKickPusherChatMessage(rawData) {
-            try {
-                let data = rawData;
-                if (typeof data === 'string') {
-                    try { data = JSON.parse(data); } catch(e){}
-                }
-                if (data && data.data) {
-                    if (typeof data.data === 'string') {
-                        try { data = JSON.parse(data.data); } catch(e){}
-                    } else {
-                        data = data.data;
-                    }
-                }
-                if (!data || !data.content) return;
-
-                const senderName = data.sender?.username || 'KickUser';
-                const messageText = data.content || '';
-                console.log(`[Kick Pusher TCG] 💬 Mensaje Kick recibido de ${senderName}: "${messageText}"`);
-                handleChatMessage(senderName, messageText);
-            } catch (err) {
-                console.warn('[Kick Pusher TCG] Error parseando mensaje:', err);
-            }
-        }
-
-        // ═══════════ INTEGRACIÓN STREAMER.BOT (KICK / TWITCH LOCAL) ═══════════
-        const SB_PORTS = [4445, 8080, 7474, 8081, 7475];
-        let sbPortIndex = 0;
+        // ═══════════ WEBSOCKET STREAMER.BOT (IDÉNTICO A TIENDITA.HTML) ═══════════
+        const urlParams = new URLSearchParams(window.location.search);
+        const WS_PORT = urlParams.get('port') || urlParams.get('wsport') || '4445';
+        const WS_URL = `ws://127.0.0.1:${WS_PORT}/`;
         let sbSocket = null;
-        let sbReconnectTimer = null;
+        let wsReconnectTimer = null;
 
-        function connectStreamerBot() {
+        function setStatus(estado, txt) {
+            console.log(`[Tarjetero Streamer.bot] [${estado}] ${txt}`);
+            syncChannel.postMessage({
+                action: 'sb_status',
+                connected: estado === 'ok',
+                reconnecting: estado === 'warn',
+                port: WS_PORT
+            });
+        }
+
+        function conectarWS() {
             if (sbSocket) {
-                try { sbSocket.close(); } catch(e) {}
+                try {
+                    sbSocket.onopen = null;
+                    sbSocket.onmessage = null;
+                    sbSocket.onerror = null;
+                    sbSocket.onclose = null;
+                    sbSocket.close();
+                } catch(e) {}
                 sbSocket = null;
             }
 
-            const urlParams = new URLSearchParams(window.location.search);
-            const customWsPort = parseInt(urlParams.get('port') || urlParams.get('wsport'), 10);
-            if (!isNaN(customWsPort) && customWsPort > 0 && !SB_PORTS.includes(customWsPort)) {
-                SB_PORTS.unshift(customWsPort);
-            }
-
-            const activePort = SB_PORTS[sbPortIndex];
-            const wsUrl = `ws://127.0.0.1:${activePort}/`;
-
             try {
-                sbSocket = new WebSocket(wsUrl);
+                sbSocket = new WebSocket(WS_URL);
+            } catch(err) {
+                setStatus('warn', 'Reconectando…');
+                clearTimeout(wsReconnectTimer);
+                wsReconnectTimer = setTimeout(conectarWS, 3000);
+                return;
+            }
 
-                sbSocket.onopen = function() {
-                    console.log(`[Streamer.bot TCG] 🟢 Conectado exitosamente en puerto ${activePort}`);
-                    syncChannel.postMessage({ action: 'sb_status', connected: true, port: activePort });
+            sbSocket.onopen = () => { 
+                setStatus('ok', 'Conectado');
+                console.log(`[Tarjetero] 🟢 WebSocket conectado con éxito a Streamer.bot en ${WS_URL}`);
+                try {
+                    sbSocket.send(JSON.stringify({
+                        request: 'Subscribe',
+                        id: 'sub-tarjetero',
+                        events: {
+                            General: ['Custom'],
+                            Kick: ['ChatMessage', 'Message'],
+                            Twitch: ['ChatMessage']
+                        }
+                    }));
+                } catch(err) {
+                    console.warn('[Tarjetero] Error enviando Subscribe a Streamer.bot:', err);
+                }
+            };
 
-                    try {
-                        sbSocket.send(JSON.stringify({
-                            request: "Subscribe",
-                            id: "jikokun-tcg-sub",
-                            events: {
-                                Kick: ["ChatMessage"],
-                                Twitch: ["ChatMessage"],
-                                General: ["Custom"]
-                            }
-                        }));
-                    } catch(err) {
-                        console.warn("[Streamer.bot TCG] Error en suscripción:", err);
+            sbSocket.onmessage = (ev) => {
+                let msg;
+                try { msg = JSON.parse(ev.data); } catch(e) { return; }
+
+                const eventObj = msg.event || {};
+                const eventType = (
+                    (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) || 
+                    msg.method || msg.type || ''
+                ).toString().toLowerCase();
+
+                const rawData = msg.data || msg.body || msg;
+                const data = rawData.data || rawData;
+
+                // 1. Evento personalizado desde Streamer.bot (Custom Broadcast)
+                if (eventType === 'custom' || msg.method === 'Custom') {
+                    console.log('[Tarjetero] 📦 Evento Custom recibido:', data);
+                    const customCmd = data.command || data.action || data.cmd || (typeof data === 'string' ? data : '');
+                    const customUser = data.user || data.userName || data.username || 'Streamerbot';
+                    if (customCmd) {
+                        handleChatMessage(customUser, customCmd);
                     }
-                };
+                    return;
+                }
 
-                sbSocket.onmessage = function(event) {
-                    try {
-                        const data = JSON.parse(event.data);
-                        parseStreamerBotMessage(data);
-                    } catch(e) {}
-                };
+                // 2. Mensajes de chat en vivo de Kick / Twitch (idéntico a tiendita.html)
+                const isChat = eventType.includes('chatmessage') || eventType.includes('message') || eventType === 'message' || data.message || data.messageText || data.text || data.content;
+                if (isChat) {
+                    const messageObj = data.message || data;
+                    let userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+                    let user = 'anon';
+                    if (typeof userObj === 'string') user = userObj;
+                    else if (typeof userObj === 'object' && userObj !== null) {
+                        user = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || 'anon';
+                    }
 
-                sbSocket.onerror = function() {
-                    syncChannel.postMessage({ action: 'sb_status', connected: false });
-                };
+                    let contenido = '';
+                    if (typeof data.messageText === 'string') contenido = data.messageText;
+                    else if (typeof data.message === 'string') contenido = data.message;
+                    else if (typeof data.text === 'string') contenido = data.text;
+                    else if (typeof data.content === 'string') contenido = data.content;
+                    else if (typeof messageObj === 'object' && messageObj !== null) {
+                        contenido = messageObj.message || messageObj.text || messageObj.content || '';
+                    }
 
-                sbSocket.onclose = function() {
-                    syncChannel.postMessage({ action: 'sb_status', connected: false });
-                    sbPortIndex = (sbPortIndex + 1) % SB_PORTS.length;
-                    const waitMs = sbPortIndex === 0 ? 5000 : 1500;
-                    clearTimeout(sbReconnectTimer);
-                    sbReconnectTimer = setTimeout(connectStreamerBot, waitMs);
-                };
+                    if (!contenido) return;
 
-            } catch(e) {
-                sbPortIndex = (sbPortIndex + 1) % SB_PORTS.length;
-                clearTimeout(sbReconnectTimer);
-                sbReconnectTimer = setTimeout(connectStreamerBot, 4000);
-            }
-        }
+                    // Filtro estricto de bots (idéntico a tiendita.html)
+                    const userNorm = (user || '').toLowerCase().trim();
+                    const BOTS_IGNORADOS = [
+                        'botrix', 'lobito_mensajero', 'kickbot', 'nightbot',
+                        'streamelements', 'streamlabs', 'jikobot', 'creepingbot',
+                        'wizebot', 'bot'
+                    ];
+                    if (BOTS_IGNORADOS.includes(userNorm)) return;
 
-        function parseStreamerBotMessage(data) {
-            if (!data) return;
-            let messageText = '';
-            let userName = '';
+                    console.log(`[Tarjetero Streamer.bot] 💬 Comando recibido de [@${user}]: "${contenido}"`);
+                    handleChatMessage(user, contenido);
+                }
+            };
 
-            if (data.data && data.data.message) {
-                messageText = data.data.message.message || data.data.message || '';
-                userName = data.data.message.username || data.data.user?.name || '';
-            } else if (data.message) {
-                messageText = typeof data.message === 'string' ? data.message : (data.message.text || '');
-            }
+            sbSocket.onclose = () => {
+                setStatus('warn', 'Reconectando…');
+                clearTimeout(wsReconnectTimer);
+                wsReconnectTimer = setTimeout(conectarWS, 3000);
+            };
 
-            if (messageText) {
-                handleChatMessage(userName, messageText);
-            }
+            sbSocket.onerror = () => {
+                setStatus('warn', 'Reconectando…');
+            };
         }
 
         // ═══════════ PROCESAMIENTO Y DEDUPLICACIÓN DE COMANDOS DE CHAT ═══════════
@@ -2034,8 +1997,7 @@
             await loadCollection();
             animateParticles();
             checkUrlParams();
-            connectKickPusher();
-            connectStreamerBot();
+            conectarWS();
             initFirebaseRealtime();
         };
     </script>
