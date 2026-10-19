@@ -1100,6 +1100,7 @@
         // Endpoint Google Apps Script conectado a Google Drive con CDN lh3
         var APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
         var STORAGE_KEY = 'multiideas_obs_ad_widget_v1';
+        var isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
 
         function showToast(text, duration) {
             var toast = document.getElementById('widget-toast');
@@ -1245,6 +1246,7 @@
         };
 
         function saveStateToStorage() {
+            if (isPreview) return; // En modo previsualización (iframe/modal) no sobreescribir las coordenadas principales de OBS
             try {
                 // Guardar estado serializado (sin sobrecargar si hay dataURIs muy pesadas)
                 var toSave = JSON.parse(JSON.stringify(state));
@@ -1267,6 +1269,12 @@
                 }
             } catch(e) {
                 console.warn('Error cargando estado desde localStorage:', e);
+            }
+
+            if (isPreview) {
+                // En modo preview (galería / modal), forzar centrado independiente de la pantalla OBS
+                state.posX = null;
+                state.posY = null;
             }
 
             // Asegurar que si hay imágenes de demo o promos previas en el storage, tengan su promoData intacto
@@ -1516,6 +1524,7 @@
                 } else {
                     adTextPromo.classList.add('hidden');
                     adImage.classList.remove('hidden');
+                    adImage.style.opacity = '';
                     adImage.src = currentItem.src;
                 }
             }
@@ -1553,14 +1562,31 @@
         }
 
         function applyPositionAndScale() {
-            if (state.posX !== null && state.posY !== null) {
-                draggableWrapper.style.left = state.posX + 'px';
-                draggableWrapper.style.top = state.posY + 'px';
-            } else {
+            if (isPreview) {
+                // En iframe o preview: siempre centrado y escalado armónico al viewport disponible
                 draggableWrapper.style.left = '50%';
                 draggableWrapper.style.top = '50%';
+
+                var stageW = window.innerWidth || document.documentElement.clientWidth || 500;
+                var stageH = window.innerHeight || document.documentElement.clientHeight || 320;
+                var targetW = Math.max(100, state.width || 480);
+                var targetH = Math.max(80, state.height || 270);
+
+                var fitScaleX = (stageW * 0.88) / targetW;
+                var fitScaleY = (stageH * 0.88) / targetH;
+                var autoScale = Math.min(1.0, Math.min(fitScaleX, fitScaleY));
+
+                draggableWrapper.style.transform = 'translate(-50%, -50%) scale(' + autoScale.toFixed(3) + ')';
+            } else {
+                if (state.posX !== null && state.posY !== null) {
+                    draggableWrapper.style.left = state.posX + 'px';
+                    draggableWrapper.style.top = state.posY + 'px';
+                } else {
+                    draggableWrapper.style.left = '50%';
+                    draggableWrapper.style.top = '50%';
+                }
+                draggableWrapper.style.transform = 'translate(-50%, -50%) scale(' + state.scale + ')';
             }
-            draggableWrapper.style.transform = 'translate(-50%, -50%) scale(' + state.scale + ')';
         }
 
         function applyModalTransform() {
@@ -1705,6 +1731,18 @@
             clearAllTimers();
             if (resetCounter) {
                 state.completedLoops = 0;
+            }
+
+            if (isPreview) {
+                // Modo previsualización: El banner permanece 100% visible sin esconderse
+                setAdVisibility(true);
+                // Si hay más de un banner, ciclar automáticamente cada 4.5s para mostrar la rotación interactiva
+                if (state.images.length > 1) {
+                    slideInterval = setInterval(function() {
+                        nextImageInGallery();
+                    }, 4500);
+                }
+                return;
             }
 
             if (state.slideMode === 'timer-5' || state.slideMode === 'timer-10') {
@@ -2590,9 +2628,18 @@
             } else if (d.type === 'RESTART_CYCLE') {
                 startCycleEngine(true);
             } else if (d.type === 'OPEN_SETTINGS') {
-                settingsModal.classList.add('open');
-                document.body.classList.add('settings-open');
+                var isOpen = settingsModal.classList.toggle('open');
+                document.body.classList.toggle('settings-open', isOpen);
                 applyModalTransform();
+            }
+        });
+
+        window.addEventListener('resize', function() {
+            if (isPreview) {
+                applyPositionAndScale();
+                if (state.images.length > 0 && state.images[state.currentIndex] && state.images[state.currentIndex].promoData) {
+                    fitAdaptivePromoText(state.images[state.currentIndex].promoData);
+                }
             }
         });
 
