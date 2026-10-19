@@ -83,9 +83,7 @@
             justify-content: center;
             border-radius: var(--corner-radius);
             padding: var(--border-width);
-            transition: width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-                        height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-                        border-radius 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+            transition: border-radius 0.2s ease,
                         box-shadow 0.4s ease,
                         transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
                         opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
@@ -536,10 +534,10 @@
                         <div id="ad-text-promo" class="hidden absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center select-none pointer-events-none overflow-hidden transition-opacity duration-300">
                             <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.45), transparent 70%), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 100% 100%, 28px 28px, 28px 28px;"></div>
                             
-                            <div id="ad-text-inner" class="relative z-10 w-full h-full flex flex-col items-center justify-center text-center">
-                                <div id="promo-render-tag" class="hidden mb-1.5 px-3 py-0.5 rounded-full border uppercase tracking-widest leading-tight max-w-full break-words"></div>
-                                <div id="promo-render-title" class="w-full break-words leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"></div>
-                                <div id="promo-render-sub" class="w-full break-words leading-snug mt-1 opacity-95 drop-shadow-[0_1px_6px_rgba(0,0,0,0.4)]"></div>
+                            <div id="ad-text-inner" class="relative z-10 w-full h-full flex flex-col items-center justify-center text-center box-border overflow-hidden">
+                                <div id="promo-render-tag" class="hidden mb-1.5 px-3 py-0.5 rounded-full border uppercase tracking-widest leading-tight max-w-full break-words shrink-0"></div>
+                                <div id="promo-render-title" class="max-w-full break-words leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"></div>
+                                <div id="promo-render-sub" class="max-w-full break-words leading-snug mt-1 opacity-95 drop-shadow-[0_1px_6px_rgba(0,0,0,0.4)]"></div>
                                 <div id="promo-render-bar" class="mt-2.5 rounded-full opacity-50 shrink-0"></div>
                             </div>
                         </div>
@@ -717,9 +715,12 @@
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #422006, #eab308)" data-c1="#422006" data-c2="#eab308" title="Dorado VIP"></button>
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #090d16, #1e293b)" data-c1="#090d16" data-c2="#1e293b" title="Oscuro Elegante"></button>
                         </div>
-                        <button type="button" id="btn-create-text-ad" class="px-3 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-extrabold text-[11px] rounded-lg shadow transition shrink-0">
-                            + Crear y Usar
-                        </button>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-medium text-cyan-400 hidden sm:inline" title="Los cambios se reflejan y adaptan de inmediato"><i class="fa-solid fa-bolt"></i> En vivo</span>
+                            <button type="button" id="btn-create-text-ad" class="px-2.5 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-extrabold text-[10px] rounded-lg shadow transition shrink-0" title="Añade esta promo como otra imagen a la rotación sin sobreescribir la actual">
+                                + Añadir Variante
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1267,6 +1268,21 @@
             } catch(e) {
                 console.warn('Error cargando estado desde localStorage:', e);
             }
+
+            // Asegurar que si hay imágenes de demo o promos previas en el storage, tengan su promoData intacto
+            if (Array.isArray(state.images)) {
+                for (var i = 0; i < state.images.length; i++) {
+                    var img = state.images[i];
+                    if (!img.promoData) {
+                        for (var d = 0; d < DEFAULT_IMAGES.length; d++) {
+                            if (DEFAULT_IMAGES[d].id === img.id) {
+                                img.promoData = JSON.parse(JSON.stringify(DEFAULT_IMAGES[d].promoData));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         var cycleTimeout = null;
@@ -1302,8 +1318,21 @@
 
             var minDim = Math.min(state.width, state.height);
             var isRoundish = state.shapePreset === 'circle' || state.cornerRadius >= minDim * 0.35;
-            var padX = isRoundish ? Math.round(state.width * 0.16) : Math.max(14, Math.round(state.width * 0.065));
-            var padY = isRoundish ? Math.round(state.height * 0.15) : Math.max(10, Math.round(state.height * 0.08));
+            var isThin = state.height < 165;
+            var aspectRatio = state.width / Math.max(1, state.height);
+            var isUltraWide = aspectRatio >= 2.4 || (isThin && aspectRatio >= 1.8);
+
+            var padX, padY;
+            if (isRoundish) {
+                padX = Math.round(state.width * 0.16);
+                padY = Math.round(state.height * 0.15);
+            } else if (isUltraWide) {
+                padX = Math.max(16, Math.min(36, Math.round(state.width * 0.05)));
+                padY = Math.max(4, Math.min(10, Math.round(state.height * 0.05)));
+            } else {
+                padX = Math.max(14, Math.min(32, Math.round(state.width * 0.065)));
+                padY = Math.max(8, Math.min(20, Math.round(state.height * 0.075)));
+            }
             adTextInner.style.padding = padY + 'px ' + padX + 'px';
 
             var tagText = (promoData.tag || '').trim();
@@ -1314,11 +1343,18 @@
                 promoRenderTag.style.borderColor = styles.tagColor || '#38bdf8';
                 promoRenderTag.style.backgroundColor = 'rgba(0, 0, 0, 0.35)';
                 promoRenderTag.classList.remove('hidden');
+                if (isThin) {
+                    promoRenderTag.style.padding = '1px 8px';
+                    promoRenderTag.style.letterSpacing = '0.08em';
+                } else {
+                    promoRenderTag.style.padding = '2px 12px';
+                    promoRenderTag.style.letterSpacing = '0.12em';
+                }
             } else {
                 promoRenderTag.classList.add('hidden');
             }
 
-            var titleText = (promoData.title || '').trim();
+            var titleText = (promoData.title || '').trim() || '¡PROMOCIÓN!';
             promoRenderTitle.textContent = titleText;
             promoRenderTitle.style.color = styles.titleColor || '#ffffff';
             promoRenderTitle.style.fontWeight = styles.titleWeight || '900';
@@ -1333,44 +1369,78 @@
                 promoRenderSub.classList.add('hidden');
             }
 
-            promoRenderBar.style.backgroundColor = styles.titleColor || '#ffffff';
-            if (state.height < 155) {
+            // Barra decorativa: oculta en banners delgados o ultrawide para maximizar altura del texto
+            if (state.height < 170 || isUltraWide) {
                 promoRenderBar.classList.add('hidden');
             } else {
                 promoRenderBar.classList.remove('hidden');
+                promoRenderBar.style.backgroundColor = styles.titleColor || '#ffffff';
                 promoRenderBar.style.width = Math.min(120, Math.round(state.width * 0.28)) + 'px';
                 promoRenderBar.style.height = '4px';
+                promoRenderBar.style.marginTop = '10px';
             }
 
-            var availW = Math.max(60, state.width - padX * 2 - state.borderWidth * 2);
+            // Dimensiones internas disponibles
+            var availW = Math.max(50, state.width - padX * 2 - state.borderWidth * 2);
             var availH = Math.max(40, state.height - padY * 2 - state.borderWidth * 2);
 
-            var baseTitleSize = Math.min(48, Math.max(14, Math.floor(Math.min(availW * 0.13, availH * 0.32))));
-            if (titleText.length > 25) baseTitleSize = Math.floor(baseTitleSize * 0.82);
-            if (titleText.length > 45) baseTitleSize = Math.floor(baseTitleSize * 0.75);
+            var hasTag = tagText !== '';
+            var hasSub = subText !== '';
+            var hasBar = !promoRenderBar.classList.contains('hidden');
+
+            var reservedH = 0;
+            if (hasTag) reservedH += isThin ? 18 : 28;
+            if (hasBar) reservedH += 18;
+
+            var textRoomH = Math.max(26, availH - reservedH);
+
+            // Determinar si el título necesita envolverse en varias líneas según el ancho disponible
+            var charsPerTitleLine = Math.max(6, Math.floor(availW / 18));
+            var titleLines = (titleText.length > charsPerTitleLine && !isUltraWide) ? 2 : 1;
+            if (titleText.length > charsPerTitleLine * 2.2 && !isUltraWide) titleLines = 3;
+
+            var subLines = hasSub ? ((subText.length > Math.max(10, Math.floor(availW / 9))) ? 2 : 1) : 0;
+
+            // Cálculo óptimo de tamaño de fuente
+            var lineWeightSum = titleLines * 1.25 + (hasSub ? subLines * 0.72 : 0);
+            var maxTitleFromH = Math.floor(textRoomH / lineWeightSum);
+            var maxTitleFromW = Math.floor((availW * 0.95) / (Math.ceil(titleText.length / titleLines) * 0.58));
+
+            var targetTitleSize = Math.max(13, Math.min(54, Math.min(maxTitleFromH, maxTitleFromW)));
+
+            // Ajustes específicos según la proporción para lucir siempre nítido y balanceado
+            if (isUltraWide) {
+                targetTitleSize = Math.max(18, Math.min(36, targetTitleSize));
+            } else if (state.height >= 260 && state.width >= 450) {
+                targetTitleSize = Math.max(22, Math.min(52, targetTitleSize));
+            } else if (state.height <= 140) {
+                targetTitleSize = Math.max(15, Math.min(28, targetTitleSize));
+            }
 
             var applyFontSizes = function(tSize) {
-                var sSize = Math.max(10, Math.round(tSize * 0.52));
-                var tgSize = Math.max(9, Math.round(tSize * 0.36));
+                var sSize = Math.max(10, Math.round(tSize * (isThin ? 0.52 : 0.48)));
+                var tgSize = Math.max(9, Math.round(tSize * (isThin ? 0.38 : 0.35)));
                 promoRenderTitle.style.fontSize = tSize + 'px';
+                promoRenderTitle.style.lineHeight = isThin ? '1.12' : '1.18';
                 promoRenderSub.style.fontSize = sSize + 'px';
+                promoRenderSub.style.lineHeight = isThin ? '1.18' : '1.25';
                 promoRenderTag.style.fontSize = tgSize + 'px';
-                promoRenderTag.style.marginBottom = Math.max(3, Math.round(tSize * 0.18)) + 'px';
-                promoRenderSub.style.marginTop = Math.max(2, Math.round(tSize * 0.15)) + 'px';
+                promoRenderTag.style.marginBottom = Math.max(2, Math.round(tSize * (isThin ? 0.08 : 0.14))) + 'px';
+                promoRenderSub.style.marginTop = Math.max(2, Math.round(tSize * (isThin ? 0.06 : 0.12))) + 'px';
             };
 
-            applyFontSizes(baseTitleSize);
+            applyFontSizes(targetTitleSize);
 
+            // Refinamiento suave: Si el texto excede el contenedor visible real, reducir 1px progresivamente
             var guard = 0;
             while (
-                guard < 35 &&
-                baseTitleSize > 10 &&
-                (adTextInner.scrollHeight > state.height - state.borderWidth * 2 ||
-                 promoRenderTitle.scrollWidth > availW + 4 ||
-                 promoRenderSub.scrollWidth > availW + 4)
+                guard < 30 &&
+                targetTitleSize > 12 &&
+                (adTextInner.scrollHeight > adTextInner.clientHeight + 2 ||
+                 adTextInner.scrollWidth > adTextInner.clientWidth + 2)
             ) {
-                baseTitleSize -= 1.5;
-                applyFontSizes(baseTitleSize);
+                targetTitleSize -= 1;
+                applyFontSizes(targetTitleSize);
                 guard++;
             }
         }
@@ -1711,6 +1781,7 @@
                             if (state.images.length > 1) {
                                 state.images.splice(idx, 1);
                                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
+                                populatePromoInputsFromCurrent();
                                 applyVisualState();
                                 renderGalleryThumbnails();
                                 saveStateToStorage();
@@ -1718,6 +1789,7 @@
                             return;
                         }
                         state.currentIndex = idx;
+                        populatePromoInputsFromCurrent();
                         applyVisualState();
                         renderGalleryThumbnails();
                     });
@@ -1870,6 +1942,111 @@
 
         var selectedPromoC1 = '#0f172a';
         var selectedPromoC2 = '#0284c7';
+        var promoThumbDebounceTimer = null;
+
+        function populatePromoInputsFromCurrent() {
+            if (!state.images || state.images.length === 0) return;
+            if (state.currentIndex >= state.images.length) state.currentIndex = 0;
+            var currentItem = state.images[state.currentIndex];
+            if (!currentItem || !currentItem.promoData) return;
+
+            var p = currentItem.promoData;
+            var s = p.styles || {};
+
+            var titleInput = document.getElementById('input-promo-title');
+            var subInput = document.getElementById('input-promo-sub');
+            var tagInput = document.getElementById('input-promo-tag');
+
+            if (titleInput && document.activeElement !== titleInput) titleInput.value = p.title || '';
+            if (subInput && document.activeElement !== subInput) subInput.value = p.sub || '';
+            if (tagInput && document.activeElement !== tagInput) tagInput.value = p.tag || '';
+
+            if (s.fontFamily) document.getElementById('select-promo-font').value = s.fontFamily;
+            if (s.tagWeight) document.getElementById('select-tag-weight').value = s.tagWeight;
+            if (s.tagColor) document.getElementById('picker-tag-color').value = s.tagColor;
+            if (s.titleWeight) document.getElementById('select-title-weight').value = s.titleWeight;
+            if (s.titleColor) document.getElementById('picker-title-color').value = s.titleColor;
+            if (s.subWeight) document.getElementById('select-sub-weight').value = s.subWeight;
+            if (s.subColor) document.getElementById('picker-sub-color').value = s.subColor;
+
+            if (p.c1 && p.c2) {
+                selectedPromoC1 = p.c1;
+                selectedPromoC2 = p.c2;
+                var promoBgBtns = document.querySelectorAll('.promo-bg-btn');
+                for (var j = 0; j < promoBgBtns.length; j++) {
+                    var match = promoBgBtns[j].dataset.c1 === p.c1 && promoBgBtns[j].dataset.c2 === p.c2;
+                    promoBgBtns[j].classList.toggle('ring-2', match);
+                    promoBgBtns[j].classList.toggle('ring-white', match);
+                    promoBgBtns[j].classList.toggle('opacity-100', match);
+                    promoBgBtns[j].classList.toggle('opacity-70', !match);
+                }
+            }
+        }
+
+        function syncActivePromoFromInputs() {
+            if (!state.images || state.images.length === 0) return;
+            if (state.currentIndex >= state.images.length) state.currentIndex = 0;
+            var currentItem = state.images[state.currentIndex];
+            if (!currentItem) return;
+
+            var titleInput = document.getElementById('input-promo-title');
+            var subInput = document.getElementById('input-promo-sub');
+            var tagInput = document.getElementById('input-promo-tag');
+
+            var titleText = titleInput.value;
+            var subText = subInput.value;
+            var tagText = tagInput.value;
+
+            var customStyles = {
+                fontFamily: document.getElementById('select-promo-font').value,
+                tagWeight: document.getElementById('select-tag-weight').value,
+                tagColor: document.getElementById('picker-tag-color').value,
+                titleWeight: document.getElementById('select-title-weight').value,
+                titleColor: document.getElementById('picker-title-color').value,
+                subWeight: document.getElementById('select-sub-weight').value,
+                subColor: document.getElementById('picker-sub-color').value
+            };
+
+            // Asegurar promoData en el elemento actual
+            if (!currentItem.promoData) {
+                currentItem.promoData = {
+                    title: titleText || '¡PROMOCIÓN ESPECIAL!',
+                    sub: subText,
+                    tag: tagText,
+                    c1: selectedPromoC1,
+                    c2: selectedPromoC2,
+                    styles: customStyles
+                };
+            } else {
+                currentItem.promoData.title = titleText;
+                currentItem.promoData.sub = subText;
+                currentItem.promoData.tag = tagText;
+                currentItem.promoData.c1 = selectedPromoC1;
+                currentItem.promoData.c2 = selectedPromoC2;
+                currentItem.promoData.styles = customStyles;
+            }
+            currentItem.name = titleText.trim() || 'Promo Publicitaria';
+
+            // Actualización inmediata en pantalla completa
+            applyVisualState();
+
+            // Actualizar la miniatura SVG de la lista (con leve debounce)
+            if (promoThumbDebounceTimer) clearTimeout(promoThumbDebounceTimer);
+            promoThumbDebounceTimer = setTimeout(function() {
+                if (currentItem && currentItem.promoData) {
+                    currentItem.src = createDemoBannerSVG(
+                        currentItem.promoData.title || '¡PROMOCIÓN!',
+                        currentItem.promoData.sub || '',
+                        currentItem.promoData.c1,
+                        currentItem.promoData.c2,
+                        currentItem.promoData.tag || '',
+                        currentItem.promoData.styles
+                    );
+                    renderGalleryThumbnails();
+                    saveStateToStorage();
+                }
+            }, 300);
+        }
 
         var promoBgBtns = document.querySelectorAll('.promo-bg-btn');
         for (var b = 0; b < promoBgBtns.length; b++) {
@@ -1883,9 +2060,21 @@
                     }
                     btn.classList.add('ring-2', 'ring-white', 'opacity-100');
                     btn.classList.remove('opacity-70');
+                    syncActivePromoFromInputs();
                 });
             })(promoBgBtns[b]);
         }
+
+        // Conectar eventos en tiempo real para todos los campos de texto, fuentes y colores
+        ['input-promo-title', 'input-promo-sub', 'input-promo-tag', 'picker-tag-color', 'picker-title-color', 'picker-sub-color'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('input', syncActivePromoFromInputs);
+        });
+
+        ['select-promo-font', 'select-tag-weight', 'select-title-weight', 'select-sub-weight'].forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) el.addEventListener('change', syncActivePromoFromInputs);
+        });
 
         document.getElementById('btn-create-text-ad').addEventListener('click', function() {
             var titleInput = document.getElementById('input-promo-title');
@@ -1907,7 +2096,6 @@
             };
 
             var generatedSrc = createDemoBannerSVG(titleText, subText, selectedPromoC1, selectedPromoC2, tagText, customStyles);
-            var onlyDemos = state.images.every(function(img) { return img.id.startsWith('demo-'); });
 
             var newPromo = {
                 id: 'promo-' + Date.now(),
@@ -1923,22 +2111,13 @@
                 }
             };
 
-            if (onlyDemos) {
-                state.images = [newPromo];
-                state.currentIndex = 0;
-            } else {
-                state.images.push(newPromo);
-                state.currentIndex = state.images.length - 1;
-            }
-
-            titleInput.value = '';
-            subInput.value = '';
-            tagInput.value = '';
+            state.images.push(newPromo);
+            state.currentIndex = state.images.length - 1;
 
             applyVisualState();
             renderGalleryThumbnails();
             saveStateToStorage();
-            showToast('🎨 Promo generada con éxito');
+            showToast('🎨 Nueva variante guardada en lista');
         });
 
         document.getElementById('btn-restore-demo').addEventListener('click', function() {
@@ -2419,6 +2598,7 @@
 
         window.onload = function() {
             loadStateFromStorage();
+            populatePromoInputsFromCurrent();
             renderGalleryThumbnails();
             applyVisualState();
             applyModalTransform();
