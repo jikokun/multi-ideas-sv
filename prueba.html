@@ -372,9 +372,9 @@
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px;">
                 <div>
                     <label for="tcg-position" style="display: block; font-size: 0.85rem; font-weight: 700; color: #00f3ff; margin-bottom: 6px;">📍 Posición en OBS:</label>
-                    <select id="tcg-position" class="gate-input" style="padding: 10px 14px; font-size: 0.9rem; letter-spacing: normal; text-align: left;" onchange="updateTarjeteroPrivateWidget()">
-                        <option value="centro">🎯 Centro Pantalla</option>
-                        <option value="abajo-derecha" selected>↘️ Abajo Derecha</option>
+                    <select id="tcg-position" class="gate-input" style="padding: 10px 14px; font-size: 0.9rem; letter-spacing: normal; text-align: left;" onchange="updateTarjeteroPrivateWidget(true)">
+                        <option value="centro" selected>🎯 Centro Pantalla</option>
+                        <option value="abajo-derecha">↘️ Abajo Derecha</option>
                         <option value="abajo-izquierda">↙️ Abajo Izquierda</option>
                         <option value="abajo-centro">⬇️ Abajo Centro</option>
                         <option value="arriba-derecha">↗️ Arriba Derecha</option>
@@ -1185,6 +1185,27 @@
                 try { firebase.auth().signInAnonymously().catch(() => {}); } catch(e) {}
                 window.fbTarjetasRef = firebase.database().ref('stream/widgets/tarjetas');
                 console.log('[Prueba Lab] 🔥 Firebase RTDB conectado para Tarjetero OBS en stream/widgets/tarjetas');
+
+                // Sincronizar controles interactivos en tiempo real desde Firebase RTDB sin pisar configuración
+                window.fbTarjetasRef.child('config').on('value', (snapshot) => {
+                    const cfg = snapshot.val();
+                    if (!cfg) return;
+                    const posEl = document.getElementById("tcg-position");
+                    if (posEl && cfg.position) posEl.value = cfg.position;
+                    const scaleEl = document.getElementById("tcg-scale");
+                    if (scaleEl && cfg.scale) scaleEl.value = String(cfg.scale);
+                    const orderEl = document.getElementById("tcg-order");
+                    if (orderEl && cfg.order) orderEl.value = cfg.order;
+                    const pauseEl = document.getElementById("tcg-pause");
+                    if (pauseEl && cfg.centerPauseTime) pauseEl.value = cfg.centerPauseTime;
+                    const speedEl = document.getElementById("tcg-speed");
+                    if (speedEl && cfg.spinSpeed) speedEl.value = cfg.spinSpeed;
+                    const durationEl = document.getElementById("tcg-duration");
+                    if (durationEl && cfg.showcaseDuration) durationEl.value = cfg.showcaseDuration;
+                    if (typeof updateTarjeteroPrivateWidget === 'function') {
+                        updateTarjeteroPrivateWidget(false);
+                    }
+                });
             }
         } catch(e) { console.warn('[Prueba Firebase]', e); }
 
@@ -1482,9 +1503,9 @@
         // =======================================================================
         // GESTIÓN EXCLUSIVA: JIKOKUN TCG (EXPOSITOR 3D DE TARJETAS OBS)
         // =======================================================================
-        function updateTarjeteroPrivateWidget() {
+        function updateTarjeteroPrivateWidget(broadcast = true) {
             const posEl = document.getElementById("tcg-position");
-            const pos = posEl ? posEl.value : "abajo-derecha";
+            const pos = posEl ? posEl.value : "centro";
             const scaleEl = document.getElementById("tcg-scale");
             const scale = scaleEl ? scaleEl.value : "1.0";
             const orderEl = document.getElementById("tcg-order");
@@ -1509,6 +1530,8 @@
             const openLinkBtn = document.getElementById("btn-open-tarjetero-tab");
             if (openLinkBtn) openLinkBtn.href = `${dirUrl}laboratorio/tarjetero.html?pos=${pos}&scale=${scale}&order=${order}&pause=${pause}&speed=${speed}&duration=${duration}`;
 
+            if (!broadcast) return;
+
             const cfgData = {
                 position: pos,
                 scale: parseFloat(scale) || 1.0,
@@ -1519,7 +1542,7 @@
                 updatedAt: Date.now()
             };
 
-            // 1. Envío instantáneo a la vista previa (iframe)
+            // 1. Envío instantáneo a la vista previa (iframe si existe)
             const preview = document.getElementById("preview-tarjetero-test");
             if (preview && preview.contentWindow) {
                 preview.contentWindow.postMessage({
@@ -1996,7 +2019,7 @@
 
         // Ejecutar verificación inmediata al cargar
         checkAccess();
-        updateTarjeteroPrivateWidget();
+        updateTarjeteroPrivateWidget(false);
         updateJikokunPrivateWidget();
         updateTienditaPrivateWidget();
         updatePatrocinioPrivateWidget();

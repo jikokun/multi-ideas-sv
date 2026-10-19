@@ -411,7 +411,7 @@
             align-items: center;
             justify-content: center;
             transform-style: preserve-3d;
-            transition: all 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
             transform-origin: center center;
             pointer-events: none;
             will-change: transform, top, left, opacity;
@@ -744,17 +744,19 @@
                 hudSpin.value = widgetConfig.spinSpeed;
             }
 
-            // 1. Aplicar posición automática
+            // 1. Aplicar posición automática en el lienzo
             if (carouselAnchor) {
-                const urlParams = new URLSearchParams(window.location.search);
-                const isPreviewOrIframe = urlParams.get('preview') === 'true' || window.self !== window.top;
-                const effectivePos = isPreviewOrIframe ? 'centro' : (widgetConfig.position || 'centro');
+                const targetPos = widgetConfig.position || 'centro';
                 const positions = [
                     'pos-centro', 'pos-arriba-centro', 'pos-arriba-izquierda', 'pos-arriba-derecha',
                     'pos-izquierda-centro', 'pos-derecha-centro', 'pos-abajo-centro', 'pos-abajo-izquierda', 'pos-abajo-derecha'
                 ];
                 positions.forEach(p => carouselAnchor.classList.remove(p));
-                carouselAnchor.classList.add(`pos-${effectivePos}`);
+                carouselAnchor.classList.add(`pos-${targetPos}`);
+
+                try {
+                    localStorage.setItem('jikokun_tcg_config', JSON.stringify(widgetConfig));
+                } catch(e) {}
 
                 // 2. Aplicar escala proporcional
                 carouselAnchor.style.setProperty('--carousel-scale', widgetConfig.scale || 1.0);
@@ -934,6 +936,18 @@
             widgetState = 'TRANSITIONING';
             stopAutoCycle();
 
+            // Asegurar que el ancla del lienzo mantenga firmemente la posición configurada
+            if (carouselAnchor) {
+                carouselAnchor.classList.remove('showcase-center-override');
+                const targetPos = widgetConfig.position || 'centro';
+                const positions = [
+                    'pos-centro', 'pos-arriba-centro', 'pos-arriba-izquierda', 'pos-arriba-derecha',
+                    'pos-izquierda-centro', 'pos-derecha-centro', 'pos-abajo-centro', 'pos-abajo-izquierda', 'pos-abajo-derecha'
+                ];
+                positions.forEach(p => carouselAnchor.classList.remove(p));
+                carouselAnchor.classList.add(`pos-${targetPos}`);
+            }
+
             // 1. Las 5 cartas actuales se juntan en el centro girándose hacia su reverso
             carouselStage.classList.add('deck-gathering');
 
@@ -964,6 +978,7 @@
 
                     // Renderizar con startInDeckStack = true (Cero caras frontales visibles)
                     renderBatchCards(true);
+                    preloadNextBatchImages();
 
                     // Pequeño pulso de onda / brillo misterioso en el mazo cerrado
                     triggerDeckAura();
@@ -1063,11 +1078,86 @@
             }
         }
 
+        // ═══════════ SISTEMA DE PRECARGA Y CACHÉ ULTRA-RÁPIDO EN OBS ═══════════
+        const tcgImageMemoryCache = new Map();
+
+        function preloadSingleImage(url) {
+            if (!url || tcgImageMemoryCache.has(url)) return;
+            try {
+                const img = new Image();
+                img.decoding = 'async';
+                img.src = url;
+                if (img.decode) {
+                    img.decode().catch(() => {});
+                }
+                tcgImageMemoryCache.set(url, img);
+            } catch(e) {}
+        }
+
+        function preloadCollectionImages(cards) {
+            if (!Array.isArray(cards) || cards.length === 0) return;
+            console.log(`[Tarjetero Caché OBS] 🚀 Pre-cargando y decodificando ${cards.length} cartas y reversos en memoria...`);
+
+            // 1. Pre-cargar todos los reversos oficiales en memoria
+            const officialBackList = (typeof OFFICIAL_BACKS !== 'undefined') ? Object.values(OFFICIAL_BACKS) : [];
+            officialBackList.forEach(url => preloadSingleImage(url));
+
+            // 2. Pre-cargar portadas y contraportadas de cada carta de la colección
+            cards.forEach(card => {
+                if (card.frontImage) preloadSingleImage(card.frontImage);
+                const rarityKey = (card.rarity || 'COMÚN').toUpperCase();
+                const back = card.backImage || (typeof OFFICIAL_BACKS !== 'undefined' ? OFFICIAL_BACKS[rarityKey] : null);
+                if (back) preloadSingleImage(back);
+            });
+
+            // 3. Cache Storage API para persistencia en disco de Chromium en OBS Studio
+            if ('caches' in window) {
+                try {
+                    caches.open('jikokun-tcg-cache-v1').then(cache => {
+                        const urlsToCache = [];
+                        officialBackList.forEach(u => { if (u && u.startsWith('http')) urlsToCache.push(u); });
+                        cards.forEach(card => {
+                            if (card.frontImage && card.frontImage.startsWith('http')) urlsToCache.push(card.frontImage);
+                            if (card.backImage && card.backImage.startsWith('http')) urlsToCache.push(card.backImage);
+                        });
+
+                        urlsToCache.forEach(u => {
+                            cache.match(u).then(found => {
+                                if (!found) {
+                                    fetch(u, { mode: 'no-cors' })
+                                        .then(resp => { if (resp) cache.put(u, resp); })
+                                        .catch(() => {});
+                                }
+                            }).catch(() => {});
+                        });
+                    }).catch(() => {});
+                } catch(e) {}
+            }
+        }
+
+        function preloadNextBatchImages() {
+            if (!fullCollection || fullCollection.length === 0) return;
+            const totalBatches = Math.ceil(fullCollection.length / BATCH_SIZE);
+            const nextIdx = (currentBatchIndex + 1) % totalBatches;
+            const start = nextIdx * BATCH_SIZE;
+            const nextCards = fullCollection.slice(start, start + BATCH_SIZE);
+            nextCards.forEach(c => {
+                if (c.frontImage) preloadSingleImage(c.frontImage);
+                const rKey = (c.rarity || 'COMÚN').toUpperCase();
+                const b = c.backImage || (typeof OFFICIAL_BACKS !== 'undefined' ? OFFICIAL_BACKS[rKey] : null);
+                if (b) preloadSingleImage(b);
+            });
+        }
+
         /**
          * Aplicar orden a la colección
          */
-        function applyCollectionOrder(orderType) {
+        let currentAppliedOrder = null;
+
+        function applyCollectionOrder(orderType, forceReset = false) {
             if (!fullCollection || fullCollection.length === 0) return;
+            if (!forceReset && currentAppliedOrder === orderType) return;
+            currentAppliedOrder = orderType;
 
             if (orderType === 'aleatorio') {
                 for (let i = fullCollection.length - 1; i > 0; i--) {
@@ -1082,6 +1172,9 @@
             } else {
                 fullCollection.sort((a, b) => parseInt(a.num !== undefined ? a.num : a.id, 10) - parseInt(b.num !== undefined ? b.num : b.id, 10));
             }
+
+            // Iniciar caché de imágenes inmediatamente para toda la colección
+            preloadCollectionImages(fullCollection);
 
             currentBatchIndex = 0;
             currentSlotIndex = 0;
@@ -1114,11 +1207,13 @@
 
             if (immediate) {
                 renderBatchCards(false);
+                preloadNextBatchImages();
                 updateCarouselPositions();
                 startAutoCycle();
             } else {
                 // Entrada misteriosa anti-spoiler: aparece como mazo cerrado con su reverso y luego se expande
                 renderBatchCards(true);
+                preloadNextBatchImages();
                 triggerDeckAura();
                 setTimeout(() => {
                     cardElements.forEach(slot => slot.classList.remove('in-deck-stack'));
@@ -1164,7 +1259,7 @@
                                     <img src="${frontCoverUrl}" 
                                          alt="Carta Jikokun" 
                                          class="w-full h-full object-cover object-center transform hover:scale-105 transition duration-500"
-                                         loading="lazy"
+                                         decoding="async"
                                          onerror="this.src='https://placehold.co/260x380/0f172a/00f3ff?text=JIKOKUN'">
                                 </div>
                             </div>
@@ -1178,7 +1273,7 @@
                                     <img src="${backCoverUrl}" 
                                          alt="Contraportada" 
                                          class="w-full h-full object-cover object-center"
-                                         loading="lazy"
+                                         decoding="async"
                                          onerror="this.src='https://placehold.co/260x380/090d16/ff0055?text=REVERSO'">
                                 </div>
                             </div>
@@ -1537,7 +1632,85 @@
             }
         });
 
-        // ═══════════ INTEGRACIÓN STREAMER.BOT (KICK / TWITCH) ═══════════
+        // ═══════════ INTEGRACIÓN DIRECTA CON KICK PUSHER WEBSOCKET (NUBE) ═══════════
+        const KICK_PUSHER_KEY = '32cbd69e4b950bf97679';
+        const KICK_PUSHER_CLUSTER = 'us2';
+        const KICK_CHATROOM_ID = '1866891'; // Chatroom oficial de Kick (kick.com/jikokun)
+        let kickWs = null;
+        let kickReconnectTimer = null;
+
+        function connectKickPusher() {
+            if (kickWs) {
+                try { kickWs.close(); } catch(e) {}
+                kickWs = null;
+            }
+
+            try {
+                const wsUrl = `wss://ws-${KICK_PUSHER_CLUSTER}.pusher.com/app/${KICK_PUSHER_KEY}?protocol=7&client=js&version=7.6.0&flash=false`;
+                console.log('[Kick Pusher TCG] 🔌 Conectando a Kick Chat WSS...');
+                kickWs = new WebSocket(wsUrl);
+
+                kickWs.onopen = () => {
+                    console.log(`[Kick Pusher TCG] 🟢 Conectado exitosamente. Suscribiendo a chatrooms.${KICK_CHATROOM_ID}.v2`);
+                    kickWs.send(JSON.stringify({
+                        event: 'pusher:subscribe',
+                        data: { auth: '', channel: `chatrooms.${KICK_CHATROOM_ID}.v2` }
+                    }));
+                    syncChannel.postMessage({ action: 'kick_status', connected: true });
+                };
+
+                kickWs.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        if (msg.event === 'App\\Events\\ChatMessageEvent') {
+                            parseKickPusherChatMessage(msg.data);
+                        } else if (msg.event === 'pusher:ping') {
+                            kickWs.send(JSON.stringify({ event: 'pusher:pong', data: {} }));
+                        }
+                    } catch (e) {}
+                };
+
+                kickWs.onclose = () => {
+                    console.log('[Kick Pusher TCG] ⚪ Desconectado. Reconectando en 6s...');
+                    syncChannel.postMessage({ action: 'kick_status', connected: false });
+                    clearTimeout(kickReconnectTimer);
+                    kickReconnectTimer = setTimeout(connectKickPusher, 6000);
+                };
+
+                kickWs.onerror = (err) => {
+                    console.warn('[Kick Pusher TCG] Error en WebSocket:', err);
+                };
+            } catch(e) {
+                clearTimeout(kickReconnectTimer);
+                kickReconnectTimer = setTimeout(connectKickPusher, 6000);
+            }
+        }
+
+        function parseKickPusherChatMessage(rawData) {
+            try {
+                let data = rawData;
+                if (typeof data === 'string') {
+                    try { data = JSON.parse(data); } catch(e){}
+                }
+                if (data && data.data) {
+                    if (typeof data.data === 'string') {
+                        try { data = JSON.parse(data.data); } catch(e){}
+                    } else {
+                        data = data.data;
+                    }
+                }
+                if (!data || !data.content) return;
+
+                const senderName = data.sender?.username || 'KickUser';
+                const messageText = data.content || '';
+                console.log(`[Kick Pusher TCG] 💬 Mensaje Kick recibido de ${senderName}: "${messageText}"`);
+                handleChatMessage(senderName, messageText);
+            } catch (err) {
+                console.warn('[Kick Pusher TCG] Error parseando mensaje:', err);
+            }
+        }
+
+        // ═══════════ INTEGRACIÓN STREAMER.BOT (KICK / TWITCH LOCAL) ═══════════
         const SB_PORTS = [4445, 8080, 7474, 8081, 7475];
         let sbPortIndex = 0;
         let sbSocket = null;
@@ -1623,19 +1796,41 @@
             }
         }
 
+        // ═══════════ PROCESAMIENTO Y DEDUPLICACIÓN DE COMANDOS DE CHAT ═══════════
+        const recentCommandsMap = new Map();
+
         function handleChatMessage(user, message) {
-            const clean = (message || '').trim().toLowerCase();
-            console.log(`[TCG Control] 💬 Comando procesado de ${user}: ${clean}`);
+            if (!message) return;
+            const clean = message.trim().toLowerCase();
+            
+            // Deduplicación en ventana de 2.2s para evitar duplicados entre Pusher y Streamer.bot
+            const dedupKey = `${user.toLowerCase()}:${clean}`;
+            const now = Date.now();
+            if (recentCommandsMap.has(dedupKey) && (now - recentCommandsMap.get(dedupKey) < 2200)) {
+                return;
+            }
+            recentCommandsMap.set(dedupKey, now);
+
+            console.log(`[TCG Control] 💬 Comando procesado de ${user}: "${clean}"`);
 
             if (clean === '!tarjetasjikokun' || clean === '!tarjetas' || clean === '!mostrar') {
                 summonWidget();
             } else if (clean === '!rotar') {
                 fastRotateCurrentBatch();
             } else if (clean.startsWith('!carta')) {
-                const parts = clean.split(' ');
-                const num = parseInt(parts[1], 10);
-                if (!isNaN(num) && num >= 1 && num <= activeBatchCards.length) {
-                    selectCard(num - 1);
+                // Soporta "!carta 1", "!carta1", etc.
+                const matchCarta = clean.match(/^!carta\s*([1-5])$/);
+                if (matchCarta) {
+                    const num = parseInt(matchCarta[1], 10);
+                    if (num >= 1 && num <= activeBatchCards.length) {
+                        selectCard(num - 1);
+                    }
+                } else {
+                    const parts = clean.split(' ');
+                    const num = parseInt(parts[1], 10);
+                    if (!isNaN(num) && num >= 1 && num <= activeBatchCards.length) {
+                        selectCard(num - 1);
+                    }
                 }
             } else if (clean === '!siguiente' || clean === '!lote' || clean === '!sig' || clean === '!next') {
                 transitionToNextBatch();
@@ -1662,7 +1857,9 @@
             } else if (event.data.type === 'UPDATE_CONFIG' && event.data.config) {
                 console.log('[Tarjetero PostMessage] ⚙️ Configuración recibida:', event.data.config);
                 applyWidgetConfig(event.data.config);
-                if (event.data.config.order) applyCollectionOrder(event.data.config.order);
+                if (event.data.config.order && event.data.config.order !== currentAppliedOrder) {
+                    applyCollectionOrder(event.data.config.order);
+                }
             } else if (event.data.type === 'ZOOM_CARD') {
                 const idx = (typeof event.data.index === 'number' && event.data.index >= 0 && event.data.index < activeBatchCards.length) 
                     ? event.data.index 
@@ -1741,7 +1938,7 @@
                 } else if (event.data.action === 'update_config' && event.data.config) {
                     console.log('[Tarjetero] Configuración recibida:', event.data.config);
                     applyWidgetConfig(event.data.config);
-                    if (event.data.config.order) {
+                    if (event.data.config.order && event.data.config.order !== currentAppliedOrder) {
                         applyCollectionOrder(event.data.config.order);
                     }
                 } else if (event.data.action === 'command' && event.data.command) {
@@ -1813,7 +2010,7 @@
                     if (!cfg) return;
                     console.log('[TCG Firebase] ⚙️ Configuración del expositor sincronizada en vivo:', cfg);
                     applyWidgetConfig(cfg);
-                    if (cfg.order) {
+                    if (cfg.order && cfg.order !== currentAppliedOrder) {
                         applyCollectionOrder(cfg.order);
                     }
                 });
@@ -1837,6 +2034,7 @@
             await loadCollection();
             animateParticles();
             checkUrlParams();
+            connectKickPusher();
             connectStreamerBot();
             initFirebaseRealtime();
         };
