@@ -729,9 +729,22 @@
       onAuthStateChanged, 
       GoogleAuthProvider, 
       signInWithPopup, 
-      signInWithRedirect 
+      signInWithRedirect,
+      getRedirectResult
     } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
     import { ref, get, update } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+
+    // Capturar posibles redirecciones de Google Auth
+    try {
+      getRedirectResult(auth).then(async (result) => {
+        if (result && result.user && isVerifiedUser(result.user)) {
+          console.log("[Mis Widgets] Sesión completada tras redirección:", result.user.uid);
+          localStorage.setItem('multiideas_user_authed', 'true');
+          localStorage.setItem('multiideas_user_uid', result.user.uid);
+          await registerWidgetUserInFirebase(result.user);
+        }
+      }).catch(err => console.warn("[Mis Widgets] Redirect result notice:", err));
+    } catch(e) {}
 
     let currentUser = null;
     let userWidgetsConfig = {};

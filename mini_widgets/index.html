@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Explorador y Configurador de Mini Widgets para OBS | Multi Ideas Sv</title>
+  <title>Explorador y Configurador de Widgets OBS | Multi Ideas Sv</title>
   <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -34,17 +34,35 @@
       (function() {
           const savedTheme = localStorage.getItem('theme');
           if (savedTheme === 'light') {
-              const link = document.querySelector('link[href*="../estilos.css"]');
-              if (link) link.href = '../estilo_claro_multi.css?v=3';
-              if (document.body) {
-                  document.body.classList.add('light-theme');
-              } else {
-                  document.addEventListener('DOMContentLoaded', () => {
-                      document.body.classList.add('light-theme');
-                  });
-              }
+            const link = document.querySelector('link[href*="../estilos.css"]');
+            if (link) link.href = '../estilo_claro_multi.css?v=3';
+            if (document.body) {
+                document.body.classList.add('light-theme');
+            } else {
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.body.classList.add('light-theme');
+                });
+            }
+          }
+          if (localStorage.getItem('multiideas_user_authed') === 'true') {
+            document.documentElement.classList.add('user-pre-authed');
           }
       })();
+
+      // Despachador resiliente contra problemas de latencia o clics anticipados
+      window.__gateAuthPending = false;
+      window.loginWithGoogleGate = function() {
+        window.__gateAuthPending = true;
+        const btn = document.getElementById('gate-btn-google');
+        const text = document.getElementById('gate-google-text');
+        const spinner = document.getElementById('gate-google-spinner');
+        if (btn) btn.disabled = true;
+        if (spinner) spinner.style.display = 'inline-block';
+        if (text) text.textContent = 'Conectando con Google...';
+        if (window.__realLoginWithGoogleGate) {
+          window.__realLoginWithGoogleGate();
+        }
+      };
   </script>
 
   <style>
@@ -677,24 +695,206 @@
       opacity: 1;
     }
 
-    /* Auth Gate */
+    /* =======================================================================
+       PANTALLA DE BLOQUEO / INICIO DE SESIÓN OBLIGATORIO (WIDGETS OBS)
+       ======================================================================= */
+    html.user-pre-authed #widgets-auth-gate {
+      display: none !important;
+      opacity: 0 !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+    }
+
     .widgets-auth-gate {
       position: fixed;
       inset: 0;
-      background: rgba(3, 7, 18, 0.9);
-      -webkit-backdrop-filter: blur(14px);
-      backdrop-filter: blur(14px);
+      background: rgba(3, 7, 18, 0.92);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
       z-index: 99999;
       display: flex;
       align-items: center;
       justify-content: center;
       padding: 20px;
       transition: opacity 0.35s ease, visibility 0.35s ease;
+      overflow-y: auto;
     }
+    .auth-modal-overlay,
+    #auth-modal.auth-modal-overlay,
+    #profile-modal.auth-modal-overlay {
+      z-index: 100005 !important;
+    }
+
+    .widgets-auth-gate.unlocked,
     .widgets-auth-gate.hidden-gate {
       opacity: 0;
       visibility: hidden;
       pointer-events: none;
+    }
+
+    .auth-gate-card {
+      width: 100%;
+      max-width: 480px;
+      background: linear-gradient(145deg, #0f172a 0%, #09101d 100%);
+      border: 1.5px solid rgba(56, 189, 248, 0.35);
+      border-radius: 24px;
+      padding: 36px 30px;
+      text-align: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 35px rgba(56, 189, 248, 0.12);
+      position: relative;
+      animation: gatePopIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes gatePopIn {
+      from { transform: scale(0.94) translateY(16px); opacity: 0; }
+      to { transform: scale(1) translateY(0); opacity: 1; }
+    }
+
+    .auth-gate-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      border-radius: 9999px;
+      background: rgba(14, 165, 233, 0.15);
+      border: 1px solid rgba(14, 165, 233, 0.35);
+      color: #38bdf8;
+      font-size: 0.75rem;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .auth-gate-icon {
+      font-size: 2.8rem;
+      margin-bottom: 14px;
+      filter: drop-shadow(0 0 16px rgba(14, 165, 233, 0.4));
+      display: inline-block;
+    }
+
+    .auth-gate-title {
+      font-size: 1.65rem;
+      font-weight: 900;
+      color: #ffffff;
+      margin-bottom: 10px;
+      line-height: 1.25;
+      font-family: 'Orbitron', 'Inter', sans-serif;
+    }
+
+    .auth-gate-desc {
+      color: #94a3b8;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      margin-bottom: 22px;
+    }
+    .auth-gate-desc strong {
+      color: #38bdf8;
+      font-weight: 700;
+    }
+
+    /* Acciones y Botones */
+    .auth-gate-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .btn-gate-google {
+      width: 100%;
+      background: #ffffff;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 0.95rem;
+      padding: 13px 20px;
+      border-radius: 14px;
+      border: 1.5px solid #e2e8f0;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-gate-google:hover:not(:disabled) {
+      background: #f8fafc;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(255, 255, 255, 0.2);
+    }
+    .btn-gate-google:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Mensajes de Alerta y Estado */
+    .gate-alert {
+      padding: 12px 14px;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      margin-bottom: 14px;
+      display: none;
+      text-align: left;
+      line-height: 1.45;
+    }
+    .gate-alert.is-error {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      color: #fca5a5;
+    }
+    .gate-alert.is-error button {
+      align-self: flex-start;
+      margin-top: 4px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+    }
+
+    /* Lista de beneficios */
+    .gate-features {
+      background: rgba(11, 19, 41, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+    .gate-feature-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+    }
+    .gate-feature-check {
+      color: #22c55e;
+      font-weight: 900;
+      font-size: 0.85rem;
+    }
+
+    /* Spinner */
+    .gate-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2.5px solid rgba(15, 23, 42, 0.2);
+      border-top-color: #0f172a;
+      border-radius: 50%;
+      animation: gateSpin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes gateSpin {
+      to { transform: rotate(360deg); }
     }
 
     /* =======================================================================
@@ -952,6 +1152,61 @@
     body.light-theme .color-picker-mini {
       border-color: #cbd5e1 !important;
     }
+
+    /* =======================================================================
+       ADAPTACIÓN DE LA PANTALLA DE BLOQUEO EN MODO CLARO (body.light-theme)
+       ======================================================================= */
+    body.light-theme .widgets-auth-gate {
+      background: rgba(241, 245, 249, 0.94) !important;
+    }
+    body.light-theme .auth-gate-card {
+      background: #ffffff !important;
+      border: 1.5px solid rgba(0, 143, 150, 0.35) !important;
+      box-shadow: 0 20px 50px rgba(0, 143, 150, 0.12), 0 6px 20px rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-theme .auth-gate-badge {
+      background: rgba(0, 143, 150, 0.1) !important;
+      border-color: rgba(0, 143, 150, 0.35) !important;
+      color: #008f96 !important;
+    }
+    body.light-theme .auth-gate-title {
+      color: #0f172a !important;
+    }
+    body.light-theme .auth-gate-desc {
+      color: #475569 !important;
+    }
+    body.light-theme .auth-gate-desc strong {
+      color: #008f96 !important;
+    }
+    body.light-theme .btn-gate-google {
+      background: #ffffff !important;
+      color: #0f172a !important;
+      border-color: #cbd5e1 !important;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06) !important;
+    }
+    body.light-theme .btn-gate-google:hover:not(:disabled) {
+      background: #f8fafc !important;
+      border-color: #94a3b8 !important;
+    }
+    body.light-theme .gate-alert.is-error {
+      background: #fef2f2 !important;
+      border-color: #fca5a5 !important;
+      color: #991b1b !important;
+    }
+    body.light-theme .gate-alert.is-error button {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+    }
+    body.light-theme .gate-features {
+      background: #f8fafc !important;
+      border-color: #e2e8f0 !important;
+    }
+    body.light-theme .gate-feature-item {
+      color: #334155 !important;
+    }
+    body.light-theme .gate-feature-check {
+      color: #16a34a !important;
+    }
   </style>
 </head>
 <body class="antialiased">
@@ -959,27 +1214,54 @@
   <!-- Menú Global Adaptativo de Multi Ideas Sv -->
   <header id="global-header"></header>
 
-  <!-- Pantalla de Bloqueo / Registro Obligatorio -->
+  <!-- Pantalla de Bloqueo / Registro Obligatorio para Acceder a Widgets OBS -->
   <div id="widgets-auth-gate" class="widgets-auth-gate">
-    <div class="auth-gate-card bg-slate-900 border border-slate-700 text-white rounded-2xl p-8 max-w-md w-full shadow-2xl text-center">
-      <div class="inline-block bg-sky-500/20 text-sky-400 text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider mb-4 border border-sky-500/30">
-        ✨ WIDGETS DE JIKOKUN
+    <div class="auth-gate-card">
+      <div class="auth-gate-badge">
+        <span>✨ WIDGETS OBS - JIKOKUN</span>
       </div>
-      <div class="text-4xl mb-3">🔐</div>
-      <h2 class="text-2xl font-extrabold text-white mb-2">Los widgets ideales para tu OBS</h2>
-      <p class="text-sm text-slate-400 mb-6 leading-relaxed">
-        Herramientas y overlays exclusivos para streaming creados y personalizados por <strong>Jikokun</strong>. Para hacer uso de ellos, configurar tus alertas interactivas y obtener tus enlaces listos para tu software de transmisión, inicia sesión con tu cuenta de Google.
+      <div class="auth-gate-icon">
+        <span>🔐</span>
+      </div>
+      <h2 class="auth-gate-title">Widgets OBS para tu Stream</h2>
+      <p class="auth-gate-desc">
+        Herramientas y overlays exclusivos para streaming creados y personalizados por <strong>Jikokun</strong>. Para configurar tus alertas interactivas y obtener enlaces listos para tu software de transmisión, inicia sesión.
       </p>
 
-      <button type="button" class="w-full bg-white hover:bg-slate-100 text-slate-800 font-bold py-3 px-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-3 text-sm" onclick="loginWithGoogleGate()">
-        <svg viewBox="0 0 24 24" width="20" height="20">
-          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-        </svg>
-        Continuar con Google
-      </button>
+      <!-- Banner de alerta / estado de red y reintentos -->
+      <div id="gate-error-banner" class="gate-alert is-error" style="display: none;">
+        <span id="gate-error-text"></span>
+        <button type="button" onclick="loginWithGoogleGate()">Reintentar conexión con Google</button>
+      </div>
+
+      <div class="auth-gate-actions">
+        <!-- Botón Único de Google con estados de carga -->
+        <button type="button" class="btn-gate-google" id="gate-btn-google" onclick="loginWithGoogleGate()">
+          <span id="gate-google-spinner" class="gate-spinner" style="display: none;"></span>
+          <svg class="google-icon" id="gate-google-icon" viewBox="0 0 24 24" width="20" height="20">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <span id="gate-google-text">Continuar con Google</span>
+        </button>
+      </div>
+
+      <div class="gate-features">
+        <div class="gate-feature-item">
+          <span class="gate-feature-check">✓</span>
+          <span>Overlays y widgets OBS listos para fuente de navegador</span>
+        </div>
+        <div class="gate-feature-item">
+          <span class="gate-feature-check">✓</span>
+          <span>Conexión directa con Streamer.bot y sin uso de extras</span>
+        </div>
+        <div class="gate-feature-item">
+          <span class="gate-feature-check">✓</span>
+          <span>Compatible con OBS Studio, Prism Live, Meld Studio y más</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -987,7 +1269,7 @@
     <!-- Título Principal y Presentación -->
     <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 pb-6 text-center">
       <h1 class="text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-teal-400 mb-3 flex items-center justify-center gap-2">
-        <i class="fa-solid fa-wand-magic-sparkles text-sky-400"></i> Explorador de Mini Widgets para OBS
+        <i class="fa-solid fa-wand-magic-sparkles text-sky-400"></i> Explorador de Widgets OBS
       </h1>
       <p class="text-slate-400 max-w-2xl mx-auto text-sm md:text-base leading-relaxed">
         Haz clic en cualquier widget para abrir su panel interactivo con vista previa en tiempo real y copiar tu enlace directo para OBS Studio.
@@ -1002,7 +1284,7 @@
             <i class="fa-solid fa-crown"></i>
           </div>
           <div>
-            <h3 class="font-bold text-sm md:text-base">Colección de Widgets Multi Ideas Sv</h3>
+            <h3 class="font-bold text-sm md:text-base">Colección de Widgets OBS Multi Ideas Sv</h3>
             <p class="text-xs">Accede a tus overlays favoritos sincronizados con tu cuenta.</p>
           </div>
         </div>
@@ -2631,7 +2913,8 @@
       onAuthStateChanged, 
       GoogleAuthProvider, 
       signInWithPopup, 
-      signInWithRedirect 
+      signInWithRedirect,
+      getRedirectResult
     } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js';
     import { ref, get, set, update } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
 
@@ -2660,14 +2943,29 @@
     // Comprobar estado previo guardado para evitar bloqueos innecesarios al navegar entre páginas
     if (localStorage.getItem('multiideas_user_authed') === 'true') {
       const gateEl = document.getElementById('widgets-auth-gate');
-      const containerEl = document.getElementById('widgets-container');
       if (gateEl) {
         gateEl.classList.add('unlocked');
+        gateEl.classList.add('hidden-gate');
         gateEl.style.display = 'none';
       }
-      if (containerEl) {
-        containerEl.classList.remove('locked');
-      }
+      document.documentElement.classList.add('user-pre-authed');
+    }
+
+    // Captura y resolución automática de sesiones tras redirección (móviles / navegadores con bloqueo estricto de popups)
+    try {
+      getRedirectResult(auth).then(async (result) => {
+        if (result && result.user && isVerifiedUser(result.user)) {
+          console.log("[Auth Gate] Sesión completada tras redirección exitosa:", result.user.uid);
+          localStorage.setItem('multiideas_user_authed', 'true');
+          localStorage.setItem('multiideas_user_uid', result.user.uid);
+          updateAuthGateUI(result.user);
+          registerWidgetUserInFirebase(result.user).catch(e => console.warn(e));
+        }
+      }).catch(redirectErr => {
+        console.warn("[Auth Gate] Aviso al verificar resultado de redirección:", redirectErr);
+      });
+    } catch(e) {
+      console.warn("[Auth Gate] Excepción en getRedirectResult:", e);
     }
 
     onAuthStateChanged(auth, async (user) => {
@@ -2698,21 +2996,22 @@
     // Control de la pantalla de bloqueo (Auth Gate)
     function updateAuthGateUI(user) {
       const gate = document.getElementById('widgets-auth-gate');
-      const container = document.getElementById('widgets-container');
       const isAuthed = isVerifiedUser(user);
 
       if (isAuthed) {
         if (gate) {
           gate.classList.add('unlocked');
+          gate.classList.add('hidden-gate');
           gate.style.display = 'none';
         }
-        if (container) container.classList.remove('locked');
+        document.documentElement.classList.add('user-pre-authed');
       } else {
         if (gate) {
           gate.classList.remove('unlocked');
+          gate.classList.remove('hidden-gate');
           gate.style.display = 'flex';
         }
-        if (container) container.classList.add('locked');
+        document.documentElement.classList.remove('user-pre-authed');
       }
     }
 
@@ -2744,7 +3043,7 @@
           lastActiveAt: now
         });
 
-        // 2. Guardar en la colección global de creadores y usuarios de mini-widgets
+        // 2. Guardar en la colección global de creadores y usuarios de widgets
         await update(ref(rtdb, `mini_widgets_users/${user.uid}`), {
           ...widgetUserData,
           updated_at: now
@@ -2756,66 +3055,100 @@
       }
     }
 
-    // Inicio / Registro directo con Google desde la pantalla de bloqueo
-    window.loginWithGoogleGate = async function() {
+    // Inicio / Registro directo con Google desde la pantalla de bloqueo con tolerancia a fallos
+    async function executeGoogleLogin() {
       const btn = document.getElementById('gate-btn-google');
       const text = document.getElementById('gate-google-text');
+      const spinner = document.getElementById('gate-google-spinner');
+      const icon = document.getElementById('gate-google-icon');
+      const errorBanner = document.getElementById('gate-error-banner');
+      const errorText = document.getElementById('gate-error-text');
+
+      if (errorBanner) errorBanner.style.display = 'none';
       if (btn) btn.disabled = true;
+      if (spinner) spinner.style.display = 'inline-block';
+      if (icon) icon.style.display = 'none';
       if (text) text.textContent = 'Conectando con Google...';
 
       const activeAuth = auth || window.firebaseAuth;
 
       try {
         if (!activeAuth) {
-          throw new Error("Firebase Auth no disponible de inmediato");
+          throw new Error("El servicio de autenticación se está inicializando. Intenta de nuevo en unos segundos.");
         }
         const provider = new GoogleAuthProvider();
         provider.setCustomParameters({
           prompt: 'select_account'
         });
-        const result = await signInWithPopup(activeAuth, provider);
-        const user = result.user;
+
+        let result = null;
+        try {
+          result = await signInWithPopup(activeAuth, provider);
+        } catch (popupErr) {
+          // Si el navegador bloqueó la ventana emergente (típico en Safari/Chrome móvil o webviews), redirigir
+          if (popupErr.code === 'auth/popup-blocked') {
+            if (text) text.textContent = 'Redirigiendo a Google...';
+            await signInWithRedirect(activeAuth, provider);
+            return;
+          }
+          throw popupErr;
+        }
+
+        const user = result ? result.user : null;
 
         if (isVerifiedUser(user)) {
-          if (text) text.textContent = '¡Bienvenido! Entrando...';
-          await registerWidgetUserInFirebase(user);
+          if (text) text.textContent = '¡Bienvenido! Accediendo...';
+          localStorage.setItem('multiideas_user_authed', 'true');
+          localStorage.setItem('multiideas_user_uid', user.uid);
           updateAuthGateUI(user);
+          registerWidgetUserInFirebase(user).catch(e => console.warn("[Async Register]:", e));
         } else {
           updateAuthGateUI(null);
           if (btn) btn.disabled = false;
-          if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+          if (spinner) spinner.style.display = 'none';
+          if (icon) icon.style.display = 'inline-block';
+          if (text) text.textContent = 'Continuar con Google';
         }
       } catch (error) {
         console.error("Error autenticando con Google en Widgets Gate:", error);
         if (btn) btn.disabled = false;
-        if (text) text.textContent = 'Iniciar sesión / Registrarse con Google';
+        if (spinner) spinner.style.display = 'none';
+        if (icon) icon.style.display = 'inline-block';
+        if (text) text.textContent = 'Continuar con Google';
 
-        // Asegurarse de mantener la pantalla completamente bloqueada
         updateAuthGateUI(null);
 
-        if (error.code === 'auth/popup-blocked') {
-          try {
-            await signInWithRedirect(activeAuth, new GoogleAuthProvider());
-            return;
-          } catch (redirectErr) {
-            console.error("Error redirect fallback:", redirectErr);
-          }
-        }
-
-        // Si fue cancelado o cerrado por el usuario, permanecer bloqueado sin error molesto
+        // Si fue cerrado por el usuario o cancelado voluntariamente, no mostrar alerta alarmante
         if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
-          console.log("[Auth Gate] Ventana de Google cerrada sin completar. Acceso protegido.");
+          console.log("[Auth Gate] Ventana de Google cerrada voluntariamente.");
           return;
         }
 
-        // Si falla por otro error imprevisto, ofrecer fallback
-        if (typeof window.openAuthModal === 'function') {
-          window.openAuthModal();
-        } else {
-          alert("No se pudo iniciar sesión con Google. Intenta nuevamente.");
+        // Mapeo amigable de errores de conectividad (especialmente para redes con latencia o bloqueos)
+        let friendly = 'No se pudo completar el inicio de sesión con Google.';
+        if (error.code === 'auth/network-request-failed' || (error.message && error.message.toLowerCase().includes('network'))) {
+          friendly = 'Problema de conectividad con los servidores de Google. Verifica tu conexión a internet y vuelve a intentar.';
+        } else if (error.code === 'auth/internal-error') {
+          friendly = 'Error temporal en el servicio de Google. Por favor, reintenta en un momento.';
+        } else if (error.message) {
+          friendly = error.message;
+        }
+
+        if (errorBanner && errorText) {
+          errorText.textContent = friendly;
+          errorBanner.style.display = 'flex';
         }
       }
-    };
+    }
+
+    window.__realLoginWithGoogleGate = executeGoogleLogin;
+    window.loginWithGoogleGate = executeGoogleLogin;
+
+    // Si el usuario ya había hecho clic mientras los scripts cargaban, disparar ahora
+    if (window.__gateAuthPending) {
+      window.__gateAuthPending = false;
+      executeGoogleLogin();
+    }
 
     function updateSyncBannerUI(user) {
       const banner = document.getElementById('cloud-sync-banner');

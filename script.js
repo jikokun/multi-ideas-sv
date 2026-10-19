@@ -2037,6 +2037,20 @@ async function connectFirebaseToAuth(authUI, fb) {
     window.firebaseSignOut = signOut;
     window.firebaseAuth = auth;
 
+    // Resolver de forma transparente cualquier redirección de Google Auth pendiente
+    try {
+        if (typeof getRedirectResult === 'function') {
+            getRedirectResult(auth).then(async (result) => {
+                if (result && result.user) {
+                    console.log("[Auth Global] Sesión por redirección completada:", result.user.uid);
+                    localStorage.setItem('multiideas_user_authed', 'true');
+                    localStorage.setItem('multiideas_user_uid', result.user.uid);
+                    showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
+                }
+            }).catch(e => console.warn("[Auth Global] Aviso al consultar getRedirectResult:", e));
+        }
+    } catch(e) {}
+
     async function syncUserProfile(user) {
         if (!user || !user.uid || !rtdb || !dbHelpers) return;
         try {
