@@ -584,8 +584,8 @@
         <!-- Onda de choque para la salida -->
         <div id="shockwave" class="shockwave-ring z-30"></div>
 
-        <!-- Ancla Posicionable y Escalable del Carrusel -->
-        <div id="carousel-anchor" class="carousel-anchor pos-centro">
+        <!-- Ancla Posicionable y Escalable del Carrusel (Default: Oculto/Apagado hasta activación) -->
+        <div id="carousel-anchor" class="carousel-anchor pos-centro widget-hidden">
             <!-- Aura luminosa del mazo cerrado -->
             <div id="deck-aura" class="deck-summon-aura"></div>
             <!-- Escenario del Carrusel 3D -->
@@ -783,7 +783,7 @@
             order: 'secuencial',
             position: 'centro',
             scale: 1.0,
-            visibilityMode: 'continuous',
+            visibilityMode: 'ondemand', // Por defecto apagado / bajo demanda hasta activación
             ondemandDuration: 60,
             hideAfterShowcase: false,
             showcaseDuration: 15,     // Segundos en pantalla grande (80%)
@@ -1048,31 +1048,36 @@
                 carouselAnchor.style.setProperty('--carousel-scale', widgetConfig.scale || 1.0);
             }
 
-            // 3. Aplicar modo de visibilidad (Sólo ocultar si mode=ondemand está explícito en URL y NO está en iframe/preview)
+            // 3. Aplicar modo de visibilidad (Por defecto apagado hasta recibir activación)
             const urlParams = new URLSearchParams(window.location.search);
-            const isExplicitOnDemand = urlParams.get('mode') === 'ondemand';
-            const isPreviewOrIframe = urlParams.get('preview') === 'true' || window.self !== window.top;
+            const isExplicitContinuous = urlParams.get('mode') === 'continuous';
 
-            if (widgetConfig.visibilityMode === 'ondemand' && isExplicitOnDemand && !isPreviewOrIframe) {
-                if (widgetState === 'CAROUSEL' && !ondemandTimer) {
-                    dismissWidget();
-                }
-            } else {
+            if (widgetConfig.visibilityMode === 'continuous' || isExplicitContinuous) {
                 if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
+            } else {
+                // Modo ondemand: permanece apagado a menos que esté actualmente activo o en exhibición
+                if (widgetState !== 'SHOWCASE' && !ondemandTimer) {
+                    if (carouselAnchor) carouselAnchor.classList.add('widget-hidden');
+                    stopAutoCycle();
+                }
             }
 
-            // Si hay duración configurada, actualizar timer de inactividad
-            resetInactivityTimer();
+            // Si el widget está visible en pantalla, actualizar timer de inactividad
+            if (!isWidgetHidden()) {
+                resetInactivityTimer();
+            }
         }
 
         /**
-         * Hacer visible el widget al recibir un comando de Kick / OBS
+         * Hacer visible el widget al recibir activación de la web o comando (!tarjetasjikokun)
          */
         function summonWidget() {
             if (carouselAnchor) carouselAnchor.classList.remove('widget-hidden');
             if (widgetState === 'EMPTY') {
                 resetCarousel();
-            } else if (widgetState === 'CAROUSEL') {
+            } else {
+                widgetState = 'CAROUSEL';
+                updateCarouselPositions();
                 startAutoCycle();
             }
 
@@ -1489,11 +1494,15 @@
             const loteNum = currentBatchIndex + 1;
             batchInfoText.textContent = `LOTE ${loteNum}/${totalBatches} (${activeBatchCards.length} CARTAS // TOTAL ${fullCollection.length})`;
 
-            if (immediate) {
+            if (immediate || isWidgetHidden()) {
                 renderBatchCards(false);
                 preloadNextBatchImages();
                 updateCarouselPositions();
-                startAutoCycle();
+                if (!isWidgetHidden()) {
+                    startAutoCycle();
+                } else {
+                    stopAutoCycle();
+                }
             } else {
                 // Entrada misteriosa anti-spoiler: aparece como mazo cerrado con su reverso y luego se expande
                 renderBatchCards(true);

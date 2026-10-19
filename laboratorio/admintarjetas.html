@@ -288,8 +288,8 @@
         <div class="flex flex-col gap-1">
           <label class="text-[11px] font-bold text-slate-300 font-orbitron">👁️ VISIBILIDAD EN OBS</label>
           <select id="select-visibility-mode" class="bg-slate-900 border border-cyan-500/40 text-xs text-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-300 font-semibold">
+            <option value="ondemand" selected>⚡ Bajo Demanda (!tarjetasjikokun)</option>
             <option value="continuous">♾️ Siempre Visible (Continuo)</option>
-            <option value="ondemand">⚡ Bajo Demanda (!tarjetasjikokun)</option>
           </select>
         </div>
 
@@ -965,7 +965,8 @@
     // Activar en OBS de inmediato
     document.getElementById('btn-send-to-tarjetero').addEventListener('click', () => {
       saveAllCollections(true);
-      showToast(`¡Colección "${allCollections[activeCollectionId]?.name}" transmitida a OBS!`, 'success');
+      sendAdminCommand('!tarjetasjikokun');
+      showToast(`¡Colección "${allCollections[activeCollectionId]?.name}" activada y mostrada en OBS!`, 'success');
     });
 
     // Configuración completa del Expositor 3D (Posición, Escala, Visibilidad, Tiempos, Streamer.bot)
@@ -973,7 +974,7 @@
       order: 'secuencial',
       position: 'centro',
       scale: 1.0,
-      visibilityMode: 'continuous',
+      visibilityMode: 'ondemand', // Por defecto bajo demanda / apagado al inicio y recargas
       ondemandDuration: 60,
       hideAfterShowcase: false,
       showcaseDuration: 15,
@@ -1001,7 +1002,7 @@
       if (scaleEl) scaleEl.value = String(widgetConfig.scale || 1.0);
 
       const visEl = document.getElementById('select-visibility-mode');
-      if (visEl) visEl.value = widgetConfig.visibilityMode || 'continuous';
+      if (visEl) visEl.value = widgetConfig.visibilityMode || 'ondemand';
 
       const durVal = parseInt(widgetConfig.ondemandDuration, 10) || 60;
       const durInput = document.getElementById('input-ondemand-duration');
