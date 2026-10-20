@@ -10,8 +10,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
-            --glow-color: #00f2fe;
-            --glow-color-2: #4facfe;
+            --border-color-1: #00f2fe;
+            --border-color-2: #4facfe;
+            --glow-color: #ff0844;
+            --glow-color-2: #ea580c;
             --glow-intensity: 25px;
             --border-width: 4px;
             --corner-radius: 24px;
@@ -216,6 +218,7 @@
         /* Resplandores y Efectos Neón - Completamente Estables y Constantes (Sin parpadeo involuntario) */
         .glow-enabled {
             box-shadow: 0 0 var(--glow-intensity) var(--glow-color),
+                        0 0 calc(var(--glow-intensity) * 1.5) var(--glow-color-2),
                         0 15px 35px -10px rgba(0, 0, 0, 0.75);
         }
 
@@ -227,10 +230,12 @@
         @keyframes pulseGlow {
             0%, 100% {
                 box-shadow: 0 0 var(--glow-intensity) var(--glow-color),
+                            0 0 calc(var(--glow-intensity) * 1.5) var(--glow-color-2),
                             0 15px 35px -10px rgba(0, 0, 0, 0.75);
             }
             50% {
                 box-shadow: 0 0 calc(var(--glow-intensity) * 1.5) var(--glow-color),
+                            0 0 calc(var(--glow-intensity) * 2.2) var(--glow-color-2),
                             0 15px 35px -10px rgba(0, 0, 0, 0.75);
             }
         }
@@ -245,42 +250,73 @@
         }
 
         .border-solid .border-effect-layer {
-            background: linear-gradient(135deg, var(--glow-color), var(--glow-color-2));
+            background: linear-gradient(135deg, var(--border-color-1), var(--border-color-2));
         }
 
-        .border-spin .border-effect-layer::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: conic-gradient(
-                transparent 0deg,
-                transparent 60deg,
-                var(--glow-color) 140deg,
-                #ffffff 175deg,
-                var(--glow-color-2) 220deg,
-                transparent 280deg,
-                var(--glow-color) 340deg,
-                #ffffff 360deg
-            );
-            animation: rotateLaser var(--border-spin-speed) linear infinite;
-            animation-direction: var(--border-spin-dir);
-        }
-
+        /* Rotador Centrado de Tamaño Geométrico Perfecto (Cubre el 100% de la diagonal sin huecos ni saltos) */
+        .border-spin .border-effect-layer::before,
         .border-rgb .border-effect-layer::before {
             content: '';
             position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
+            top: 50%;
+            left: 50%;
+            width: var(--border-rotator-size, 1000px);
+            height: var(--border-rotator-size, 1000px);
+            margin-top: calc(var(--border-rotator-size, 1000px) / -2);
+            margin-left: calc(var(--border-rotator-size, 1000px) / -2);
+            transform-origin: center center;
+            will-change: transform;
+        }
+
+        /* 1. LÁSER GIRO (Un Solo Color o Dúo): Haz luminoso continuo y natural (sin colisiones ni cruces artificiales) */
+        /* Giro Derecha (Horario): La cabeza luminosa de color 1 lidera hacia la derecha */
+        .border-spin[data-spindir="normal"] .border-effect-layer::before,
+        .border-spin:not([data-spindir="reverse"]) .border-effect-layer::before {
             background: conic-gradient(
-                #ff0055, #ffdd00, #00ff88, #00d4ff, #7b2cbf, #ff0055
+                from 0deg,
+                transparent 0deg,
+                transparent 140deg,
+                var(--border-color-2) 250deg,
+                var(--border-color-1) 360deg
             );
-            animation: rotateLaser var(--border-spin-speed) linear infinite;
-            animation-direction: var(--border-spin-dir);
+            animation: rotateLaserRight var(--border-spin-speed) linear infinite;
+        }
+
+        /* Giro Izquierda (Antihorario): La cabeza luminosa de color 1 lidera hacia la izquierda con total naturalidad */
+        .border-spin[data-spindir="reverse"] .border-effect-layer::before {
+            background: conic-gradient(
+                from 0deg,
+                var(--border-color-1) 0deg,
+                var(--border-color-2) 110deg,
+                transparent 220deg,
+                transparent 360deg
+            );
+            animation: rotateLaserLeft var(--border-spin-speed) linear infinite;
+        }
+
+        /* 2. RGB GIRO: Espectro cromático continuo, ultra saturado (sin blanco mezclado ni palidez) */
+        .border-rgb .border-effect-layer::before {
+            background: conic-gradient(
+                from 0deg,
+                #ff0033 0deg,
+                #ff6600 45deg,
+                #ffcc00 90deg,
+                #00e640 135deg,
+                #00e5ff 180deg,
+                #0066ff 225deg,
+                #7d00ff 270deg,
+                #ff0099 315deg,
+                #ff0033 360deg
+            );
+        }
+
+        .border-rgb[data-spindir="normal"] .border-effect-layer::before,
+        .border-rgb:not([data-spindir="reverse"]) .border-effect-layer::before {
+            animation: rotateLaserRight var(--border-spin-speed) linear infinite;
+        }
+
+        .border-rgb[data-spindir="reverse"] .border-effect-layer::before {
+            animation: rotateLaserLeft var(--border-spin-speed) linear infinite;
         }
 
         .border-none {
@@ -290,9 +326,14 @@
             display: none;
         }
 
-        @keyframes rotateLaser {
+        @keyframes rotateLaserRight {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        @keyframes rotateLaserLeft {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(-360deg); }
         }
 
         /* Viewport Interior: Fondo Sólido de Contraste para que las Imágenes Nunca se vean Lavadas ni Semi-transparentes */
@@ -643,10 +684,10 @@
                 <!-- Creador de Sponsor / Promo de Solo Texto -->
                 <div class="bg-slate-900/90 p-3.5 rounded-2xl border border-cyan-500/30 space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <label class="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
-                            ✍️ 2. Añadir Sponsor o Anuncio de Solo Texto
+                        <label class="text-xs font-black uppercase tracking-wider text-cyan-400 flex items-center gap-1.5" id="label-promo-editor-title">
+                            ✍️ 2. Añadir o Editar Sponsor de Texto
                         </label>
-                        <span class="text-[11px] text-slate-400">Sin necesidad de crear imágenes</span>
+                        <span class="text-[10px] text-cyan-300 font-bold px-2 py-0.5 rounded-full bg-cyan-950/70 border border-cyan-400/40" id="label-editing-mode-status">Nuevo Sponsor</span>
                     </div>
 
                     <!-- Tipografía con Botones Táctiles Directos -->
@@ -661,13 +702,13 @@
                         </div>
                     </div>
 
-                    <!-- Escala de Letra -->
+                    <!-- Escala de Letra (Zoom Texto Adaptable) -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-[11px] font-semibold text-slate-300">Tamaño Letra (Zoom Texto):</span>
+                            <span class="text-[11px] font-semibold text-slate-300">Tamaño Letra (Zoom Texto Adaptable):</span>
                             <span id="label-font-scale" class="text-xs font-black text-cyan-400">100%</span>
                         </div>
-                        <input type="range" id="slider-font-scale" min="65" max="150" value="100" class="w-full">
+                        <input type="range" id="slider-font-scale" min="50" max="220" value="100" class="w-full">
                     </div>
 
                     <!-- Tag superior -->
@@ -688,7 +729,7 @@
                         <input type="text" id="input-sub-color" value="#e2e8f0" placeholder="#hex" maxlength="7" class="w-20 bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs font-mono text-center text-slate-200 focus:outline-none" title="Color Hex del Subtítulo">
                     </div>
                     
-                    <!-- Presets de Fondo y Botón Añadir -->
+                    <!-- Presets de Fondo y Botones Guardar / Añadir -->
                     <div class="flex items-center justify-between gap-2 pt-1">
                         <div class="flex items-center gap-1.5" id="promo-bg-presets">
                             <span class="text-[11px] font-semibold text-slate-400 mr-0.5">Fondo:</span>
@@ -700,9 +741,14 @@
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow" style="background: linear-gradient(135deg, #090d16, #1e293b)" data-c1="#090d16" data-c2="#1e293b" title="Oscuro Elegante"></button>
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow border border-white/30" style="background: rgba(15, 23, 42, 0.4)" data-c1="rgba(15,23,42,0.4)" data-c2="rgba(2,132,199,0.4)" title="Cristal Translúcido"></button>
                         </div>
-                        <button type="button" id="btn-create-text-ad" class="px-3.5 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs rounded-xl shadow transition shrink-0">
-                            + Añadir Sponsor
-                        </button>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button type="button" id="btn-save-text-ad" class="hidden px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow transition" title="Guardar cambios en el sponsor seleccionado">
+                                💾 Guardar
+                            </button>
+                            <button type="button" id="btn-create-text-ad" class="px-3 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs rounded-xl shadow transition" title="Crear un nuevo sponsor y agregarlo a la rotación">
+                                + Añadir Nuevo
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1032,20 +1078,48 @@
                     </div>
                 </div>
 
-                <!-- Color Studio para OBS (100% In-DOM, sin ventanas nativas) -->
+                <!-- Color Studio para OBS (Marco y Resplandor 100% Independientes) -->
                 <div class="bg-slate-900/90 p-3 rounded-2xl border border-white/10 space-y-2.5">
-                    <div class="flex items-center justify-between">
-                        <span class="text-xs font-black uppercase tracking-wider text-cyan-300">🎨 Colores de Marco y Resplandor</span>
-                        <div class="flex items-center gap-1.5">
-                            <button type="button" id="btn-select-target-c1" class="px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow">
-                                <span class="w-3 h-3 rounded-full border border-white/40 shadow-sm" id="badge-color-1" style="background-color: #00f2fe"></span>
-                                Color 1
-                            </button>
-                            <button type="button" id="btn-select-target-c2" class="px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5">
-                                <span class="w-3 h-3 rounded-full border border-white/40 shadow-sm" id="badge-color-2" style="background-color: #4facfe"></span>
-                                Color 2
-                            </button>
+                    <div>
+                        <!-- Fila 1: Colores del Marco / Contorno -->
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-xs font-black uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                                ⚡ Marco / Contorno
+                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" id="btn-target-border-1" class="color-target-btn active px-2.5 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow" data-target="border1">
+                                    <span class="w-3.5 h-3.5 rounded-full border border-white/40 shadow-sm" id="badge-border-1" style="background-color: #00f2fe"></span>
+                                    Marco 1
+                                </button>
+                                <button type="button" id="btn-target-border-2" class="color-target-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5" data-target="border2">
+                                    <span class="w-3.5 h-3.5 rounded-full border border-white/40 shadow-sm" id="badge-border-2" style="background-color: #4facfe"></span>
+                                    Marco 2
+                                </button>
+                            </div>
                         </div>
+
+                        <!-- Fila 2: Colores del Resplandor (Glow) -->
+                        <div class="flex items-center justify-between pt-2 border-t border-white/10">
+                            <span class="text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+                                ✨ Resplandor (Glow)
+                            </span>
+                            <div class="flex items-center gap-1.5">
+                                <button type="button" id="btn-target-glow-1" class="color-target-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5" data-target="glow1">
+                                    <span class="w-3.5 h-3.5 rounded-full border border-white/40 shadow-sm" id="badge-glow-1" style="background-color: #ff0844"></span>
+                                    Glow 1
+                                </button>
+                                <button type="button" id="btn-target-glow-2" class="color-target-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5" data-target="glow2">
+                                    <span class="w-3.5 h-3.5 rounded-full border border-white/40 shadow-sm" id="badge-glow-2" style="background-color: #ea580c"></span>
+                                    Glow 2
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Indicador Activo -->
+                    <div class="flex items-center justify-between px-2.5 py-1 rounded-xl bg-slate-950 border border-white/10 text-xs">
+                        <span class="text-[11px] text-slate-400">Editando color de:</span>
+                        <span id="label-active-color-target" class="font-black text-cyan-300">⚡ Marco / Contorno (Color 1)</span>
                     </div>
 
                     <!-- Paleta de 14 Colores Neón Clickables Directos -->
@@ -1160,8 +1234,10 @@
             var safeTitle = String(title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var safeSub = String(subtitle || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var safeBadge = String(badge || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            var titleSize = safeTitle.length > 22 ? 42 : (safeTitle.length > 16 ? 48 : 56);
-            var subSize = safeSub.length > 48 ? 20 : 25;
+
+            var fontScaleMult = ((customStyles && customStyles.fontScale ? customStyles.fontScale : 100) / 100);
+            var titleSize = Math.round((safeTitle.length > 22 ? 46 : (safeTitle.length > 16 ? 56 : 66)) * fontScaleMult);
+            var subSize = Math.round((safeSub.length > 48 ? 22 : 28) * fontScaleMult);
 
             var fontFamily = customStyles && customStyles.fontFamily ? customStyles.fontFamily : 'Plus Jakarta Sans, sans-serif';
             var titleWeight = customStyles && customStyles.titleWeight ? customStyles.titleWeight : '900';
@@ -1172,8 +1248,8 @@
             var tagColor = customStyles && customStyles.tagColor ? customStyles.tagColor : '#38bdf8';
 
             var badgeBlock = safeBadge.trim() !== '' ? 
-                '<rect x="400" y="68" width="' + Math.max(140, safeBadge.length * 16 + 44) + '" height="40" rx="20" transform="translate(-' + (Math.max(140, safeBadge.length * 16 + 44) / 2) + ', 0)" fill="#000000" fill-opacity="0.35" stroke="' + tagColor + '" stroke-opacity="0.75" stroke-width="1.8"/>' +
-                '<text x="400" y="94" font-family="' + fontFamily + '" font-size="16" font-weight="' + tagWeight + '" fill="' + tagColor + '" text-anchor="middle" letter-spacing="2.5">' + safeBadge.toUpperCase() + '</text>' : '';
+                '<rect x="400" y="62" width="' + Math.max(140, safeBadge.length * 16 + 44) + '" height="42" rx="21" transform="translate(-' + (Math.max(140, safeBadge.length * 16 + 44) / 2) + ', 0)" fill="#000000" fill-opacity="0.45" stroke="' + tagColor + '" stroke-opacity="0.8" stroke-width="2"/>' +
+                '<text x="400" y="90" font-family="' + fontFamily + '" font-size="16" font-weight="' + tagWeight + '" fill="' + tagColor + '" text-anchor="middle" letter-spacing="2.5">' + safeBadge.toUpperCase() + '</text>' : '';
 
             var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">' +
                 '<defs>' +
@@ -1195,9 +1271,9 @@
                 '<circle cx="710" cy="75" r="170" fill="#ffffff" fill-opacity="0.06"/>' +
                 '<circle cx="90" cy="390" r="210" fill="#000000" fill-opacity="0.22"/>' +
                 badgeBlock +
-                '<text x="400" y="' + (safeBadge.trim() !== '' ? '230' : '205') + '" font-family="' + fontFamily + '" font-size="' + titleSize + '" font-weight="' + titleWeight + '" fill="' + titleColor + '" text-anchor="middle">' + safeTitle + '</text>' +
-                '<text x="400" y="' + (safeBadge.trim() !== '' ? '288' : '268') + '" font-family="' + fontFamily + '" font-size="' + subSize + '" font-weight="' + subWeight + '" fill="' + subColor + '" text-anchor="middle" opacity="0.95">' + safeSub + '</text>' +
-                '<rect x="300" y="340" width="200" height="6" rx="3" fill="' + titleColor + '" fill-opacity="0.5"/>' +
+                '<text x="400" y="' + (safeBadge.trim() !== '' ? '234' : '205') + '" font-family="' + fontFamily + '" font-size="' + titleSize + '" font-weight="' + titleWeight + '" fill="' + titleColor + '" text-anchor="middle">' + safeTitle + '</text>' +
+                '<text x="400" y="' + (safeBadge.trim() !== '' ? '292' : '270') + '" font-family="' + fontFamily + '" font-size="' + subSize + '" font-weight="' + subWeight + '" fill="' + subColor + '" text-anchor="middle" opacity="0.95">' + safeSub + '</text>' +
+                '<rect x="280" y="342" width="240" height="6" rx="3" fill="' + titleColor + '" fill-opacity="0.6"/>' +
             '</svg>';
             return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         }
@@ -1280,13 +1356,17 @@
             borderSpinSpeed: 5,
             borderWidth: 4,
             glowIntensity: 25,
+            borderColor1: '#00f2fe',
+            borderColor2: '#4facfe',
+            glowColor1: '#ff0844',
+            glowColor2: '#ea580c',
             color1: '#00f2fe',
             color2: '#4facfe',
             imgOpacity: 100,
             bgOpacity: 100,
             shimmer: false,
             fontScale: 100,
-            activeColorTarget: 1, // 1 = Color 1, 2 = Color 2
+            activeColorTarget: 'border1', // 'border1' | 'border2' | 'glow1' | 'glow2'
             selectedPromoFont: 'Plus Jakarta Sans, sans-serif',
             posX: null,
             posY: null,
@@ -1352,8 +1432,13 @@
                         borderSpinSpeed: state.borderSpinSpeed,
                         borderWidth: state.borderWidth,
                         glowIntensity: state.glowIntensity,
-                        color1: state.color1,
-                        color2: state.color2,
+                        borderColor1: state.borderColor1,
+                        borderColor2: state.borderColor2,
+                        glowColor1: state.glowColor1,
+                        glowColor2: state.glowColor2,
+                        activeColorTarget: state.activeColorTarget,
+                        color1: state.borderColor1,
+                        color2: state.borderColor2,
                         imgOpacity: state.imgOpacity,
                         bgOpacity: state.bgOpacity,
                         shimmer: state.shimmer,
@@ -1378,6 +1463,14 @@
                 var raw = localStorage.getItem(STORAGE_KEY);
                 if (raw) {
                     var parsed = JSON.parse(raw);
+                    // Migración retrocompatible de colores
+                    if (parsed.color1 && !parsed.borderColor1) parsed.borderColor1 = parsed.color1;
+                    if (parsed.color2 && !parsed.borderColor2) parsed.borderColor2 = parsed.color2;
+                    if (!parsed.glowColor1) parsed.glowColor1 = parsed.borderColor1 || '#ff0844';
+                    if (!parsed.glowColor2) parsed.glowColor2 = parsed.borderColor2 || '#ea580c';
+                    if (parsed.activeColorTarget === 1 || !parsed.activeColorTarget) parsed.activeColorTarget = 'border1';
+                    if (parsed.activeColorTarget === 2) parsed.activeColorTarget = 'border2';
+
                     for (var k in parsed) {
                         if (parsed.hasOwnProperty(k) && parsed[k] !== undefined && parsed[k] !== null) {
                             state[k] = parsed[k];
@@ -1387,6 +1480,11 @@
             } catch(e) {
                 console.warn('Error al leer de localStorage:', e);
             }
+
+            if (!state.borderColor1) state.borderColor1 = state.color1 || '#00f2fe';
+            if (!state.borderColor2) state.borderColor2 = state.color2 || '#4facfe';
+            if (!state.glowColor1) state.glowColor1 = '#ff0844';
+            if (!state.glowColor2) state.glowColor2 = '#ea580c';
 
             // Auto-corrección de versiones previas: si el fondo quedó en el valor antiguo bajo (como 36%), restaurar a 100% para máxima nitidez y opacidad
             if (state.bgOpacity === undefined || state.bgOpacity < 90) {
@@ -1475,42 +1573,58 @@
             showToast('✨ Imagen guardada en memoria OBS');
         }
 
-        /* Adaptación en Tiempo Real del Tamaño de Letra del Sponsor */
+        /* Adaptación en Tiempo Real y Estiramiento del Texto con Respecto al Contenedor */
         function fitAdaptivePromoText(promoData) {
             if (!promoData) return;
 
             var styles = promoData.styles || {};
             var fontFamily = styles.fontFamily || state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif';
 
-            adTextPromo.style.background = 'linear-gradient(135deg, ' + (promoData.c1 || '#0f172a') + ', ' + (promoData.c2 || '#0284c7') + ')';
+            var c1 = promoData.c1 || '#0f172a';
+            var c2 = promoData.c2 || '#0284c7';
+            adTextPromo.style.background = 'linear-gradient(135deg, ' + c1 + ', ' + c2 + ')';
             adTextPromo.style.opacity = (state.imgOpacity / 100).toFixed(2);
             adTextPromo.style.fontFamily = fontFamily;
 
-            var minDim = Math.min(state.width, state.height);
+            var w = Math.max(140, state.width);
+            var h = Math.max(80, state.height);
+            var minDim = Math.min(w, h);
             var isRoundish = state.shapePreset === 'circle' || state.cornerRadius >= minDim * 0.35;
-            var padX = isRoundish ? Math.round(state.width * 0.16) : Math.max(14, Math.round(state.width * 0.065));
-            var padY = isRoundish ? Math.round(state.height * 0.15) : Math.max(10, Math.round(state.height * 0.08));
+            var isThin = h < 160;
+
+            // Margen seguro perimetral adaptativo (en círculo dejamos espacio armónico)
+            var padX = isRoundish ? Math.round(w * 0.14) : Math.max(12, Math.round(w * 0.055));
+            var padY = isRoundish ? Math.round(h * 0.12) : (isThin ? 6 : Math.max(10, Math.round(h * 0.065)));
             adTextInner.style.padding = padY + 'px ' + padX + 'px';
 
+            var availW = Math.max(80, w - padX * 2 - state.borderWidth * 2);
+            var availH = Math.max(50, h - padY * 2 - state.borderWidth * 2);
+
             var tagText = (promoData.tag || '').trim();
-            if (tagText !== '') {
+            var titleText = (promoData.title || '').trim();
+            var subText = (promoData.sub || '').trim();
+            var hasTag = tagText !== '';
+            var hasSub = subText !== '';
+
+            // Renderizar Tag Superior
+            if (hasTag) {
                 promoRenderTag.textContent = tagText;
                 promoRenderTag.style.color = styles.tagColor || '#38bdf8';
                 promoRenderTag.style.fontWeight = styles.tagWeight || '900';
                 promoRenderTag.style.borderColor = styles.tagColor || '#38bdf8';
-                promoRenderTag.style.backgroundColor = 'rgba(0, 0, 0, 0.4)';
+                promoRenderTag.style.backgroundColor = 'rgba(0, 0, 0, 0.45)';
                 promoRenderTag.classList.remove('hidden');
             } else {
                 promoRenderTag.classList.add('hidden');
             }
 
-            var titleText = (promoData.title || '').trim();
+            // Renderizar Título Principal
             promoRenderTitle.textContent = titleText;
             promoRenderTitle.style.color = styles.titleColor || '#ffffff';
             promoRenderTitle.style.fontWeight = styles.titleWeight || '900';
 
-            var subText = (promoData.sub || '').trim();
-            if (subText !== '') {
+            // Renderizar Subtítulo
+            if (hasSub) {
                 promoRenderSub.textContent = subText;
                 promoRenderSub.style.color = styles.subColor || '#e2e8f0';
                 promoRenderSub.style.fontWeight = styles.subWeight || '600';
@@ -1519,60 +1633,84 @@
                 promoRenderSub.classList.add('hidden');
             }
 
-            promoRenderBar.style.backgroundColor = styles.titleColor || '#ffffff';
-            if (state.height < 150) {
+            // Divider Bar adaptable
+            if (isThin || h < 155 || !hasSub) {
                 promoRenderBar.classList.add('hidden');
             } else {
                 promoRenderBar.classList.remove('hidden');
-                promoRenderBar.style.width = Math.min(130, Math.round(state.width * 0.28)) + 'px';
-                promoRenderBar.style.height = '4px';
+                promoRenderBar.style.backgroundColor = styles.titleColor || '#ffffff';
+                promoRenderBar.style.width = Math.min(240, Math.max(50, Math.round(w * (isRoundish ? 0.28 : 0.36)))) + 'px';
+                promoRenderBar.style.height = (h > 240 ? 4 : 3) + 'px';
             }
 
-            var availW = Math.max(60, state.width - padX * 2 - state.borderWidth * 2);
-            var availH = Math.max(40, state.height - padY * 2 - state.borderWidth * 2);
+            // Multiplicador de Zoom configurado por el usuario (50% a 220%)
+            var fontScale = styles.fontScale || state.fontScale || 100;
+            var scaleMultiplier = fontScale / 100;
 
-            var scaleMultiplier = ((styles.fontScale || state.fontScale || 100) / 100);
+            // Longitud de la palabra más larga para que no se desborde horizontalmente
+            var words = titleText.split(/\s+/).filter(Boolean);
+            var longestWord = words.reduce(function(max, w) { return Math.max(max, w.length); }, 3);
+            var titleSizeByW = (availW * (isRoundish ? 0.80 : 0.88)) / (longestWord * 0.52);
 
-            var hasTag = tagText !== '';
-            var hasSub = subText !== '';
-            var vSections = 1.0 + (hasTag ? 0.45 : 0) + (hasSub ? 0.6 : 0) + (state.height >= 160 ? 0.2 : 0);
-            var targetHSize = (availH / vSections) * 0.95;
+            // Altura disponible repartida armónicamente
+            var linesEst = Math.max(1, Math.ceil(Math.max(1, titleText.length) / (isRoundish ? 12 : 16)));
+            var vWeight = (linesEst * 1.05) + (hasTag ? 0.45 : 0) + (hasSub ? 0.65 : 0) + (!isThin && hasSub ? 0.20 : 0);
+            var titleSizeByH = (availH / vWeight) * 0.98;
 
-            var titleChars = Math.max(1, titleText.length);
-            var targetWSize = (availW / Math.min(titleChars, 26)) * 1.55;
-
-            var baseTitleSize = Math.max(13, Math.min(56, Math.min(targetHSize, targetWSize))) * scaleMultiplier;
+            var maxAllowedTitle = Math.max(22, Math.min(120, Math.round(h * (isRoundish ? 0.32 : 0.38))));
+            var naturalTitle = Math.max(15, Math.min(maxAllowedTitle, Math.min(titleSizeByW, titleSizeByH)));
+            var baseTitleSize = naturalTitle * scaleMultiplier;
 
             var applyFontSizes = function(tSize) {
-                var sSize = Math.max(10, Math.round(tSize * 0.52));
-                var tgSize = Math.max(9, Math.round(tSize * 0.38));
+                var sSize = Math.max(8, Math.round(tSize * (isThin ? 0.48 : 0.44)));
+                var tgSize = Math.max(7, Math.round(tSize * (isThin ? 0.38 : 0.34)));
+                var tagPadY = isThin ? 1 : Math.max(1, Math.round(tgSize * 0.20));
+                var tagPadX = Math.max(6, Math.round(tgSize * 0.75));
+
                 promoRenderTitle.style.fontSize = tSize.toFixed(1) + 'px';
+                promoRenderTitle.style.lineHeight = '1.14';
+                promoRenderTitle.style.maxWidth = isRoundish ? '86%' : '96%';
+
                 promoRenderSub.style.fontSize = sSize.toFixed(1) + 'px';
+                promoRenderSub.style.lineHeight = '1.25';
+                promoRenderSub.style.maxWidth = isRoundish ? '84%' : '92%';
+                promoRenderSub.style.marginTop = (isThin ? 2 : Math.max(2, Math.round(tSize * 0.16))) + 'px';
+
                 promoRenderTag.style.fontSize = tgSize.toFixed(1) + 'px';
-                promoRenderTag.style.marginBottom = Math.max(2, Math.round(tSize * 0.16)) + 'px';
-                promoRenderSub.style.marginTop = Math.max(2, Math.round(tSize * 0.14)) + 'px';
+                promoRenderTag.style.padding = tagPadY + 'px ' + tagPadX + 'px';
+                promoRenderTag.style.marginBottom = (isThin ? 2 : Math.max(2, Math.round(tSize * 0.18))) + 'px';
+
+                promoRenderBar.style.marginTop = (isThin ? 2 : Math.max(3, Math.round(tSize * 0.18))) + 'px';
             };
 
             applyFontSizes(baseTitleSize);
 
-            var guard = 0;
-            while (
-                guard < 30 &&
-                baseTitleSize > 10 &&
-                (adTextInner.scrollHeight > state.height - state.borderWidth * 2 ||
-                 promoRenderTitle.scrollWidth > availW + 4 ||
-                 promoRenderSub.scrollWidth > availW + 4)
-            ) {
-                baseTitleSize -= 1.2;
-                applyFontSizes(baseTitleSize);
-                guard++;
+            // Medición del contenido real (sin atrapar al contenedor flex de altura 100%)
+            var checkContentExceeds = function() {
+                var totalH = promoRenderTitle.offsetHeight;
+                if (hasTag) totalH += promoRenderTag.offsetHeight + 4;
+                if (hasSub) totalH += promoRenderSub.offsetHeight + 4;
+                if (!isThin && h >= 155 && hasSub) totalH += 8;
+                return totalH > (availH * 1.05);
+            };
+
+            // Reducción suave automática solo si está en zoom default y el texto excede
+            if (scaleMultiplier <= 1.05) {
+                var guard = 0;
+                while (guard < 30 && baseTitleSize > 10 && checkContentExceeds()) {
+                    baseTitleSize -= 1.0;
+                    applyFontSizes(baseTitleSize);
+                    guard++;
+                }
             }
         }
 
         function applyVisualState() {
             var root = document.documentElement;
-            root.style.setProperty('--glow-color', state.color1);
-            root.style.setProperty('--glow-color-2', state.color2);
+            root.style.setProperty('--border-color-1', state.borderColor1 || state.color1 || '#00f2fe');
+            root.style.setProperty('--border-color-2', state.borderColor2 || state.color2 || '#4facfe');
+            root.style.setProperty('--glow-color', state.glowColor1 || '#ff0844');
+            root.style.setProperty('--glow-color-2', state.glowColor2 || '#ea580c');
             root.style.setProperty('--glow-intensity', state.glowIntensity + 'px');
             root.style.setProperty('--border-width', state.borderWidth + 'px');
             root.style.setProperty('--corner-radius', state.cornerRadius + 'px');
@@ -1601,6 +1739,13 @@
             var spinDuration = Math.max(0.7, (8.5 - state.borderSpinSpeed * 0.75)).toFixed(2);
             root.style.setProperty('--border-spin-speed', spinDuration + 's');
             root.style.setProperty('--border-spin-dir', state.borderSpinDir);
+
+            // Calcular tamaño exacto del rotador para cubrir holgadamente la diagonal de cualquier formato (sin cortes ni colisiones)
+            var diag = Math.ceil(Math.sqrt(state.width * state.width + state.height * state.height)) * 1.5;
+            diag = Math.max(700, Math.min(2400, diag));
+            root.style.setProperty('--border-rotator-size', diag + 'px');
+
+            adBox.setAttribute('data-spindir', state.borderSpinDir || 'normal');
 
             adBox.style.width = state.width + 'px';
             adBox.style.height = state.height + 'px';
@@ -1699,16 +1844,17 @@
                 fontScaleSlider.value = state.fontScale || 100;
             }
 
-            // Actualizar badges de Color Studio
-            var b1 = document.getElementById('badge-color-1');
-            if (b1) b1.style.backgroundColor = state.color1;
-            var b2 = document.getElementById('badge-color-2');
-            if (b2) b2.style.backgroundColor = state.color2;
+            // Actualizar badges de Color Studio para Marco y Resplandor
+            var bb1 = document.getElementById('badge-border-1');
+            if (bb1) bb1.style.backgroundColor = state.borderColor1 || '#00f2fe';
+            var bb2 = document.getElementById('badge-border-2');
+            if (bb2) bb2.style.backgroundColor = state.borderColor2 || '#4facfe';
+            var bg1 = document.getElementById('badge-glow-1');
+            if (bg1) bg1.style.backgroundColor = state.glowColor1 || '#ff0844';
+            var bg2 = document.getElementById('badge-glow-2');
+            if (bg2) bg2.style.backgroundColor = state.glowColor2 || '#ea580c';
 
-            var hexCustom = document.getElementById('input-hex-custom');
-            if (hexCustom) {
-                hexCustom.value = state.activeColorTarget === 1 ? state.color1 : state.color2;
-            }
+            updateColorTargetUI();
 
             applyPositionAndScale();
         }
@@ -1952,6 +2098,7 @@
                                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
                                 applyVisualState();
                                 renderGalleryThumbnails();
+                                syncPromoEditorWithCurrent();
                                 saveStateToStorage();
                                 showToast('🗑️ Banner eliminado');
                             } else {
@@ -1962,6 +2109,7 @@
                         state.currentIndex = idx;
                         applyVisualState();
                         renderGalleryThumbnails();
+                        syncPromoEditorWithCurrent();
                         saveStateToStorage();
                     });
 
@@ -2006,6 +2154,7 @@
             input.value = '';
             applyVisualState();
             renderGalleryThumbnails();
+            syncPromoEditorWithCurrent();
             saveStateToStorage();
             showToast('✨ Imagen agregada por URL');
         });
@@ -2013,6 +2162,111 @@
         var selectedPromoC1 = '#0f172a';
         var selectedPromoC2 = '#0284c7';
 
+        // Sincronizar el formulario con el sponsor de texto actualmente seleccionado para permitir editarlo
+        function syncPromoEditorWithCurrent() {
+            var cur = state.images[state.currentIndex];
+            var btnSave = document.getElementById('btn-save-text-ad');
+            var statusLabel = document.getElementById('label-editing-mode-status');
+
+            if (cur && cur.promoData) {
+                var p = cur.promoData;
+                var styles = p.styles || {};
+
+                var tagInput = document.getElementById('input-promo-tag');
+                var tagColorInput = document.getElementById('input-tag-color');
+                var titleInput = document.getElementById('input-promo-title');
+                var titleColorInput = document.getElementById('input-title-color');
+                var subInput = document.getElementById('input-promo-sub');
+                var subColorInput = document.getElementById('input-sub-color');
+
+                if (tagInput) tagInput.value = p.tag || '';
+                if (tagColorInput) tagColorInput.value = styles.tagColor || '#38bdf8';
+                if (titleInput) titleInput.value = p.title || '';
+                if (titleColorInput) titleColorInput.value = styles.titleColor || '#ffffff';
+                if (subInput) subInput.value = p.sub || '';
+                if (subColorInput) subColorInput.value = styles.subColor || '#e2e8f0';
+
+                // Tipografía
+                state.selectedPromoFont = styles.fontFamily || state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif';
+                var fontBtns = document.querySelectorAll('.font-style-btn');
+                for (var f = 0; f < fontBtns.length; f++) {
+                    var isFont = fontBtns[f].dataset.font === state.selectedPromoFont;
+                    fontBtns[f].classList.toggle('active', isFont);
+                    fontBtns[f].classList.toggle('bg-cyan-500/20', isFont);
+                    fontBtns[f].classList.toggle('border-cyan-400', isFont);
+                    fontBtns[f].classList.toggle('text-white', isFont);
+                    fontBtns[f].classList.toggle('bg-slate-950', !isFont);
+                    fontBtns[f].classList.toggle('border-white/10', !isFont);
+                    fontBtns[f].classList.toggle('text-slate-300', !isFont);
+                }
+
+                // Fondo
+                selectedPromoC1 = p.c1 || '#0f172a';
+                selectedPromoC2 = p.c2 || '#0284c7';
+                var bgBtns = document.querySelectorAll('.promo-bg-btn');
+                for (var b = 0; b < bgBtns.length; b++) {
+                    var isBg = (bgBtns[b].dataset.c1 === selectedPromoC1 && bgBtns[b].dataset.c2 === selectedPromoC2);
+                    bgBtns[b].classList.toggle('ring-2', isBg);
+                    bgBtns[b].classList.toggle('ring-white', isBg);
+                    bgBtns[b].classList.toggle('opacity-100', isBg);
+                    bgBtns[b].classList.toggle('opacity-70', !isBg);
+                }
+
+                // Zoom / Escala
+                var pScale = styles.fontScale || state.fontScale || 100;
+                state.fontScale = pScale;
+                var fontScaleSlider = document.getElementById('slider-font-scale');
+                var fontScaleLabel = document.getElementById('label-font-scale');
+                if (fontScaleSlider) fontScaleSlider.value = pScale;
+                if (fontScaleLabel) fontScaleLabel.textContent = pScale + '%';
+
+                if (btnSave) btnSave.classList.remove('hidden');
+                if (statusLabel) {
+                    var shortT = (p.title || 'Sponsor').trim();
+                    if (shortT.length > 15) shortT = shortT.slice(0, 15) + '...';
+                    statusLabel.textContent = '✏️ Editando: ' + shortT;
+                    statusLabel.className = 'text-[10px] text-emerald-300 font-bold px-2 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-400/40';
+                }
+            } else {
+                if (btnSave) btnSave.classList.add('hidden');
+                if (statusLabel) {
+                    statusLabel.textContent = 'Nuevo Sponsor';
+                    statusLabel.className = 'text-[10px] text-cyan-300 font-bold px-2 py-0.5 rounded-full bg-cyan-950/70 border border-cyan-400/40';
+                }
+            }
+        }
+
+        // Actualizar en vivo sobre la pantalla lo que el usuario está escribiendo
+        function updateCurrentPromoRealtime() {
+            var cur = state.images[state.currentIndex];
+            if (!cur || !cur.promoData) return;
+
+            var titleInput = document.getElementById('input-promo-title');
+            var subInput = document.getElementById('input-promo-sub');
+            var tagInput = document.getElementById('input-promo-tag');
+            var tagColorInput = document.getElementById('input-tag-color');
+            var titleColorInput = document.getElementById('input-title-color');
+            var subColorInput = document.getElementById('input-sub-color');
+
+            cur.promoData.title = titleInput.value.trim() || '¡SPONSOR!';
+            cur.promoData.sub = subInput.value.trim();
+            cur.promoData.tag = tagInput.value.trim();
+            cur.promoData.c1 = selectedPromoC1;
+            cur.promoData.c2 = selectedPromoC2;
+
+            if (!cur.promoData.styles) cur.promoData.styles = {};
+            cur.promoData.styles.fontFamily = state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif';
+            cur.promoData.styles.tagColor = tagColorInput.value || '#38bdf8';
+            cur.promoData.styles.titleColor = titleColorInput.value || '#ffffff';
+            cur.promoData.styles.subColor = subColorInput.value || '#e2e8f0';
+            cur.promoData.styles.fontScale = state.fontScale || 100;
+
+            cur.name = cur.promoData.title;
+            fitAdaptivePromoText(cur.promoData);
+            saveStateToStorage();
+        }
+
+        // Presets de fondo del sponsor de texto
         var promoBgBtns = document.querySelectorAll('.promo-bg-btn');
         for (var b = 0; b < promoBgBtns.length; b++) {
             (function(btn) {
@@ -2025,6 +2279,7 @@
                     }
                     btn.classList.add('ring-2', 'ring-white', 'opacity-100');
                     btn.classList.remove('opacity-70');
+                    updateCurrentPromoRealtime();
                 });
             })(promoBgBtns[b]);
         }
@@ -2041,12 +2296,39 @@
                     }
                     btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
                     btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    updateCurrentPromoRealtime();
                     saveStateToStorage();
                 });
             })(fontBtns[fb]);
         }
 
-        // Crear Sponsor / Anuncio de Solo Texto
+        // Actualizaciones en tiempo real al escribir en los inputs de texto
+        var promoTextInputs = ['input-promo-title', 'input-promo-sub', 'input-promo-tag', 'input-tag-color', 'input-title-color', 'input-sub-color'];
+        for (var pti = 0; pti < promoTextInputs.length; pti++) {
+            var elInput = document.getElementById(promoTextInputs[pti]);
+            if (elInput) {
+                elInput.addEventListener('input', function() {
+                    updateCurrentPromoRealtime();
+                });
+            }
+        }
+
+        // Guardar Cambios en el Sponsor Seleccionado
+        document.getElementById('btn-save-text-ad').addEventListener('click', function() {
+            var cur = state.images[state.currentIndex];
+            if (!cur || !cur.promoData) {
+                showToast('⚠️ Selecciona un sponsor de texto para editar');
+                return;
+            }
+            updateCurrentPromoRealtime();
+            cur.src = createDemoBannerSVG(cur.promoData.title, cur.promoData.sub, cur.promoData.c1, cur.promoData.c2, cur.promoData.tag, cur.promoData.styles);
+            renderGalleryThumbnails();
+            syncPromoEditorWithCurrent();
+            saveStateToStorage();
+            showToast('💾 Sponsor actualizado y guardado');
+        });
+
+        // Crear Nuevo Sponsor / Anuncio de Solo Texto
         document.getElementById('btn-create-text-ad').addEventListener('click', function() {
             var titleInput = document.getElementById('input-promo-title');
             var subInput = document.getElementById('input-promo-sub');
@@ -2093,17 +2375,14 @@
                 state.currentIndex = state.images.length - 1;
             }
 
-            titleInput.value = '';
-            subInput.value = '';
-            tagInput.value = '';
-
             applyVisualState();
             renderGalleryThumbnails();
+            syncPromoEditorWithCurrent();
             saveStateToStorage();
-            showToast('✨ Sponsor de texto añadido');
+            showToast('✨ Nuevo sponsor añadido');
         });
 
-        // Escala / Tamaño de Letra en Tiempo Real
+        // Escala / Tamaño de Letra (Zoom) en Tiempo Real
         document.getElementById('slider-font-scale').addEventListener('input', function(e) {
             state.fontScale = parseInt(e.target.value, 10);
             document.getElementById('label-font-scale').textContent = state.fontScale + '%';
@@ -2412,45 +2691,105 @@
             saveStateToStorage();
         });
 
-        /* Color Studio 100% In-DOM (Sin Ventanas Emergentes Bloqueables) */
-        var btnSelectTargetC1 = document.getElementById('btn-select-target-c1');
-        var btnSelectTargetC2 = document.getElementById('btn-select-target-c2');
+        /* Color Studio 100% In-DOM (Marco y Resplandor 100% Independientes) */
+        var targetBorder1Btn = document.getElementById('btn-target-border-1');
+        var targetBorder2Btn = document.getElementById('btn-target-border-2');
+        var targetGlow1Btn = document.getElementById('btn-target-glow-1');
+        var targetGlow2Btn = document.getElementById('btn-target-glow-2');
 
         function updateColorTargetUI() {
-            if (state.activeColorTarget === 1) {
-                btnSelectTargetC1.className = 'px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow';
-                btnSelectTargetC2.className = 'px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5';
-                document.getElementById('input-hex-custom').value = state.color1;
-            } else {
-                btnSelectTargetC2.className = 'px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow';
-                btnSelectTargetC1.className = 'px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5';
-                document.getElementById('input-hex-custom').value = state.color2;
+            var target = state.activeColorTarget || 'border1';
+            var targetBtns = {
+                'border1': targetBorder1Btn,
+                'border2': targetBorder2Btn,
+                'glow1': targetGlow1Btn,
+                'glow2': targetGlow2Btn
+            };
+            var targetLabels = {
+                'border1': '⚡ Marco / Contorno (Color 1)',
+                'border2': '⚡ Marco / Contorno (Color 2)',
+                'glow1': '✨ Resplandor / Glow (Color 1)',
+                'glow2': '✨ Resplandor / Glow (Color 2)'
+            };
+            var activeColors = {
+                'border1': state.borderColor1 || '#00f2fe',
+                'border2': state.borderColor2 || '#4facfe',
+                'glow1': state.glowColor1 || '#ff0844',
+                'glow2': state.glowColor2 || '#ea580c'
+            };
+
+            for (var k in targetBtns) {
+                var btn = targetBtns[k];
+                if (!btn) continue;
+                if (k === target) {
+                    if (k.startsWith('border')) {
+                        btn.className = 'color-target-btn active px-2.5 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/25 text-white flex items-center gap-1.5 shadow-[0_0_10px_rgba(34,211,238,0.3)]';
+                    } else {
+                        btn.className = 'color-target-btn active px-2.5 py-1 rounded-lg text-[11px] font-black border border-amber-400 bg-amber-500/25 text-white flex items-center gap-1.5 shadow-[0_0_10px_rgba(251,191,36,0.3)]';
+                    }
+                } else {
+                    btn.className = 'color-target-btn px-2.5 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 hover:border-white/30 flex items-center gap-1.5 transition';
+                }
+            }
+
+            var label = document.getElementById('label-active-color-target');
+            if (label) {
+                label.textContent = targetLabels[target] || 'Marco / Contorno';
+                if (target.startsWith('border')) {
+                    label.className = 'font-black text-cyan-300';
+                } else {
+                    label.className = 'font-black text-amber-300';
+                }
+            }
+
+            var hexCustom = document.getElementById('input-hex-custom');
+            if (hexCustom && activeColors[target]) {
+                hexCustom.value = activeColors[target];
             }
         }
 
-        btnSelectTargetC1.addEventListener('click', function() {
-            state.activeColorTarget = 1;
+        if (targetBorder1Btn) targetBorder1Btn.addEventListener('click', function() {
+            state.activeColorTarget = 'border1';
             updateColorTargetUI();
         });
-        btnSelectTargetC2.addEventListener('click', function() {
-            state.activeColorTarget = 2;
+        if (targetBorder2Btn) targetBorder2Btn.addEventListener('click', function() {
+            state.activeColorTarget = 'border2';
             updateColorTargetUI();
         });
+        if (targetGlow1Btn) targetGlow1Btn.addEventListener('click', function() {
+            state.activeColorTarget = 'glow1';
+            updateColorTargetUI();
+        });
+        if (targetGlow2Btn) targetGlow2Btn.addEventListener('click', function() {
+            state.activeColorTarget = 'glow2';
+            updateColorTargetUI();
+        });
+
+        function applyColorToActiveTarget(colorHex) {
+            if (!colorHex) return;
+            var target = state.activeColorTarget || 'border1';
+            if (target === 'border1') {
+                state.borderColor1 = colorHex;
+                state.color1 = colorHex;
+            } else if (target === 'border2') {
+                state.borderColor2 = colorHex;
+                state.color2 = colorHex;
+            } else if (target === 'glow1') {
+                state.glowColor1 = colorHex;
+            } else if (target === 'glow2') {
+                state.glowColor2 = colorHex;
+            }
+            applyVisualState();
+            updateColorTargetUI();
+            saveStateToStorage();
+        }
 
         // Clic en cualquier muestra de la paleta
         var swatchBtns = document.querySelectorAll('.swatch-btn');
         for (var sw = 0; sw < swatchBtns.length; sw++) {
             (function(btn) {
                 btn.addEventListener('click', function() {
-                    var picked = btn.dataset.color;
-                    if (state.activeColorTarget === 1) {
-                        state.color1 = picked;
-                    } else {
-                        state.color2 = picked;
-                    }
-                    applyVisualState();
-                    updateColorTargetUI();
-                    saveStateToStorage();
+                    applyColorToActiveTarget(btn.dataset.color);
                 });
             })(swatchBtns[sw]);
         }
@@ -2460,31 +2799,35 @@
             var val = document.getElementById('input-hex-custom').value.trim();
             if (!val.startsWith('#')) val = '#' + val;
             if (/^#[0-9A-Fa-f]{6}$/.test(val) || /^#[0-9A-Fa-f]{3}$/.test(val)) {
-                if (state.activeColorTarget === 1) {
-                    state.color1 = val;
-                } else {
-                    state.color2 = val;
-                }
-                applyVisualState();
-                updateColorTargetUI();
-                saveStateToStorage();
+                applyColorToActiveTarget(val);
                 showToast('🎨 Color aplicado');
             } else {
                 showToast('⚠️ Ingresa un código Hex válido (Ej: #00f2fe)');
             }
         });
 
-        // Presets Dúo de Neón
+        // Presets Dúo de Neón (Afecta independientemente al Marco o al Resplandor según el objetivo activo)
         var duoBtns = document.querySelectorAll('.duo-preset-btn');
         for (var dp = 0; dp < duoBtns.length; dp++) {
             (function(btn) {
                 btn.addEventListener('click', function() {
-                    state.color1 = btn.dataset.c1;
-                    state.color2 = btn.dataset.c2;
+                    var c1 = btn.dataset.c1;
+                    var c2 = btn.dataset.c2;
+                    var target = state.activeColorTarget || 'border1';
+                    if (target.startsWith('border')) {
+                        state.borderColor1 = c1;
+                        state.borderColor2 = c2;
+                        state.color1 = c1;
+                        state.color2 = c2;
+                        showToast('⚡ Dúo de contorno aplicado');
+                    } else {
+                        state.glowColor1 = c1;
+                        state.glowColor2 = c2;
+                        showToast('✨ Dúo de resplandor aplicado');
+                    }
                     applyVisualState();
                     updateColorTargetUI();
                     saveStateToStorage();
-                    showToast('✨ Dúo de color aplicado');
                 });
             })(duoBtns[dp]);
         }
@@ -2886,6 +3229,7 @@
             }
 
             updateColorTargetUI();
+            syncPromoEditorWithCurrent();
         }
 
         // Ciclo automático suave en el mostrador web
