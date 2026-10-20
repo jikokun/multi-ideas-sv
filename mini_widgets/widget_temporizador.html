@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Modern Timer & Stopwatch Widget</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent-color: #00f2fe;
+            --accent-secondary: #4facfe;
+            --glow-color: rgba(0, 242, 254, 0.45);
+            --bg-opacity: 0.78;
+            --digit-color: #ffffff;
+            --digit-shadow: rgba(0, 0, 0, 0.85);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: transparent !important;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            position: relative;
+        }
+
+        /* Contenedor posicionable y escalable libremente en el lienzo 16:9 (1920x1080) */
+        .widget-wrapper {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%) scale(1);
+            transform-origin: center center;
+            z-index: 20;
+            display: inline-block;
+            touch-action: none;
+        }
+
+        /* Cajas invisibles en las 4 esquinas solo para mostrar el cursor de doble flecha y redimensionar */
+        .corner-handle {
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            background: transparent;
+            border: none;
+            z-index: 40;
+        }
+
+        .corner-handle.nw {
+            top: -10px;
+            left: -10px;
+            cursor: nwse-resize;
+        }
+
+        .corner-handle.ne {
+            top: -10px;
+            right: -10px;
+            cursor: nesw-resize;
+        }
+
+        .corner-handle.sw {
+            bottom: -10px;
+            left: -10px;
+            cursor: nesw-resize;
+        }
+
+        .corner-handle.se {
+            bottom: -10px;
+            right: -10px;
+            cursor: nwse-resize;
+        }
+
+        /* Animación suave de flotación para darle vida en el stream */
+        @keyframes floatCapsule {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-4px); }
+        }
+
+        /* Destello sutil diagonal sobre el cristal */
+        @keyframes shimmerSweep {
+            0% { transform: translateX(-150%) skewX(-25deg); }
+            35%, 100% { transform: translateX(250%) skewX(-25deg); }
+        }
+
+        /* Pulso de alerta cuando termina la cuenta regresiva */
+        @keyframes alarmPulse {
+            0%, 100% {
+                box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6), 0 0 35px var(--glow-color), inset 0 0 20px var(--glow-color);
+                border-color: var(--accent-color);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 15px 45px rgba(255, 42, 109, 0.8), 0 0 60px rgba(255, 42, 109, 0.9), inset 0 0 30px rgba(255, 42, 109, 0.6);
+                border-color: #ff2a6d;
+                transform: scale(1.03);
+            }
+        }
+
+        .timer-capsule {
+            position: relative;
+            background: rgba(12, 15, 24, var(--bg-opacity));
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1.5px solid rgba(255, 255, 255, 0.16);
+            border-radius: 28px;
+            padding: 18px 34px 22px 34px;
+            box-shadow: 
+                0 18px 40px rgba(0, 0, 0, 0.65),
+                0 0 28px var(--glow-color),
+                inset 0 1px 1px rgba(255, 255, 255, 0.25);
+            cursor: grab;
+            transition: border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.35s ease;
+            animation: floatCapsule 5s ease-in-out infinite;
+            overflow: hidden;
+            min-width: 340px;
+            text-align: center;
+        }
+
+        .timer-capsule.dragging {
+            cursor: grabbing;
+            animation-play-state: paused;
+        }
+
+        /* Modo Sin Fondo: desaparece toda la cápsula dejando solo etiqueta, números y barra de carga */
+        .timer-capsule.no-bg {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            overflow: visible;
+        }
+
+        .timer-capsule.no-bg:hover {
+            border-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        .timer-capsule.no-bg .shimmer-layer {
+            display: none;
+        }
+
+        .timer-capsule.no-bg .status-badge {
+            background: rgba(15, 23, 42, 0.82);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+        }
+
+        .timer-capsule.no-bg .progress-track {
+            bottom: 4px;
+            left: 8%;
+            width: 84%;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.55);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+        }
+
+        .timer-capsule.no-bg .click-hint {
+            background: transparent;
+            backdrop-filter: none;
+        }
+
+        .timer-capsule:hover {
+            border-color: rgba(255, 255, 255, 0.35);
+            box-shadow: 
+                0 22px 45px rgba(0, 0, 0, 0.75),
+                0 0 38px var(--glow-color),
+                inset 0 1px 2px rgba(255, 255, 255, 0.35);
+        }
+
+        .timer-capsule.finished-alarm {
+            animation: alarmPulse 1s ease-in-out infinite;
+        }
+
+        .timer-capsule.no-bg.finished-alarm .time-digits {
+            filter: drop-shadow(0 0 18px #ff2a6d);
+        }
+
+        /* Efecto reflejo de cristal */
+        .shimmer-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 45%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.07),
+                transparent
+            );
+            pointer-events: none;
+            animation: shimmerSweep 8s infinite;
+        }
+
+        /* Tipografía numérica monoespaciada con doble sombra para máxima visibilidad en OBS */
+        .time-digits {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+            font-weight: 800;
+            font-size: 3.6rem;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            color: var(--digit-color);
+            text-shadow: 
+                0 3px 12px var(--digit-shadow),
+                0 0 22px var(--glow-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            transition: color 0.25s ease, text-shadow 0.25s ease;
+        }
+
+        .colon-sep {
+            color: var(--accent-color);
+            transition: opacity 0.2s ease;
+            transform: translateY(-3px);
+        }
+
+        .colon-blink {
+            animation: blinkColon 1s steps(1) infinite;
+        }
+
+        @keyframes blinkColon {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.25; }
+        }
+
+        /* Indicador de estado superior */
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            margin-bottom: 6px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+            transition: all 0.3s ease;
+        }
+
+        .status-dot.running {
+            animation: pulseDot 1.5s infinite;
+        }
+
+        .status-dot.paused {
+            background-color: #f59e0b;
+            box-shadow: 0 0 10px #f59e0b;
+        }
+
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.35); opacity: 0.65; }
+        }
+
+        /* Barra de progreso inferior integrada */
+        .progress-track {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 100%;
+            background: linear-gradient(90deg, var(--accent-color), var(--accent-secondary));
+            box-shadow: 0 0 12px var(--accent-color);
+            transition: width 0.25s linear;
+        }
+
+        /* Indicador sutil al pasar el mouse para recordar que es interactivo */
+        .click-hint {
+            position: absolute;
+            inset: 0;
+            background: rgba(10, 12, 20, 0.72);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.25s ease;
+            pointer-events: none;
+        }
+
+        .timer-capsule:hover .click-hint {
+            opacity: 1;
+        }
+
+        .settings-modal {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.94);
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .settings-modal.active {
+            opacity: 1;
+            pointer-events: auto;
+            transform: scale(1);
+        }
+
+        .modal-card {
+            width: 440px;
+            max-width: 95vw;
+            background: rgba(15, 19, 30, 0.96);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 18px 22px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 0, 0, 0.5);
+            color: #f8fafc;
+        }
+
+        .num-input {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 12px;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 1.25rem;
+            text-align: center;
+            width: 68px;
+            padding: 6px 4px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .num-input:focus {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 12px var(--glow-color);
+        }
+
+        /* Ocultar flechas por defecto de inputs numéricos */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+
+        .preset-chip {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 5px 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            cursor: pointer;
+            transition: all 0.18s ease;
+        }
+
+        .preset-chip:hover {
+            background: rgba(255, 255, 255, 0.16);
+            color: #ffffff;
+            border-color: var(--accent-color);
+        }
+
+        .theme-dot {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .theme-dot:hover {
+            transform: scale(1.15);
+        }
+
+        .theme-dot.selected {
+            border-color: #ffffff;
+            transform: scale(1.15);
+        }
+
+        /* Estilo moderno para la barra deslizante de opacidad del fondo */
+        .opacity-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 115px;
+            height: 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.18);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .opacity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            box-shadow: 0 0 10px var(--accent-color);
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            transition: transform 0.15s ease;
+        }
+
+        .opacity-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="widgetWrapper" class="widget-wrapper">
+        <!-- 4 cajas invisibles únicamente en las esquinas para activar el cursor de doble flecha y escalar -->
+        <div class="corner-handle nw" data-corner="nw"></div>
+        <div class="corner-handle ne" data-corner="ne"></div>
+        <div class="corner-handle sw" data-corner="sw"></div>
+        <div class="corner-handle se" data-corner="se"></div>
+
+        <div id="timerCapsule" class="timer-capsule" title="Arrastra para mover • Clic para configurar • Esquinas para cambiar tamaño">
+            <!-- Capa de brillo animado -->
+            <div class="shimmer-layer"></div>
+
+            <!-- Etiqueta superior e indicador de modo -->
+            <div class="flex items-center justify-center">
+                <div class="status-badge">
+                    <span id="statusDot" class="status-dot running"></span>
+                    <span id="labelDisplay" class="text-xs font-extrabold uppercase tracking-widest text-slate-200 drop-shadow">
+                        CUENTA REGRESIVA
+                    </span>
+                </div>
+            </div>
+
+            <!-- Números del contador -->
+            <div id="timeDisplay" class="time-digits">
+                <span id="hoursBlock" class="hidden">
+                    <span id="hh">00</span><span class="colon-sep colon-blink">:</span>
+                </span>
+                <span id="mm">05</span>
+                <span id="mainColon" class="colon-sep colon-blink">:</span>
+                <span id="ss">00</span>
+            </div>
+
+            <!-- Overlay sutil al pasar el cursor en modo Interactuar de OBS -->
+            <div class="click-hint">
+                <div class="flex items-center gap-2 bg-slate-900/90 border border-white/20 px-4 py-2 rounded-full shadow-lg">
+                    <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                    </svg>
+                    <span class="text-xs font-bold text-white tracking-wide">Clic: Configurar • Arrastrar: Mover</span>
+                </div>
+            </div>
+
+            <!-- Barra de progreso inferior -->
+            <div class="progress-track">
+                <div id="progressBar" class="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="settings-modal" onclick="handleOutsideClick(event)">
+        <div class="modal-card" onclick="event.stopPropagation()">
+            
+            <!-- Encabezado del panel -->
+            <div class="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+                    <h2 class="text-sm font-extrabold uppercase tracking-wider text-white">Control del Contador OBS</h2>
+                </div>
+                <button onclick="closeConfigModal()" class="text-slate-400 hover:text-white bg-white/5 hover:bg-white/15 rounded-lg p-1.5 transition" title="Cerrar y volver al contador">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Selector de Modo: Cuenta Regresiva vs Cronómetro -->
+            <div class="grid grid-cols-2 gap-2 bg-slate-950/60 p-1 rounded-xl border border-white/10 mb-3">
+                <button id="btnModeCountdown" onclick="switchMode('countdown')" class="py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white/15 text-white shadow">
+                    <span>⏳</span> Reversa (Timer)
+                </button>
+                <button id="btnModeStopwatch" onclick="switchMode('stopwatch')" class="py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+                    <span>⏱️</span> Hacia Delante
+                </button>
+            </div>
+
+            <!-- Controles de reproducción principales (Play/Pausa y Reiniciar) -->
+            <div class="flex gap-2 mb-3">
+                <button id="btnTogglePlay" onclick="toggleStartPause()" class="flex-1 py-2 px-4 rounded-xl font-extrabold text-xs uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 shadow-lg transition flex items-center justify-center gap-2">
+                    <span id="playPauseIcon">⏸</span>
+                    <span id="playPauseText">Pausar</span>
+                </button>
+                <button onclick="resetTimer()" class="py-2 px-4 rounded-xl font-bold text-xs uppercase tracking-wider bg-white/10 hover:bg-white/20 text-white border border-white/10 transition flex items-center gap-1.5">
+                    <span>↺</span> Reiniciar
+                </button>
+            </div>
+
+            <!-- Sección de ajuste de tiempo manual (HH : MM : SS) -->
+            <div id="manualTimeSection" class="bg-white/5 border border-white/10 rounded-2xl p-3 mb-3">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold uppercase tracking-wider text-slate-300">Preajuste Manual (HH : MM : SS)</span>
+                    <button onclick="applyManualInputs()" class="text-[11px] font-extrabold bg-cyan-500/20 hover:bg-cyan-500/35 text-cyan-300 border border-cyan-400/30 px-2.5 py-0.5 rounded-md transition">
+                        Establecer
+                    </button>
+                </div>
+
+                <div class="flex items-center justify-center gap-2 my-1">
+                    <div class="flex flex-col items-center">
+                        <input id="inputHours" type="number" min="0" max="99" value="0" onchange="applyManualInputs()" class="num-input" title="Horas">
+                        <span class="text-[10px] text-slate-400 mt-1 font-semibold">HORAS</span>
+                    </div>
+                    <span class="text-xl font-bold text-slate-400 -mt-4">:</span>
+                    <div class="flex flex-col items-center">
+                        <input id="inputMinutes" type="number" min="0" max="59" value="5" onchange="applyManualInputs()" class="num-input" title="Minutos">
+                        <span class="text-[10px] text-slate-400 mt-1 font-semibold">MINUTOS</span>
+                    </div>
+                    <span class="text-xl font-bold text-slate-400 -mt-4">:</span>
+                    <div class="flex flex-col items-center">
+                        <input id="inputSeconds" type="number" min="0" max="59" value="0" onchange="applyManualInputs()" class="num-input" title="Segundos">
+                        <span class="text-[10px] text-slate-400 mt-1 font-semibold">SEGUNDOS</span>
+                    </div>
+                </div>
+
+                <!-- Botones rápidos de preajuste -->
+                <div class="flex flex-wrap items-center justify-center gap-1.5 mt-2.5 pt-2 border-t border-white/10">
+                    <button onclick="quickSetMinutes(3)" class="preset-chip">3m</button>
+                    <button onclick="quickSetMinutes(5)" class="preset-chip">5m</button>
+                    <button onclick="quickSetMinutes(10)" class="preset-chip">10m</button>
+                    <button onclick="quickSetMinutes(15)" class="preset-chip">15m</button>
+                    <button onclick="quickSetMinutes(30)" class="preset-chip">30m</button>
+                    <button onclick="adjustRemainingSeconds(60)" class="preset-chip text-cyan-300 border-cyan-500/30">+1m</button>
+                    <button onclick="adjustRemainingSeconds(-60)" class="preset-chip text-rose-300 border-rose-500/30">-1m</button>
+                </div>
+            </div>
+
+            <!-- Etiqueta personalizada y Estilo Visual para Capas OBS -->
+            <div class="grid grid-cols-1 gap-2.5">
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-semibold text-slate-300 whitespace-nowrap">Etiqueta:</label>
+                    <input id="inputLabel" type="text" maxlength="28" placeholder="Ej. Iniciando Stream..." oninput="updateCustomLabel(this.value)" class="w-full bg-white/5 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
+                </div>
+
+                <!-- Fila 1: Tema de acento + Barra deslizante manual para la transparencia del fondo -->
+                <div class="flex items-center justify-between pt-1 gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-semibold text-slate-300">Tema:</span>
+                        <div class="flex items-center gap-1.5">
+                            <button onclick="setTheme('cyan')" id="theme-cyan" class="theme-dot selected" style="background: linear-gradient(135deg, #00f2fe, #4facfe);" title="Cian Ciber"></button>
+                            <button onclick="setTheme('emerald')" id="theme-emerald" class="theme-dot" style="background: linear-gradient(135deg, #10b981, #059669);" title="Verde Esmeralda"></button>
+                            <button onclick="setTheme('purple')" id="theme-purple" class="theme-dot" style="background: linear-gradient(135deg, #c084fc, #7e22ce);" title="Morado Neón"></button>
+                            <button onclick="setTheme('amber')" id="theme-amber" class="theme-dot" style="background: linear-gradient(135deg, #fbbf24, #ea580c);" title="Ámbar Dorado"></button>
+                            <button onclick="setTheme('rose')" id="theme-rose" class="theme-dot" style="background: linear-gradient(135deg, #fb7185, #e11d48);" title="Rosa Intenso"></button>
+                        </div>
+                    </div>
+
+                    <!-- Barra manual para subir y bajar la opacidad del fondo hasta dejarlo 100% transparente -->
+                    <div class="flex items-center gap-2 bg-white/5 border border-white/10 px-2.5 py-1 rounded-xl">
+                        <span class="text-[11px] font-semibold text-slate-300 whitespace-nowrap">Fondo:</span>
+                        <input id="bgOpacitySlider" type="range" min="0" max="100" value="78" oninput="updateBgOpacity(this.value)" class="opacity-slider" title="Desliza a 0% para quitar todo el fondo salvo etiqueta y barra">
+                        <span id="bgOpacityValue" class="text-[11px] font-mono font-bold text-cyan-300 w-8 text-right">78%</span>
+                    </div>
+                </div>
+
+                <!-- Fila 2: Edición de color de los números (ideal para fondos claros u oscuros) -->
+                <div class="flex items-center justify-between pt-2 border-t border-white/10">
+                    <span class="text-xs font-semibold text-slate-300">Color Números:</span>
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="setDigitColor('#ffffff')" id="numcolor-white" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-white text-slate-900 border-2 border-cyan-400 transition" title="Blanco para fondos oscuros">
+                            Blanco
+                        </button>
+                        <button onclick="setDigitColor('#0f172a')" id="numcolor-dark" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-slate-900 text-white border border-white/25 transition" title="Oscuro para fondos claros">
+                            Oscuro
+                        </button>
+                        <button onclick="setDigitColor('#fef08a')" id="numcolor-yellow" class="w-6 h-6 rounded-lg bg-yellow-200 border border-white/20 transition hover:scale-110" title="Amarillo claro"></button>
+                        <button onclick="setDigitColor('#00f2fe')" id="numcolor-cyan" class="w-6 h-6 rounded-lg bg-cyan-400 border border-white/20 transition hover:scale-110" title="Cian Neón"></button>
+                        <label class="relative flex items-center justify-center w-7 h-6 rounded-lg bg-white/10 border border-white/20 cursor-pointer hover:bg-white/20 transition" title="Elegir cualquier color personalizado">
+                            <span class="text-xs">🎨</span>
+                            <input id="customDigitColorPicker" type="color" value="#ffffff" oninput="setDigitColor(this.value)" class="absolute inset-0 opacity-0 cursor-pointer w-full h-full">
+                        </label>
+                        <button onclick="resetPositionAndScale()" class="ml-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-white/10 hover:bg-white/20 text-slate-200 border border-white/15 transition" title="Centrar en el lienzo 1920x1080 y restaurar tamaño original">
+                            Centrar
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Paletas de temas diseñadas para destacar sobre cualquier capa de OBS
+        const THEMES = {
+            cyan: {
+                accent: '#00f2fe',
+                secondary: '#4facfe',
+                glow: 'rgba(0, 242, 254, 0.45)'
+            },
+            emerald: {
+                accent: '#34d399',
+                secondary: '#059669',
+                glow: 'rgba(52, 211, 153, 0.45)'
+            },
+            purple: {
+                accent: '#e879f9',
+                secondary: '#9333ea',
+                glow: 'rgba(232, 121, 249, 0.45)'
+            },
+            amber: {
+                accent: '#fbbf24',
+                secondary: '#ea580c',
+                glow: 'rgba(251, 191, 36, 0.45)'
+            },
+            rose: {
+                accent: '#fb7185',
+                secondary: '#e11d48',
+                glow: 'rgba(251, 113, 133, 0.45)'
+            }
+        };
+
+        // Lectura de parámetros URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramMode = urlParams.get('mode');
+        const paramMin = parseInt(urlParams.get('min') || urlParams.get('m') || '', 10);
+        const paramSec = parseInt(urlParams.get('sec') || urlParams.get('s') || '', 10);
+        const paramTotal = parseInt(urlParams.get('time') || urlParams.get('duration') || '', 10);
+        const paramLabel = urlParams.get('label') || urlParams.get('title') || urlParams.get('titulo');
+        const paramTheme = urlParams.get('theme') || urlParams.get('color');
+        const paramBg = urlParams.get('bg') || urlParams.get('opacity');
+        const paramDigits = urlParams.get('digits') || urlParams.get('numcolor');
+        const paramScale = parseFloat(urlParams.get('scale'));
+        const isPreview = urlParams.get('preview') === 'true';
+
+        // Estado principal del widget
+        let state = {
+            mode: paramMode === 'stopwatch' ? 'stopwatch' : 'countdown',
+            isRunning: true,            // Si está corriendo actualmente
+            targetDuration: 300,        // Duración total configurada en segundos (por defecto 5 min = 300s)
+            currentSeconds: 300,        // Segundos actuales mostrados
+            customLabel: 'CUENTA REGRESIVA',
+            theme: 'cyan',
+            bgOpacity: 78,              // Porcentaje de opacidad del fondo (0 = sin fondo salvo etiqueta y barra, 100 = sólido)
+            digitColor: '#ffffff',      // Color de los números del reloj
+            posX: 50,                   // Posición horizontal en porcentaje del lienzo (50% = centro)
+            posY: 50,                   // Posición vertical en porcentaje del lienzo (50% = centro)
+            scale: 1                    // Escala de tamaño del reloj (1 = 100%)
+        };
+
+        // Calcular duración inicial si se especificó en URL
+        if (!isNaN(paramTotal) && paramTotal > 0) {
+            state.targetDuration = paramTotal;
+            state.currentSeconds = paramTotal;
+        } else if (!isNaN(paramMin) || !isNaN(paramSec)) {
+            const calculated = ((isNaN(paramMin) ? 0 : paramMin) * 60) + (isNaN(paramSec) ? 0 : paramSec);
+            if (calculated > 0) {
+                state.targetDuration = calculated;
+                state.currentSeconds = calculated;
+            }
+        }
+
+        if (paramLabel) state.customLabel = paramLabel;
+        if (paramTheme && THEMES[paramTheme]) state.theme = paramTheme;
+        if (paramBg !== null && !isNaN(parseInt(paramBg, 10))) state.bgOpacity = Math.max(0, Math.min(100, parseInt(paramBg, 10)));
+        if (paramDigits) state.digitColor = paramDigits.startsWith('#') ? paramDigits : `#${paramDigits}`;
+        if (!isNaN(paramScale) && paramScale > 0) state.scale = paramScale;
+
+        let timerInterval = null;
+
+        // Variables de control para arrastrar y redimensionar desde las esquinas
+        let interaction = {
+            isDragging: false,
+            isResizing: false,
+            moved: false,
+            startX: 0,
+            startY: 0,
+            initialPosX: 50,
+            initialPosY: 50,
+            initialScale: 1,
+            centerX: 0,
+            centerY: 0,
+            initialDistance: 100
+        };
+
+        // Cargar configuración guardada en OBS (localStorage)
+        function loadSavedState() {
+            try {
+                const saved = localStorage.getItem('obs_modern_timer_v1');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (!urlParams.get('mode')) state.mode = parsed.mode || state.mode;
+                    if (isNaN(paramTotal) && isNaN(paramMin)) {
+                        state.targetDuration = typeof parsed.targetDuration === 'number' ? parsed.targetDuration : state.targetDuration;
+                        state.currentSeconds = typeof parsed.currentSeconds === 'number' ? parsed.currentSeconds : state.targetDuration;
+                    }
+                    if (!paramLabel) state.customLabel = parsed.customLabel || (state.mode === 'countdown' ? 'CUENTA REGRESIVA' : 'CRONÓMETRO');
+                    if (!paramTheme) state.theme = parsed.theme || state.theme;
+                    if (paramBg === null) {
+                        if (typeof parsed.bgOpacity === 'number') {
+                            state.bgOpacity = parsed.bgOpacity;
+                        } else if (parsed.showBg === false) {
+                            state.bgOpacity = 0;
+                        }
+                    }
+                    if (!paramDigits) state.digitColor = parsed.digitColor || state.digitColor;
+                    state.posX = typeof parsed.posX === 'number' ? parsed.posX : 50;
+                    state.posY = typeof parsed.posY === 'number' ? parsed.posY : 50;
+                    if (isNaN(paramScale)) state.scale = typeof parsed.scale === 'number' ? parsed.scale : 1;
+                }
+            } catch (e) {
+                console.warn('No se pudo leer localStorage:', e);
+            }
+
+            // Sincronizar controles del modal con el estado cargado
+            const labelInp = document.getElementById('inputLabel');
+            if (labelInp) labelInp.value = state.customLabel;
+            syncInputsWithDuration(state.mode === 'countdown' ? state.targetDuration : state.currentSeconds);
+            setTheme(state.theme, false);
+            updateBgOpacity(state.bgOpacity, false);
+            setDigitColor(state.digitColor, false);
+            applyTransformState();
+            updateModeButtonsUI();
+            renderDisplay();
+        }
+
+        // Aplica la ubicación (X, Y) y el tamaño (escala) sobre el lienzo 16:9
+        function applyTransformState() {
+            const wrapper = document.getElementById('widgetWrapper');
+            if (!wrapper) return;
+            const clampedX = Math.max(2, Math.min(98, state.posX));
+            const clampedY = Math.max(2, Math.min(98, state.posY));
+            const clampedScale = Math.max(0.35, Math.min(4.0, state.scale));
+
+            wrapper.style.left = `${clampedX}%`;
+            wrapper.style.top = `${clampedY}%`;
+            wrapper.style.transform = `translate(-50%, -50%) scale(${clampedScale.toFixed(3)})`;
+        }
+
+        // Restablece el contador al centro del lienzo 1920x1080 y a su tamaño original
+        function resetPositionAndScale() {
+            state.posX = 50;
+            state.posY = 50;
+            state.scale = 1;
+            applyTransformState();
+            saveState();
+        }
+
+        // Configura los eventos del mouse para mover el reloj o estirarlo desde sus 4 esquinas invisibles
+        function initCanvasManipulation() {
+            const wrapper = document.getElementById('widgetWrapper');
+            const capsule = document.getElementById('timerCapsule');
+            const corners = document.querySelectorAll('.corner-handle');
+
+            if (!wrapper || !capsule) return;
+
+            // 1. Estirar o encoger únicamente desde las 4 cajas invisibles de las esquinas
+            corners.forEach(corner => {
+                corner.addEventListener('pointerdown', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    interaction.isResizing = true;
+                    interaction.isDragging = false;
+                    interaction.initialScale = state.scale;
+
+                    const rect = wrapper.getBoundingClientRect();
+                    interaction.centerX = rect.left + rect.width / 2;
+                    interaction.centerY = rect.top + rect.height / 2;
+                    interaction.initialDistance = Math.hypot(
+                        e.clientX - interaction.centerX,
+                        e.clientY - interaction.centerY
+                    ) || 100;
+
+                    corner.setPointerCapture(e.pointerId);
+                });
+            });
+
+            // 2. Mover el reloj arrastrándolo por el lienzo (o abrir configuración si fue solo un clic)
+            capsule.addEventListener('pointerdown', (e) => {
+                if (e.button !== 0) return;
+                interaction.isDragging = true;
+                interaction.isResizing = false;
+                interaction.moved = false;
+                interaction.startX = e.clientX;
+                interaction.startY = e.clientY;
+                interaction.initialPosX = state.posX;
+                interaction.initialPosY = state.posY;
+
+                capsule.classList.add('dragging');
+                capsule.setPointerCapture(e.pointerId);
+            });
+
+            window.addEventListener('pointermove', (e) => {
+                if (interaction.isResizing) {
+                    const currentDist = Math.hypot(
+                        e.clientX - interaction.centerX,
+                        e.clientY - interaction.centerY
+                    );
+                    const ratio = currentDist / interaction.initialDistance;
+                    state.scale = Math.max(0.35, Math.min(4.0, interaction.initialScale * ratio));
+                    applyTransformState();
+                    return;
+                }
+
+                if (interaction.isDragging) {
+                    const dx = e.clientX - interaction.startX;
+                    const dy = e.clientY - interaction.startY;
+
+                    if (Math.hypot(dx, dy) > 5) {
+                        interaction.moved = true;
+                    }
+
+                    if (interaction.moved) {
+                        const vw = Math.max(1, window.innerWidth);
+                        const vh = Math.max(1, window.innerHeight);
+                        state.posX = Math.max(2, Math.min(98, interaction.initialPosX + (dx / vw) * 100));
+                        state.posY = Math.max(2, Math.min(98, interaction.initialPosY + (dy / vh) * 100));
+                        applyTransformState();
+                    }
+                }
+            });
+
+            window.addEventListener('pointerup', (e) => {
+                if (interaction.isResizing) {
+                    interaction.isResizing = false;
+                    saveState();
+                    return;
+                }
+
+                if (interaction.isDragging) {
+                    capsule.classList.remove('dragging');
+                    const wasClick = !interaction.moved;
+                    interaction.isDragging = false;
+
+                    if (wasClick) {
+                        openConfigModal(e);
+                    } else {
+                        saveState();
+                    }
+                }
+            });
+        }
+
+        function saveState() {
+            try {
+                localStorage.setItem('obs_modern_timer_v1', JSON.stringify(state));
+            } catch (e) {
+                // Ignorar errores de almacenamiento en entornos restringidos
+            }
+        }
+
+        function startLoop() {
+            if (timerInterval) clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                if (!state.isRunning) return;
+
+                const capsule = document.getElementById('timerCapsule');
+
+                if (state.mode === 'countdown') {
+                    if (state.currentSeconds > 0) {
+                        state.currentSeconds--;
+                        if (capsule) capsule.classList.remove('finished-alarm');
+                        if (state.currentSeconds === 0) {
+                            // Llegó a cero: activar efecto visual de alerta
+                            if (capsule) capsule.classList.add('finished-alarm');
+                            state.isRunning = false;
+                            updatePlayPauseUI();
+                        }
+                    }
+                } else {
+                    // Modo cronómetro hacia delante
+                    if (capsule) capsule.classList.remove('finished-alarm');
+                    state.currentSeconds++;
+                }
+
+                renderDisplay();
+                saveState();
+            }, 1000);
+        }
+
+        // Actualiza los dígitos HH:MM:SS y la barra de progreso
+        function renderDisplay() {
+            const total = Math.max(0, Math.floor(state.currentSeconds));
+            const hours = Math.floor(total / 3600);
+            const minutes = Math.floor((total % 3600) / 60);
+            const seconds = total % 60;
+
+            const hoursBlock = document.getElementById('hoursBlock');
+            const hhEl = document.getElementById('hh');
+            const mmEl = document.getElementById('mm');
+            const ssEl = document.getElementById('ss');
+
+            // Mostrar bloque de horas solo si hay 1 hora o más para mantener el diseño limpio
+            if (hoursBlock && hhEl) {
+                if (hours > 0) {
+                    hoursBlock.classList.remove('hidden');
+                    hhEl.textContent = String(hours).padStart(2, '0');
+                } else {
+                    hoursBlock.classList.add('hidden');
+                }
+            }
+
+            if (mmEl) mmEl.textContent = String(minutes).padStart(2, '0');
+            if (ssEl) ssEl.textContent = String(seconds).padStart(2, '0');
+
+            // Actualizar etiqueta superior
+            const labelEl = document.getElementById('labelDisplay');
+            if (labelEl) {
+                labelEl.textContent = state.customLabel.trim() !== '' 
+                    ? state.customLabel 
+                    : (state.mode === 'countdown' ? 'CUENTA REGRESIVA' : 'CRONÓMETRO');
+            }
+
+            // Actualizar punto de estado y parpadeo de dos puntos
+            const dot = document.getElementById('statusDot');
+            const colons = document.querySelectorAll('.colon-sep');
+            if (dot) {
+                if (state.isRunning) {
+                    dot.classList.add('running');
+                    dot.classList.remove('paused');
+                    colons.forEach(c => c.classList.add('colon-blink'));
+                } else {
+                    dot.classList.remove('running');
+                    dot.classList.add('paused');
+                    colons.forEach(c => c.classList.remove('colon-blink'));
+                }
+            }
+
+            // Actualizar barra de progreso inferior
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                if (state.mode === 'countdown') {
+                    const denom = state.targetDuration > 0 ? state.targetDuration : 1;
+                    const pct = Math.min(100, Math.max(0, (state.currentSeconds / denom) * 100));
+                    progressBar.style.width = `${pct}%`;
+                } else {
+                    // En modo cronómetro hacia delante, la barra completa un ciclo visual cada 60 segundos
+                    const secCycle = ((total % 60) / 60) * 100;
+                    progressBar.style.width = state.currentSeconds === 0 ? '0%' : `${secCycle === 0 ? 100 : secCycle}%`;
+                }
+            }
+        }
+
+        function openConfigModal(event) {
+            if (event) event.stopPropagation();
+            // Sincronizar los inputs con el tiempo actual o meta antes de abrir
+            syncInputsWithDuration(state.currentSeconds);
+            updatePlayPauseUI();
+            const modal = document.getElementById('settingsModal');
+            if (modal) modal.classList.add('active');
+        }
+
+        function closeConfigModal() {
+            const modal = document.getElementById('settingsModal');
+            if (modal) modal.classList.remove('active');
+        }
+
+        function handleOutsideClick(event) {
+            if (event.target.id === 'settingsModal') {
+                closeConfigModal();
+            }
+        }
+
+        // Alternar entre Cuenta Regresiva y Cronómetro hacia delante
+        function switchMode(newMode) {
+            if (state.mode === newMode) return;
+            state.mode = newMode;
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+
+            if (newMode === 'stopwatch') {
+                state.currentSeconds = 0;
+                if (state.customLabel === 'CUENTA REGRESIVA') {
+                    state.customLabel = 'CRONÓMETRO';
+                    const inp = document.getElementById('inputLabel');
+                    if (inp) inp.value = state.customLabel;
+                }
+                syncInputsWithDuration(0);
+            } else {
+                state.currentSeconds = state.targetDuration > 0 ? state.targetDuration : 300;
+                if (state.customLabel === 'CRONÓMETRO') {
+                    state.customLabel = 'CUENTA REGRESIVA';
+                    const inp = document.getElementById('inputLabel');
+                    if (inp) inp.value = state.customLabel;
+                }
+                syncInputsWithDuration(state.currentSeconds);
+            }
+
+            state.isRunning = true;
+            updateModeButtonsUI();
+            updatePlayPauseUI();
+            renderDisplay();
+            saveState();
+        }
+
+        function updateModeButtonsUI() {
+            const btnCd = document.getElementById('btnModeCountdown');
+            const btnSw = document.getElementById('btnModeStopwatch');
+
+            if (btnCd && btnSw) {
+                if (state.mode === 'countdown') {
+                    btnCd.className = 'py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white/15 text-white shadow';
+                    btnSw.className = 'py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+                } else {
+                    btnSw.className = 'py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 bg-white/15 text-white shadow';
+                    btnCd.className = 'py-1.5 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 text-slate-400 hover:text-white';
+                }
+            }
+        }
+
+        function toggleStartPause() {
+            // Si estaba en 0 en modo reversa y le da a Play, reiniciar a la duración objetivo
+            if (state.mode === 'countdown' && state.currentSeconds === 0 && !state.isRunning) {
+                state.currentSeconds = state.targetDuration > 0 ? state.targetDuration : 300;
+            }
+            state.isRunning = !state.isRunning;
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+            updatePlayPauseUI();
+            renderDisplay();
+            saveState();
+        }
+
+        function updatePlayPauseUI() {
+            const icon = document.getElementById('playPauseIcon');
+            const text = document.getElementById('playPauseText');
+            if (icon && text) {
+                if (state.isRunning) {
+                    icon.textContent = '⏸';
+                    text.textContent = 'Pausar';
+                } else {
+                    icon.textContent = '▶';
+                    text.textContent = 'Iniciar / Reanudar';
+                }
+            }
+        }
+
+        function resetTimer() {
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+            if (state.mode === 'countdown') {
+                state.currentSeconds = state.targetDuration;
+            } else {
+                state.currentSeconds = 0;
+            }
+            syncInputsWithDuration(state.currentSeconds);
+            renderDisplay();
+            saveState();
+        }
+
+        // Sincroniza los cuadros de texto HH, MM, SS con una cantidad de segundos
+        function syncInputsWithDuration(totalSeconds) {
+            const total = Math.max(0, Math.floor(totalSeconds));
+            const h = Math.floor(total / 3600);
+            const m = Math.floor((total % 3600) / 60);
+            const s = total % 60;
+
+            const inpH = document.getElementById('inputHours');
+            const inpM = document.getElementById('inputMinutes');
+            const inpS = document.getElementById('inputSeconds');
+            if (inpH) inpH.value = h;
+            if (inpM) inpM.value = m;
+            if (inpS) inpS.value = s;
+        }
+
+        // Aplica los valores que el usuario haya escrito manualmente en Horas, Minutos y Segundos
+        function applyManualInputs() {
+            const inpH = document.getElementById('inputHours');
+            const inpM = document.getElementById('inputMinutes');
+            const inpS = document.getElementById('inputSeconds');
+
+            const h = Math.max(0, Math.min(99, parseInt(inpH ? inpH.value : '0', 10) || 0));
+            const m = Math.max(0, Math.min(59, parseInt(inpM ? inpM.value : '5', 10) || 0));
+            const s = Math.max(0, Math.min(59, parseInt(inpS ? inpS.value : '0', 10) || 0));
+
+            const totalSecs = (h * 3600) + (m * 60) + s;
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+
+            if (state.mode === 'countdown') {
+                state.targetDuration = totalSecs;
+                state.currentSeconds = totalSecs;
+            } else {
+                state.currentSeconds = totalSecs;
+            }
+
+            syncInputsWithDuration(totalSecs);
+            renderDisplay();
+            saveState();
+        }
+
+        // Preajuste rápido por minutos
+        function quickSetMinutes(mins) {
+            const secs = mins * 60;
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+            if (state.mode === 'countdown') {
+                state.targetDuration = secs;
+                state.currentSeconds = secs;
+            } else {
+                state.currentSeconds = secs;
+            }
+            syncInputsWithDuration(secs);
+            renderDisplay();
+            saveState();
+        }
+
+        // Sumar o restar segundos en vivo (+1m / -1m)
+        function adjustRemainingSeconds(delta) {
+            const nextVal = Math.max(0, state.currentSeconds + delta);
+            state.currentSeconds = nextVal;
+            if (state.mode === 'countdown' && nextVal > state.targetDuration) {
+                state.targetDuration = nextVal;
+            }
+            const capsule = document.getElementById('timerCapsule');
+            if (capsule) capsule.classList.remove('finished-alarm');
+            syncInputsWithDuration(state.currentSeconds);
+            renderDisplay();
+            saveState();
+        }
+
+        function updateCustomLabel(val) {
+            state.customLabel = val;
+            renderDisplay();
+            saveState();
+        }
+
+        function setTheme(themeKey, shouldSave = true) {
+            const theme = THEMES[themeKey] || THEMES.cyan;
+            state.theme = themeKey;
+
+            document.documentElement.style.setProperty('--accent-color', theme.accent);
+            document.documentElement.style.setProperty('--accent-secondary', theme.secondary);
+            document.documentElement.style.setProperty('--glow-color', theme.glow);
+
+            // Actualizar selección visual de botones de tema
+            document.querySelectorAll('.theme-dot').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            const activeBtn = document.getElementById(`theme-${themeKey}`);
+            if (activeBtn) activeBtn.classList.add('selected');
+
+            if (shouldSave) saveState();
+        }
+
+        // Regula manualmente la opacidad del fondo con la barra deslizante; al llegar a 0% quita toda la cápsula dejando solo etiqueta, números y barra
+        function updateBgOpacity(val, shouldSave = true) {
+            const pct = Math.max(0, Math.min(100, parseInt(val, 10) || 0));
+            state.bgOpacity = pct;
+
+            const capsule = document.getElementById('timerCapsule');
+            const slider = document.getElementById('bgOpacitySlider');
+            const label = document.getElementById('bgOpacityValue');
+
+            if (slider) slider.value = pct;
+            if (label) label.textContent = `${pct}%`;
+
+            // Actualizar variable CSS de opacidad de la cápsula
+            const alpha = (pct / 100).toFixed(2);
+            document.documentElement.style.setProperty('--bg-opacity', alpha);
+
+            // Si baja a 0%, activar el modo limpio donde desaparece todo el recuadro y el cristal salvo la etiqueta y la barra de carga
+            if (capsule) {
+                if (pct === 0) {
+                    capsule.classList.add('no-bg');
+                } else {
+                    capsule.classList.remove('no-bg');
+                    // Suavizar proporcionalmente el desenfoque y el borde cuando se baja la barra
+                    const blurPx = Math.round((pct / 100) * 20);
+                    capsule.style.backdropFilter = `blur(${blurPx}px)`;
+                    capsule.style.webkitBackdropFilter = `blur(${blurPx}px)`;
+                }
+            }
+
+            if (shouldSave) saveState();
+        }
+
+        // Calcula si un color hexadecimal es oscuro para ajustar la sombra de contraste automáticamente
+        function isColorDark(hexColor) {
+            const hex = hexColor.replace('#', '');
+            if (hex.length !== 6) return false;
+            const r = parseInt(hex.substring(0, 2), 16);
+            const g = parseInt(hex.substring(2, 4), 16);
+            const b = parseInt(hex.substring(4, 6), 16);
+            const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+            return luminance < 0.45;
+        }
+
+        // Cambia el color de los números del reloj y adapta el contorno/sombra para fondos claros u oscuros
+        function setDigitColor(colorHex, shouldSave = true) {
+            state.digitColor = colorHex;
+            document.documentElement.style.setProperty('--digit-color', colorHex);
+
+            // Si el usuario elige números oscuros (para fondos claros), usar resplandor suave claro en vez de sombra negra
+            if (isColorDark(colorHex)) {
+                document.documentElement.style.setProperty('--digit-shadow', 'rgba(255, 255, 255, 0.75)');
+            } else {
+                document.documentElement.style.setProperty('--digit-shadow', 'rgba(0, 0, 0, 0.85)');
+            }
+
+            const picker = document.getElementById('customDigitColorPicker');
+            if (picker && colorHex.startsWith('#') && colorHex.length === 7) {
+                picker.value = colorHex;
+            }
+
+            // Resaltar botón activo si coincide con Blanco u Oscuro
+            const btnWhite = document.getElementById('numcolor-white');
+            const btnDark = document.getElementById('numcolor-dark');
+            if (btnWhite && btnDark) {
+                btnWhite.style.borderColor = colorHex.toLowerCase() === '#ffffff' ? '#22d3ee' : 'transparent';
+                btnDark.style.borderColor = colorHex.toLowerCase() === '#0f172a' ? '#22d3ee' : 'rgba(255,255,255,0.25)';
+            }
+
+            if (shouldSave) saveState();
+        }
+
+        // Escucha de mensajes postMessage desde mini_widgets/index.html
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+            if (event.data.type === 'SET_TIMER_CONFIG') {
+                const d = event.data;
+                if (d.mode && (d.mode === 'countdown' || d.mode === 'stopwatch')) {
+                    switchMode(d.mode);
+                }
+                if (typeof d.minutes === 'number' || typeof d.seconds === 'number') {
+                    const totalSecs = ((d.minutes || 0) * 60) + (d.seconds || 0);
+                    state.targetDuration = totalSecs;
+                    state.currentSeconds = totalSecs;
+                    syncInputsWithDuration(totalSecs);
+                }
+                if (d.label !== undefined) {
+                    state.customLabel = d.label;
+                    const inp = document.getElementById('inputLabel');
+                    if (inp) inp.value = d.label;
+                }
+                if (d.theme && THEMES[d.theme]) setTheme(d.theme);
+                if (typeof d.bgOpacity === 'number') updateBgOpacity(d.bgOpacity);
+                if (d.digitColor) setDigitColor(d.digitColor);
+                if (typeof d.isRunning === 'boolean') {
+                    state.isRunning = d.isRunning;
+                    updatePlayPauseUI();
+                }
+                renderDisplay();
+                saveState();
+            } else if (event.data.type === 'TOGGLE_PLAY') {
+                toggleStartPause();
+            } else if (event.data.type === 'RESET_TIMER') {
+                resetTimer();
+            } else if (event.data.type === 'ADJUST_TIME') {
+                if (typeof event.data.delta === 'number') {
+                    adjustRemainingSeconds(event.data.delta);
+                }
+            } else if (event.data.type === 'SWITCH_MODE') {
+                if (event.data.mode) switchMode(event.data.mode);
+            }
+        });
+
+        // Cerrar modal con tecla Escape si se está interactuando en OBS
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeConfigModal();
+            }
+        });
+
+        // Inicializar al cargar el widget
+        window.onload = function () {
+            loadSavedState();
+            initCanvasManipulation();
+            startLoop();
+        };
+    </script>
+</body>
+</html>

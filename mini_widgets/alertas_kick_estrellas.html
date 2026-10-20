@@ -577,7 +577,7 @@
         const kickChannel = (urlParams.get('channel') || urlParams.get('streamer') || 'jikokun').trim().toLowerCase().replace(/^@/, '');
         const isPreview = urlParams.get('preview') === 'true';
         let isLoopMode = urlParams.get('loop') === 'true';
-        const isMuted = urlParams.get('mute') === 'true';
+        let isMuted = urlParams.get('mute') === 'true' || isPreview || (window.self !== window.top);
         const hideControls = urlParams.get('hidecontrols') === 'true';
         const withBg = urlParams.get('bg') === 'true';
         
@@ -1219,6 +1219,8 @@
 
             if (event.data.type === 'TRIGGER_TEST_ALERT') {
                 triggerAlertByType(event.data.alertType || 'follow', true);
+            } else if (event.data.type === 'SET_MUTE') {
+                isMuted = !!event.data.isMuted;
             } else if (event.data.type === 'SET_STREAMERBOT_CONFIG') {
                 let changed = false;
                 if (event.data.host && event.data.host !== streamerBotHost) {

@@ -1100,7 +1100,12 @@
         // Endpoint Google Apps Script conectado a Google Drive con CDN lh3
         var APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
         var STORAGE_KEY = 'multiideas_obs_ad_widget_v1';
-        var isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
+        var isPreview = false;
+        try {
+            isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
+        } catch(e) {
+            isPreview = (window.location.search.indexOf('preview=true') !== -1);
+        }
 
         function showToast(text, duration) {
             var toast = document.getElementById('widget-toast');
@@ -1529,33 +1534,42 @@
                 }
             }
 
-            document.getElementById('label-corner-radius').textContent = state.cornerRadius + 'px';
-            document.getElementById('slider-corner-radius').value = state.cornerRadius;
-            document.getElementById('label-width').textContent = state.width + 'px';
-            document.getElementById('slider-width').value = state.width;
-            document.getElementById('label-height').textContent = state.height + 'px';
-            document.getElementById('slider-height').value = state.height;
-            document.getElementById('label-border-width').textContent = state.borderWidth + 'px';
-            document.getElementById('slider-border-width').value = state.borderWidth;
-            document.getElementById('label-glow').textContent = state.glowIntensity + 'px';
-            document.getElementById('slider-glow').value = state.glowIntensity;
-            document.getElementById('label-img-opacity').textContent = state.imgOpacity + '%';
-            document.getElementById('slider-img-opacity').value = state.imgOpacity;
-            document.getElementById('label-bg-opacity').textContent = state.bgOpacity + '%';
-            document.getElementById('slider-bg-opacity').value = state.bgOpacity;
+            function setSafeText(id, val) {
+                var el = document.getElementById(id);
+                if (el) el.textContent = val;
+            }
+            function setSafeVal(id, val) {
+                var el = document.getElementById(id);
+                if (el) el.value = val;
+            }
 
-            document.getElementById('label-motion-intensity').textContent = state.motionIntensity + '%';
-            document.getElementById('slider-motion-intensity').value = state.motionIntensity;
-            document.getElementById('label-motion-speed').textContent = state.motionSpeed + '/10';
-            document.getElementById('slider-motion-speed').value = state.motionSpeed;
+            setSafeText('label-corner-radius', state.cornerRadius + 'px');
+            setSafeVal('slider-corner-radius', state.cornerRadius);
+            setSafeText('label-width', state.width + 'px');
+            setSafeVal('slider-width', state.width);
+            setSafeText('label-height', state.height + 'px');
+            setSafeVal('slider-height', state.height);
+            setSafeText('label-border-width', state.borderWidth + 'px');
+            setSafeVal('slider-border-width', state.borderWidth);
+            setSafeText('label-glow', state.glowIntensity + 'px');
+            setSafeVal('slider-glow', state.glowIntensity);
+            setSafeText('label-img-opacity', state.imgOpacity + '%');
+            setSafeVal('slider-img-opacity', state.imgOpacity);
+            setSafeText('label-bg-opacity', state.bgOpacity + '%');
+            setSafeVal('slider-bg-opacity', state.bgOpacity);
 
-            document.getElementById('label-flicker-intensity').textContent = state.flickerIntensity + '%';
-            document.getElementById('slider-flicker-intensity').value = state.flickerIntensity;
-            document.getElementById('label-flicker-speed').textContent = state.flickerSpeed + '/10';
-            document.getElementById('slider-flicker-speed').value = state.flickerSpeed;
+            setSafeText('label-motion-intensity', state.motionIntensity + '%');
+            setSafeVal('slider-motion-intensity', state.motionIntensity);
+            setSafeText('label-motion-speed', state.motionSpeed + '/10');
+            setSafeVal('slider-motion-speed', state.motionSpeed);
 
-            document.getElementById('label-border-speed').textContent = state.borderSpinSpeed + '/10';
-            document.getElementById('slider-border-speed').value = state.borderSpinSpeed;
+            setSafeText('label-flicker-intensity', state.flickerIntensity + '%');
+            setSafeVal('slider-flicker-intensity', state.flickerIntensity);
+            setSafeText('label-flicker-speed', state.flickerSpeed + '/10');
+            setSafeVal('slider-flicker-speed', state.flickerSpeed);
+
+            setSafeText('label-border-speed', state.borderSpinSpeed + '/10');
+            setSafeVal('slider-border-speed', state.borderSpinSpeed);
 
             applyPositionAndScale();
             saveStateToStorage();
@@ -2643,14 +2657,28 @@
             }
         });
 
-        window.onload = function() {
-            loadStateFromStorage();
-            populatePromoInputsFromCurrent();
-            renderGalleryThumbnails();
-            applyVisualState();
-            applyModalTransform();
-            startCycleEngine(true);
-        };
+        var widgetInitialized = false;
+        function initWidget() {
+            if (widgetInitialized) return;
+            widgetInitialized = true;
+            try {
+                loadStateFromStorage();
+                populatePromoInputsFromCurrent();
+                renderGalleryThumbnails();
+                applyVisualState();
+                applyModalTransform();
+                startCycleEngine(true);
+            } catch(e) {
+                console.error('Error inicializando widget sponsor:', e);
+            }
+        }
+
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            initWidget();
+        } else {
+            document.addEventListener('DOMContentLoaded', initWidget);
+            window.addEventListener('load', initWidget);
+        }
     </script>
 </body>
 </html>

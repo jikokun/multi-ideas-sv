@@ -897,8 +897,8 @@
       const urlParams = new URLSearchParams(window.location.search);
       const customPort = urlParams.get('port') || urlParams.get('sbport') || '4445';
       const alertDuration = parseInt(urlParams.get('duration') || '6500', 10);
-      const isMuted = urlParams.get('mute') === 'true';
       const isPreview = urlParams.get('preview') === 'true';
+      let isMuted = urlParams.get('mute') === 'true' || isPreview || (window.self !== window.top);
 
       // -----------------------------------------------------------------------
       // 2. SISTEMA DE AUDIO (Web Audio API & SFX Sintetizado de Calidad)
@@ -1525,6 +1525,11 @@
       // -----------------------------------------------------------------------
       window.addEventListener('message', event => {
         if (!event.data) return;
+
+        if (event.data.type === 'SET_MUTE') {
+          isMuted = !!event.data.isMuted;
+          return;
+        }
 
         if (event.data.type === 'SET_IDLE_MODE') {
           isIdleMode = !!event.data.idle;

@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Modern Weather Capsule Widget</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        /* Configuración base para transparencia en OBS */
+        html, body {
+            background-color: transparent !important;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Outfit', sans-serif;
+            user-select: none;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* Modo de previsualización (solo visible fuera de OBS o al pasar el mouse) */
+        body.preview-bg {
+            background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%) !important;
+        }
+
+        /* Animación de levitación continua para todo el widget */
+        @keyframes pillFloat {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-6px) rotate(0.4deg); }
+        }
+
+        /* Destello diagonal de cristal (Shimmer) */
+        @keyframes glassShimmer {
+            0%, 65% { transform: translateX(-160%) skewX(-25deg); }
+            100% { transform: translateX(220%) skewX(-25deg); }
+        }
+
+        /* Borde luminoso respirando */
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.45; transform: translateY(-50%) scale(0.92); }
+            50% { opacity: 0.85; transform: translateY(-50%) scale(1.18); }
+        }
+
+        .weather-pill {
+            position: relative;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.78) 0%, rgba(30, 41, 59, 0.55) 100%);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 
+                0 22px 45px -12px rgba(0, 0, 0, 0.7),
+                0 0 25px -5px var(--glow-color, rgba(56, 189, 248, 0.25)),
+                inset 0 1.5px 2px rgba(255, 255, 255, 0.35),
+                inset 0 -2px 6px rgba(0, 0, 0, 0.4);
+            animation: pillFloat 5.5s ease-in-out infinite;
+            transition: box-shadow 0.8s ease, border-color 0.8s ease;
+            overflow: hidden;
+        }
+
+        /* Capa de brillo deslizante sobre la cápsula */
+        .weather-pill::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 55%;
+            height: 100%;
+            background: linear-gradient(
+                90deg,
+                rgba(255, 255, 255, 0) 0%,
+                rgba(255, 255, 255, 0.09) 50%,
+                rgba(255, 255, 255, 0) 100%
+            );
+            animation: glassShimmer 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            pointer-events: none;
+            z-index: 20;
+        }
+
+        /* Resplandor ambiental dinámico detrás del icono */
+        .ambient-glow {
+            position: absolute;
+            width: 105px;
+            height: 105px;
+            border-radius: 50%;
+            filter: blur(26px);
+            pointer-events: none;
+            transition: background 0.8s ease;
+            z-index: 0;
+            left: 12px;
+            top: 50%;
+            animation: glowPulse 4s ease-in-out infinite;
+        }
+
+        @keyframes rotateSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes rotateReverseSlow {
+            from { transform: rotate(360deg); }
+            to { transform: rotate(0deg); }
+        }
+
+        @keyframes floatCloud {
+            0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
+            50% { transform: translateY(-4px) translateX(3px) scale(1.03); }
+        }
+
+        @keyframes floatCloudReverse {
+            0%, 100% { transform: translateY(0px) translateX(0px) scale(1); }
+            50% { transform: translateY(3px) translateX(-4px) scale(0.97); }
+        }
+
+        @keyframes rainDrop {
+            0% { transform: translateY(-10px) translateX(4px) scaleY(0.7); opacity: 0; }
+            30% { opacity: 1; transform: translateY(0px) translateX(0px) scaleY(1.1); }
+            85% { opacity: 1; }
+            100% { transform: translateY(18px) translateX(-6px) scaleY(0.9); opacity: 0; }
+        }
+
+        @keyframes rainSplash {
+            0%, 70% { transform: scale(0); opacity: 0; }
+            85% { transform: scale(1); opacity: 0.85; }
+            100% { transform: scale(1.7); opacity: 0; }
+        }
+
+        @keyframes snowFlake {
+            0% { transform: translateY(-8px) translateX(0px) rotate(0deg); opacity: 0; }
+            25% { opacity: 1; }
+            50% { transform: translateY(5px) translateX(5px) rotate(120deg); }
+            75% { transform: translateY(11px) translateX(-3px) rotate(240deg); opacity: 1; }
+            100% { transform: translateY(18px) translateX(2px) rotate(360deg); opacity: 0; }
+        }
+
+        @keyframes flashLightning {
+            0%, 84%, 100% { opacity: 0; transform: scale(0.85) translateY(-3px); }
+            86%, 92% { opacity: 1; transform: scale(1.12) translateY(0px); filter: drop-shadow(0 0 14px #fde047); }
+            89% { opacity: 0.25; transform: scale(0.98); }
+            95% { opacity: 0.9; transform: scale(1.04); }
+        }
+
+        @keyframes stormCardFlash {
+            0%, 85%, 100% { opacity: 0; }
+            87%, 93% { opacity: 0.28; }
+            90% { opacity: 0.05; }
+        }
+
+        @keyframes windFlow {
+            0% { stroke-dashoffset: 80; opacity: 0; }
+            25% { opacity: 1; }
+            75% { opacity: 1; }
+            100% { stroke-dashoffset: -80; opacity: 0; }
+        }
+
+        @keyframes leafBlow {
+            0% { transform: translate(0px, 0px) rotate(0deg) scale(0.6); opacity: 0; }
+            30% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { transform: translate(58px, -12px) rotate(260deg) scale(1); opacity: 0; }
+        }
+
+        @keyframes starTwinkle {
+            0%, 100% { opacity: 0.2; transform: scale(0.65) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.25) rotate(20deg); filter: drop-shadow(0 0 6px #fef08a); }
+        }
+
+        @keyframes shootingStar {
+            0%, 78% { transform: translate(0, 0) scale(0); opacity: 0; }
+            82% { transform: translate(-6px, 4px) scale(1); opacity: 1; }
+            92%, 100% { transform: translate(-38px, 24px) scale(0.4); opacity: 0; }
+        }
+
+        @keyframes pulseSun {
+            0%, 100% { transform: scale(0.95); filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.6)); }
+            50% { transform: scale(1.08); filter: drop-shadow(0 0 20px rgba(253, 224, 71, 0.95)); }
+        }
+
+        @keyframes iconPopIn {
+            0% { transform: scale(0.4) rotate(-12deg); opacity: 0; }
+            65% { transform: scale(1.1) rotate(3deg); opacity: 1; }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        @keyframes bgParticleFloat {
+            0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.15; }
+            50% { transform: translateY(-14px) translateX(6px); opacity: 0.55; }
+        }
+
+        /* Clases de utilidad para animaciones SVG */
+        .anim-spin { animation: rotateSlow 16s linear infinite; transform-origin: 50px 50px; }
+        .anim-spin-rev { animation: rotateReverseSlow 22s linear infinite; transform-origin: 50px 50px; }
+        .anim-pulse { animation: pulseSun 3.5s ease-in-out infinite; transform-origin: 50px 50px; }
+        .anim-cloud-1 { animation: floatCloud 4.2s ease-in-out infinite; transform-origin: center; }
+        .anim-cloud-2 { animation: floatCloudReverse 5.2s ease-in-out infinite; transform-origin: center; }
+        .anim-rain-1 { animation: rainDrop 0.95s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        .anim-rain-2 { animation: rainDrop 0.95s cubic-bezier(0.4, 0, 0.6, 1) infinite 0.32s; }
+        .anim-rain-3 { animation: rainDrop 0.95s cubic-bezier(0.4, 0, 0.6, 1) infinite 0.64s; }
+        .anim-splash-1 { animation: rainSplash 0.95s ease-out infinite; transform-origin: 30px 84px; }
+        .anim-splash-2 { animation: rainSplash 0.95s ease-out infinite 0.32s; transform-origin: 46px 84px; }
+        .anim-splash-3 { animation: rainSplash 0.95s ease-out infinite 0.64s; transform-origin: 62px 84px; }
+        .anim-snow-1 { animation: snowFlake 2.5s ease-in-out infinite; transform-origin: 35px 72px; }
+        .anim-snow-2 { animation: snowFlake 2.5s ease-in-out infinite 0.8s; transform-origin: 51px 74px; }
+        .anim-snow-3 { animation: snowFlake 2.5s ease-in-out infinite 1.6s; transform-origin: 67px 72px; }
+        .anim-lightning { animation: flashLightning 3.2s infinite; transform-origin: 50px 65px; }
+        .anim-wind-1 { stroke-dasharray: 38 80; animation: windFlow 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
+        .anim-wind-2 { stroke-dasharray: 28 80; animation: windFlow 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.55s; }
+        .anim-wind-3 { stroke-dasharray: 32 80; animation: windFlow 2.1s cubic-bezier(0.4, 0, 0.2, 1) infinite 1.1s; }
+        .anim-leaf { animation: leafBlow 2.1s ease-in-out infinite 0.3s; transform-origin: center; }
+        .anim-star-1 { animation: starTwinkle 2.6s ease-in-out infinite; transform-origin: 24px 29px; }
+        .anim-star-2 { animation: starTwinkle 3.2s ease-in-out infinite 1.1s; transform-origin: 78px 29px; }
+        .anim-star-3 { animation: starTwinkle 2.9s ease-in-out infinite 0.5s; transform-origin: 28px 70px; }
+        .anim-shooting { animation: shootingStar 5.5s ease-out infinite; }
+        .icon-pop { animation: iconPopIn 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+        /* Destello de tormenta en toda la cápsula */
+        .storm-flash-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 35% 50%, rgba(254, 240, 138, 0.9), rgba(168, 85, 247, 0.4));
+            pointer-events: none;
+            opacity: 0;
+            z-index: 2;
+        }
+        .storm-active .storm-flash-overlay {
+            animation: stormCardFlash 3.2s infinite;
+        }
+
+        /* Controles interactivos que se ocultan solos en OBS */
+        .control-panel {
+            opacity: 0;
+            transform: translateY(8px);
+            pointer-events: none;
+            transition: all 0.25s ease;
+        }
+        body:hover .control-panel {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Si hidecontrols=true, nunca mostrar */
+        body.hide-controls .control-panel {
+            display: none !important;
+        }
+    </style>
+</head>
+<body class="w-screen h-screen flex flex-col items-center justify-center p-4">
+
+    <div id="widget-wrapper" class="relative flex flex-col items-center">
+        
+        <!-- Cápsula principal del clima (Diseño limpio: Icono + Temperatura) -->
+        <div id="weather-card" class="weather-pill rounded-[42px] px-7 py-4 flex items-center gap-5 min-w-[225px] justify-center">
+            <!-- Destello ambiental de tormenta -->
+            <div class="storm-flash-overlay"></div>
+
+            <!-- Partículas ambientales de fondo dentro de la cápsula -->
+            <div id="ambient-particles" class="absolute inset-0 pointer-events-none overflow-hidden z-0"></div>
+
+            <!-- Brillo ambiental según el clima -->
+            <div id="ambient-glow" class="ambient-glow" style="background: #fbbf24;"></div>
+
+            <!-- Contenedor del Icono SVG Animado -->
+            <div id="weather-icon" class="relative z-10 w-24 h-24 -my-1 flex items-center justify-center drop-shadow-[0_10px_16px_rgba(0,0,0,0.45)]">
+                <!-- Se inyecta dinámicamente según el clima -->
+            </div>
+
+            <!-- Contenedor exclusivamente de la Temperatura -->
+            <div class="relative z-10 flex items-start leading-none pr-1">
+                <span id="temp-value" class="text-6xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-white to-slate-200 drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
+                    --
+                </span>
+                <span id="temp-unit" class="text-2xl font-bold text-sky-300 mt-1.5 ml-1 drop-shadow-[0_2px_6px_rgba(56,189,248,0.4)] transition-colors duration-500">
+                    °C
+                </span>
+            </div>
+        </div>
+
+        <div id="controlPanel" class="control-panel mt-4 bg-slate-900/90 backdrop-blur-md border border-white/15 rounded-2xl p-2.5 flex flex-wrap items-center justify-center gap-1.5 shadow-2xl max-w-md text-xs text-slate-200">
+            <button onclick="setDemoWeather('sunny')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-amber-500/20 hover:text-amber-300 transition font-medium" title="Probar Soleado">☀️ Sol</button>
+            <button onclick="setDemoWeather('night')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-indigo-500/20 hover:text-indigo-300 transition font-medium" title="Probar Noche">🌙 Noche</button>
+            <button onclick="setDemoWeather('partly')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-sky-500/20 hover:text-sky-300 transition font-medium" title="Probar Parcialmente Nublado">⛅ Parcial</button>
+            <button onclick="setDemoWeather('cloudy')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-slate-500/30 hover:text-slate-200 transition font-medium" title="Probar Nublado">☁️ Nubes</button>
+            <button onclick="setDemoWeather('rain')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-blue-500/20 hover:text-blue-300 transition font-medium" title="Probar Lluvia">🌧️ Lluvia</button>
+            <button onclick="setDemoWeather('storm')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-purple-500/20 hover:text-purple-300 transition font-medium" title="Probar Tormenta">⛈️ Tormenta</button>
+            <button onclick="setDemoWeather('wind')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-teal-500/20 hover:text-teal-300 transition font-medium" title="Probar Viento">💨 Viento</button>
+            <button onclick="setDemoWeather('snow')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-cyan-500/20 hover:text-cyan-200 transition font-medium" title="Probar Nieve">❄️ Nieve</button>
+            
+            <div class="h-4 w-[1px] bg-white/15 mx-1"></div>
+            
+            <button onclick="toggleUnit()" id="unit-btn" class="px-2.5 py-1.5 rounded-lg bg-sky-500/20 text-sky-300 hover:bg-sky-500/30 transition font-semibold">°C / °F</button>
+            <button onclick="syncRealWeather()" id="sync-btn" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 transition font-semibold">📍 Clima Real</button>
+            <button onclick="toggleBg()" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/15 transition text-slate-400" title="Alternar fondo oscuro de prueba">👁️ Fondo</button>
+        </div>
+    </div>
+
+    <script>
+        const WEATHER_SVGS = {
+            sunny: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <radialGradient id="sunGrad" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#fef9c3" />
+                            <stop offset="45%" stop-color="#fde047" />
+                            <stop offset="85%" stop-color="#f59e0b" />
+                            <stop offset="100%" stop-color="#ea580c" />
+                        </radialGradient>
+                        <radialGradient id="sunHalo" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.55" />
+                            <stop offset="100%" stop-color="#fbbf24" stop-opacity="0" />
+                        </radialGradient>
+                    </defs>
+                    <!-- Halo solar cálido -->
+                    <circle cx="50" cy="50" r="42" fill="url(#sunHalo)" class="anim-pulse" />
+                    <!-- Corona secundaria en rotación inversa -->
+                    <g class="anim-spin-rev" stroke="#fde047" stroke-width="3.5" stroke-linecap="round" opacity="0.6">
+                        <line x1="50" y1="14" x2="50" y2="20" transform="rotate(22.5 50 50)" />
+                        <line x1="50" y1="80" x2="50" y2="86" transform="rotate(22.5 50 50)" />
+                        <line x1="14" y1="50" x2="20" y2="50" transform="rotate(22.5 50 50)" />
+                        <line x1="80" y1="50" x2="86" y2="50" transform="rotate(22.5 50 50)" />
+                        <line x1="24.5" y1="24.5" x2="29" y2="29" transform="rotate(22.5 50 50)" />
+                        <line x1="71" y1="71" x2="75.5" y2="75.5" transform="rotate(22.5 50 50)" />
+                        <line x1="75.5" y1="24.5" x2="71" y2="29" transform="rotate(22.5 50 50)" />
+                        <line x1="29" y1="71" x2="24.5" y2="75.5" transform="rotate(22.5 50 50)" />
+                    </g>
+                    <!-- Rayos principales giratorios -->
+                    <g class="anim-spin" stroke="#fbbf24" stroke-width="5.5" stroke-linecap="round">
+                        <line x1="50" y1="9" x2="50" y2="18" />
+                        <line x1="50" y1="82" x2="50" y2="91" />
+                        <line x1="9" y1="50" x2="18" y2="50" />
+                        <line x1="82" y1="50" x2="91" y2="50" />
+                        <line x1="21" y1="21" x2="27.5" y2="27.5" />
+                        <line x1="72.5" y1="72.5" x2="79" y2="79" />
+                        <line x1="79" y1="21" x2="72.5" y2="27.5" />
+                        <line x1="27.5" y1="72.5" x2="21" y2="79" />
+                    </g>
+                    <!-- Núcleo del sol 3D -->
+                    <circle cx="50" cy="50" r="23" fill="url(#sunGrad)" class="anim-pulse" />
+                    <ellipse cx="43" cy="41" rx="8" ry="4.5" transform="rotate(-25 43 41)" fill="#ffffff" opacity="0.45" />
+                </svg>
+            `,
+            night: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="moonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#fef9c3" />
+                            <stop offset="55%" stop-color="#fde047" />
+                            <stop offset="100%" stop-color="#f59e0b" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Estrella fugaz -->
+                    <g class="anim-shooting">
+                        <line x1="84" y1="16" x2="68" y2="26" stroke="#e0f2fe" stroke-width="2.5" stroke-linecap="round" />
+                        <circle cx="68" cy="26" r="2" fill="#ffffff" />
+                    </g>
+                    <!-- Estrellas parpadeantes -->
+                    <path d="M24 21 L26 27 L32 29 L26 31 L24 37 L22 31 L16 29 L22 27 Z" fill="#fef08a" class="anim-star-1" />
+                    <path d="M78 23 L79.5 27.5 L84 29 L79.5 30.5 L78 35 L76.5 30.5 L72 29 L76.5 27.5 Z" fill="#bae6fd" class="anim-star-2" />
+                    <circle cx="26" cy="68" r="2.5" fill="#e0f2fe" class="anim-star-3" />
+                    <!-- Luna creciente flotante con cráteres sutiles -->
+                    <g class="anim-cloud-1">
+                        <path d="M60 20 A28 28 0 1 0 82 68 A23 23 0 1 1 60 20 Z" fill="url(#moonGrad)" filter="drop-shadow(0 0 10px rgba(250,204,21,0.45))" />
+                        <circle cx="46" cy="58" r="3.5" fill="#eab308" opacity="0.35" />
+                        <circle cx="56" cy="68" r="2.2" fill="#eab308" opacity="0.35" />
+                        <circle cx="40" cy="45" r="2" fill="#eab308" opacity="0.25" />
+                    </g>
+                </svg>
+            `,
+            partly: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <radialGradient id="partSunGrad" cx="40%" cy="40%" r="60%">
+                            <stop offset="0%" stop-color="#fef08a" />
+                            <stop offset="65%" stop-color="#fbbf24" />
+                            <stop offset="100%" stop-color="#ea580c" />
+                        </radialGradient>
+                        <linearGradient id="cloudLight" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff" />
+                            <stop offset="70%" stop-color="#f1f5f9" />
+                            <stop offset="100%" stop-color="#cbd5e1" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Sol animado detrás -->
+                    <g transform="translate(-12, -10)">
+                        <g class="anim-spin" stroke="#fbbf24" stroke-width="4.5" stroke-linecap="round">
+                            <line x1="50" y1="15" x2="50" y2="22" />
+                            <line x1="50" y1="78" x2="50" y2="85" />
+                            <line x1="15" y1="50" x2="22" y2="50" />
+                            <line x1="78" y1="50" x2="85" y2="50" />
+                            <line x1="25" y1="25" x2="30" y2="30" />
+                            <line x1="70" y1="70" x2="75" y2="75" />
+                            <line x1="75" y1="25" x2="70" y2="30" />
+                            <line x1="30" y1="70" x2="25" y2="75" />
+                        </g>
+                        <circle cx="50" cy="50" r="18" fill="url(#partSunGrad)" class="anim-pulse" />
+                    </g>
+                    <!-- Nube frontal esponjosa -->
+                    <g class="anim-cloud-1">
+                        <path d="M30 76 H75 A14 14 0 0 0 77 48 A19 19 0 0 0 40 41 A15.5 15.5 0 0 0 30 76 Z" fill="url(#cloudLight)" />
+                        <ellipse cx="48" cy="49" rx="10" ry="5" fill="#ffffff" opacity="0.65" />
+                    </g>
+                </svg>
+            `,
+            cloudy: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="cloudBack" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#cbd5e1" />
+                            <stop offset="100%" stop-color="#64748b" />
+                        </linearGradient>
+                        <linearGradient id="cloudFront" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff" />
+                            <stop offset="70%" stop-color="#e2e8f0" />
+                            <stop offset="100%" stop-color="#94a3b8" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Nube trasera en contramovimiento -->
+                    <g class="anim-cloud-2" transform="translate(12, -11) scale(0.86)">
+                        <path d="M28 70 H72 A14 14 0 0 0 74 42 A18 18 0 0 0 38 36 A15 15 0 0 0 28 70 Z" fill="url(#cloudBack)" />
+                    </g>
+                    <!-- Nube delantera con volumen -->
+                    <g class="anim-cloud-1">
+                        <path d="M23 76 H75 A15 15 0 0 0 77 46 A20 20 0 0 0 36 40 A16 16 0 0 0 23 76 Z" fill="url(#cloudFront)" />
+                        <ellipse cx="46" cy="48" rx="12" ry="5.5" fill="#ffffff" opacity="0.7" />
+                    </g>
+                </svg>
+            `,
+            rain: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="rainCloud" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#f1f5f9" />
+                            <stop offset="65%" stop-color="#cbd5e1" />
+                            <stop offset="100%" stop-color="#64748b" />
+                        </linearGradient>
+                        <linearGradient id="dropGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#bae6fd" />
+                            <stop offset="100%" stop-color="#0284c7" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Gotas de lluvia con estela y salpicaduras -->
+                    <g stroke="url(#dropGrad)" stroke-width="4" stroke-linecap="round">
+                        <line x1="35" y1="64" x2="30" y2="76" class="anim-rain-1" />
+                        <line x1="51" y1="64" x2="46" y2="76" class="anim-rain-2" />
+                        <line x1="67" y1="64" x2="62" y2="76" class="anim-rain-3" />
+                    </g>
+                    <!-- Ondas de salpicadura en la base -->
+                    <g fill="none" stroke="#7dd3fc" stroke-width="2" stroke-linecap="round">
+                        <ellipse cx="30" cy="84" rx="5" ry="1.8" class="anim-splash-1" />
+                        <ellipse cx="46" cy="84" rx="5" ry="1.8" class="anim-splash-2" />
+                        <ellipse cx="62" cy="84" rx="5" ry="1.8" class="anim-splash-3" />
+                    </g>
+                    <!-- Nube de lluvia -->
+                    <g class="anim-cloud-1">
+                        <path d="M23 64 H75 A15 15 0 0 0 77 34 A20 20 0 0 0 36 28 A16 16 0 0 0 23 64 Z" fill="url(#rainCloud)" />
+                    </g>
+                </svg>
+            `,
+            storm: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="stormCloud" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#94a3b8" />
+                            <stop offset="55%" stop-color="#475569" />
+                            <stop offset="100%" stop-color="#1e293b" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Nube secundaria oscura -->
+                    <g class="anim-cloud-2" transform="translate(10, -8) scale(0.82)">
+                        <path d="M28 64 H72 A14 14 0 0 0 74 36 A18 18 0 0 0 38 30 A15 15 0 0 0 28 64 Z" fill="#334155" />
+                    </g>
+                    <!-- Gotas intensas de fondo -->
+                    <g stroke="#38bdf8" stroke-width="3.5" stroke-linecap="round">
+                        <line x1="31" y1="64" x2="26" y2="75" class="anim-rain-1" />
+                        <line x1="71" y1="64" x2="66" y2="75" class="anim-rain-3" />
+                    </g>
+                    <!-- Relámpago eléctrico brillante -->
+                    <polygon points="53,52 40,71 50,71 45,91 66,67 54,67" fill="#fde047" stroke="#f59e0b" stroke-width="1" class="anim-lightning" />
+                    <!-- Nube de tormenta principal -->
+                    <g class="anim-cloud-1">
+                        <path d="M23 62 H75 A15 15 0 0 0 77 32 A20 20 0 0 0 36 26 A16 16 0 0 0 23 62 Z" fill="url(#stormCloud)" />
+                    </g>
+                </svg>
+            `,
+            wind: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="windCloud" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff" />
+                            <stop offset="100%" stop-color="#cbd5e1" />
+                        </linearGradient>
+                        <linearGradient id="windStroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.2" />
+                            <stop offset="50%" stop-color="#5eead4" stop-opacity="1" />
+                            <stop offset="100%" stop-color="#99f6e4" stop-opacity="0.9" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Nube estilizada por el viento -->
+                    <g class="anim-cloud-1" transform="translate(0, -6)">
+                        <path d="M26 60 H70 A12 12 0 0 0 72 36 A16 16 0 0 0 38 32 A13 13 0 0 0 26 60 Z" fill="url(#windCloud)" opacity="0.9" />
+                    </g>
+                    <!-- Ráfagas dinámicas en 3 niveles -->
+                    <g fill="none" stroke="url(#windStroke)" stroke-width="4.5" stroke-linecap="round">
+                        <path d="M12 58 H74 A8.5 8.5 0 1 0 65 45" class="anim-wind-1" />
+                        <path d="M18 71 H64 A7.5 7.5 0 1 1 56 84" class="anim-wind-2" />
+                        <path d="M10 45 H52 A6.5 6.5 0 1 0 46 34" class="anim-wind-3" />
+                    </g>
+                    <!-- Partícula/hojita arrastrada por la brisa -->
+                    <path d="M20 64 Q25 59 29 64 Q25 69 20 64 Z" fill="#5eead4" class="anim-leaf" />
+                </svg>
+            `,
+            snow: `
+                <svg viewBox="0 0 100 100" class="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="snowCloud" x1="0%" y1="0%" x2="0%" y2="100%">
+                            <stop offset="0%" stop-color="#ffffff" />
+                            <stop offset="100%" stop-color="#cbd5e1" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Copos de nieve estrellados giratorios -->
+                    <g stroke="#bae6fd" stroke-width="2.4" stroke-linecap="round">
+                        <g class="anim-snow-1">
+                            <line x1="35" y1="67" x2="35" y2="77" />
+                            <line x1="30" y1="72" x2="40" y2="72" />
+                            <line x1="31.5" y1="68.5" x2="38.5" y2="75.5" />
+                            <line x1="38.5" y1="68.5" x2="31.5" y2="75.5" />
+                        </g>
+                        <g class="anim-snow-2">
+                            <line x1="51" y1="69" x2="51" y2="79" />
+                            <line x1="46" y1="74" x2="56" y2="74" />
+                            <line x1="47.5" y1="70.5" x2="54.5" y2="77.5" />
+                            <line x1="54.5" y1="70.5" x2="47.5" y2="77.5" />
+                        </g>
+                        <g class="anim-snow-3">
+                            <line x1="67" y1="67" x2="67" y2="77" />
+                            <line x1="62" y1="72" x2="72" y2="72" />
+                            <line x1="63.5" y1="68.5" x2="70.5" y2="75.5" />
+                            <line x1="70.5" y1="68.5" x2="63.5" y2="75.5" />
+                        </g>
+                    </g>
+                    <!-- Nube invernal -->
+                    <g class="anim-cloud-1">
+                        <path d="M23 64 H75 A15 15 0 0 0 77 34 A20 20 0 0 0 36 28 A16 16 0 0 0 23 64 Z" fill="url(#snowCloud)" />
+                    </g>
+                </svg>
+            `
+        };
+
+        const GLOW_COLORS = {
+            sunny: '#f59e0b',
+            night: '#6366f1',
+            partly: '#38bdf8',
+            cloudy: '#94a3b8',
+            rain: '#0284c7',
+            storm: '#a855f7',
+            wind: '#14b8a6',
+            snow: '#7dd3fc'
+        };
+
+        const UNIT_COLORS = {
+            sunny: '#fcd34d',
+            night: '#a5b4fc',
+            partly: '#7dd3fc',
+            cloudy: '#cbd5e1',
+            rain: '#38bdf8',
+            storm: '#d8b4fe',
+            wind: '#5eead4',
+            snow: '#bae6fd'
+        };
+
+        // Lectura de parámetros URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramDemo = urlParams.get('demo') || urlParams.get('clima');
+        const paramUnit = (urlParams.get('unit') || urlParams.get('u') || '').toLowerCase();
+        const paramLat = parseFloat(urlParams.get('lat'));
+        const paramLon = parseFloat(urlParams.get('lon'));
+        const isPreview = urlParams.get('preview') === 'true';
+        const hideControls = urlParams.get('hidecontrols') === 'true';
+
+        // Estado global del widget
+        let state = {
+            tempC: 24,
+            condition: 'sunny',
+            useFahrenheit: paramUnit === 'f',
+            isDemoMode: !!paramDemo,
+            displayedTemp: null
+        };
+
+        if (paramDemo && WEATHER_SVGS[paramDemo]) {
+            state.condition = paramDemo;
+            if (paramDemo === 'snow') state.tempC = 0;
+            else if (paramDemo === 'storm') state.tempC = 19;
+            else if (paramDemo === 'rain') state.tempC = 17;
+            else if (paramDemo === 'night') state.tempC = 20;
+            else if (paramDemo === 'partly') state.tempC = 26;
+            else if (paramDemo === 'sunny') state.tempC = 29;
+        }
+
+        if (hideControls) {
+            document.body.classList.add('hide-controls');
+        }
+
+        function animateTemperature(targetTemp) {
+            const tempValueEl = document.getElementById('temp-value');
+            if (state.displayedTemp === null || isNaN(state.displayedTemp)) {
+                state.displayedTemp = targetTemp;
+                tempValueEl.textContent = targetTemp;
+                return;
+            }
+
+            const startTemp = state.displayedTemp;
+            if (startTemp === targetTemp) {
+                tempValueEl.textContent = targetTemp;
+                return;
+            }
+
+            const duration = 550;
+            const startTime = performance.now();
+
+            function updateCounter(now) {
+                const elapsed = now - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = Math.round(startTemp + (targetTemp - startTemp) * eased);
+                tempValueEl.textContent = current;
+
+                if (progress < 1) {
+                    requestAnimationFrame(updateCounter);
+                } else {
+                    state.displayedTemp = targetTemp;
+                }
+            }
+
+            requestAnimationFrame(updateCounter);
+        }
+
+        function updateAmbientParticles(condition, color) {
+            const container = document.getElementById('ambient-particles');
+            if (!container) return;
+            container.innerHTML = '';
+
+            // Crear destellos suaves flotando dentro de la cápsula
+            const count = 6;
+            for (let i = 0; i < count; i++) {
+                const dot = document.createElement('div');
+                const size = 3 + (i % 3) * 2;
+                dot.style.position = 'absolute';
+                dot.style.width = `${size}px`;
+                dot.style.height = `${size}px`;
+                dot.style.borderRadius = '50%';
+                dot.style.background = color;
+                dot.style.filter = 'blur(1px)';
+                dot.style.left = `${15 + i * 14}%`;
+                dot.style.top = `${20 + ((i * 27) % 60)}%`;
+                dot.style.animation = `bgParticleFloat ${3 + (i % 3)}s ease-in-out infinite ${i * 0.4}s`;
+                container.appendChild(dot);
+            }
+        }
+
+        function renderWidget() {
+            const cardEl = document.getElementById('weather-card');
+            const iconContainer = document.getElementById('weather-icon');
+            const tempUnitEl = document.getElementById('temp-unit');
+            const glowEl = document.getElementById('ambient-glow');
+
+            const glowColor = GLOW_COLORS[state.condition] || '#38bdf8';
+
+            // Actualizar SVG con efecto elástico si cambió la condición
+            if (iconContainer && iconContainer.dataset.condition !== state.condition) {
+                iconContainer.classList.remove('icon-pop');
+                void iconContainer.offsetWidth; // Reiniciar animación
+                iconContainer.innerHTML = WEATHER_SVGS[state.condition] || WEATHER_SVGS.sunny;
+                iconContainer.classList.add('icon-pop');
+                iconContainer.dataset.condition = state.condition;
+                updateAmbientParticles(state.condition, glowColor);
+            }
+
+            // Activar relámpago en toda la cápsula si es tormenta
+            if (cardEl) {
+                if (state.condition === 'storm') {
+                    cardEl.classList.add('storm-active');
+                } else {
+                    cardEl.classList.remove('storm-active');
+                }
+                cardEl.style.setProperty('--glow-color', `${glowColor}44`);
+            }
+
+            // Actualizar color del brillo ambiental y sombra de la cápsula
+            if (glowEl) glowEl.style.background = glowColor;
+            if (tempUnitEl) {
+                tempUnitEl.style.color = UNIT_COLORS[state.condition] || '#7dd3fc';
+
+                // Calcular temperatura según unidad elegida
+                let displayTemp = state.tempC;
+                if (state.useFahrenheit) {
+                    displayTemp = Math.round((state.tempC * 9 / 5) + 32);
+                    tempUnitEl.textContent = '°F';
+                } else {
+                    displayTemp = Math.round(state.tempC);
+                    tempUnitEl.textContent = '°C';
+                }
+                animateTemperature(displayTemp);
+            }
+        }
+
+        function toggleUnit() {
+            state.useFahrenheit = !state.useFahrenheit;
+            localStorage.setItem('obs_weather_unit_f', state.useFahrenheit ? '1' : '0');
+            renderWidget();
+        }
+
+        function toggleBg() {
+            document.body.classList.toggle('preview-bg');
+        }
+
+        function setDemoWeather(type) {
+            state.isDemoMode = true;
+            state.condition = type;
+            const temps = { sunny: 29, night: 20, partly: 25, cloudy: 22, rain: 17, storm: 19, wind: 21, snow: 0 };
+            if (temps[type] !== undefined) state.tempC = temps[type];
+            renderWidget();
+        }
+
+        function mapWmoCodeToCondition(wmoCode, windSpeedKmh, isDay) {
+            // Si hay viento muy fuerte (> 32 km/h) y no está lloviendo ni en tormenta, mostrar animación de viento
+            if (windSpeedKmh >= 32 && wmoCode <= 3) {
+                return 'wind';
+            }
+
+            // Tormentas eléctricas
+            if (wmoCode >= 95) return 'storm';
+
+            // Nieve o granizo
+            if ((wmoCode >= 71 && wmoCode <= 77) || wmoCode === 85 || wmoCode === 86) {
+                return 'snow';
+            }
+
+            // Lluvia, llovizna o chubascos
+            if ((wmoCode >= 51 && wmoCode <= 67) || (wmoCode >= 80 && wmoCode <= 82)) {
+                return 'rain';
+            }
+
+            // Niebla o muy nublado
+            if (wmoCode === 3 || wmoCode === 45 || wmoCode === 48) {
+                return 'cloudy';
+            }
+
+            // Parcialmente nublado
+            if (wmoCode === 1 || wmoCode === 2) {
+                return isDay ? 'partly' : 'night';
+            }
+
+            // Despejado (0)
+            return isDay ? 'sunny' : 'night';
+        }
+
+        async function getCoordinates() {
+            // Coordenadas manuales si vienen por URL
+            if (!isNaN(paramLat) && !isNaN(paramLon)) {
+                return { lat: paramLat, lon: paramLon };
+            }
+
+            // 1. Intentar con la API de Geolocalización del navegador/PC
+            const browserGeo = () => new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    return reject(new Error('Geolocation no soportada'));
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => resolve({
+                        lat: pos.coords.latitude,
+                        lon: pos.coords.longitude
+                    }),
+                    (err) => reject(err),
+                    { timeout: 4500, maximumAge: 600000 }
+                );
+            });
+
+            try {
+                return await browserGeo();
+            } catch (e) {
+                // 2. Respaldo automático por IP (Ideal para OBS Browser Source que no tiene popups de permisos)
+                const ipApis = [
+                    'https://ipwho.is/',
+                    'https://ipapi.co/json/',
+                    'https://freeipapi.com/api/json'
+                ];
+
+                for (const url of ipApis) {
+                    try {
+                        const res = await fetch(url);
+                        if (!res.ok) continue;
+                        const data = await res.json();
+                        const lat = data.latitude ?? data.lat;
+                        const lon = data.longitude ?? data.lon;
+                        if (typeof lat === 'number' && typeof lon === 'number') {
+                            return { lat, lon };
+                        }
+                    } catch (ipErr) {
+                        // Intentar con el siguiente proveedor
+                    }
+                }
+            }
+
+            // Coordenadas de respaldo por defecto si no hay red momentáneamente
+            return { lat: 13.8667, lon: -88.6333 };
+        }
+
+        async function fetchRealWeather() {
+            if (state.isDemoMode) return;
+
+            try {
+                const coords = await getCoordinates();
+                const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,is_day,weather_code,wind_speed_10m&timezone=auto`;
+                
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Error de red al obtener el clima');
+                
+                const data = await response.json();
+                if (data && data.current) {
+                    state.tempC = data.current.temperature_2m;
+                    const wmo = data.current.weather_code;
+                    const wind = data.current.wind_speed_10m || 0;
+                    const isDay = data.current.is_day === 1;
+
+                    state.condition = mapWmoCodeToCondition(wmo, wind, isDay);
+                    renderWidget();
+                }
+            } catch (err) {
+                console.warn('Usando estado previo mientras se restablece la conexión:', err);
+                renderWidget();
+            }
+        }
+
+        function syncRealWeather() {
+            state.isDemoMode = false;
+            fetchRealWeather();
+        }
+
+        // Receptor de mensajes postMessage desde mini_widgets/index.html
+        window.addEventListener('message', (event) => {
+            if (!event.data) return;
+            if (event.data.type === 'SET_WEATHER_DEMO') {
+                if (event.data.condition) {
+                    setDemoWeather(event.data.condition);
+                }
+            } else if (event.data.type === 'SYNC_REAL_WEATHER') {
+                syncRealWeather();
+            } else if (event.data.type === 'SET_UNIT') {
+                state.useFahrenheit = !!event.data.useFahrenheit;
+                renderWidget();
+            } else if (event.data.type === 'TOGGLE_BG') {
+                toggleBg();
+            }
+        });
+
+        window.onload = function () {
+            // Cargar preferencia de unidad (°C / °F)
+            if (!paramUnit) {
+                const savedUnit = localStorage.getItem('obs_weather_unit_f');
+                if (savedUnit === '1') {
+                    state.useFahrenheit = true;
+                }
+            }
+
+            // Renderizar estado inicial inmediatamente
+            renderWidget();
+
+            if (!state.isDemoMode) {
+                // Obtener clima real usando la conectividad y ubicación de la PC
+                fetchRealWeather();
+
+                // Actualizar automáticamente cada 10 minutos
+                setInterval(fetchRealWeather, 10 * 60 * 1000);
+            }
+        };
+    </script>
+</body>
+</html>

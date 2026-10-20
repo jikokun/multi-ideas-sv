@@ -669,7 +669,7 @@
       const alertDuration = parseInt(urlParams.get('duration') || '6000', 10);
       const isPreview = urlParams.get('preview') === 'true' || urlParams.get('testmode') === 'true';
       const isLoop = urlParams.get('loop') === 'true';
-      const isMuted = urlParams.get('mute') === 'true';
+      let isMuted = urlParams.get('mute') === 'true' || isPreview || (window.self !== window.top);
       const hideControls = urlParams.get('hidecontrols') === 'true';
       const kickChannel = urlParams.get('channel') || urlParams.get('canal') || urlParams.get('user') || 'jikokun';
       let masterVolume = parseFloat(urlParams.get('volume') || '85') / 100;
@@ -1308,6 +1308,8 @@
           }
 
           window.testAlert(mappedType, true);
+        } else if (event.data.type === 'SET_MUTE') {
+          isMuted = !!event.data.isMuted;
         } else if (event.data.type === 'SET_CHANNEL') {
           if (event.data.channel) {
             loadKickAvatar(event.data.channel);
