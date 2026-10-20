@@ -552,12 +552,133 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        /* Visualizador de Tamaños y Formatos (Solo en Modo Vista Previa / Galería Web) */
+        body:not(.is-preview-mode) #preview-showcase-controls {
+            display: none !important;
+        }
+
+        body.is-preview-mode #preview-showcase-controls {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex !important;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            z-index: 999;
+            width: 96%;
+            max-width: 580px;
+            pointer-events: auto;
+        }
+
+        .preview-showcase-pills {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 5px;
+            background: rgba(10, 16, 31, 0.9);
+            border: 1px solid rgba(56, 189, 248, 0.4);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            padding: 4px 8px;
+            border-radius: 9999px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 16px rgba(56, 189, 248, 0.2);
+        }
+
+        .preview-pill-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            color: #cbd5e1;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        .preview-pill-btn:hover {
+            background: rgba(56, 189, 248, 0.22);
+            border-color: rgba(56, 189, 248, 0.6);
+            color: #ffffff;
+            transform: translateY(-1px);
+        }
+
+        .preview-pill-btn.active {
+            background: linear-gradient(135deg, #00f2fe 0%, #3b82f6 100%);
+            border-color: #38bdf8;
+            color: #041226;
+            font-weight: 900;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.6);
+            transform: scale(1.04);
+        }
+
+        .preview-showcase-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: rgba(2, 6, 23, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 3px 12px;
+            border-radius: 9999px;
+            font-size: 10.5px;
+            color: #94a3b8;
+            letter-spacing: 0.02em;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+        }
+
+        .preview-format-tag {
+            color: #38bdf8;
+            font-weight: 900;
+            text-transform: uppercase;
+            font-size: 9px;
+            letter-spacing: 0.08em;
+            background: rgba(56, 189, 248, 0.16);
+            padding: 1.5px 7px;
+            border-radius: 6px;
+            border: 1px solid rgba(56, 189, 248, 0.35);
+        }
     </style>
 </head>
 <body>
 
     <div id="obs-canvas">
         <div id="widget-toast">Guardado en OBS</div>
+
+        <!-- Barra de Demostración de Tamaños y Formatos (Solo visible en modo Vista Previa / Galería Web) -->
+        <div id="preview-showcase-controls" class="hidden">
+            <div class="preview-showcase-pills">
+                <button type="button" class="preview-pill-btn active" data-format="auto" id="pill-btn-auto" title="Rotar automáticamente formatos de ejemplo">
+                    <i class="fa-solid fa-rotate"></i> <span>Auto Demo</span>
+                </button>
+                <button type="button" class="preview-pill-btn" data-format="rect-thin" title="Formato Banner Horizontal">
+                    <i class="fa-solid fa-rectangle-ad"></i> <span>Banner</span>
+                </button>
+                <button type="button" class="preview-pill-btn" data-format="rect-16-9" title="Formato Cinemático 16:9">
+                    <i class="fa-solid fa-tv"></i> <span>16:9</span>
+                </button>
+                <button type="button" class="preview-pill-btn" data-format="square" title="Formato Cuadrado 1:1">
+                    <i class="fa-solid fa-square"></i> <span>Cuadrado</span>
+                </button>
+                <button type="button" class="preview-pill-btn" data-format="circle" title="Formato Marco Circular">
+                    <i class="fa-solid fa-circle-notch"></i> <span>Circular</span>
+                </button>
+            </div>
+            <div id="preview-showcase-badge" class="preview-showcase-badge">
+                <span id="preview-format-tag" class="preview-format-tag">DEMO</span>
+                <span id="preview-format-desc">Banner Horizontal (620×135) • Láser Neón</span>
+            </div>
+        </div>
 
         <div id="draggable-wrapper" title="Clic para configurar • Arrastra para mover • Esquinas para estirar">
             <div class="corner-resize-zone corner-tl" data-corner="tl"></div>
@@ -1856,13 +1977,13 @@
         function applyPositionAndScale() {
             if (isPreview) {
                 draggableWrapper.style.left = '50%';
-                draggableWrapper.style.top = '50%';
+                draggableWrapper.style.top = '55%';
                 var stageW = window.innerWidth || 560;
-                var stageH = window.innerHeight || 320;
+                var stageH = Math.max(220, (window.innerHeight || 400) - 75);
                 var targetW = Math.max(100, state.width || 480);
                 var targetH = Math.max(80, state.height || 270);
-                var fitScaleX = (stageW * 0.88) / targetW;
-                var fitScaleY = (stageH * 0.88) / targetH;
+                var fitScaleX = (stageW * 0.90) / targetW;
+                var fitScaleY = (stageH * 0.90) / targetH;
                 var autoScale = Math.min(1.0, Math.min(fitScaleX, fitScaleY));
                 draggableWrapper.style.transform = 'translate(-50%, -50%) scale(' + autoScale.toFixed(3) + ')';
             } else {
@@ -3302,36 +3423,287 @@
         }, JIKOKUN_INTERVAL_MS);
         ========================================================================= */
 
-        // Ciclo de demostración genérico y fluido para el expositor de la web
-        if (isPreview) {
-            setInterval(function() {
-                if (state.images.length > 1) {
-                    adBox.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-                    adBox.style.opacity = '0';
-                    adBox.style.transform = 'scale(0.94)';
-
-                    setTimeout(function() {
-                        state.currentIndex = (state.currentIndex + 1) % state.images.length;
-                        applyVisualState();
-                        setTimeout(function() {
-                            adBox.style.opacity = '1';
-                            adBox.style.transform = 'scale(1)';
-                        }, 50);
-                    }, 600);
+        /* =========================================================================
+           Visualizador y Expositor de Tamaños y Formatos en la Galería Web
+           (Activo únicamente cuando isPreview === true)
+           ========================================================================= */
+        var previewDemoPresets = [
+            {
+                key: 'rect-thin',
+                name: 'Banner Horizontal',
+                badge: 'BANNER 620×135',
+                width: 620,
+                height: 135,
+                cornerRadius: 20,
+                borderColor1: '#00f2fe',
+                borderColor2: '#3b82f6',
+                glowColor1: '#00f2fe',
+                glowColor2: '#1d4ed8',
+                borderStyle: 'spin',
+                motionType: 'float',
+                flickerType: 'none',
+                promo: {
+                    tag: 'KICK PARTNER',
+                    title: '¡SÍGUENOS EN KICK!',
+                    sub: 'Directos diarios • twitch.tv/jikokun • kick.com/jikokun',
+                    c1: '#070f26',
+                    c2: '#0b3260',
+                    styles: {
+                        fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        tagColor: '#38bdf8',
+                        tagWeight: '900',
+                        titleColor: '#ffffff',
+                        titleWeight: '900',
+                        subColor: '#bae6fd',
+                        subWeight: '600',
+                        fontScale: 100
+                    }
                 }
+            },
+            {
+                key: 'rect-16-9',
+                name: 'Cinemático 16:9',
+                badge: '16:9 (520×292)',
+                width: 520,
+                height: 292,
+                cornerRadius: 24,
+                borderColor1: '#f43f5e',
+                borderColor2: '#a855f7',
+                glowColor1: '#e11d48',
+                glowColor2: '#9333ea',
+                borderStyle: 'spin',
+                motionType: 'heartbeat',
+                flickerType: 'none',
+                promo: {
+                    tag: 'PATROCINADOR OFICIAL',
+                    title: 'CÓDIGO: STREAM20',
+                    sub: '20% de descuento en periféricos gamer y accesorios',
+                    c1: '#180214',
+                    c2: '#4a044e',
+                    styles: {
+                        fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        tagColor: '#f472b6',
+                        tagWeight: '900',
+                        titleColor: '#ffffff',
+                        titleWeight: '900',
+                        subColor: '#fbcfe8',
+                        subWeight: '600',
+                        fontScale: 100
+                    }
+                }
+            },
+            {
+                key: 'square',
+                name: 'Cuadrado Moderno 1:1',
+                badge: 'CUADRADO 320×320',
+                width: 320,
+                height: 320,
+                cornerRadius: 28,
+                borderColor1: '#f59e0b',
+                borderColor2: '#ef4444',
+                glowColor1: '#d97706',
+                glowColor2: '#dc2626',
+                borderStyle: 'spin',
+                motionType: 'bounce',
+                flickerType: 'none',
+                promo: {
+                    tag: 'COMUNIDAD DISCORD',
+                    title: '¡ÚNETE HOY!',
+                    sub: 'Salas de charla, memes y alertas en vivo',
+                    c1: '#1c1003',
+                    c2: '#451a03',
+                    styles: {
+                        fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        tagColor: '#fbbf24',
+                        tagWeight: '900',
+                        titleColor: '#ffffff',
+                        titleWeight: '900',
+                        subColor: '#fef08a',
+                        subWeight: '600',
+                        fontScale: 100
+                    }
+                }
+            },
+            {
+                key: 'circle',
+                name: 'Marco Circular',
+                badge: 'CIRCULAR 300×300',
+                width: 300,
+                height: 300,
+                cornerRadius: 160,
+                borderColor1: '#10b981',
+                borderColor2: '#06b6d4',
+                glowColor1: '#059669',
+                glowColor2: '#0891b2',
+                borderStyle: 'spin',
+                motionType: 'float',
+                flickerType: 'none',
+                promo: {
+                    tag: 'INSIGNIA VIP',
+                    title: 'JIKOKUN',
+                    sub: 'Multi Ideas SV',
+                    c1: '#022c22',
+                    c2: '#064e3b',
+                    styles: {
+                        fontFamily: 'Plus Jakarta Sans, sans-serif',
+                        tagColor: '#34d399',
+                        tagWeight: '900',
+                        titleColor: '#ffffff',
+                        titleWeight: '900',
+                        subColor: '#a7f3d0',
+                        subWeight: '700',
+                        fontScale: 100
+                    }
+                }
+            }
+        ];
+
+        var previewActivePresetIdx = 0;
+        var isPreviewAutoCycle = true;
+        var previewCycleTimer = null;
+        var previewResumeTimer = null;
+
+        function applyPreviewDemoPreset(idx, updatePillUI) {
+            var preset = previewDemoPresets[idx];
+            if (!preset) return;
+            previewActivePresetIdx = idx;
+
+            adBox.style.transition = 'opacity 0.35s ease, transform 0.35s ease, border-radius 0.35s ease';
+            adBox.style.opacity = '0';
+            adBox.style.transform = 'scale(0.92)';
+
+            setTimeout(function() {
+                state.shapePreset = preset.key;
+                state.width = preset.width;
+                state.height = preset.height;
+                state.cornerRadius = preset.cornerRadius;
+                state.borderColor1 = preset.borderColor1;
+                state.borderColor2 = preset.borderColor2;
+                state.glowColor1 = preset.glowColor1;
+                state.glowColor2 = preset.glowColor2;
+                state.borderStyle = preset.borderStyle;
+                state.motionType = preset.motionType;
+                state.flickerType = preset.flickerType;
+
+                adImage.classList.add('hidden');
+                adTextPromo.classList.remove('hidden');
+                fitAdaptivePromoText(preset.promo);
+
+                applyVisualState();
+                applyPositionAndScale();
+
+                var descEl = document.getElementById('preview-format-desc');
+                var tagEl = document.getElementById('preview-format-tag');
+                if (descEl) descEl.textContent = preset.name + ' (' + preset.width + '×' + preset.height + ') • Láser Neón';
+                if (tagEl) tagEl.textContent = preset.badge;
+
+                if (updatePillUI !== false) {
+                    var pills = document.querySelectorAll('.preview-pill-btn:not(#pill-btn-auto)');
+                    for (var p = 0; p < pills.length; p++) {
+                        pills[p].classList.toggle('active', pills[p].dataset.format === preset.key);
+                    }
+                }
+
+                setTimeout(function() {
+                    adBox.style.opacity = '1';
+                    adBox.style.transform = 'scale(1)';
+                }, 30);
+            }, 260);
+        }
+
+        function setPreviewFormat(formatKey) {
+            if (formatKey === 'auto') {
+                isPreviewAutoCycle = true;
+                updateAutoPillUI(true);
+                startPreviewAutoTimer();
+                applyPreviewDemoPreset(previewActivePresetIdx, false);
+                return;
+            }
+
+            isPreviewAutoCycle = false;
+            updateAutoPillUI(false);
+            if (previewCycleTimer) clearInterval(previewCycleTimer);
+
+            var found = -1;
+            for (var i = 0; i < previewDemoPresets.length; i++) {
+                if (previewDemoPresets[i].key === formatKey) {
+                    found = i;
+                    break;
+                }
+            }
+            if (found !== -1) {
+                applyPreviewDemoPreset(found, true);
+            }
+
+            if (previewResumeTimer) clearTimeout(previewResumeTimer);
+            previewResumeTimer = setTimeout(function() {
+                isPreviewAutoCycle = true;
+                updateAutoPillUI(true);
+                startPreviewAutoTimer();
+            }, 14000);
+        }
+
+        function updateAutoPillUI(isAuto) {
+            var autoBtn = document.getElementById('pill-btn-auto');
+            if (autoBtn) autoBtn.classList.toggle('active', isAuto);
+            if (isAuto) {
+                var pills = document.querySelectorAll('.preview-pill-btn:not(#pill-btn-auto)');
+                for (var p = 0; p < pills.length; p++) {
+                    pills[p].classList.remove('active');
+                }
+            }
+        }
+
+        function startPreviewAutoTimer() {
+            if (previewCycleTimer) clearInterval(previewCycleTimer);
+            previewCycleTimer = setInterval(function() {
+                if (!isPreviewAutoCycle) return;
+                previewActivePresetIdx = (previewActivePresetIdx + 1) % previewDemoPresets.length;
+                applyPreviewDemoPreset(previewActivePresetIdx, false);
             }, 4500);
+        }
+
+        function initPreviewShowcase() {
+            // Asegurar que el contenedor sea siempre visible en la vista previa
+            setAdVisibility(true);
+
+            // Asignar eventos a los botones de formatos
+            var pillBtns = document.querySelectorAll('.preview-pill-btn');
+            for (var i = 0; i < pillBtns.length; i++) {
+                (function(btn) {
+                    btn.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        setPreviewFormat(btn.dataset.format);
+                    });
+                })(pillBtns[i]);
+            }
+
+            // Escuchar mensajes desde index.html
+            window.addEventListener('message', function(evt) {
+                if (evt.data && evt.data.type === 'SET_PREVIEW_SHAPE') {
+                    setPreviewFormat(evt.data.shape);
+                }
+            });
+
+            // Mostrar el primer preset e iniciar ciclo de demostración
+            applyPreviewDemoPreset(0, false);
+            startPreviewAutoTimer();
         }
 
         window.onload = function() {
             if (isPreview) {
                 document.body.classList.add('is-preview-mode');
+                // En modo vista previa forzar bucle continuo (nunca apagarse)
+                state.loopMode = 'always';
+                initPreviewShowcase();
+            } else {
+                loadStateFromStorage();
+                syncUIWithState();
+                renderGalleryThumbnails();
+                applyVisualState();
+                applyModalTransform();
+                startCycleEngine(true);
             }
-            loadStateFromStorage();
-            syncUIWithState();
-            renderGalleryThumbnails();
-            applyVisualState();
-            applyModalTransform();
-            startCycleEngine(true);
         };
 
         window.addEventListener('resize', function() {

@@ -3295,6 +3295,34 @@
               </div>
             </div>
 
+            <!-- Bloque de Prueba Rápida de Formatos en la Vista Previa -->
+            <div class="modal-settings-card space-y-3 bg-slate-900/90 border border-cyan-500/30 p-4 rounded-2xl shadow-lg">
+              <div class="modal-settings-card-header text-sm font-black text-cyan-300 flex items-center justify-between">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-shapes text-cyan-400 text-base"></i> Probar Tamaños en la Vista Previa</span>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/30">Muestra en Vivo</span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Elige cualquier formato para ver al instante cómo se adapta y luce en la pantalla izquierda:
+              </p>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                <button type="button" class="btn-demo-shape py-2 px-2 rounded-xl bg-slate-950 border border-white/10 hover:border-cyan-400/60 hover:bg-cyan-500/10 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="sendSponsorDemoShape('rect-thin', this)">
+                  <i class="fa-solid fa-rectangle-ad text-cyan-400"></i> <span>Banner</span>
+                </button>
+                <button type="button" class="btn-demo-shape py-2 px-2 rounded-xl bg-slate-950 border border-white/10 hover:border-cyan-400/60 hover:bg-cyan-500/10 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="sendSponsorDemoShape('rect-16-9', this)">
+                  <i class="fa-solid fa-tv text-cyan-400"></i> <span>16:9</span>
+                </button>
+                <button type="button" class="btn-demo-shape py-2 px-2 rounded-xl bg-slate-950 border border-white/10 hover:border-cyan-400/60 hover:bg-cyan-500/10 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="sendSponsorDemoShape('square', this)">
+                  <i class="fa-solid fa-square text-cyan-400"></i> <span>Cuadrado</span>
+                </button>
+                <button type="button" class="btn-demo-shape py-2 px-2 rounded-xl bg-slate-950 border border-white/10 hover:border-cyan-400/60 hover:bg-cyan-500/10 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5" onclick="sendSponsorDemoShape('circle', this)">
+                  <i class="fa-solid fa-circle-notch text-cyan-400"></i> <span>Circular</span>
+                </button>
+              </div>
+              <button type="button" class="btn-demo-shape active w-full py-2 px-3 rounded-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/40 text-cyan-300 text-xs font-black transition flex items-center justify-center gap-2 hover:from-cyan-500/30 hover:to-blue-500/30" onclick="sendSponsorDemoShape('auto', this)">
+                <i class="fa-solid fa-rotate text-cyan-400"></i> <span>⟳ Demostración Automática Continua</span>
+              </button>
+            </div>
+
             <!-- Guía Práctica en 3 Pasos Sencillos -->
             <div class="modal-settings-card space-y-3.5 bg-slate-900/90 border border-white/10 p-4 rounded-2xl">
               <div class="modal-settings-card-header text-sm font-black text-white flex items-center gap-2">
@@ -5675,6 +5703,19 @@
         toast.textContent = `📢 Sponsor OBS: Acción enviada (${actionType})`;
         toast.classList.add('show');
         setTimeout(() => toast.classList.remove('show'), 2000);
+      }
+    };
+
+    window.sendSponsorDemoShape = function(shape, btn) {
+      const modalIframe = document.getElementById('modal-live-iframe');
+      if (modalIframe && modalIframe.contentWindow) {
+        modalIframe.contentWindow.postMessage({ type: 'SET_PREVIEW_SHAPE', shape: shape }, '*');
+      }
+      if (btn && btn.parentElement) {
+        document.querySelectorAll('.btn-demo-shape').forEach(b => {
+          b.classList.remove('border-cyan-400', 'bg-cyan-500/20', 'text-cyan-300', 'active');
+        });
+        btn.classList.add('border-cyan-400', 'bg-cyan-500/20', 'text-cyan-300', 'active');
       }
     };
 
