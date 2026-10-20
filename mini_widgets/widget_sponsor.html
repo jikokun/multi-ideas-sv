@@ -428,6 +428,12 @@
             pointer-events: auto;
         }
 
+        body.is-preview-mode .settings-modal {
+            display: none !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
         #modal-drag-header {
             cursor: grab;
         }
@@ -613,6 +619,43 @@
             </div>
 
             <div id="tab-images" class="tab-content space-y-3.5">
+                <!-- Autenticación Google / Firebase para Subida y Registro en Nube -->
+                <div id="sponsor-auth-section" class="mb-3">
+                    <!-- Estado 1: No autenticado -->
+                    <div id="sponsor-auth-logged-out" class="p-3 rounded-2xl bg-gradient-to-r from-slate-900 via-sky-950/70 to-slate-900 border border-cyan-500/30 text-center shadow-lg">
+                        <div class="flex items-center justify-center gap-2 mb-1">
+                            <i class="fa-brands fa-google text-cyan-400 text-sm"></i>
+                            <span class="text-xs font-extrabold text-white uppercase tracking-wider">Inicia Sesión con Google</span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-snug mb-2.5">
+                            Requerido para subir y guardar imágenes en tu cuenta, acceder a ellas desde cualquier dispositivo, usarlas en OBS y eliminarlas cuando desees.
+                        </p>
+                        <button id="btn-sponsor-login-google" type="button" class="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 mx-auto active:scale-95">
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-4 h-4"/>
+                            <span>Conectar con Google</span>
+                        </button>
+                    </div>
+
+                    <!-- Estado 2: Autenticado -->
+                    <div id="sponsor-auth-logged-in" class="hidden p-2.5 rounded-2xl bg-slate-900/90 border border-cyan-500/35 shadow-lg flex items-center justify-between">
+                        <div class="flex items-center gap-2.5">
+                            <img id="sponsor-auth-avatar" class="w-8 h-8 rounded-full border-2 border-cyan-400 object-cover" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Avatar"/>
+                            <div class="leading-tight">
+                                <span id="sponsor-auth-name" class="text-xs font-bold text-white block">Usuario Conectado</span>
+                                <span id="sponsor-auth-email" class="text-[10px] text-cyan-300/80 block">email@gmail.com</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1" title="Sincronizado en tiempo real con Firebase RTDB">
+                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Nube
+                            </span>
+                            <button id="btn-sponsor-logout" type="button" class="text-[10px] font-semibold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 px-2 py-1 rounded-lg transition" title="Cerrar sesión">
+                                Salir
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <div class="flex items-center justify-between mb-1.5">
                         <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Subir imagen a Google Drive CDN (PNG, JPG, GIF, WEBP)</label>
@@ -1096,7 +1139,10 @@
 
     </div>
 
-    <script>
+    <script type="module">
+        import { auth, rtdb, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase-config.js';
+        import { ref, get, set, update, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+
         // Endpoint Google Apps Script conectado a Google Drive con CDN lh3
         var APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
         var STORAGE_KEY = 'multiideas_obs_ad_widget_v1';
@@ -1105,6 +1151,15 @@
             isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
         } catch(e) {
             isPreview = (window.location.search.indexOf('preview=true') !== -1);
+        }
+
+        var currentAuthUser = null;
+        var activeUid = null;
+        var isFirebaseSyncActive = false;
+        var urlParams = new URLSearchParams(window.location.search);
+        var paramUid = urlParams.get('uid');
+        if (paramUid) {
+            activeUid = paramUid;
         }
 
         function showToast(text, duration) {
@@ -1167,6 +1222,9 @@
             {
                 id: 'demo-1',
                 name: 'Banner Canal / Redes',
+                type: 'text',
+                isTextPromo: true,
+                isDrive: false,
                 src: createDemoBannerSVG('¡SÍGUENOS EN VIVO!', 'Haz clic aquí para subir tu propia publicidad', '#0f172a', '#0284c7', 'DESTACADO'),
                 promoData: {
                     title: '¡SÍGUENOS EN VIVO!',
@@ -1188,6 +1246,9 @@
             {
                 id: 'demo-2',
                 name: 'Promo Patrocinador',
+                type: 'text',
+                isTextPromo: true,
+                isDrive: false,
                 src: createDemoBannerSVG('CÓDIGO: STREAM20', '20% de descuento en toda la tienda oficial', '#3b0764', '#db2777', 'SPONSOR'),
                 promoData: {
                     title: 'CÓDIGO: STREAM20',
@@ -1253,11 +1314,44 @@
         function saveStateToStorage() {
             if (isPreview) return; // En modo previsualización (iframe/modal) no sobreescribir las coordenadas principales de OBS
             try {
-                // Guardar estado serializado (sin sobrecargar si hay dataURIs muy pesadas)
                 var toSave = JSON.parse(JSON.stringify(state));
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
             } catch(e) {
                 console.warn('No se pudo guardar en localStorage:', e);
+            }
+
+            if (activeUid) {
+                try {
+                    const cleanImages = (state.images || []).map(img => {
+                        const copy = { ...img };
+                        // Si la imagen tiene data URI base64 muy grande temporal, preservar src limpio
+                        return copy;
+                    });
+                    const cloudState = {
+                        images: cleanImages,
+                        width: state.width,
+                        height: state.height,
+                        scale: state.scale,
+                        posX: state.posX,
+                        posY: state.posY,
+                        color1: state.color1,
+                        color2: state.color2,
+                        glowIntensity: state.glowIntensity,
+                        borderWidth: state.borderWidth,
+                        shimmer: state.shimmer,
+                        shapePreset: state.shapePreset,
+                        cornerRadius: state.cornerRadius,
+                        motionPreset: state.motionType || 'float',
+                        slideMode: state.slideMode,
+                        loopMode: state.loopMode,
+                        showValue: state.showValue,
+                        hideValue: state.hideValue,
+                        updatedAt: Date.now()
+                    };
+                    set(ref(rtdb, 'users/' + activeUid + '/widgets_config/sponsor'), cloudState);
+                } catch(cloudErr) {
+                    console.warn('[Firebase Cloud Save Notice]:', cloudErr);
+                }
             }
         }
 
@@ -1295,6 +1389,106 @@
                         }
                     }
                 }
+            }
+        }
+
+        function syncWithFirebase(uid) {
+            if (!uid || isFirebaseSyncActive) return;
+            isFirebaseSyncActive = true;
+            try {
+                const sponsorRef = ref(rtdb, 'users/' + uid + '/widgets_config/sponsor');
+                onValue(sponsorRef, (snapshot) => {
+                    if (!snapshot.exists()) return;
+                    const cloudData = snapshot.val();
+                    if (cloudData && Array.isArray(cloudData.images) && cloudData.images.length > 0) {
+                        state.images = cloudData.images;
+                        if (typeof cloudData.width === 'number') state.width = cloudData.width;
+                        if (typeof cloudData.height === 'number') state.height = cloudData.height;
+                        if (cloudData.color1) state.color1 = cloudData.color1;
+                        if (cloudData.color2) state.color2 = cloudData.color2;
+                        if (typeof cloudData.glowIntensity === 'number') state.glowIntensity = cloudData.glowIntensity;
+                        if (typeof cloudData.borderWidth === 'number') state.borderWidth = cloudData.borderWidth;
+                        if (cloudData.shimmer !== undefined) state.shimmer = cloudData.shimmer;
+                        if (cloudData.shapePreset) state.shapePreset = cloudData.shapePreset;
+                        if (typeof cloudData.cornerRadius === 'number') state.cornerRadius = cloudData.cornerRadius;
+                        if (cloudData.slideMode) state.slideMode = cloudData.slideMode;
+                        if (cloudData.loopMode) state.loopMode = cloudData.loopMode;
+                        if (typeof cloudData.showValue === 'number') state.showValue = cloudData.showValue;
+                        if (typeof cloudData.hideValue === 'number') state.hideValue = cloudData.hideValue;
+
+                        if (state.currentIndex >= state.images.length) state.currentIndex = 0;
+                        applyVisualState();
+                        renderGalleryThumbnails();
+                    }
+                });
+            } catch(e) {
+                console.warn('[Firebase RTDB sync error]:', e);
+            }
+        }
+
+        function setupFirebaseAuth() {
+            const btnLogin = document.getElementById('btn-sponsor-login-google');
+            const btnLogout = document.getElementById('btn-sponsor-logout');
+            const loggedOutBox = document.getElementById('sponsor-auth-logged-out');
+            const loggedInBox = document.getElementById('sponsor-auth-logged-in');
+            const avatarEl = document.getElementById('sponsor-auth-avatar');
+            const nameEl = document.getElementById('sponsor-auth-name');
+            const emailEl = document.getElementById('sponsor-auth-email');
+
+            if (btnLogin) {
+                btnLogin.addEventListener('click', async () => {
+                    try {
+                        const provider = new GoogleAuthProvider();
+                        const res = await signInWithPopup(auth, provider);
+                        if (res && res.user) {
+                            showToast('✅ ¡Bienvenido, ' + (res.user.displayName || 'Streamer') + '!');
+                        }
+                    } catch(e) {
+                        console.warn('[Firebase Auth] Error al iniciar sesión:', e);
+                        showToast('⚠️ No se pudo completar el inicio de sesión.');
+                    }
+                });
+            }
+
+            if (btnLogout) {
+                btnLogout.addEventListener('click', async () => {
+                    try {
+                        await signOut(auth);
+                        currentAuthUser = null;
+                        activeUid = null;
+                        isFirebaseSyncActive = false;
+                        if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+                        if (loggedInBox) loggedInBox.classList.add('hidden');
+                        showToast('👋 Sesión cerrada.');
+                    } catch(e) {
+                        console.warn('[Firebase Auth] Error al cerrar sesión:', e);
+                    }
+                });
+            }
+
+            try {
+                onAuthStateChanged(auth, (user) => {
+                    currentAuthUser = user;
+                    if (user) {
+                        activeUid = user.uid;
+                        if (loggedOutBox) loggedOutBox.classList.add('hidden');
+                        if (loggedInBox) loggedInBox.classList.remove('hidden');
+                        if (avatarEl) avatarEl.src = user.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+                        if (nameEl) nameEl.textContent = user.displayName || 'Usuario Google';
+                        if (emailEl) emailEl.textContent = user.email || '';
+                        syncWithFirebase(user.uid);
+                    } else {
+                        if (!paramUid) {
+                            activeUid = null;
+                            if (loggedOutBox) loggedOutBox.classList.remove('hidden');
+                            if (loggedInBox) loggedInBox.classList.add('hidden');
+                        } else {
+                            syncWithFirebase(paramUid);
+                        }
+                    }
+                });
+            } catch(err) {
+                console.warn('[Firebase Auth setup notice]:', err);
             }
         }
 
@@ -1804,7 +1998,8 @@
         function renderGalleryThumbnails() {
             var container = document.getElementById('image-gallery-list');
             var countLabel = document.getElementById('gallery-count');
-            countLabel.textContent = state.images.length;
+            if (countLabel) countLabel.textContent = state.images.length;
+            if (!container) return;
             container.innerHTML = '';
 
             for (var i = 0; i < state.images.length; i++) {
@@ -1812,31 +2007,46 @@
                     var item = document.createElement('div');
                     var isSelected = idx === state.currentIndex;
                     var isDrive = imgObj.isDrive || (imgObj.src && imgObj.src.indexOf('googleusercontent.com') !== -1);
+                    var isText = imgObj.isTextPromo || imgObj.type === 'text' || (imgObj.promoData && !isDrive);
                     var isUploading = imgObj.isUploading;
 
                     item.className = 'relative group rounded-lg overflow-hidden border-2 cursor-pointer h-14 bg-slate-950 transition ' + 
                         (isSelected ? 'border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'border-white/10 hover:border-white/30');
 
                     var cloudBadge = isDrive ? 
-                        '<span class="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-cyan-900/80 text-[8px] text-cyan-300 font-bold" title="Alojada en Google Drive CDN"><i class="fa-brands fa-google-drive"></i></span>' : '';
+                        '<span class="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-cyan-950/90 border border-cyan-400/40 text-[8px] text-cyan-300 font-bold" title="Alojada en Google Drive CDN"><i class="fa-brands fa-google-drive"></i></span>' : '';
+                    var textBadge = isText ?
+                        '<span class="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-purple-950/90 border border-purple-400/40 text-[8px] text-purple-300 font-bold" title="Promo de Texto"><i class="fa-solid fa-font"></i></span>' : '';
                     
                     var uploadBadge = isUploading ?
                         '<div class="absolute inset-0 bg-slate-950/70 flex items-center justify-center text-[10px] text-cyan-300 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Subiendo</div>' : '';
 
-                    item.innerHTML = '<img src="' + imgObj.src + '" class="w-full h-full object-cover" alt="' + imgObj.name + '" />' +
-                        cloudBadge + uploadBadge +
-                        '<button class="btn-del-img absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition" title="Eliminar">×</button>';
+                    var previewContent = '';
+                    if (isText && imgObj.promoData) {
+                        previewContent = '<div class="w-full h-full flex flex-col items-center justify-center p-1 text-center" style="background: linear-gradient(135deg, ' + (imgObj.promoData.c1 || '#0f172a') + ', ' + (imgObj.promoData.c2 || '#0284c7') + ')">' +
+                            '<span class="text-[9px] font-bold text-white truncate max-w-full leading-tight">' + (imgObj.promoData.title || imgObj.name || 'Promo') + '</span></div>';
+                    } else {
+                        previewContent = '<img src="' + imgObj.src + '" class="w-full h-full object-cover" alt="' + imgObj.name + '" />';
+                    }
+
+                    item.innerHTML = previewContent + cloudBadge + textBadge + uploadBadge +
+                        '<button class="btn-del-img absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow" title="Eliminar este banner de la rotación">×</button>';
 
                     item.addEventListener('click', function(e) {
                         if (e.target.classList.contains('btn-del-img')) {
                             e.stopPropagation();
-                            if (state.images.length > 1) {
-                                state.images.splice(idx, 1);
+                            if (confirm('¿Eliminar "' + (imgObj.name || 'este banner') + '" de tu lista?')) {
+                                if (state.images.length > 1) {
+                                    state.images.splice(idx, 1);
+                                } else {
+                                    state.images = [JSON.parse(JSON.stringify(DEFAULT_IMAGES[0]))];
+                                }
                                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
                                 populatePromoInputsFromCurrent();
                                 applyVisualState();
                                 renderGalleryThumbnails();
                                 saveStateToStorage();
+                                showToast('🗑️ Banner eliminado con éxito');
                             }
                             return;
                         }
@@ -1852,7 +2062,7 @@
         }
 
         // =======================================================================
-        // SUBIDA ASÍNCRONA A GOOGLE DRIVE CON APPS SCRIPT
+        // SUBIDA ASÍNCRONA A GOOGLE DRIVE CON APPS SCRIPT Y VINCULACIÓN A GMAIL
         // =======================================================================
         async function uploadImageToGoogleDrive(file, base64Clean, imgObjReference) {
             var statusBox = document.getElementById('drive-upload-status');
@@ -1860,16 +2070,25 @@
             var statusPercent = document.getElementById('drive-upload-percent');
             var progressBar = document.getElementById('drive-upload-bar');
 
+            if (!currentAuthUser) {
+                showToast('🔐 Inicia sesión con Google para registrar tus imágenes en tu cuenta');
+                const btnLogin = document.getElementById('btn-sponsor-login-google');
+                if (btnLogin) btnLogin.click();
+                imgObjReference.isUploading = false;
+                renderGalleryThumbnails();
+                return;
+            }
+
             if (statusBox) statusBox.classList.remove('hidden');
             if (progressBar) progressBar.style.width = '45%';
             if (statusPercent) statusPercent.textContent = '45%';
-            if (statusText) statusText.innerHTML = '<i class="fa-solid fa-cloud-arrow-up fa-bounce text-cyan-400"></i> Subiendo "' + file.name + '" a Google Drive...';
+            if (statusText) statusText.innerHTML = '<i class="fa-solid fa-cloud-arrow-up fa-bounce text-cyan-400"></i> Subiendo "' + file.name + '" a tu Google Drive...';
 
             try {
                 var payload = {
                     base64: base64Clean,
-                    userName: 'Sponsors_Publicidad',
-                    userEmail: 'sponsors@multi-ideas-sv',
+                    userName: currentAuthUser.displayName || 'Usuario Streamer',
+                    userEmail: currentAuthUser.email,
                     filename: file.name,
                     mimeType: file.type || 'image/png',
                     folderName: 'Sponsors_Publicidad',
@@ -1894,7 +2113,11 @@
                     imgObjReference.src = cdnUrl;
                     imgObjReference.driveId = data.fileId;
                     imgObjReference.isDrive = true;
+                    imgObjReference.isTextPromo = false;
+                    imgObjReference.type = 'image';
                     imgObjReference.isUploading = false;
+                    imgObjReference.userId = currentAuthUser.uid;
+                    imgObjReference.userEmail = currentAuthUser.email;
 
                     if (progressBar) progressBar.style.width = '100%';
                     if (statusPercent) statusPercent.textContent = '100%';
@@ -1903,20 +2126,20 @@
                     applyVisualState();
                     renderGalleryThumbnails();
                     saveStateToStorage();
-                    showToast('☁️ ¡Imagen "' + file.name + '" guardada en tu Google Drive!');
+                    showToast('☁️ ¡Imagen guardada permanentemente en tu Google Drive!');
 
                     setTimeout(function() {
                         if (statusBox) statusBox.classList.add('hidden');
                     }, 3500);
                 } else {
-                    throw new Error(data ? data.message : 'Respuesta no válida');
+                    throw new Error(data ? data.message : 'Respuesta no válida del servidor');
                 }
             } catch (err) {
                 console.warn('[Google Drive Upload] Error:', err);
                 imgObjReference.isUploading = false;
                 renderGalleryThumbnails();
-                if (statusText) statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Falló Google Drive. Se mantendrá local.';
-                showToast('⚠️ Se usó copia local (Revisa permisos del script de Drive).');
+                if (statusText) statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Falló Google Drive. Se mantendrá copia local.';
+                showToast('⚠️ Se usó copia local temporal.');
                 setTimeout(function() {
                     if (statusBox) statusBox.classList.add('hidden');
                 }, 4000);
@@ -1927,7 +2150,15 @@
             var files = Array.prototype.slice.call(e.target.files || []);
             if (!files.length) return;
 
-            var onlyDemos = state.images.every(function(img) { return img.id.startsWith('demo-'); });
+            if (!currentAuthUser) {
+                showToast('🔐 Inicia sesión con Google para subir imágenes a tu cuenta');
+                const btnLogin = document.getElementById('btn-sponsor-login-google');
+                if (btnLogin) btnLogin.click();
+                e.target.value = '';
+                return;
+            }
+
+            var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
 
             for (var i = 0; i < files.length; i++) {
                 (function(file, index) {
@@ -1940,6 +2171,8 @@
                             id: 'user-' + Date.now() + '-' + index,
                             name: file.name,
                             src: base64Data, // Vista previa instantánea
+                            type: 'image',
+                            isTextPromo: false,
                             isUploading: true,
                             isDrive: false
                         };
@@ -1955,7 +2188,7 @@
                         applyVisualState();
                         renderGalleryThumbnails();
 
-                        // Disparar subida a Google Drive en segundo plano
+                        // Disparar subida a Google Drive en segundo plano con la cuenta autenticada
                         uploadImageToGoogleDrive(file, base64Clean, newImg);
                     };
                     reader.readAsDataURL(file);
@@ -1969,11 +2202,13 @@
             var url = input.value.trim();
             if (!url) return;
 
-            var onlyDemos = state.images.every(function(img) { return img.id.startsWith('demo-'); });
+            var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
             var newImg = {
                 id: 'url-' + Date.now(),
                 name: 'Imagen Web',
                 src: url,
+                type: 'image',
+                isTextPromo: false,
                 isDrive: url.indexOf('googleusercontent.com') !== -1
             };
 
@@ -2035,19 +2270,26 @@
             }
         }
 
+        // SINCRONIZACIÓN PROTEGIDA: Solo altera el banner actual si es una promo de texto
+        // NUNCA sobreescribe la imagen subida a Google Drive del streamer
         function syncActivePromoFromInputs() {
             if (!state.images || state.images.length === 0) return;
             if (state.currentIndex >= state.images.length) state.currentIndex = 0;
             var currentItem = state.images[state.currentIndex];
             if (!currentItem) return;
 
+            // PROTECCIÓN CLAVE: Si el streamer tiene seleccionada una foto/imagen de Drive, NO sobreescribir su archivo
+            if (!currentItem.isTextPromo) {
+                return;
+            }
+
             var titleInput = document.getElementById('input-promo-title');
             var subInput = document.getElementById('input-promo-sub');
             var tagInput = document.getElementById('input-promo-tag');
 
-            var titleText = titleInput.value;
-            var subText = subInput.value;
-            var tagText = tagInput.value;
+            var titleText = titleInput ? titleInput.value : '';
+            var subText = subInput ? subInput.value : '';
+            var tagText = tagInput ? tagInput.value : '';
 
             var customStyles = {
                 fontFamily: document.getElementById('select-promo-font').value,
@@ -2059,27 +2301,17 @@
                 subColor: document.getElementById('picker-sub-color').value
             };
 
-            // Asegurar promoData en el elemento actual
-            if (!currentItem.promoData) {
-                currentItem.promoData = {
-                    title: titleText || '¡PROMOCIÓN ESPECIAL!',
-                    sub: subText,
-                    tag: tagText,
-                    c1: selectedPromoC1,
-                    c2: selectedPromoC2,
-                    styles: customStyles
-                };
-            } else {
-                currentItem.promoData.title = titleText;
-                currentItem.promoData.sub = subText;
-                currentItem.promoData.tag = tagText;
-                currentItem.promoData.c1 = selectedPromoC1;
-                currentItem.promoData.c2 = selectedPromoC2;
-                currentItem.promoData.styles = customStyles;
-            }
+            currentItem.promoData = {
+                title: titleText,
+                sub: subText,
+                tag: tagText,
+                c1: selectedPromoC1,
+                c2: selectedPromoC2,
+                styles: customStyles
+            };
             currentItem.name = titleText.trim() || 'Promo Publicitaria';
 
-            // Actualización inmediata en pantalla completa
+            // Actualización inmediata en vivo
             applyVisualState();
 
             // Actualizar la miniatura SVG de la lista (con leve debounce)
@@ -2128,14 +2360,15 @@
             if (el) el.addEventListener('change', syncActivePromoFromInputs);
         });
 
+        // BOTÓN: Crea una NUEVA promo de texto sin reemplazar ni borrar la imagen subida
         document.getElementById('btn-create-text-ad').addEventListener('click', function() {
             var titleInput = document.getElementById('input-promo-title');
             var subInput = document.getElementById('input-promo-sub');
             var tagInput = document.getElementById('input-promo-tag');
 
-            var titleText = titleInput.value.trim() || '¡PROMOCIÓN ESPECIAL!';
-            var subText = subInput.value.trim() || 'Disponible ahora en el stream';
-            var tagText = tagInput.value.trim();
+            var titleText = titleInput.value.trim() || '¡NUEVA PROMOCIÓN!';
+            var subText = subInput.value.trim() || 'Disponible ahora en el directo';
+            var tagText = tagInput.value.trim() || 'PROMO';
 
             var customStyles = {
                 fontFamily: document.getElementById('select-promo-font').value,
@@ -2152,6 +2385,9 @@
             var newPromo = {
                 id: 'promo-' + Date.now(),
                 name: titleText,
+                type: 'text',
+                isTextPromo: true,
+                isDrive: false,
                 src: generatedSrc,
                 promoData: {
                     title: titleText,
@@ -2163,13 +2399,19 @@
                 }
             };
 
-            state.images.push(newPromo);
-            state.currentIndex = state.images.length - 1;
+            var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
+            if (onlyDemos) {
+                state.images = [newPromo];
+                state.currentIndex = 0;
+            } else {
+                state.images.push(newPromo);
+                state.currentIndex = state.images.length - 1;
+            }
 
             applyVisualState();
             renderGalleryThumbnails();
             saveStateToStorage();
-            showToast('🎨 Nueva variante guardada en lista');
+            showToast('✍️ ¡Variante de texto añadida como nuevo banner sin tocar tus imágenes!');
         });
 
         document.getElementById('btn-restore-demo').addEventListener('click', function() {
@@ -2454,9 +2696,10 @@
         });
 
         document.getElementById('btn-copy-obs-url').addEventListener('click', function() {
-            var url = window.location.href.split('#')[0];
+            var base = window.location.href.split('?')[0].split('#')[0];
+            var url = activeUid ? (base + '?uid=' + encodeURIComponent(activeUid)) : base;
             navigator.clipboard.writeText(url).then(function() {
-                showToast('📋 ¡Enlace OBS copiado al portapapeles!');
+                showToast('📋 ¡Enlace OBS copiado con tu cuenta!');
             }).catch(function() {
                 prompt('Copia este enlace para OBS Studio:', url);
             });
@@ -2613,9 +2856,11 @@
             }
 
             if ((isDragging || isResizing) && !pointerMoved) {
-                var isOpen = settingsModal.classList.toggle('open');
-                document.body.classList.toggle('settings-open', isOpen);
-                applyModalTransform();
+                if (!isPreview) {
+                    var isOpen = settingsModal.classList.toggle('open');
+                    document.body.classList.toggle('settings-open', isOpen);
+                    applyModalTransform();
+                }
             }
             if (isDragging || isResizing) {
                 saveStateToStorage();
@@ -2645,6 +2890,32 @@
                 var isOpen = settingsModal.classList.toggle('open');
                 document.body.classList.toggle('settings-open', isOpen);
                 applyModalTransform();
+            } else if (d.type === 'ADD_IMAGE' && d.image) {
+                var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
+                if (onlyDemos) {
+                    state.images = [d.image];
+                    state.currentIndex = 0;
+                } else {
+                    state.images.push(d.image);
+                    state.currentIndex = state.images.length - 1;
+                }
+                applyVisualState();
+                renderGalleryThumbnails();
+                saveStateToStorage();
+            } else if (d.type === 'SET_SPONSOR_STYLE') {
+                if (d.color1) state.color1 = d.color1;
+                if (d.color2) state.color2 = d.color2;
+                if (typeof d.borderWidth === 'number') state.borderWidth = d.borderWidth;
+                if (typeof d.glowIntensity === 'number') state.glowIntensity = d.glowIntensity;
+                if (d.shimmer !== undefined) state.shimmer = !!d.shimmer;
+                applyVisualState();
+                saveStateToStorage();
+            } else if (d.type === 'SET_SPONSOR_TIMING') {
+                if (typeof d.showValue === 'number') state.showValue = d.showValue;
+                if (typeof d.hideValue === 'number') state.hideValue = d.hideValue;
+                if (d.slideMode) state.slideMode = d.slideMode;
+                startCycleEngine(true);
+                saveStateToStorage();
             }
         });
 
@@ -2662,12 +2933,18 @@
             if (widgetInitialized) return;
             widgetInitialized = true;
             try {
+                if (isPreview) {
+                    document.body.classList.add('is-preview-mode');
+                    settingsModal.classList.remove('open');
+                    document.body.classList.remove('settings-open');
+                }
                 loadStateFromStorage();
                 populatePromoInputsFromCurrent();
                 renderGalleryThumbnails();
                 applyVisualState();
                 applyModalTransform();
                 startCycleEngine(true);
+                setupFirebaseAuth();
             } catch(e) {
                 console.error('Error inicializando widget sponsor:', e);
             }

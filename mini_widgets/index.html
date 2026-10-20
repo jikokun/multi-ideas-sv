@@ -2294,7 +2294,13 @@
       <!-- LADO IZQUIERDO: Vista Previa Real en Vivo (50%) -->
       <div class="modal-left-col w-full lg:w-1/2 p-6 flex flex-col justify-between h-full min-h-0 overflow-hidden">
         <div>
-          <span id="modal-badge" class="px-2.5 py-1 text-xs font-bold rounded-md uppercase tracking-wider mb-2 inline-block"></span>
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <span id="modal-badge" class="px-2.5 py-1 text-xs font-bold rounded-md uppercase tracking-wider inline-block"></span>
+            <button id="modal-btn-favorite" type="button" class="btn-card-fav px-3 py-1.5 rounded-xl border border-white/15 bg-white/5 hover:bg-amber-500/20 hover:border-amber-400 text-xs font-bold text-slate-200 transition flex items-center gap-1.5 active:scale-95 shadow-sm" onclick="toggleCurrentModalFavorite()" title="Añadir a tus favoritos">
+              <i class="fa-regular fa-star text-amber-400"></i>
+              <span class="fav-text">Favorito</span>
+            </button>
+          </div>
           <h2 id="modal-title" class="text-xl sm:text-2xl font-bold leading-tight">Nombre del Widget</h2>
           <p id="modal-desc" class="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed">Descripción corta del widget seleccionado.</p>
         </div>
@@ -3242,12 +3248,131 @@
         <div id="panel-settings-sponsor" class="widget-settings-panel hidden space-y-4">
           <div class="panel-form-controls">
             
-            <!-- Banner Informativo -->
+            <!-- Banner Informativo con Estado de Autenticación de Google -->
             <div class="modal-info-banner">
               <i class="fa-brands fa-google-drive text-emerald-500 text-base mt-0.5 flex-shrink-0"></i>
               <div>
                 <strong class="font-bold block mb-0.5">Showcase Publicitario con Google Drive CDN:</strong>
-                <span>Este widget te permite exhibir marcas, promociones de texto e imágenes rotativas con efectos 3D y bordes neón/láser. Puedes interactuar y configurar todo arrastrando elementos directamente en la vista previa o abriendo el estudio en pantalla completa.</span>
+                <span>Sube imágenes de marcas o crea promociones de texto con tipografías gamer/modernas. Cada imagen queda almacenada en tu Google Drive CDN y sincronizada en tiempo real con OBS Studio bajo tu cuenta de usuario.</span>
+              </div>
+            </div>
+
+            <!-- Estado de Sesión Google / Firebase -->
+            <div id="panel-sponsor-auth-status" class="modal-settings-card">
+              <div class="modal-settings-card-header flex items-center justify-between">
+                <span class="flex items-center gap-1.5"><i class="fa-brands fa-google text-cyan-400"></i> Cuenta Vinculada</span>
+                <span id="panel-sponsor-sync-badge" class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Conectado
+                </span>
+              </div>
+              <div id="panel-sponsor-user-info" class="flex items-center justify-between pt-2">
+                <div class="flex items-center gap-2.5">
+                  <img id="panel-sponsor-avatar" class="w-8 h-8 rounded-full border border-cyan-400 object-cover" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"/>
+                  <div>
+                    <span id="panel-sponsor-name" class="text-xs font-bold text-white block">Usuario Google</span>
+                    <span id="panel-sponsor-email" class="text-[10px] text-slate-400 block">Sincronizado con Firebase RTDB</span>
+                  </div>
+                </div>
+                <button type="button" id="panel-sponsor-btn-auth" class="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow transition flex items-center gap-1.5" onclick="handlePanelSponsorAuthClick()">
+                  <i class="fa-brands fa-google"></i> Conectar
+                </button>
+              </div>
+            </div>
+
+            <!-- Subir Imagen Directamente a Google Drive CDN -->
+            <div class="modal-settings-card">
+              <div class="modal-settings-card-header">
+                <i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i> Subir Imagen a Google Drive CDN
+              </div>
+              <p class="text-xs text-slate-400 mb-2 leading-relaxed">
+                Tus imágenes se alojan automáticamente en tu Google Drive de alta velocidad y se añaden a la rotación sin sobreescribir las anteriores.
+              </p>
+              <label for="panel-sponsor-file-upload" class="flex flex-col items-center justify-center w-full py-3.5 px-4 border-2 border-dashed border-cyan-400/40 hover:border-cyan-400 rounded-xl bg-cyan-500/5 hover:bg-cyan-500/10 cursor-pointer transition group">
+                <div class="flex items-center gap-2 text-cyan-300 group-hover:scale-105 transition">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                  </svg>
+                  <span class="text-xs font-bold">Seleccionar Imagen (PNG, JPG, GIF, WEBP)</span>
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1">Genera URL permanente de alta velocidad</span>
+                <input id="panel-sponsor-file-upload" type="file" accept="image/*" class="hidden" onchange="uploadSponsorImageFromPanel(this)" />
+              </label>
+              <!-- Barra de progreso de subida -->
+              <div id="panel-sponsor-upload-progress" class="hidden mt-2 p-2.5 rounded-xl bg-slate-900 border border-cyan-500/30 text-xs text-slate-200">
+                <div class="flex items-center justify-between mb-1.5">
+                  <span id="panel-sponsor-upload-text" class="flex items-center gap-1.5 font-bold text-[11px] text-cyan-300">
+                    <i class="fa-solid fa-spinner fa-spin text-cyan-400"></i> Subiendo a Google Drive...
+                  </span>
+                  <span id="panel-sponsor-upload-percent" class="text-[10px] font-extrabold text-cyan-400">0%</span>
+                </div>
+                <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
+                  <div id="panel-sponsor-upload-bar" class="bg-gradient-to-r from-cyan-400 to-blue-500 h-full w-0 transition-all duration-300"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Creador de Promo de Solo Texto (Protegido sin sobreescribir) -->
+            <div class="modal-settings-card space-y-2.5">
+              <div class="modal-settings-card-header flex items-center justify-between">
+                <span class="flex items-center gap-1.5"><i class="fa-solid fa-pen-nib text-cyan-400"></i> Añadir Promo de Texto</span>
+                <span class="text-[9px] text-slate-400">Crea un banner nuevo en la rotación</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input type="text" id="panel-promo-tag" placeholder="Tag (Ej. PROMO / VIP)" class="input-field text-xs" value="DESTACADO" />
+                <input type="text" id="panel-promo-title" placeholder="Título (Ej. ¡SÍGUENOS EN VIVO!)" class="input-field text-xs font-bold" value="¡SÍGUENOS EN VIVO!" />
+              </div>
+              <input type="text" id="panel-promo-sub" placeholder="Subtítulo (Ej. Usa !sorteo en el chat)" class="input-field text-xs w-full" value="Haz clic aquí para subir tu propia publicidad" />
+              <div class="flex items-center justify-between pt-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="text-[10px] text-slate-400">Fondo:</span>
+                  <button type="button" class="w-5 h-5 rounded-full ring-2 ring-white" style="background: linear-gradient(135deg, #0f172a, #0284c7)" onclick="setPanelPromoBg('#0f172a', '#0284c7', this)" title="Ciber Azul"></button>
+                  <button type="button" class="w-5 h-5 rounded-full opacity-70 hover:opacity-100" style="background: linear-gradient(135deg, #3b0764, #db2777)" onclick="setPanelPromoBg('#3b0764', '#db2777', this)" title="Neón Púrpura"></button>
+                  <button type="button" class="w-5 h-5 rounded-full opacity-70 hover:opacity-100" style="background: linear-gradient(135deg, #450a0a, #ea580c)" onclick="setPanelPromoBg('#450a0a', '#ea580c', this)" title="Fuego Naranja"></button>
+                  <button type="button" class="w-5 h-5 rounded-full opacity-70 hover:opacity-100" style="background: linear-gradient(135deg, #064e3b, #10b981)" onclick="setPanelPromoBg('#064e3b', '#10b981', this)" title="Esmeralda"></button>
+                  <button type="button" class="w-5 h-5 rounded-full opacity-70 hover:opacity-100" style="background: linear-gradient(135deg, #422006, #eab308)" onclick="setPanelPromoBg('#422006', '#eab308', this)" title="Dorado"></button>
+                </div>
+                <button type="button" class="px-3 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-extrabold text-xs rounded-xl shadow transition" onclick="addSponsorTextPromoFromPanel()">
+                  + Añadir Promo
+                </button>
+              </div>
+            </div>
+
+            <!-- Estilo del Marco Neón & Resplandor -->
+            <div class="modal-settings-card space-y-2.5">
+              <div class="modal-settings-card-header">
+                <i class="fa-solid fa-palette text-cyan-400"></i> Estilo del Marco & Resplandor Láser
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-[11px] text-slate-400 block mb-1">Color Principal:</label>
+                  <div class="flex items-center gap-2">
+                    <input type="color" id="panel-sponsor-c1" value="#00f2fe" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0" onchange="updateSponsorStyleFromPanel()" />
+                    <span class="text-xs font-mono text-slate-300" id="panel-sponsor-c1-val">#00f2fe</span>
+                  </div>
+                </div>
+                <div>
+                  <label class="text-[11px] text-slate-400 block mb-1">Color Secundario:</label>
+                  <div class="flex items-center gap-2">
+                    <input type="color" id="panel-sponsor-c2" value="#4facfe" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0" onchange="updateSponsorStyleFromPanel()" />
+                    <span class="text-xs font-mono text-slate-300" id="panel-sponsor-c2-val">#4facfe</span>
+                  </div>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-2 pt-1">
+                <div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>Grosor Borde:</span>
+                    <span id="panel-sponsor-border-val" class="font-bold text-cyan-300">4px</span>
+                  </div>
+                  <input type="range" id="panel-sponsor-border" min="0" max="14" value="4" class="w-full" oninput="updateSponsorStyleFromPanel()" />
+                </div>
+                <div>
+                  <div class="flex justify-between text-[11px] text-slate-400 mb-1">
+                    <span>Resplandor:</span>
+                    <span id="panel-sponsor-glow-val" class="font-bold text-cyan-300">25px</span>
+                  </div>
+                  <input type="range" id="panel-sponsor-glow" min="0" max="60" value="25" class="w-full" oninput="updateSponsorStyleFromPanel()" />
+                </div>
               </div>
             </div>
 
@@ -3256,10 +3381,7 @@
               <div class="modal-settings-card-header">
                 <i class="fa-solid fa-gamepad text-emerald-500"></i> Acciones del Estudio
               </div>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-2">
-                <button type="button" class="sponsor-action-btn sponsor-btn-settings" onclick="triggerSponsorIframeAction('OPEN_SETTINGS')">
-                  <i class="fa-solid fa-sliders"></i> <span>Abrir Menú en Lienzo</span>
-                </button>
+              <div class="grid grid-cols-2 gap-2 mt-2">
                 <button type="button" class="sponsor-action-btn sponsor-btn-next" onclick="triggerSponsorIframeAction('NEXT_AD')">
                   <i class="fa-solid fa-forward-step"></i> <span>Siguiente Banner</span>
                 </button>
@@ -3275,7 +3397,7 @@
                 <i class="fa-solid fa-link text-sky-500"></i> Enlace Directo para OBS Studio
               </div>
               <p class="text-xs text-slate-400 mb-2 leading-relaxed">
-                URL generada para pegar como <strong>Fuente de Navegador</strong> (Browser Source) en OBS Studio:
+                URL sincronizada con tu cuenta para pegar como <strong>Fuente de Navegador</strong> en OBS:
               </p>
               <div class="flex items-center gap-2">
                 <input type="text" id="sponsor-obs-url-input" class="input-field text-xs font-mono select-all flex-grow py-2.5" readonly value="" placeholder="Generando enlace OBS..." />
@@ -3301,7 +3423,7 @@
                 </div>
                 <div class="sponsor-guide-step">
                   <span class="sponsor-step-num">3</span>
-                  <span>Puedes personalizar tu publicidad arrastrando y cambiando colores en el estudio, ¡las imágenes quedan guardadas permanentemente en tu <strong>Google Drive</strong>!</span>
+                  <span>Al hacer clic derecho ➔ <strong>Interactuar</strong> en OBS, puedes arrastrar la publicidad por la pantalla, cambiar su tamaño y configurar colores en vivo.</span>
                 </div>
               </div>
               <div class="pt-1">
@@ -3766,6 +3888,8 @@
         } catch(e) {}
         syncAuthGateVisibility(validUser);
         updateSyncBannerUI(validUser);
+        if (typeof updateSponsorPanelAuthUI === 'function') updateSponsorPanelAuthUI(validUser);
+        if (typeof updateSponsorWidget === 'function') updateSponsorWidget(false);
         await registerWidgetUserInFirebase(validUser);
         await loadUserDataFromFirebase(validUser.uid);
       } else {
@@ -3789,6 +3913,7 @@
           } catch(e) {}
           syncAuthGateVisibility(null);
           updateSyncBannerUI(null);
+          if (typeof updateSponsorPanelAuthUI === 'function') updateSponsorPanelAuthUI(null);
           userWidgetsConfig = {};
           resetFavoriteButtonsUI();
         }
@@ -4275,6 +4400,24 @@
       }
     };
 
+    const WIDGET_ID_TO_CONFIG_KEY = {
+      'weather': 'widget_weather',
+      'kick': 'widget_kick',
+      'social': 'widget_social',
+      'countdown': 'widget_countdown',
+      'digital': 'widget_digital',
+      'chat': 'widget_chat',
+      'alerts': 'widget_alerts',
+      'jikokun-deck': 'widget_jikokun_deck',
+      'electric': 'widget_alerts_electric',
+      'camframe': 'widget_camframe',
+      'star-alerts': 'widget_alerts_star',
+      'chat-kick': 'widget_chat_kick',
+      'sponsor': 'widget_sponsor',
+      'weather-modern': 'widget_weather_modern',
+      'timer': 'widget_timer'
+    };
+
     function updateFavoriteButtonState(widgetId, isFav) {
       const btnIdMap = {
         widget_weather: 'fav-btn-weather',
@@ -4284,26 +4427,66 @@
         widget_digital: 'fav-btn-digital',
         widget_chat: 'fav-btn-chat',
         widget_alerts: 'fav-btn-alerts',
+        widget_jikokun_deck: 'fav-btn-jikokun-deck',
         widget_alerts_electric: 'fav-btn-electric',
         widget_camframe: 'fav-btn-camframe',
-        widget_alerts_star: 'fav-btn-star'
+        widget_alerts_star: 'fav-btn-star',
+        widget_chat_kick: 'fav-btn-chat-kick',
+        widget_sponsor: 'fav-btn-sponsor',
+        widget_weather_modern: 'fav-btn-weather-modern',
+        widget_timer: 'fav-btn-timer'
       };
       const btnId = btnIdMap[widgetId];
-      if (!btnId) return;
-      const btn = document.getElementById(btnId);
-      if (!btn) return;
+      if (btnId) {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+          const favText = btn.querySelector('.fav-text');
+          if (isFav) {
+            btn.classList.add('active');
+            if (favText) favText.textContent = 'Guardado';
+            btn.title = 'Quitar de Mis Favoritos';
+          } else {
+            btn.classList.remove('active');
+            if (favText) favText.textContent = 'Favorito';
+            btn.title = 'Guardar en Mis Favoritos';
+          }
+        }
+      }
 
-      const favText = btn.querySelector('.fav-text');
-      if (isFav) {
-        btn.classList.add('active');
-        if (favText) favText.textContent = 'Guardado';
-        btn.title = 'Quitar de Mis Favoritos';
-      } else {
-        btn.classList.remove('active');
-        if (favText) favText.textContent = 'Favorito';
-        btn.title = 'Guardar en Mis Favoritos';
+      // Sincronizar también con el botón del modal si está abierto para este widget
+      if (window.currentActiveModalWidget) {
+        const currentConfigKey = WIDGET_ID_TO_CONFIG_KEY[window.currentActiveModalWidget] || window.currentActiveModalWidget;
+        if (currentConfigKey === widgetId || window.currentActiveModalWidget === widgetId) {
+          updateModalFavoriteButtonUI(isFav);
+        }
       }
     }
+
+    function updateModalFavoriteButtonUI(isFav) {
+      const modalFavBtn = document.getElementById('modal-btn-favorite');
+      if (!modalFavBtn) return;
+      const favText = modalFavBtn.querySelector('.fav-text');
+      const icon = modalFavBtn.querySelector('i');
+      if (isFav) {
+        modalFavBtn.classList.add('active', 'border-amber-400', 'bg-amber-500/20');
+        modalFavBtn.classList.remove('border-white/15', 'bg-white/5');
+        if (favText) favText.textContent = 'Guardado';
+        if (icon) icon.className = 'fa-solid fa-star text-amber-400';
+        modalFavBtn.title = 'Quitar de Mis Favoritos';
+      } else {
+        modalFavBtn.classList.remove('active', 'border-amber-400', 'bg-amber-500/20');
+        modalFavBtn.classList.add('border-white/15', 'bg-white/5');
+        if (favText) favText.textContent = 'Favorito';
+        if (icon) icon.className = 'fa-regular fa-star text-amber-400';
+        modalFavBtn.title = 'Guardar en Mis Favoritos';
+      }
+    }
+
+    window.toggleCurrentModalFavorite = function() {
+      if (!window.currentActiveModalWidget) return;
+      const configKey = WIDGET_ID_TO_CONFIG_KEY[window.currentActiveModalWidget] || ('widget_' + window.currentActiveModalWidget);
+      window.toggleWidgetFavorite(configKey, document.getElementById('modal-btn-favorite'));
+    };
 
     function resetFavoriteButtonsUI() {
       const btns = document.querySelectorAll('.btn-card-fav');
@@ -5334,7 +5517,10 @@
 
     // 13. Publicidad & Sponsors OBS
     function updateSponsorWidget(shouldSync = true) {
-      const obsPath = 'widget_sponsor.html';
+      let obsPath = 'widget_sponsor.html';
+      if (currentUser && currentUser.uid) {
+        obsPath += `?uid=${encodeURIComponent(currentUser.uid)}`;
+      }
       const obsUrl = getAbsoluteUrl(obsPath);
       generatedUrls['url-sponsor'] = obsUrl;
 
@@ -5361,6 +5547,256 @@
       }
     }
     window.updateSponsorWidget = updateSponsorWidget;
+
+    function updateSponsorPanelAuthUI(user) {
+      const avatarEl = document.getElementById('panel-sponsor-avatar');
+      const nameEl = document.getElementById('panel-sponsor-name');
+      const emailEl = document.getElementById('panel-sponsor-email');
+      const btnAuth = document.getElementById('panel-sponsor-btn-auth');
+      const badge = document.getElementById('panel-sponsor-sync-badge');
+
+      if (!avatarEl || !nameEl) return;
+
+      if (user) {
+        if (avatarEl) avatarEl.src = user.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+        if (nameEl) nameEl.textContent = user.displayName || 'Usuario Google';
+        if (emailEl) emailEl.textContent = user.email || 'Sincronizado con Firebase RTDB';
+        if (badge) {
+          badge.className = 'text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Conectado';
+        }
+        if (btnAuth) {
+          btnAuth.className = 'px-3 py-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold text-xs shadow transition flex items-center gap-1.5';
+          btnAuth.innerHTML = '<i class="fa-solid fa-cloud"></i> Sincronizado';
+        }
+      } else {
+        if (avatarEl) avatarEl.src = 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
+        if (nameEl) nameEl.textContent = 'Sin Identificar';
+        if (emailEl) emailEl.textContent = 'Inicia con Google para subir y sincronizar';
+        if (badge) {
+          badge.className = 'text-[9px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/25 px-2 py-0.5 rounded-full flex items-center gap-1';
+          badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Desconectado';
+        }
+        if (btnAuth) {
+          btnAuth.className = 'px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow transition flex items-center gap-1.5';
+          btnAuth.innerHTML = '<i class="fa-brands fa-google"></i> Conectar';
+        }
+      }
+    }
+    window.updateSponsorPanelAuthUI = updateSponsorPanelAuthUI;
+
+    window.handlePanelSponsorAuthClick = async function() {
+      if (!currentUser) {
+        if (typeof executeGoogleLogin === 'function') {
+          await executeGoogleLogin();
+        } else if (typeof window.loginWithGoogleGate === 'function') {
+          await window.loginWithGoogleGate();
+        }
+      } else {
+        const toast = document.getElementById('toast-notify');
+        if (toast) {
+          toast.textContent = `✅ Sesión activa con Google: ${currentUser.email || currentUser.displayName}`;
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+      }
+    };
+
+    window.__panelPromoBg = { c1: '#0f172a', c2: '#0284c7' };
+    window.setPanelPromoBg = function(c1, c2, btn) {
+      window.__panelPromoBg = { c1, c2 };
+      if (btn && btn.parentElement) {
+        btn.parentElement.querySelectorAll('button').forEach(b => {
+          b.classList.remove('ring-2', 'ring-white');
+          b.classList.add('opacity-70');
+        });
+        btn.classList.add('ring-2', 'ring-white');
+        btn.classList.remove('opacity-70');
+      }
+    };
+
+    window.addSponsorTextPromoFromPanel = function() {
+      const tagEl = document.getElementById('panel-promo-tag');
+      const titleEl = document.getElementById('panel-promo-title');
+      const subEl = document.getElementById('panel-promo-sub');
+      const tag = (tagEl && tagEl.value.trim()) || 'DESTACADO';
+      const title = (titleEl && titleEl.value.trim()) || '¡SÍGUENOS EN VIVO!';
+      const sub = (subEl && subEl.value.trim()) || '';
+      const bg = window.__panelPromoBg || { c1: '#0f172a', c2: '#0284c7' };
+
+      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="600" height="150" viewBox="0 0 600 150">
+        <defs>
+          <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="${bg.c1}" />
+            <stop offset="100%" stop-color="${bg.c2}" />
+          </linearGradient>
+        </defs>
+        <rect width="600" height="150" rx="16" fill="url(#bg)" />
+        <rect x="25" y="20" width="${Math.max(80, tag.length * 10 + 20)}" height="26" rx="13" fill="#ffffff" fill-opacity="0.2" />
+        <text x="35" y="38" fill="#38bdf8" font-family="Arial, sans-serif" font-weight="900" font-size="12" letter-spacing="1">${tag.toUpperCase()}</text>
+        <text x="25" y="85" fill="#ffffff" font-family="Arial, sans-serif" font-weight="800" font-size="28">${title}</text>
+        <text x="25" y="122" fill="#94a3b8" font-family="Arial, sans-serif" font-weight="600" font-size="16">${sub}</text>
+      </svg>`;
+      const dataUri = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgContent);
+
+      const newPromo = {
+        id: 'promo-' + Date.now(),
+        type: 'text',
+        isTextPromo: true,
+        src: dataUri,
+        alt: title,
+        promoData: {
+          tag: tag,
+          title: title,
+          sub: sub,
+          c1: bg.c1,
+          c2: bg.c2
+        }
+      };
+
+      const modalIframe = document.getElementById('modal-live-iframe');
+      if (modalIframe && modalIframe.contentWindow) {
+        modalIframe.contentWindow.postMessage({ type: 'ADD_IMAGE', image: newPromo }, '*');
+      }
+
+      const toast = document.getElementById('toast-notify');
+      if (toast) {
+        toast.textContent = "✨ ¡Promo de texto añadida a la rotación!";
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 2500);
+      }
+    };
+
+    window.updateSponsorStyleFromPanel = function() {
+      const c1El = document.getElementById('panel-sponsor-c1');
+      const c2El = document.getElementById('panel-sponsor-c2');
+      const borderEl = document.getElementById('panel-sponsor-border');
+      const glowEl = document.getElementById('panel-sponsor-glow');
+
+      const c1 = c1El ? c1El.value : '#00f2fe';
+      const c2 = c2El ? c2El.value : '#4facfe';
+      const borderWidth = borderEl ? parseInt(borderEl.value, 10) : 4;
+      const glowIntensity = glowEl ? parseInt(glowEl.value, 10) : 25;
+
+      const c1ValEl = document.getElementById('panel-sponsor-c1-val');
+      const c2ValEl = document.getElementById('panel-sponsor-c2-val');
+      const borderValEl = document.getElementById('panel-sponsor-border-val');
+      const glowValEl = document.getElementById('panel-sponsor-glow-val');
+
+      if (c1ValEl) c1ValEl.textContent = c1;
+      if (c2ValEl) c2ValEl.textContent = c2;
+      if (borderValEl) borderValEl.textContent = borderWidth + 'px';
+      if (glowValEl) glowValEl.textContent = glowIntensity + 'px';
+
+      const modalIframe = document.getElementById('modal-live-iframe');
+      if (modalIframe && modalIframe.contentWindow) {
+        modalIframe.contentWindow.postMessage({
+          type: 'SET_SPONSOR_STYLE',
+          color1: c1,
+          color2: c2,
+          borderWidth: borderWidth,
+          glowIntensity: glowIntensity
+        }, '*');
+      }
+    };
+
+    window.uploadSponsorImageFromPanel = function(input) {
+      if (!input || !input.files || input.files.length === 0) return;
+      const file = input.files[0];
+
+      // Verificación de inicio de sesión obligatorio
+      if (!currentUser || !currentUser.email) {
+        alert("🔒 Inicio de sesión obligatorio:\nPara subir archivos a tu CDN de Google Drive y sincronizar con OBS, debes iniciar sesión con tu cuenta de Google.");
+        if (typeof executeGoogleLogin === 'function') {
+          executeGoogleLogin();
+        }
+        input.value = '';
+        return;
+      }
+
+      const progressBox = document.getElementById('panel-sponsor-upload-progress');
+      const progressBar = document.getElementById('panel-sponsor-upload-bar');
+      const progressPercent = document.getElementById('panel-sponsor-upload-percent');
+      const progressText = document.getElementById('panel-sponsor-upload-text');
+
+      if (progressBox) progressBox.classList.remove('hidden');
+      if (progressBar) progressBar.style.width = '25%';
+      if (progressPercent) progressPercent.textContent = '25%';
+      if (progressText) progressText.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-cyan-400"></i> Preparando archivo...';
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        if (progressBar) progressBar.style.width = '50%';
+        if (progressPercent) progressPercent.textContent = '50%';
+        if (progressText) progressText.innerHTML = '<i class="fa-solid fa-cloud-arrow-up text-cyan-400"></i> Subiendo a tu Google Drive...';
+
+        const base64Data = e.target.result.split(',')[1];
+        const payload = {
+          userEmail: currentUser.email,
+          userName: currentUser.displayName || 'Streamer',
+          base64: base64Data,
+          fileName: file.name,
+          mimeType: file.type || 'image/png'
+        };
+
+        const scriptUrl = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
+        fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+          if (data && (data.cdnUrl || data.directUrl || data.url)) {
+            const finalUrl = data.cdnUrl || data.directUrl || data.url;
+            if (progressBar) progressBar.style.width = '100%';
+            if (progressPercent) progressPercent.textContent = '100%';
+            if (progressText) progressText.innerHTML = '<i class="fa-solid fa-check text-emerald-400"></i> ¡Imagen subida exitosamente!';
+
+            const newImgItem = {
+              id: 'img-' + Date.now(),
+              type: 'image',
+              isTextPromo: false,
+              src: finalUrl,
+              alt: file.name,
+              driveFileId: data.fileId || null
+            };
+
+            const modalIframe = document.getElementById('modal-live-iframe');
+            if (modalIframe && modalIframe.contentWindow) {
+              modalIframe.contentWindow.postMessage({ type: 'ADD_IMAGE', image: newImgItem }, '*');
+            }
+
+            const toast = document.getElementById('toast-notify');
+            if (toast) {
+              toast.textContent = "🚀 ¡Imagen guardada en Google Drive y añadida!";
+              toast.classList.add('show');
+              setTimeout(() => toast.classList.remove('show'), 3000);
+            }
+
+            setTimeout(() => {
+              if (progressBox) progressBox.classList.add('hidden');
+              if (progressBar) progressBar.style.width = '0%';
+            }, 3000);
+          } else {
+            throw new Error(data.error || 'Respuesta inválida del servidor');
+          }
+        })
+        .catch(err => {
+          console.error('Error al subir a Google Drive CDN:', err);
+          if (progressText) progressText.innerHTML = '<i class="fa-solid fa-circle-exclamation text-rose-400"></i> Error al subir imagen';
+          alert('Error al subir la imagen a Google Drive CDN: ' + err.message);
+          setTimeout(() => {
+            if (progressBox) progressBox.classList.add('hidden');
+          }, 4000);
+        })
+        .finally(() => {
+          input.value = '';
+        });
+      };
+      reader.readAsDataURL(file);
+    };
 
     window.copySponsorDirectUrl = function(btn) {
       const urlInput = document.getElementById('sponsor-obs-url-input');
@@ -5689,11 +6125,23 @@
         badgeEl.innerHTML = '<i class="fa-solid ' + meta.badgeIcon + ' mr-1"></i> ' + meta.badgeText;
       }
 
+      // Sincronizar estado del botón de favoritos del modal
+      const configKey = (typeof WIDGET_ID_TO_CONFIG_KEY !== 'undefined' && WIDGET_ID_TO_CONFIG_KEY[widgetId]) ? WIDGET_ID_TO_CONFIG_KEY[widgetId] : ('widget_' + widgetId);
+      const isFav = !!(userWidgetsConfig[configKey]?.is_favorite);
+      if (typeof updateModalFavoriteButtonUI === 'function') {
+        updateModalFavoriteButtonUI(isFav);
+      }
+
       // 2. Mostrar exclusivamente el panel de configuración de este widget
       document.querySelectorAll('.widget-settings-panel').forEach(p => p.classList.add('hidden'));
       const activePanel = document.getElementById('panel-settings-' + widgetId);
       if (activePanel) {
         activePanel.classList.remove('hidden');
+      }
+
+      if (widgetId === 'sponsor') {
+        if (typeof updateSponsorWidget === 'function') updateSponsorWidget(false);
+        if (typeof updateSponsorPanelAuthUI === 'function') updateSponsorPanelAuthUI(currentUser);
       }
 
       // 3. Cargar el iframe interactivo con la URL calculada en tiempo real (silenciado por defecto para no molestar)
@@ -5703,6 +6151,9 @@
         const u = new URL(currentUrl, window.location.href);
         u.searchParams.set('preview', 'true');
         u.searchParams.set('mute', 'true');
+        if (currentUser && currentUser.uid) {
+          u.searchParams.set('uid', currentUser.uid);
+        }
         if (['alerts', 'jikokun-deck', 'electric', 'star-alerts'].includes(widgetId)) {
           u.searchParams.set('loop', 'true');
         }

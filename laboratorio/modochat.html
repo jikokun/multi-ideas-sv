@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jikokun - Overlay "Modo Chat / Just Chatting" (Modern Aqua Glass)</title>
+  
+  <!-- ==========================================================================
+       TIPOGRAFÍAS DE GOOGLE (Outfit, Plus Jakarta Sans, Orbitron, Rajdhani)
+       ========================================================================== -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Outfit:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Rajdhani:wght@600;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Extracción Dinámica de Paletas de Color para Spotify (Vibrant.js) -->
+  <script src="https://assets.codepen.io/3256958/vibrant.js"></script>
+
+  <style>
+    /* ==========================================================================
+       VARIABLES DE DISEÑO: MODERN AQUA GLASSMORPHISM (1920x1080 NATIVO)
+       ========================================================================== */
+    :root {
+      --bg-deep: #020810;
+      --bg-midnight: #041322;
+
+      --aqua-dark: #003847;
+      --aqua-medium: #0077b6;
+      --aqua-bright: #00f5d4;
+      --aqua-electric: #00e5ff;
+      --aqua-soft: rgba(0, 245, 212, 0.22);
+      --electric-white: #f2fdff;
+
+      /* Variables Dinámicas Sincronizadas con Spotify (Ritmo, BPM y Paleta) */
+      --dynamic-color: #00f5d4;
+      --dynamic-rgb: 0, 245, 212;
+      --stream-speed: 5.5s;
+      --beat-duration: 1.2s;
+
+      /* Superficies Glassmorphism */
+      --glass-surface: linear-gradient(135deg, rgba(10, 34, 54, 0.42) 0%, rgba(4, 16, 28, 0.62) 100%);
+      --glass-pill-bg: linear-gradient(135deg, rgba(0, 245, 212, 0.14) 0%, rgba(0, 119, 182, 0.18) 100%);
+      --glass-border-highlight: rgba(255, 255, 255, 0.22);
+      --glass-border-aqua: rgba(0, 245, 212, 0.35);
+
+      /* Radios de Curvatura Modernos */
+      --radius-xl: 34px;
+      --radius-lg: 28px;
+      --radius-md: 22px;
+      --radius-pill: 999px;
+
+      /* Tipografías */
+      --font-tech: 'Orbitron', sans-serif;
+      --font-modern: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+      --font-sans: 'Rajdhani', sans-serif;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body, html {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: transparent !important;
+      font-family: var(--font-modern);
+      color: var(--electric-white);
+      user-select: none;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Contenedor Principal Full HD Centrado */
+    .overlay-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      background-color: transparent;
+    }
+
+    /* ESCENARIO OBS NATIVO 1920x1080 (Auto-escalable proporcional 16:9) */
+    .overlay-stage {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: 
+        radial-gradient(circle at 18% 22%, rgba(0, 119, 182, 0.22) 0%, transparent 48%),
+        radial-gradient(circle at 85% 78%, rgba(0, 245, 212, 0.16) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, #061b2c 0%, #020911 72%, #010408 100%);
+      transform-origin: center center;
+      flex-shrink: 0;
+      box-shadow: 0 0 60px rgba(0, 0, 0, 0.95);
+    }
+
+    /* Textura Sutil de Malla / Ruido de Cristal en el Fondo */
+    .ambient-grid-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(0, 245, 212, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 245, 212, 0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(circle at center, rgba(0,0,0,0.85) 20%, transparent 90%);
+      -webkit-mask-image: radial-gradient(circle at center, rgba(0,0,0,0.85) 20%, transparent 90%);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Capas de Canvas (Partículas y Destellos Eléctricos Suaves) */
+    #bg-canvas, #electric-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      pointer-events: none;
+    }
+
+    #bg-canvas {
+      z-index: 1;
+    }
+
+    #electric-canvas {
+      z-index: 3;
+    }
+
+    /* ==========================================================================
+       CAPA 2: ORBES LÍQUIDOS & ONDAS DE CRISTAL AMBIENTALES EN LAS ESQUINAS
+       ========================================================================== */
+    .frame-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* Orbes de Cristal Líquido */
+    .glass-aurora-wave {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(45px);
+      pointer-events: none;
+      transition: all 0.8s ease;
+    }
+
+    .wave-top-right-1 {
+      top: -130px;
+      right: -90px;
+      width: 720px;
+      height: 320px;
+      background: linear-gradient(135deg, rgba(0, 245, 212, 0.38) 0%, rgba(0, 119, 182, 0.28) 60%, transparent 100%);
+      transform: rotate(-12deg);
+      animation: floatWaveRight 8s ease-in-out infinite alternate;
+    }
+
+    .wave-top-right-2 {
+      top: -40px;
+      right: 120px;
+      width: 420px;
+      height: 120px;
+      background: linear-gradient(90deg, transparent, rgba(0, 229, 255, 0.45), rgba(0, 245, 212, 0.6));
+      filter: blur(28px);
+      border-radius: var(--radius-pill);
+      animation: pulseGlow 4s infinite alternate;
+    }
+
+    .wave-bottom-left-1 {
+      bottom: -140px;
+      left: -100px;
+      width: 760px;
+      height: 340px;
+      background: linear-gradient(315deg, rgba(0, 245, 212, 0.35) 0%, rgba(0, 119, 182, 0.25) 60%, transparent 100%);
+      transform: rotate(-10deg);
+      animation: floatWaveLeft 8s ease-in-out infinite alternate;
+    }
+
+    .wave-bottom-left-2 {
+      bottom: -30px;
+      left: 100px;
+      width: 450px;
+      height: 110px;
+      background: linear-gradient(270deg, transparent, rgba(0, 245, 212, 0.5), rgba(0, 229, 255, 0.4));
+      filter: blur(26px);
+      border-radius: var(--radius-pill);
+      animation: pulseGlow 4s 2s infinite alternate;
+    }
+
+    /* Cápsulas Decorativas Flotantes de Cristal en Esquinas del Escenario */
+    .corner-glass-pill {
+      position: absolute;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(90deg, rgba(0, 245, 212, 0.22), rgba(0, 229, 255, 0.04));
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 8px 32px rgba(0, 245, 212, 0.18), inset 0 1px 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .corner-glass-pill.top-right {
+      top: 24px;
+      right: 95px;
+      width: 240px;
+      height: 14px;
+    }
+
+    .corner-glass-pill.bottom-left {
+      bottom: 24px;
+      left: 95px;
+      width: 240px;
+      height: 14px;
+      background: linear-gradient(270deg, rgba(0, 245, 212, 0.22), rgba(0, 229, 255, 0.04));
+    }
+
+    /* Líneas de Energía Redondeadas en los Bordes del Lienzo */
+    .border-glow-line {
+      position: absolute;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(90deg, transparent, var(--aqua-bright), transparent);
+      box-shadow: 0 0 18px var(--aqua-bright);
+      opacity: 0.75;
+    }
+
+    .border-glow-line.top { top: 0; left: 22%; width: 56%; height: 3px; }
+    .border-glow-line.bottom { bottom: 0; left: 22%; width: 56%; height: 3px; }
+    .border-glow-line.left { top: 22%; left: 0; width: 3px; height: 56%; background: linear-gradient(180deg, transparent, var(--aqua-bright), transparent); }
+    .border-glow-line.right { top: 22%; right: 0; width: 3px; height: 56%; background: linear-gradient(180deg, transparent, var(--aqua-bright), transparent); }
+
+    /* ==========================================================================
+       CAPA 4: CONTENEDOR Y MARCOS GLASSMORPHISM REDONDEADOS (MODO CHAT)
+       ========================================================================== */
+    .chatmode-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1920px;
+      height: 1080px;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    /* Estilo Base de Tarjeta Glassmorphism con Esquinas Redondeadas */
+    .chatmode-frame {
+      position: absolute;
+      background: var(--glass-surface);
+      backdrop-filter: blur(20px) saturate(165%);
+      -webkit-backdrop-filter: blur(20px) saturate(165%);
+      border-radius: var(--frame-radius, var(--radius-xl));
+      border: 1.5px solid rgba(255, 255, 255, 0.16);
+      box-shadow: 
+        0 20px 50px rgba(0, 0, 0, 0.55),
+        0 0 28px rgba(var(--dynamic-rgb, 0, 245, 212), 0.16),
+        inset 0 1.5px 2px rgba(255, 255, 255, 0.32),
+        inset 0 -1px 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.10);
+      transition: box-shadow 0.4s ease, border-color 0.4s ease, transform 0.4s ease;
+      overflow: hidden;
+    }
+
+    /* Reflejo Diagonal Superior de Cristal (Glass Sheen) */
+    .chatmode-frame::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.12) 0%,
+        rgba(255, 255, 255, 0.03) 28%,
+        transparent 55%
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* SVG DE CORRIENTE NEÓN CURVA EN EL CONTORNO DE LOS MARCOS REDONDEADOS */
+    .frame-border-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 6;
+      overflow: visible;
+    }
+
+    .svg-border-base {
+      fill: none;
+      stroke: rgba(0, 245, 212, 0.22);
+      stroke-width: 2;
+    }
+
+    .svg-border-stream {
+      fill: none;
+      stroke: var(--dynamic-color, #00f5d4);
+      stroke-width: 3;
+      stroke-dasharray: 240 760;
+      stroke-dashoffset: 0;
+      stroke-linecap: round;
+      filter: drop-shadow(0 0 10px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 18px var(--aqua-electric));
+      animation: 
+        electricBorderFlow var(--stream-speed, 4.5s) linear infinite,
+        bpmBeatPulse var(--beat-duration, 0.8s) cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+    }
+
+    /* Acentos Luminosos Curvos en las Esquinas */
+    .frame-corner-bracket {
+      position: absolute;
+      width: 32px;
+      height: 32px;
+      border: 2.5px solid var(--dynamic-color, var(--aqua-electric));
+      filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-electric)));
+      opacity: 0.75;
+      pointer-events: none;
+      z-index: 7;
+      transition: border-color 0.4s ease, filter 0.4s ease;
+    }
+
+    .frame-corner-bracket.top-l {
+      top: 8px;
+      left: 8px;
+      border-right: none;
+      border-bottom: none;
+      border-top-left-radius: calc(var(--frame-radius, 34px) - 8px);
+    }
+
+    .frame-corner-bracket.top-r {
+      top: 8px;
+      right: 8px;
+      border-left: none;
+      border-bottom: none;
+      border-top-right-radius: calc(var(--frame-radius, 34px) - 8px);
+    }
+
+    .frame-corner-bracket.bot-l {
+      bottom: 8px;
+      left: 8px;
+      border-right: none;
+      border-top: none;
+      border-bottom-left-radius: calc(var(--frame-radius, 34px) - 8px);
+    }
+
+    .frame-corner-bracket.bot-r {
+      bottom: 8px;
+      right: 8px;
+      border-left: none;
+      border-top: none;
+      border-bottom-right-radius: calc(var(--frame-radius, 34px) - 8px);
+    }
+
+    /* Indicador Luminoso Tipo "Pill Handle" en Bordes */
+    .frame-tech-notches {
+      position: absolute;
+      top: 50%;
+      right: 6px;
+      transform: translateY(-50%);
+      width: 5px;
+      height: 76px;
+      border-radius: var(--radius-pill);
+      background: linear-gradient(180deg, transparent, var(--dynamic-color, var(--aqua-bright)), transparent);
+      box-shadow: 0 0 14px var(--dynamic-color, var(--aqua-bright));
+      z-index: 7;
+      opacity: 0.9;
+    }
+
+    .frame-tech-notches.vertical {
+      top: auto;
+      bottom: 6px;
+      left: 50%;
+      right: auto;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 5px;
+      background: linear-gradient(90deg, transparent, var(--dynamic-color, var(--aqua-bright)), transparent);
+    }
+
+    /* --------------------------------------------------------------------------
+       1. MARCO PRINCIPAL DE CÁMARA WEB / CONTENIDO (Top Left - 1180x670)
+       -------------------------------------------------------------------------- */
+    .frame-camera {
+      --frame-radius: 36px;
+      top: 70px;
+      left: 70px;
+      width: 1180px;
+      height: 670px;
+      background: linear-gradient(135deg, rgba(6, 24, 38, 0.18) 0%, rgba(2, 12, 20, 0.26) 100%);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      animation: framePulse 4.5s ease-in-out infinite alternate;
+    }
+
+    /* --------------------------------------------------------------------------
+       2. MARCO ALARGADO DERECHO PARA CHAT EN PANTALLA + SPOTIFY (Right - 560x940)
+       -------------------------------------------------------------------------- */
+    .frame-chat {
+      --frame-radius: 36px;
+      top: 70px;
+      right: 70px;
+      width: 560px;
+      height: 940px;
+      animation: framePulse 4.5s 1.5s ease-in-out infinite alternate;
+    }
+
+    /* --------------------------------------------------------------------------
+       3. ESPACIO DEDICADO PARA ALERTAS (Bottom Left - 440x240)
+       -------------------------------------------------------------------------- */
+    .frame-alerts {
+      --frame-radius: 28px;
+      bottom: 70px;
+      left: 70px;
+      width: 440px;
+      height: 240px;
+      animation: framePulse 4.5s 2.5s ease-in-out infinite alternate;
+    }
+
+    /* Cápsula Glassmorphism de Encabezado para Alertas */
+    .alerts-frame-header {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 18px;
+      border-radius: var(--radius-pill);
+      background: var(--glass-pill-bg);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      box-shadow: 
+        0 4px 15px rgba(0, 0, 0, 0.3),
+        0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.25),
+        inset 0 1px 1px rgba(255, 255, 255, 0.35);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-family: var(--font-tech);
+      font-size: 0.78rem;
+      font-weight: 800;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: var(--electric-white);
+      text-shadow: 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+      pointer-events: none;
+      z-index: 8;
+    }
+
+    .alerts-frame-header .alerts-icon {
+      font-size: 0.92rem;
+      filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright)));
+    }
+
+    .alerts-frame-content {
+      position: absolute;
+      top: 46px;
+      bottom: 12px;
+      left: 14px;
+      right: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 18px;
+      z-index: 4;
+    }
+
+    .botrix-alerts-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    /* --------------------------------------------------------------------------
+       4. GRID DE 4 CAJAS DE EVENTOS / STREAM LABELS (Bottom Center - 710x240)
+       -------------------------------------------------------------------------- */
+    .chatmode-events-grid {
+      position: absolute;
+      bottom: 70px;
+      left: 540px;
+      width: 710px;
+      height: 240px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .event-box {
+      --frame-radius: 24px;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+      border-radius: var(--frame-radius);
+      animation: framePulse 4.5s 3s ease-in-out infinite alternate;
+    }
+
+    /* Cápsula Glassmorphism de Encabezado en cada Caja de Evento */
+    .event-box-header {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 14px;
+      border-radius: var(--radius-pill);
+      background: var(--glass-pill-bg);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      box-shadow: 
+        0 4px 12px rgba(0, 0, 0, 0.28),
+        0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.22),
+        inset 0 1px 1px rgba(255, 255, 255, 0.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      font-family: var(--font-tech);
+      font-size: 0.72rem;
+      font-weight: 800;
+      letter-spacing: 1.8px;
+      text-transform: uppercase;
+      color: var(--electric-white);
+      text-shadow: 0 0 10px rgba(var(--dynamic-rgb, 0, 245, 212), 0.85);
+      white-space: nowrap;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    .event-box-header .event-icon {
+      font-size: 0.85rem;
+      filter: drop-shadow(0 0 6px var(--dynamic-color, var(--aqua-bright)));
+    }
+
+    .event-box-content {
+      position: absolute;
+      top: 40px;
+      bottom: 8px;
+      left: 12px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      z-index: 4;
+    }
+
+    .botrix-label-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      pointer-events: none;
+    }
+
+    /* ==========================================================================
+       WIDGET SPOTIFY DYNAMIC ISLAND (CÁPSULA DE CRISTAL REDONDEADA)
+       ========================================================================== */
+    .spotify-island-container {
+      position: absolute;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 15;
+      pointer-events: auto;
+    }
+
+    .island-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .island-wrapper.hidden {
+      transform: translateY(-95px) scale(0.75);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    /* Cápsula Dynamic Island Redondeada estilo Liquid Glass */
+    .island {
+      --frame-radius: 999px;
+      position: relative;
+      background: linear-gradient(135deg, rgba(6, 26, 42, 0.82) 0%, rgba(3, 14, 24, 0.92) 100%);
+      backdrop-filter: blur(24px) saturate(180%);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      border: 1.5px solid rgba(255, 255, 255, 0.28);
+      border-radius: var(--radius-pill);
+      display: flex;
+      align-items: center;
+      padding: 10px 20px 10px 14px;
+      width: 460px;
+      height: 88px;
+      box-shadow: 
+        0 14px 36px rgba(0, 0, 0, 0.6),
+        0 0 28px rgba(var(--dynamic-rgb, 0, 245, 212), 0.42),
+        inset 0 1.5px 2px rgba(255, 255, 255, 0.4),
+        inset 0 0 18px rgba(var(--dynamic-rgb, 0, 245, 212), 0.16);
+      transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+      transform-origin: center top;
+      overflow: hidden;
+    }
+
+    .island.expanding {
+      animation: islandInflate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    /* Estado Compacto / Pill Cerrada */
+    .island.closed {
+      width: 260px;
+      height: 48px;
+      padding: 6px 16px 6px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* Botón/Insignia Play Neón Circular */
+    .spotify-play-badge {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(var(--dynamic-rgb, 0, 245, 212), 0.16);
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      margin-right: 10px;
+      color: var(--dynamic-color, var(--aqua-bright));
+      filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright)));
+      flex-shrink: 0;
+      transition: all 0.4s ease;
+    }
+
+    .island.closed .spotify-play-badge {
+      width: 22px;
+      height: 22px;
+      margin-right: 8px;
+    }
+
+    .play-icon {
+      width: 13px;
+      height: 13px;
+      animation: playPulse 2s ease-in-out infinite alternate;
+    }
+
+    /* Portada del Álbum Redondeada */
+    .island .cover {
+      flex-shrink: 0;
+      border-radius: 18px;
+      border: 1.5px solid rgba(255, 255, 255, 0.35);
+      overflow: hidden;
+      width: 64px;
+      height: 64px;
+      margin-right: 14px;
+      box-shadow: 
+        0 6px 16px rgba(0, 0, 0, 0.45),
+        0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.45);
+      transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .island.closed .cover {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .island .cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .island .info {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      flex-grow: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      z-index: 2;
+    }
+
+    .island .song-name {
+      color: #ffffff;
+      font-family: var(--font-modern);
+      font-weight: 800;
+      font-size: 1.15rem;
+      letter-spacing: 0.3px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      text-shadow: 0 2px 10px rgba(var(--dynamic-rgb, 0, 245, 212), 0.6);
+      transition: all 0.4s ease;
+    }
+
+    .island.closed .song-name {
+      font-size: 0.85rem;
+    }
+
+    .island .artist-name {
+      color: rgba(235, 252, 255, 0.82);
+      font-family: var(--font-modern);
+      font-size: 0.92rem;
+      font-weight: 600;
+      margin-top: 3px;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      transition: all 0.4s ease;
+    }
+
+    .island.closed .artist-name {
+      opacity: 0;
+      max-height: 0;
+      margin-top: 0;
+    }
+
+    .spotify-bpm-badge {
+      font-family: var(--font-tech);
+      font-size: 0.68rem;
+      font-weight: 800;
+      letter-spacing: 1px;
+      color: var(--electric-white);
+      background: rgba(var(--dynamic-rgb, 0, 245, 212), 0.22);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      padding: 2px 9px;
+      border-radius: var(--radius-pill);
+      box-shadow: 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.35);
+      margin-left: 8px;
+      flex-shrink: 0;
+      transition: all 0.4s ease;
+    }
+
+    .island.closed .spotify-bpm-badge {
+      display: none;
+    }
+
+    /* Ecualizador Soundwave Neón Redondeado */
+    .soundwave-equalizer {
+      display: flex;
+      align-items: flex-end;
+      gap: 3.5px;
+      height: 22px;
+      margin-left: 12px;
+      z-index: 2;
+      transition: all 0.4s ease;
+    }
+
+    .island.closed .soundwave-equalizer {
+      display: none;
+    }
+
+    .soundwave-equalizer span {
+      width: 3.5px;
+      height: 100%;
+      background: linear-gradient(180deg, #ffffff, var(--dynamic-color, var(--aqua-bright)));
+      box-shadow: 0 0 10px var(--dynamic-color, var(--aqua-bright));
+      border-radius: var(--radius-pill);
+      animation: soundwaveBeat var(--beat-duration, 0.8s) ease-in-out infinite alternate;
+    }
+
+    .soundwave-equalizer span:nth-child(1) { animation-delay: 0.1s; }
+    .soundwave-equalizer span:nth-child(2) { animation-delay: 0.3s; }
+    .soundwave-equalizer span:nth-child(3) { animation-delay: 0.5s; }
+    .soundwave-equalizer span:nth-child(4) { animation-delay: 0.2s; }
+
+    /* ==========================================================================
+       ÁREA DEL CHAT EN VIVO (BURBUJAS DE CRISTAL LÍQUIDO REDONDEADAS)
+       ========================================================================== */
+    .chat-area {
+      position: absolute;
+      top: 98px;
+      bottom: 24px;
+      left: 22px;
+      right: 22px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: 12px;
+      overflow-y: auto;
+      scroll-behavior: smooth;
+      pointer-events: auto;
+      z-index: 10;
+      padding: 6px 4px;
+      /* Desvanecimiento superior suave para mensajes antiguos */
+      mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 6%, rgba(0,0,0,1) 14%, rgba(0,0,0,1) 100%);
+      -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 6%, rgba(0,0,0,1) 14%, rgba(0,0,0,1) 100%);
+    }
+
+    .chat-area::-webkit-scrollbar {
+      display: none;
+      width: 0;
+    }
+
+    .botrix-chat-iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+      border-radius: 22px;
+    }
+
+    /* Burbuja de Mensaje Glassmorphism Moderno */
+    .glass-message {
+      position: relative;
+      align-self: flex-start;
+      width: 100%;
+      background: linear-gradient(
+        135deg,
+        rgba(14, 42, 66, 0.72) 0%,
+        rgba(6, 20, 34, 0.84) 100%
+      );
+      backdrop-filter: blur(16px) saturate(160%);
+      -webkit-backdrop-filter: blur(16px) saturate(160%);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-left: 4px solid var(--user-color, var(--aqua-bright));
+      border-radius: 20px;
+      border-top-left-radius: 8px;
+      padding: 12px 16px;
+      box-shadow: 
+        0 10px 26px rgba(0, 0, 0, 0.42),
+        0 0 18px var(--user-color-dim, rgba(0, 245, 212, 0.22)),
+        inset 0 1px 1px rgba(255, 255, 255, 0.25);
+      animation: messageSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      transition: all 0.4s ease;
+      overflow: hidden;
+    }
+
+    .glass-message::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 45%;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, transparent 100%);
+      pointer-events: none;
+    }
+
+    .glass-message.evaporating {
+      animation: glassEvaporate 0.65s forwards cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .glass-message .username {
+      font-family: var(--font-modern);
+      font-size: 1.16rem;
+      font-weight: 800;
+      letter-spacing: 0.4px;
+      color: var(--user-color, var(--aqua-bright));
+      text-shadow: 0 0 12px var(--user-color-dim, rgba(0, 245, 212, 0.45));
+    }
+
+    .glass-message .content {
+      font-family: var(--font-modern);
+      font-size: 1.12rem;
+      font-weight: 600;
+      line-height: 1.42;
+      margin-top: 4px;
+      color: #f2fdff;
+    }
+
+    .glass-message.follow-alert {
+      background: linear-gradient(135deg, rgba(45, 36, 8, 0.82) 0%, rgba(24, 18, 4, 0.9) 100%);
+      border: 1.5px solid rgba(255, 215, 0, 0.65);
+      border-radius: 22px;
+      box-shadow: 
+        0 10px 28px rgba(0, 0, 0, 0.5),
+        0 0 22px rgba(255, 215, 0, 0.35),
+        inset 0 1px 2px rgba(255, 255, 255, 0.35);
+      text-align: center;
+      width: 100%;
+    }
+
+    /* Insignias de Roles */
+    .glass-message .badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 6px;
+      font-size: 1.1rem;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+    }
+
+    /* Emotes de Kick */
+    .kick-emote {
+      height: 30px !important;
+      width: auto;
+      vertical-align: middle;
+      margin: 0 3px;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
+    }
+
+    /* ==========================================================================
+       KEYFRAMES Y ANIMACIONES FLUIDAS
+       ========================================================================== */
+    @keyframes floatWaveRight {
+      0% { transform: translate(0, 0) rotate(-12deg) scale(1); }
+      100% { transform: translate(-25px, 15px) rotate(-8deg) scale(1.05); }
+    }
+
+    @keyframes floatWaveLeft {
+      0% { transform: translate(0, 0) rotate(-10deg) scale(1); }
+      100% { transform: translate(25px, -15px) rotate(-6deg) scale(1.05); }
+    }
+
+    @keyframes pulseGlow {
+      0% { opacity: 0.55; filter: blur(28px) drop-shadow(0 0 12px var(--aqua-bright)); }
+      100% { opacity: 0.95; filter: blur(24px) drop-shadow(0 0 28px var(--aqua-bright)); }
+    }
+
+    @keyframes framePulse {
+      0% {
+        box-shadow: 
+          0 20px 50px rgba(0, 0, 0, 0.55),
+          0 0 20px rgba(var(--dynamic-rgb, 0, 245, 212), 0.14),
+          inset 0 1.5px 2px rgba(255, 255, 255, 0.28),
+          inset 0 -1px 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.08);
+      }
+      100% {
+        box-shadow: 
+          0 22px 55px rgba(0, 0, 0, 0.6),
+          0 0 34px rgba(var(--dynamic-rgb, 0, 245, 212), 0.28),
+          inset 0 1.5px 3px rgba(255, 255, 255, 0.42),
+          inset 0 -1px 18px rgba(var(--dynamic-rgb, 0, 245, 212), 0.18);
+      }
+    }
+
+    @keyframes electricBorderFlow {
+      0% { stroke-dashoffset: 0; }
+      100% { stroke-dashoffset: -1000; }
+    }
+
+    @keyframes bpmBeatPulse {
+      0% {
+        stroke-width: 2.5;
+        filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright)));
+        opacity: 0.8;
+      }
+      100% {
+        stroke-width: 4.5;
+        filter: drop-shadow(0 0 18px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 30px var(--aqua-electric));
+        opacity: 1;
+      }
+    }
+
+    @keyframes playPulse {
+      0% { transform: scale(1); opacity: 0.82; }
+      100% { transform: scale(1.16); opacity: 1; filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright))); }
+    }
+
+    @keyframes soundwaveBeat {
+      0% { height: 26%; }
+      100% { height: 100%; }
+    }
+
+    @keyframes islandInflate {
+      0% { transform: scale(0.86); opacity: 0.65; }
+      55% { transform: scale(1.04); filter: drop-shadow(0 0 28px var(--dynamic-color, var(--aqua-bright))); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes messageSlideIn {
+      0% { transform: translateY(22px) scale(0.95); opacity: 0; filter: blur(6px); }
+      100% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+    }
+
+    @keyframes glassEvaporate {
+      0% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+      100% { transform: translateY(-22px) scale(0.92); opacity: 0; filter: blur(10px); }
+    }
+  </style>
+</head>
+<body>
+  <div class="overlay-wrapper">
+    <!-- Escenario OBS Nativo 1920x1080 (Auto-escalable a cualquier resolución 16:9) -->
+    <div class="overlay-stage" id="overlay-stage">
+      
+      <!-- Textura Ambiental Sutil -->
+      <div class="ambient-grid-overlay"></div>
+
+      <!-- Capa 1: Canvas de Fondo (Partículas y Red Sutil Aqua) -->
+      <canvas id="bg-canvas"></canvas>
+
+      <!-- Capa 2: Orbes Líquidos y Acentos Glassmorphism Redondeados en Esquinas -->
+      <div class="frame-container">
+        <!-- Esquina Superior Derecha -->
+        <div class="glass-aurora-wave wave-top-right-1"></div>
+        <div class="glass-aurora-wave wave-top-right-2"></div>
+        <div class="corner-glass-pill top-right"></div>
+
+        <!-- Esquina Inferior Izquierda -->
+        <div class="glass-aurora-wave wave-bottom-left-1"></div>
+        <div class="glass-aurora-wave wave-bottom-left-2"></div>
+        <div class="corner-glass-pill bottom-left"></div>
+
+        <!-- Líneas de Energía Suaves en Bordes -->
+        <div class="border-glow-line top"></div>
+        <div class="border-glow-line bottom"></div>
+        <div class="border-glow-line left"></div>
+        <div class="border-glow-line right"></div>
+      </div>
+
+      <!-- Capa 3: Canvas de Rayos Eléctricos Suaves y Chispas -->
+      <canvas id="electric-canvas"></canvas>
+
+      <!-- Capa 4: Marcos de Estructura Modo Chat (Estilo Glass Redondeado) -->
+      <div class="chatmode-container">
+        
+        <!-- ══════════════════════════════════════════════════════════════════════
+             1. MARCO PRINCIPAL DE CÁMARA WEB / CONTENIDO (Top Left - 1180x670)
+             ══════════════════════════════════════════════════════════════════════ -->
+        <div class="chatmode-frame frame-camera" data-rx="36">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches"></div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════════
+             2. MARCO ALARGADO DERECHO: CHAT + WIDGET SPOTIFY ISLAND (560x940)
+             ══════════════════════════════════════════════════════════════════════ -->
+        <div class="chatmode-frame frame-chat" data-rx="36">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches vertical"></div>
+
+          <!-- ------------------------------------------------------------------
+               WIDGET SPOTIFY DYNAMIC ISLAND (Cápsula Glass Redondeada)
+               Sincronizada con la API de Spotify, extracción de colores y BPM
+               ------------------------------------------------------------------ -->
+          <div class="spotify-island-container">
+            <div id="spotify-wrapper" class="island-wrapper hidden">
+              <div id="spotify-island" class="island closed chatmode-frame" data-rx="44">
+                <!-- Ícono Neón de Play (▶) -->
+                <div class="spotify-play-badge">
+                  <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="6,4 20,12 6,20" />
+                  </svg>
+                </div>
+                <div class="cover">
+                  <img id="albumCover" src="" crossorigin="anonymous" alt="Portada" />
+                </div>
+                <div class="info">
+                  <div id="spotify-song-name" class="song-name">Cargando...</div>
+                  <div class="artist-bpm-row" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div id="spotify-artist-name" class="artist-name">Spotify</div>
+                    <div id="spotify-bpm" class="spotify-bpm-badge">-- BPM</div>
+                  </div>
+                </div>
+                <!-- Ecualizador de Barras Neón Soundwave -->
+                <div class="soundwave-equalizer">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------------------------
+               ÁREA DEL CHAT EN VIVO:
+               - OPCIÓN A (Activa por defecto): WebSocket Streamer.bot (Burbujas Glass)
+               - OPCIÓN B: Widget iFrame de Botrix Chat (Descomentar para usar Botrix)
+               ------------------------------------------------------------------ -->
+          <!-- OPCIÓN A: Streamer.bot WebSocket (Kick Chat en Vivo) -->
+          <div class="chat-area" id="chat-container"></div>
+
+          <!-- OPCIÓN B: Botrix Chat Widget (Descomentar este bloque si prefieres el chat de Botrix):
+          <div class="chat-area" id="chat-botrix-area" style="display: none;">
+            <iframe 
+              id="botrix-chat-iframe"
+              src="https://botrix.live/widgets/chat?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-chat-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+          -->
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════════
+             3. ESPACIO DEDICADO PARA ALERTAS DE BOTRIX (Bottom Left - 440x240)
+             ══════════════════════════════════════════════════════════════════════ -->
+        <div class="chatmode-frame frame-alerts" data-rx="28">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+
+          <!-- Encabezado Pill Glass Centrado para Alertas -->
+          <div class="alerts-frame-header">
+            <span class="alerts-icon">⚡</span>
+            <span class="alerts-title">ALERTAS</span>
+          </div>
+
+          <!-- ------------------------------------------------------------------
+               ENLACE DE ALERTAS BOTRIX:
+               src="https://botrix.live/alerts?bid=TU_BOTRIX_ID"
+               ------------------------------------------------------------------ -->
+          <div class="alerts-frame-content">
+            <iframe 
+              id="botrix-alerts-iframe"
+              src="https://botrix.live/alerts?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-alerts-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════════════════
+             4. GRID DE 4 CAJAS DE EVENTOS / STREAM LABELS BOTRIX (710x240)
+             ══════════════════════════════════════════════════════════════════════ -->
+        <div class="chatmode-events-grid">
+          
+          <!-- ------------------------------------------------------------------
+               CAJA 1: ÚLTIMO SEGUIDOR (Botrix Label tipo=ultimoFollow)
+               ------------------------------------------------------------------ -->
+          <div class="chatmode-frame event-box event-box-1" data-rx="24">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <div class="event-box-header">
+              <span class="event-icon">✨</span>
+              <span class="event-title">ÚLTIMO SEGUIDOR</span>
+            </div>
+
+            <div class="event-box-content">
+              <iframe 
+                id="label-ultimo-follow"
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoFollow&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------------------------
+               CAJA 2: ÚLTIMO SUB REGALADO (Botrix Label tipo=ultimoGift)
+               ------------------------------------------------------------------ -->
+          <div class="chatmode-frame event-box event-box-2" data-rx="24">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <div class="event-box-header">
+              <span class="event-icon">🎁</span>
+              <span class="event-title">ÚLTIMO SUB REGALADO</span>
+            </div>
+
+            <div class="event-box-content">
+              <iframe 
+                id="label-ultimo-gift"
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoGift&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------------------------
+               CAJA 3: ÚLTIMO SUSCRIPTOR (Botrix Label tipo=ultimoSub)
+               ------------------------------------------------------------------ -->
+          <div class="chatmode-frame event-box event-box-3" data-rx="24">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <div class="event-box-header">
+              <span class="event-icon">⭐</span>
+              <span class="event-title">ÚLTIMO SUSCRIPTOR</span>
+            </div>
+
+            <div class="event-box-content">
+              <iframe 
+                id="label-ultimo-sub"
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoSub&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- ------------------------------------------------------------------
+               CAJA 4: ÚLTIMOS KICKS REGALADOS (Botrix Label tipo=ultimoKicks)
+               ------------------------------------------------------------------ -->
+          <div class="chatmode-frame event-box event-box-4" data-rx="24">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <div class="event-box-header">
+              <span class="event-icon">💚</span>
+              <span class="event-title">ÚLTIMOS KICKS REGALADOS</span>
+            </div>
+
+            <div class="event-box-content">
+              <iframe 
+                id="label-ultimo-kicks"
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bname%7D+-+%7Bamount%7D&font=Arial&type=ultimoKicks&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+        </div><!-- /.chatmode-events-grid -->
+
+      </div><!-- /.chatmode-container -->
+    </div><!-- /.overlay-stage -->
+  </div><!-- /.overlay-wrapper -->
+
+  <!-- ==========================================================================
+       MOTOR JAVASCRIPT INTEGRADO:
+       - Configuración centralizada de enlaces (Botrix, Streamer.bot, Spotify)
+       - Auto-escalado 1920x1080
+       - Bordes Neón SVG Curvos
+       - Canvas de Fondo (Partículas Aqua)
+       - Canvas Eléctrico (Rayos y Chispas)
+       - Kick Chat en Vivo (WebSocket Streamer.bot)
+       - Widget de Spotify con extracción dinámica de color (Vibrant.js) y BPM
+       ========================================================================== -->
+  <script>
+    /* ==========================================================================
+       GUÍA DE CONFIGURACIÓN RÁPIDA: ENLACES Y PARÁMETROS EDITABLES
+       ==========================================================================
+       Puedes cambiar aquí los enlaces y credenciales por defecto, o pasarlos
+       como parámetros en la URL de la Fuente de Navegador de OBS Studio:
+         Ejemplo: modochat.html?bid=TU_BOTRIX_ID&port=4445&channel=jikokun&chat=streamerbot
+       ========================================================================== */
+    const CONFIG = {
+      // 1. BOTRIX LIVE ID
+      // Cambia este ID si tu token o cuenta de Botrix se renueva:
+      botrixId: "542iomDnDN8s5%2BggVjdyVg",
+
+      // 2. STREAMER.BOT WEBSOCKET
+      // Puerto e IP del WebSocket local de Streamer.bot (Kick Chat):
+      streamerBotIp: "127.0.0.1",
+      streamerBotPort: "4445",
+      kickChannel: "jikokun",
+
+      // 3. TIPO DE CHAT: 'streamerbot' (Burbujas Glass Aqua) o 'botrix' (iFrame oficial)
+      chatMode: "streamerbot",
+
+      // 4. SPOTIFY CREDENCIALES & ENDPOINT DE RENOVACIÓN DE TOKEN
+      spotify: {
+        userId: "jikokun2",
+        refreshTokenUrl: "https://mrboostlive.com/spotify/refresh_token.php",
+        initialAccessToken: "BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs",
+        refreshToken: "AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM"
+      }
+    };
+
+    // Lectura de parámetros dinámicos de URL en OBS Browser Source
+    (function parseUrlParams() {
+      const p = new URLSearchParams(window.location.search);
+      if (p.has('bid')) CONFIG.botrixId = p.get('bid');
+      if (p.has('ip')) CONFIG.streamerBotIp = p.get('ip');
+      if (p.has('port')) CONFIG.streamerBotPort = p.get('port');
+      if (p.has('channel')) CONFIG.kickChannel = p.get('channel');
+      if (p.has('chat')) CONFIG.chatMode = p.get('chat');
+    })();
+
+    document.addEventListener('DOMContentLoaded', function() {
+      applyBotrixLinks();
+      initAutoScaling();
+      initBackgroundCanvas();
+      initElectricCanvas();
+      initRoundedFrameBorders();
+      initKickChat();
+      initSpotifyWidget();
+    });
+
+    /* ==========================================================================
+       APLICACIÓN CENTRALIZADA DE ENLACES DE BOTRIX A LOS IFRAMES
+       ========================================================================== */
+    function applyBotrixLinks() {
+      const bid = encodeURIComponent(decodeURIComponent(CONFIG.botrixId));
+
+      // 1. Alertas de Botrix
+      const alertsIframe = document.getElementById('botrix-alerts-iframe');
+      if (alertsIframe) {
+        alertsIframe.src = `https://botrix.live/alerts?bid=${bid}`;
+      }
+
+      // 2. Etiqueta: Último Seguidor
+      const followIframe = document.getElementById('label-ultimo-follow');
+      if (followIframe) {
+        followIframe.src = `https://botrix.live/widgets/labels?bid=${bid}&text=%7Bvalue%7D&font=Arial&type=ultimoFollow&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite`;
+      }
+
+      // 3. Etiqueta: Último Sub Regalado
+      const giftIframe = document.getElementById('label-ultimo-gift');
+      if (giftIframe) {
+        giftIframe.src = `https://botrix.live/widgets/labels?bid=${bid}&text=%7Bvalue%7D&font=Arial&type=ultimoGift&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite`;
+      }
+
+      // 4. Etiqueta: Último Suscriptor
+      const subIframe = document.getElementById('label-ultimo-sub');
+      if (subIframe) {
+        subIframe.src = `https://botrix.live/widgets/labels?bid=${bid}&text=%7Bvalue%7D&font=Arial&type=ultimoSub&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite`;
+      }
+
+      // 5. Etiqueta: Últimos Kicks Regalados
+      const kicksIframe = document.getElementById('label-ultimo-kicks');
+      if (kicksIframe) {
+        kicksIframe.src = `https://botrix.live/widgets/labels?bid=${bid}&text=%7Bname%7D+-+%7Bamount%7D&font=Arial&type=ultimoKicks&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite`;
+      }
+
+      // 6. Selector de Chat (Botrix vs Streamer.bot)
+      if (CONFIG.chatMode === 'botrix') {
+        const streamerChat = document.getElementById('chat-container');
+        let botrixArea = document.getElementById('chat-botrix-area');
+        if (streamerChat) streamerChat.style.display = 'none';
+        if (!botrixArea) {
+          botrixArea = document.createElement('div');
+          botrixArea.className = 'chat-area';
+          botrixArea.id = 'chat-botrix-area';
+          botrixArea.innerHTML = `<iframe src="https://botrix.live/widgets/chat?bid=${bid}" class="botrix-chat-iframe" frameborder="0" scrolling="no" allowtransparency="true"></iframe>`;
+          const frameChat = document.querySelector('.frame-chat');
+          if (frameChat) frameChat.appendChild(botrixArea);
+        } else {
+          botrixArea.style.display = 'flex';
+        }
+      }
+    }
+
+    /* ==========================================================================
+       0. AUTO-ESCALADO PROPORCIONAL DEL ESCENARIO 1920x1080 (RELACIÓN 16:9)
+       ========================================================================== */
+    function initAutoScaling() {
+      const stage = document.getElementById('overlay-stage');
+      if (!stage) return;
+
+      function resizeStage() {
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const scaleX = windowWidth / 1920;
+        const scaleY = windowHeight / 1080;
+        const scale = Math.min(scaleX, scaleY);
+        stage.style.transform = 'scale(' + scale + ')';
+      }
+
+      window.addEventListener('resize', resizeStage);
+      resizeStage();
+    }
+
+    /* ==========================================================================
+       0.5. INYECCIÓN DE CORRIENTE NEÓN SVG EN BORDES REDONDEADOS (RECT RX/RY)
+       ========================================================================== */
+    function initRoundedFrameBorders() {
+      const frames = document.querySelectorAll('.chatmode-frame');
+      frames.forEach(function(frame) {
+        if (frame.id === 'spotify-island') return;
+        if (frame.querySelector('.frame-border-svg')) return;
+
+        const w = frame.offsetWidth || 400;
+        const h = frame.offsetHeight || 200;
+        const rx = parseInt(frame.getAttribute('data-rx') || '32', 10);
+
+        const svgNS = "http://www.w3.org/2000/svg";
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("class", "frame-border-svg");
+        svg.setAttribute("viewBox", "0 0 " + w + " " + h);
+        svg.setAttribute("preserveAspectRatio", "none");
+
+        const baseRect = document.createElementNS(svgNS, "rect");
+        baseRect.setAttribute("x", "1");
+        baseRect.setAttribute("y", "1");
+        baseRect.setAttribute("width", String(w - 2));
+        baseRect.setAttribute("height", String(h - 2));
+        baseRect.setAttribute("rx", String(rx));
+        baseRect.setAttribute("ry", String(rx));
+        baseRect.setAttribute("pathLength", "1000");
+        baseRect.setAttribute("class", "svg-border-base");
+
+        const streamRect = document.createElementNS(svgNS, "rect");
+        streamRect.setAttribute("x", "1");
+        streamRect.setAttribute("y", "1");
+        streamRect.setAttribute("width", String(w - 2));
+        streamRect.setAttribute("height", String(h - 2));
+        streamRect.setAttribute("rx", String(rx));
+        streamRect.setAttribute("ry", String(rx));
+        streamRect.setAttribute("pathLength", "1000");
+        streamRect.setAttribute("class", "svg-border-stream");
+
+        svg.appendChild(baseRect);
+        svg.appendChild(streamRect);
+        frame.appendChild(svg);
+      });
+    }
+
+    /* ==========================================================================
+       1. CANVAS DE FONDO NATIVO 1920x1080 (PARTÍCULAS Y RED SUTIL AQUA)
+       ========================================================================== */
+    function initBackgroundCanvas() {
+      const canvas = document.getElementById('bg-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const width = canvas.width = 1920;
+      const height = canvas.height = 1080;
+      const particles = [];
+      const particleCount = 75;
+
+      function Particle() {
+        this.reset();
+      }
+
+      Particle.prototype.reset = function() {
+        this.x = Math.random() * width;
+        this.y = Math.random() * height;
+        this.radius = Math.random() * 2.8 + 0.8;
+        this.vx = (Math.random() - 0.5) * 0.35;
+        this.vy = -Math.random() * 0.75 - 0.25;
+        this.alpha = Math.random() * 0.65 + 0.2;
+        this.maxAlpha = this.alpha;
+        this.color = Math.random() > 0.4 ? '#00f5d4' : '#00e5ff';
+        this.pulseSpeed = Math.random() * 0.02 + 0.005;
+      };
+
+      Particle.prototype.update = function() {
+        this.x += this.vx + Math.sin(this.y * 0.01) * 0.18;
+        this.y += this.vy;
+
+        this.alpha += Math.sin(Date.now() * this.pulseSpeed) * 0.04;
+        if (this.alpha < 0.1) this.alpha = 0.1;
+        if (this.alpha > this.maxAlpha) this.alpha = this.maxAlpha;
+
+        if (this.y < -10 || this.x < -10 || this.x > width + 10) {
+          this.y = height + 10;
+          this.x = Math.random() * width;
+        }
+      };
+
+      Particle.prototype.draw = function() {
+        ctx.save();
+        ctx.globalAlpha = this.alpha;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.shadowBlur = 14;
+        ctx.shadowColor = this.color;
+        ctx.fill();
+        ctx.restore();
+      };
+
+      for (let i = 0; i < particleCount; i++) {
+        particles.push(new Particle());
+      }
+
+      function drawConnections() {
+        for (let i = 0; i < particles.length; i++) {
+          for (let j = i + 1; j < particles.length; j++) {
+            const dx = particles[i].x - particles[j].x;
+            const dy = particles[i].y - particles[j].y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist < 135) {
+              ctx.save();
+              ctx.globalAlpha = (1 - dist / 135) * 0.18;
+              ctx.beginPath();
+              ctx.moveTo(particles[i].x, particles[i].y);
+              ctx.lineTo(particles[j].x, particles[j].y);
+              ctx.strokeStyle = '#00f5d4';
+              ctx.lineWidth = 0.8;
+              ctx.stroke();
+              ctx.restore();
+            }
+          }
+        }
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, width, height);
+        for (let i = 0; i < particles.length; i++) {
+          particles[i].update();
+          particles[i].draw();
+        }
+        drawConnections();
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
+
+    /* ==========================================================================
+       2. MOTOR DE DESTELLOS Y ENERGÍA EN CANVAS NATIVO 1920x1080
+       ========================================================================== */
+    function initElectricCanvas() {
+      const canvas = document.getElementById('electric-canvas');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+
+      const width = canvas.width = 1920;
+      const height = canvas.height = 1080;
+      const bolts = [];
+      const sparks = [];
+
+      function createLightningPath(x1, y1, x2, y2, displacement) {
+        if (displacement < 4) {
+          return [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+        }
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        const normalX = -(y2 - y1);
+        const normalY = x2 - x1;
+        const len = Math.sqrt(normalX * normalX + normalY * normalY);
+        const offsetX = (Math.random() - 0.5) * displacement * (normalX / (len || 1));
+        const offsetY = (Math.random() - 0.5) * displacement * (normalY / (len || 1));
+
+        const path1 = createLightningPath(x1, y1, midX + offsetX, midY + offsetY, displacement / 2);
+        const path2 = createLightningPath(midX + offsetX, midY + offsetY, x2, y2, displacement / 2);
+        return path1.concat(path2.slice(1));
+      }
+
+      function LightningBolt(x1, y1, x2, y2) {
+        this.path = createLightningPath(x1, y1, x2, y2, 36);
+        this.life = 1.0;
+        this.decay = Math.random() * 0.14 + 0.08;
+        this.width = Math.random() * 1.6 + 1.0;
+      }
+
+      LightningBolt.prototype.draw = function() {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.life * 0.75;
+        ctx.beginPath();
+        ctx.moveTo(this.path[0].x, this.path[0].y);
+        for (let i = 1; i < this.path.length; i++) {
+          ctx.lineTo(this.path[i].x, this.path[i].y);
+        }
+        ctx.strokeStyle = '#00f5d4';
+        ctx.lineWidth = this.width + 1.8;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00f5d4';
+        ctx.stroke();
+
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = this.width * 0.7;
+        ctx.stroke();
+        ctx.restore();
+      };
+
+      LightningBolt.prototype.update = function() {
+        this.life -= this.decay;
+      };
+
+      function ElectricSpark(x, y) {
+        this.x = x;
+        this.y = y;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 4.5 + 1.5;
+        this.vx = Math.cos(angle) * speed;
+        this.vy = Math.sin(angle) * speed;
+        this.life = 1.0;
+        this.decay = Math.random() * 0.07 + 0.04;
+        this.size = Math.random() * 2.5 + 1;
+      }
+
+      ElectricSpark.prototype.update = function() {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.life -= this.decay;
+      };
+
+      ElectricSpark.prototype.draw = function() {
+        if (this.life <= 0) return;
+        ctx.save();
+        ctx.globalAlpha = this.life * 0.85;
+        ctx.fillStyle = '#00f5d4';
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#00f5d4';
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+
+      function spawnCornerEnergy() {
+        if (Math.random() > 0.35) return;
+        const p1 = { x: width * 0.74, y: 28 };
+        const p2 = { x: width * 0.94, y: 120 };
+        bolts.push(new LightningBolt(p1.x, p1.y, p2.x, p2.y));
+
+        const p3 = { x: width * 0.06, y: height - 120 };
+        const p4 = { x: width * 0.26, y: height - 28 };
+        bolts.push(new LightningBolt(p3.x, p3.y, p4.x, p4.y));
+
+        for (let i = 0; i < 4; i++) {
+          sparks.push(new ElectricSpark((p1.x + p2.x) / 2, (p1.y + p2.y) / 2));
+        }
+      }
+
+      let frameCount = 0;
+      function animateElectric() {
+        ctx.clearRect(0, 0, width, height);
+        frameCount++;
+
+        if (frameCount % 60 === 0) {
+          spawnCornerEnergy();
+        }
+
+        for (let i = bolts.length - 1; i >= 0; i--) {
+          bolts[i].update();
+          bolts[i].draw();
+          if (bolts[i].life <= 0) bolts.splice(i, 1);
+        }
+
+        for (let j = sparks.length - 1; j >= 0; j--) {
+          sparks[j].update();
+          sparks[j].draw();
+          if (sparks[j].life <= 0) sparks.splice(j, 1);
+        }
+
+        requestAnimationFrame(animateElectric);
+      }
+
+      animateElectric();
+    }
+
+    /* ==========================================================================
+       3. CONECTOR DE KICK CHAT EN VIVO (STREAMER.BOT WEBSOCKET)
+       ========================================================================== */
+    function initKickChat() {
+      const chatContainer = document.getElementById('chat-container');
+      if (!chatContainer) return;
+
+      const SERVER_IP = CONFIG.streamerBotIp || "127.0.0.1";
+      const SERVER_PORT = CONFIG.streamerBotPort || "4445";
+      const botsIgnorados = ['botrix', 'kickbot', 'nightbot', 'lobito_mensajero', 'jikobot'];
+
+      function conectarConStreamerBot() {
+        let ws;
+        try {
+          ws = new WebSocket("ws://" + SERVER_IP + ":" + SERVER_PORT + "/");
+        } catch (e) {
+          setTimeout(conectarConStreamerBot, 5000);
+          return;
+        }
+
+        ws.onopen = function() {
+          console.log(`✅ [Modo Chat] Conectado a Streamer.bot WebSocket (ws://${SERVER_IP}:${SERVER_PORT})`);
+          const payloadSuscripcion = {
+            "request": "Subscribe",
+            "id": "jikokun-glass-chat",
+            "events": {
+              "Kick": ["ChatMessage", "Message", "Follow"]
+            }
+          };
+          ws.send(JSON.stringify(payloadSuscripcion));
+        };
+
+        ws.onmessage = function(event) {
+          try {
+            const rawPayload = JSON.parse(event.data);
+            const payload = rawPayload.data || rawPayload;
+
+            const eventObj = rawPayload.event || payload.event || {};
+            const eventName = (
+              (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) ||
+              rawPayload.type || rawPayload.eventType || rawPayload.name ||
+              payload.type || payload.eventType || payload.name || ''
+            ).toString().toLowerCase();
+
+            const payloadText = JSON.stringify(payload).toLowerCase();
+            const isFollowEvent = eventName.includes('follow') || eventName.includes('follower') || payloadText.includes('followed');
+
+            if (isFollowEvent && !payload.message && !payload.text && !payload.messageText) {
+              showFollowAlert(payload);
+              return;
+            }
+
+            if (payload.message || rawPayload.message || payload.text || payload.messageText || payload.content) {
+              processMessage(payload);
+            }
+          } catch (error) {
+            console.error("Error procesando mensaje de Streamer.bot:", error);
+          }
+        };
+
+        ws.onclose = function() {
+          setTimeout(conectarConStreamerBot, 5000);
+        };
+      }
+
+      function processMessage(data) {
+        if (!data) return;
+
+        const messageObj = data.message || data;
+        const userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+
+        let usernameRaw = "Usuario";
+        if (typeof userObj === 'string') {
+          usernameRaw = userObj;
+        } else if (typeof userObj === 'object') {
+          usernameRaw = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.user_name || data.username || data.userName || "Usuario";
+        }
+        const usernameLower = usernameRaw.trim().toLowerCase();
+
+        if (botsIgnorados.indexOf(usernameLower) !== -1 || userObj.is_bot || data.is_bot) return;
+
+        let contentRaw = "";
+        if (typeof data.messageText === 'string') {
+          contentRaw = data.messageText;
+        } else if (typeof messageObj === 'string') {
+          contentRaw = messageObj;
+        } else if (typeof messageObj === 'object' && messageObj !== null) {
+          if (typeof messageObj.message === 'string') contentRaw = messageObj.message;
+          else if (typeof messageObj.text === 'string') contentRaw = messageObj.text;
+          else if (typeof messageObj.content === 'string') contentRaw = messageObj.content;
+        }
+        if (!contentRaw && typeof data.message === 'string') contentRaw = data.message;
+        if (!contentRaw && typeof data.text === 'string') contentRaw = data.text;
+        if (!contentRaw && typeof data.content === 'string') contentRaw = data.content;
+
+        if (!contentRaw || typeof contentRaw !== 'string') return;
+
+        let safeContent = escapeHTML(contentRaw);
+
+        // Renderizar Emotes de Kick [emote:id:nombre]
+        safeContent = safeContent.replace(/\[emote:(\d+):([^\]]+)\]/g, function(match, emoteId, emoteName) {
+          return '<img src="https://files.kick.com/emotes/' + emoteId + '/fullsize" alt="' + emoteName + '" class="kick-emote">';
+        });
+
+        let userColor = userObj.color || data.color || "#00f5d4";
+        if (userColor === '#000000' || userColor === '#FFFFFF') {
+          userColor = generarColorElegante(usernameLower);
+        }
+        const userColorDim = userColor + '40';
+
+        let badgesHtml = '';
+        const isBroadcaster = (usernameLower === (CONFIG.kickChannel || 'jikokun').toLowerCase()) || data.isBroadcaster || userObj.isBroadcaster || messageObj.isBroadcaster || data.isOwner || userObj.isOwner || false;
+        const isModerator = data.isModerator || userObj.isModerator || messageObj.isModerator || data.isMod || userObj.isMod || false;
+        const isSubscriber = data.isSubscriber || userObj.isSubscriber || messageObj.isSubscriber || data.isSub || userObj.isSub || false;
+        const isVip = data.isVip || userObj.isVip || messageObj.isVip || data.vip || userObj.vip || false;
+        const isOg = data.isOg || userObj.isOg || data.og || userObj.og || false;
+
+        if (isBroadcaster) badgesHtml += '<span class="badge streamer">👑</span>';
+        else if (isModerator) badgesHtml += '<span class="badge mod">🛡️</span>';
+        else if (isVip) badgesHtml += '<span class="badge vip">💎</span>';
+        if (isSubscriber && !isBroadcaster) badgesHtml += '<span class="badge sub">⭐</span>';
+        if (isOg && !isBroadcaster) badgesHtml += '<span class="badge og">🔥</span>';
+
+        const msgElement = document.createElement('div');
+        msgElement.className = 'glass-message';
+        msgElement.style.setProperty('--user-color', userColor);
+        msgElement.style.setProperty('--user-color-dim', userColorDim);
+
+        msgElement.innerHTML = 
+          '<div class="message-header" style="display: flex; align-items: center; margin-bottom: 4px;">' +
+            '<span class="badges" style="display: flex; align-items: center;">' + badgesHtml + '</span>' +
+            '<span class="username">' + escapeHTML(usernameRaw) + '</span>' +
+          '</div>' +
+          '<div class="content" style="word-break: break-word;">' + safeContent + '</div>';
+
+        chatContainer.appendChild(msgElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        setTimeout(function() {
+          msgElement.classList.add('evaporating');
+          setTimeout(function() {
+            if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
+          }, 700);
+        }, 30000);
+      }
+
+      function showFollowAlert(data) {
+        const uObj = data.user || {};
+        const username = uObj.username || uObj.name || uObj.displayName || data.username || data.name || data.displayName || data.user_name || data.userName || 'Nuevo seguidor';
+        const msgElement = document.createElement('div');
+        msgElement.className = 'glass-message follow-alert';
+        msgElement.innerHTML =
+          '<div class="message-header" style="display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">' +
+            '<span class="username" style="font-weight: 800; color: #ffd700; font-size: 15px; text-shadow: 0 0 12px rgba(255, 215, 0, 0.95);">✨ ' + escapeHTML(username) + ' ✨</span>' +
+          '</div>' +
+          '<div class="content" style="word-break: break-word; color: #fff8d2; text-align: center; font-weight: 700;">¡Gracias por seguir el canal!</div>';
+
+        chatContainer.appendChild(msgElement);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        setTimeout(function() {
+          msgElement.classList.add('evaporating');
+          setTimeout(function() {
+            if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
+          }, 700);
+        }, 8000);
+      }
+
+      function generarColorElegante(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+        const colores = ['#00f5d4', '#00e5ff', '#FF5E7E', '#FFD166', '#B185DB', '#38b6ff'];
+        return colores[Math.abs(hash) % colores.length];
+      }
+
+      function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, function(tag) {
+          const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+          return map[tag] || tag;
+        });
+      }
+
+      // Simulador de prueba: Usa Ctrl + Shift + C o llama simularMensajeKick() desde consola
+      let simCount = 0;
+      window.simularMensajeKick = function(texto, usuario) {
+        simCount++;
+        const demos = [
+          { name: "Jikokun", color: "#00f5d4", isMe: true, text: "¡Bienvenidos al nuevo Modo Chat Glass! ✨🌊" },
+          { name: "AquaViewer", color: "#00e5ff", isMe: false, text: "¡Qué limpio se ve el efecto cristal redondeado! 🔥" },
+          { name: "NeonRider", color: "#FFD166", isMe: false, text: "Las esquinas suaves y el brillo neón quedaron brutales 💎" },
+          { name: "KiraStream", color: "#FF5E7E", isMe: false, text: "¡Hola chat! Listos para el directo de hoy ⚡" }
+        ];
+        const item = demos[simCount % demos.length];
+        processMessage({
+          user: { username: usuario || item.name, isSubscriber: true, color: item.color },
+          messageText: texto || item.text,
+          isBroadcaster: item.isMe
+        });
+      };
+
+      window.addEventListener('keydown', function(e) {
+        if (e.ctrlKey && e.shiftKey && e.code === 'KeyC') {
+          window.simularMensajeKick();
+        }
+      });
+
+      conectarConStreamerBot();
+    }
+
+    /* ==========================================================================
+       4. WIDGET DE SPOTIFY DYNAMIC ISLAND (API PLAYER + VIBRANT.JS + BPM)
+       ========================================================================== */
+    function initSpotifyWidget() {
+      const wrapper = document.getElementById('spotify-wrapper');
+      const usuario = CONFIG.spotify.userId;
+      let access_token = CONFIG.spotify.initialAccessToken;
+      const refresh_token = CONFIG.spotify.refreshToken;
+
+      let lastSongId = "";
+      let isWidgetVisible = false;
+      let pauseTimeout = null;
+      let islandShrinkTimeout = null;
+      let currentTrackId = null;
+
+      function handlePause() {
+        document.documentElement.style.setProperty('--dynamic-color', '#00f5d4');
+        document.documentElement.style.setProperty('--dynamic-rgb', '0, 245, 212');
+        document.documentElement.style.setProperty('--stream-speed', '5.5s');
+        document.documentElement.style.setProperty('--beat-duration', '1.2s');
+        currentTrackId = null;
+
+        if (wrapper && !pauseTimeout && isWidgetVisible) {
+          pauseTimeout = setTimeout(function() {
+            wrapper.classList.add('hidden');
+            isWidgetVisible = false;
+          }, 10000);
+        }
+      }
+
+      function handlePlay(data) {
+        if (pauseTimeout) {
+          clearTimeout(pauseTimeout);
+          pauseTimeout = null;
+        }
+        if (wrapper && !isWidgetVisible) {
+          wrapper.classList.remove('hidden');
+          isWidgetVisible = true;
+        }
+
+        if (data && data.item && currentTrackId !== data.item.id) {
+          currentTrackId = data.item.id;
+          const songName = data.item.name || "";
+          const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "";
+          const albumCoverUrl = (data.item.album && data.item.album.images && data.item.album.images[0]) ? data.item.album.images[0].url : "";
+          if (albumCoverUrl) applyDynamicColors(albumCoverUrl);
+          syncTrackRhythm(data.item.id, songName, artistName);
+        }
+      }
+
+      async function syncTrackRhythm(songId, songName, artistName) {
+        let bpm = 120;
+        let apiSuccess = false;
+
+        if (songId) {
+          try {
+            const res = await fetch('https://api.spotify.com/v1/audio-features/' + songId, {
+              headers: { 'Authorization': 'Bearer ' + access_token }
+            });
+            if (res.status === 200) {
+              const features = await res.json();
+              if (features && features.tempo && features.tempo > 0) {
+                bpm = Math.round(features.tempo);
+                apiSuccess = true;
+              }
+            }
+          } catch (e) {}
+        }
+
+        if (!apiSuccess && (songName || artistName)) {
+          bpm = estimarBPMAcustico(songName || "", artistName || "");
+        }
+
+        const beatSeconds = 60 / bpm;
+        let beatMultiplier = 3.5;
+        let pulseMultiplier = 1.0;
+
+        if (bpm >= 155) {
+          beatMultiplier = 1.8;
+          pulseMultiplier = 0.5;
+        } else if (bpm >= 125) {
+          beatMultiplier = 2.4;
+          pulseMultiplier = 1.0;
+        } else if (bpm >= 95) {
+          beatMultiplier = 3.4;
+          pulseMultiplier = 1.0;
+        } else {
+          beatMultiplier = 4.8;
+          pulseMultiplier = 1.0;
+        }
+
+        const streamSpeed = (beatSeconds * beatMultiplier).toFixed(3);
+        const beatDuration = (beatSeconds * pulseMultiplier).toFixed(3);
+
+        document.documentElement.style.setProperty('--stream-speed', streamSpeed + 's');
+        document.documentElement.style.setProperty('--beat-duration', beatDuration + 's');
+
+        const bpmEl = document.getElementById('spotify-bpm');
+        if (bpmEl) bpmEl.textContent = bpm + ' BPM';
+      }
+
+      function estimarBPMAcustico(songName, artistName) {
+        const text = (songName + " " + artistName).toLowerCase();
+        if (/(ballad|balada|slow|lenta|acoustic|acustico|chill|lofi|lo-fi|piano|sad|triste|love|soft|unplugged|quiet|sleep|ambient|night)/i.test(text)) {
+          return 76;
+        }
+        if (/(metal|power|speed|thrash|dnb|drum|hard|fast|rapido|solo|heavy|rock|electro|edm|remix|dance|punk|fire|lightning|storm)/i.test(text)) {
+          return 168;
+        }
+        let hash = 0;
+        for (let i = 0; i < text.length; i++) hash = text.charCodeAt(i) + ((hash << 5) - hash);
+        return 85 + (Math.abs(hash) % 60);
+      }
+
+      function triggerIslandAnimation() {
+        const island = document.getElementById('spotify-island');
+        if (!island) return;
+        island.classList.remove('closed');
+        island.classList.add('expanding');
+        setTimeout(function() { island.classList.remove('expanding'); }, 650);
+
+        if (islandShrinkTimeout) clearTimeout(islandShrinkTimeout);
+        islandShrinkTimeout = setTimeout(function() {
+          island.classList.add('closed');
+        }, 8000);
+      }
+
+      function applyDynamicColors(imageUrl) {
+        if (typeof Vibrant === 'undefined') return;
+        Vibrant.from(imageUrl).getPalette().then(function(palette) {
+          const colorHex = palette.Vibrant ? palette.Vibrant.getHex() : '#00f5d4';
+          document.documentElement.style.setProperty('--dynamic-color', colorHex);
+
+          const r = parseInt(colorHex.slice(1, 3), 16),
+                g = parseInt(colorHex.slice(3, 5), 16),
+                b = parseInt(colorHex.slice(5, 7), 16);
+          document.documentElement.style.setProperty('--dynamic-rgb', r + ', ' + g + ', ' + b);
+        }).catch(function() {
+          document.documentElement.style.setProperty('--dynamic-color', '#00f5d4');
+          document.documentElement.style.setProperty('--dynamic-rgb', '0, 245, 212');
+        });
+      }
+
+      async function checkSpotifyPlayer() {
+        try {
+          const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
+            headers: { 'Authorization': 'Bearer ' + access_token }
+          });
+
+          if (res.status === 401) {
+            await refreshSpotifyToken();
+            return;
+          }
+
+          if (res.status === 204) {
+            handlePause();
+            return;
+          }
+
+          if (res.status === 200) {
+            const data = await res.json();
+            if (!data.is_playing) {
+              handlePause();
+            } else {
+              handlePlay(data);
+              if (data.item && data.item.id !== lastSongId) {
+                lastSongId = data.item.id;
+                const songName = data.item.name || "Desconocido";
+                const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "Artista";
+                const albumCoverUrl = (data.item.album && data.item.album.images && data.item.album.images[0]) ? data.item.album.images[0].url : "";
+
+                const songEl = document.getElementById('spotify-song-name');
+                const artistEl = document.getElementById('spotify-artist-name');
+                const coverEl = document.getElementById('albumCover');
+
+                if (songEl) songEl.textContent = songName;
+                if (artistEl) artistEl.textContent = artistName;
+                if (coverEl && albumCoverUrl) coverEl.src = albumCoverUrl;
+
+                if (albumCoverUrl) applyDynamicColors(albumCoverUrl);
+                syncTrackRhythm(data.item.id, songName, artistName);
+                triggerIslandAnimation();
+              }
+            }
+          }
+        } catch (e) {}
+      }
+
+      async function refreshSpotifyToken() {
+        try {
+          const res = await fetch(CONFIG.spotify.refreshTokenUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'user_id=' + encodeURIComponent(usuario) + '&refresh_token=' + encodeURIComponent(refresh_token)
+          });
+          const newToken = await res.text();
+          if (newToken && !newToken.includes("<")) {
+            access_token = newToken;
+            checkSpotifyPlayer();
+          }
+        } catch (error) {}
+      }
+
+      checkSpotifyPlayer();
+      setInterval(checkSpotifyPlayer, 3000);
+    }
+  </script>
+</body>
+</html>
