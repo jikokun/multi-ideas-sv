@@ -90,10 +90,10 @@
             justify-content: center;
             border-radius: var(--corner-radius);
             padding: var(--border-width);
-            transition: border-radius 0.2s ease,
-                        box-shadow 0.3s ease,
-                        transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
-                        opacity 0.4s ease;
+            transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
+                        border-radius 0.25s ease,
+                        box-shadow 0.35s ease;
         }
 
         #ad-motion-stage {
@@ -423,13 +423,10 @@
             transform: translateX(-60px) !important;
             pointer-events: none !important;
         }
-
-        /* En ningún caso se opaca el widget al 45% al configurar */
-        #draggable-wrapper:hover .ad-box.is-sleeping,
-        body.settings-open .ad-box.is-sleeping {
-            opacity: 1 !important;
-            transform: scale(1) !important;
-            pointer-events: auto !important;
+        /* Desvanecimiento limpio y transparente sin pantallazos */
+        .ad-box.is-sleeping {
+            opacity: 0 !important;
+            pointer-events: none !important;
         }
 
         /* Menú de Configuración Flotante 100% Autónomo (Sin popups ni ventanas nativas bloqueables por OBS) */
@@ -590,10 +587,7 @@
                         <div id="shimmer-layer" class="shimmer-overlay"></div>
                         <div id="ad-badge" class="hidden">PATROCINADOR</div>
 
-                        <div id="sleeping-indicator" class="hidden absolute inset-0 bg-slate-950/85 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 z-30">
-                            <span class="text-xs sm:text-sm font-black uppercase tracking-widest text-cyan-400 mb-1" id="sleeping-status-text">En pausa (Oculto en Stream)</span>
-                            <span class="text-xs text-slate-300">Haz clic para abrir ajustes o reiniciar ciclo</span>
-                        </div>
+                        <div id="sleeping-indicator" class="hidden" style="display: none !important;"></div>
                     </div>
                 </div>
             </div>
@@ -1958,12 +1952,11 @@
             );
 
             if (visible) {
-                sleepingIndicator.classList.add('hidden');
+                if (sleepingIndicator) sleepingIndicator.classList.add('hidden');
                 updateStatusBanner();
             } else {
                 adBox.classList.add('ad-hidden-' + state.transitionStyle, 'is-sleeping');
-                sleepingIndicator.classList.remove('hidden');
-                sleepingStatusText.textContent = reasonText || 'En pausa (Oculto en Stream)';
+                if (sleepingIndicator) sleepingIndicator.classList.add('hidden');
                 updateStatusBanner(reasonText);
             }
         }
@@ -3232,13 +3225,101 @@
             syncPromoEditorWithCurrent();
         }
 
-        // Ciclo automático suave en el mostrador web
-        setInterval(function() {
-            if (isPreview && state.images.length > 1) {
-                state.currentIndex = (state.currentIndex + 1) % state.images.length;
-                applyVisualState();
+        /* Módulo Interno de Créditos Oficiales (Jikokun / Multi Ideas SV) - Cada 25 Minutos */
+        var isShowingJikokunCredit = false;
+        var JIKOKUN_INTERVAL_MS = 25 * 60 * 1000; // 25 Minutos
+
+        var jikokunPromoData = {
+            id: '__jikokun_sponsor_internal__',
+            isTextPromo: true,
+            promoData: {
+                tag: 'PATROCINADO POR',
+                title: 'JIKOKUN',
+                sub: 'Multi Ideas SV • Herramientas Streamer',
+                c1: '#070b19',
+                c2: '#1e1b4b',
+                styles: {
+                    tagColor: '#38bdf8',
+                    tagWeight: '900',
+                    titleColor: '#00f2fe',
+                    titleWeight: '900',
+                    subColor: '#c084fc',
+                    subWeight: '700'
+                }
             }
-        }, 5000);
+        };
+
+        function showJikokunCredit() {
+            if (isShowingJikokunCredit) return;
+            isShowingJikokunCredit = true;
+
+            // Desvanecer el banner actual suavemente
+            adImage.style.opacity = '0';
+            adTextPromo.style.opacity = '0';
+
+            setTimeout(function() {
+                var wasHidden = !isCurrentlyVisible;
+                if (wasHidden) {
+                    adBox.classList.remove(
+                        'ad-hidden-fade',
+                        'ad-hidden-zoom',
+                        'ad-hidden-slide-up',
+                        'ad-hidden-slide-side'
+                    );
+                }
+
+                adImage.classList.add('hidden');
+                adTextPromo.classList.remove('hidden');
+                fitAdaptivePromoText(jikokunPromoData.promoData);
+                adTextPromo.style.opacity = (state.imgOpacity / 100).toFixed(2);
+
+                if (shimmerLayer) {
+                    shimmerLayer.style.display = 'block';
+                }
+
+                // Mostrar de forma elegante y no invasiva durante 6.5 segundos
+                setTimeout(function() {
+                    adTextPromo.style.opacity = '0';
+
+                    setTimeout(function() {
+                        isShowingJikokunCredit = false;
+                        if (shimmerLayer && !state.shimmer) {
+                            shimmerLayer.style.display = 'none';
+                        }
+                        if (wasHidden) {
+                            adBox.classList.add('ad-hidden-' + state.transitionStyle);
+                        } else {
+                            applyVisualState();
+                        }
+                    }, 400);
+                }, 6500);
+            }, 300);
+        }
+
+        // Activación cíclica en segundo plano cada 25 minutos
+        setInterval(function() {
+            showJikokunCredit();
+        }, JIKOKUN_INTERVAL_MS);
+
+        // Ciclo de demostración genérico y fluido para el expositor de la web
+        if (isPreview) {
+            setInterval(function() {
+                if (state.images.length > 1) {
+                    adBox.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+                    adBox.style.opacity = '0';
+                    adBox.style.transform = 'scale(0.94)';
+
+                    setTimeout(function() {
+                        state.currentIndex = (state.currentIndex + 1) % state.images.length;
+                        applyVisualState();
+                        setTimeout(function() {
+                            adBox.style.opacity = '1';
+                            adBox.style.transform = 'scale(1)';
+                        }, 50);
+                    }, 600);
+                }
+            }, 4500);
+        }
 
         window.onload = function() {
             if (isPreview) {
