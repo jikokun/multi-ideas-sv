@@ -6,14 +6,14 @@
     <title>OBS Ad & Image Showcase Widget | Multi Ideas Sv</title>
     <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=JetBrains+Mono:wght@300;600;800&family=Orbitron:wght@400;700;900&family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=JetBrains+Mono:wght@400;600;800&family=Orbitron:wght@600;800;900&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
         :root {
             --glow-color: #00f2fe;
             --glow-color-2: #4facfe;
             --glow-intensity: 25px;
-            --border-width: 3px;
+            --border-width: 4px;
             --corner-radius: 24px;
             --img-opacity: 1;
             --bg-opacity: 0.4;
@@ -41,6 +41,11 @@
             font-family: 'Plus Jakarta Sans', sans-serif;
         }
 
+        /* En modo previsualización (iframe / galería / modal), fondo sutil para que el resplandor neón se aprecie */
+        body.is-preview-mode {
+            background: radial-gradient(circle at 50% 50%, #0d1e38 0%, #020713 100%) !important;
+        }
+
         #obs-canvas {
             position: relative;
             width: 100vw;
@@ -66,15 +71,15 @@
 
         .corner-resize-zone {
             position: absolute;
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             z-index: 60;
             background: transparent;
         }
-        .corner-tl { top: -12px; left: -12px; cursor: nwse-resize; }
-        .corner-tr { top: -12px; right: -12px; cursor: nesw-resize; }
-        .corner-bl { bottom: -12px; left: -12px; cursor: nesw-resize; }
-        .corner-br { bottom: -12px; right: -12px; cursor: nwse-resize; }
+        .corner-tl { top: -14px; left: -14px; cursor: nwse-resize; }
+        .corner-tr { top: -14px; right: -14px; cursor: nesw-resize; }
+        .corner-bl { bottom: -14px; left: -14px; cursor: nesw-resize; }
+        .corner-br { bottom: -14px; right: -14px; cursor: nwse-resize; }
 
         .ad-box {
             position: relative;
@@ -99,6 +104,7 @@
             perspective: 900px;
         }
 
+        /* Animaciones de movimiento */
         .motion-float {
             animation: animFloat var(--motion-speed) ease-in-out infinite;
         }
@@ -158,58 +164,7 @@
             75% { transform: perspective(800px) rotateY(calc(-16deg * var(--motion-amp))) rotateX(calc(8deg * var(--motion-amp))); }
         }
 
-        .flicker-neon {
-            animation: animNeonFlicker var(--flicker-speed) infinite;
-        }
-        @keyframes animNeonFlicker {
-            0%, 18%, 22%, 25%, 53%, 57%, 100% {
-                opacity: 1;
-                filter: brightness(1) drop-shadow(0 0 0px transparent);
-            }
-            20%, 24%, 55% {
-                opacity: calc(1 - (0.75 * var(--flicker-amp)));
-                filter: brightness(calc(1 - 0.5 * var(--flicker-amp)));
-            }
-            21%, 54% {
-                opacity: 1;
-                filter: brightness(calc(1 + 0.45 * var(--flicker-amp)));
-            }
-        }
-
-        .flicker-blink {
-            animation: animSoftBlink var(--flicker-speed) ease-in-out infinite;
-        }
-        @keyframes animSoftBlink {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: calc(1 - (0.85 * var(--flicker-amp))); }
-        }
-
-        .flicker-flash {
-            animation: animFlashBurst var(--flicker-speed) ease-out infinite;
-        }
-        @keyframes animFlashBurst {
-            0%, 70%, 100% {
-                filter: brightness(1) contrast(1);
-            }
-            82% {
-                filter: brightness(calc(1 + 1.15 * var(--flicker-amp))) contrast(calc(1 + 0.25 * var(--flicker-amp))) drop-shadow(0 0 calc(22px * var(--flicker-amp)) var(--glow-color));
-            }
-            88% {
-                filter: brightness(1);
-            }
-            94% {
-                filter: brightness(calc(1 + 0.75 * var(--flicker-amp))) drop-shadow(0 0 calc(14px * var(--flicker-amp)) #ffffff);
-            }
-        }
-
-        .flicker-chroma {
-            animation: animChromaPulse var(--flicker-speed) ease-in-out infinite;
-        }
-        @keyframes animChromaPulse {
-            0%, 100% { filter: hue-rotate(0deg) saturate(1); }
-            50% { filter: hue-rotate(calc(140deg * var(--flicker-amp))) saturate(calc(1 + 0.8 * var(--flicker-amp))); }
-        }
-
+        /* Resplandores y Efectos Neón */
         .glow-enabled {
             box-shadow: 0 0 var(--glow-intensity) var(--glow-color),
                         0 0 calc(var(--glow-intensity) * 1.8) color-mix(in srgb, var(--glow-color) 45%, transparent),
@@ -347,39 +302,24 @@
             bottom: 10px;
             right: 12px;
             z-index: 10;
-            padding: 4px 10px;
+            padding: 4px 12px;
             border-radius: 999px;
             font-size: 11px;
             font-weight: 800;
-            letter-spacing: 0.06em;
+            letter-spacing: 0.08em;
             text-transform: uppercase;
-            background: rgba(10, 14, 26, 0.78);
+            background: rgba(10, 14, 26, 0.85);
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(8px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             pointer-events: none;
         }
 
-        .ad-hidden-fade {
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-        .ad-hidden-zoom {
-            opacity: 0 !important;
-            transform: scale(0.75) !important;
-            pointer-events: none !important;
-        }
-        .ad-hidden-slide-up {
-            opacity: 0 !important;
-            transform: translateY(45px) !important;
-            pointer-events: none !important;
-        }
-        .ad-hidden-slide-side {
-            opacity: 0 !important;
-            transform: translateX(-60px) !important;
-            pointer-events: none !important;
-        }
+        .ad-hidden-fade { opacity: 0 !important; pointer-events: none !important; }
+        .ad-hidden-zoom { opacity: 0 !important; transform: scale(0.75) !important; pointer-events: none !important; }
+        .ad-hidden-slide-up { opacity: 0 !important; transform: translateY(45px) !important; pointer-events: none !important; }
+        .ad-hidden-slide-side { opacity: 0 !important; transform: translateX(-60px) !important; pointer-events: none !important; }
 
         #sleeping-indicator {
             opacity: 0 !important;
@@ -400,23 +340,24 @@
             pointer-events: auto !important;
         }
 
+        /* Menú de Configuración Flotante (Con texto más grande y legible) */
         .settings-modal {
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%) scale(0.95);
             transform-origin: center center;
-            width: 490px;
+            width: 520px;
             max-width: 95vw;
             max-height: 90vh;
             overflow-y: auto;
-            background: rgba(11, 15, 27, 0.96);
+            background: rgba(11, 15, 27, 0.97);
             backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 22px;
-            padding: 18px;
+            border: 1.5px solid rgba(255, 255, 255, 0.16);
+            border-radius: 24px;
+            padding: 20px;
             color: #f8fafc;
-            box-shadow: 0 28px 65px -12px rgba(0, 0, 0, 0.9);
+            box-shadow: 0 28px 65px -12px rgba(0, 0, 0, 0.95);
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1);
@@ -443,8 +384,8 @@
 
         .modal-corner-resize {
             position: absolute;
-            width: 22px;
-            height: 22px;
+            width: 24px;
+            height: 24px;
             z-index: 220;
             background: transparent;
         }
@@ -453,98 +394,90 @@
         .modal-corner-bl { bottom: 0; left: 0; cursor: nesw-resize; }
         .modal-corner-br { bottom: 0; right: 0; cursor: nwse-resize; }
 
-        .settings-modal::-webkit-scrollbar {
-            width: 6px;
-        }
-        .settings-modal::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 99px;
-        }
-
-        input[type="range"] {
-            -webkit-appearance: none;
-            appearance: none;
-            height: 6px;
-            background: rgba(255, 255, 255, 0.14);
-            border-radius: 999px;
-            outline: none;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: var(--glow-color);
-            cursor: pointer;
-            border: 2px solid #ffffff;
-            box-shadow: 0 0 8px var(--glow-color);
-        }
-
         .tab-btn.active {
-            background: rgba(56, 189, 248, 0.2);
-            border-color: rgba(56, 189, 248, 0.6);
-            color: #38bdf8;
-        }
-
-        .preset-shape-btn.active {
-            background: rgba(56, 189, 248, 0.22);
-            border-color: #38bdf8;
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.35) 0%, rgba(59, 130, 246, 0.35) 100%);
+            border-color: rgba(34, 211, 238, 0.6);
             color: #ffffff;
-            box-shadow: 0 0 12px rgba(56, 189, 248, 0.25);
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.3);
         }
 
-        /* Toast Notificaciones */
+        .gallery-item {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            background: #020617;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .gallery-item.active {
+            border-color: #22d3ee;
+            box-shadow: 0 0 15px rgba(34, 211, 238, 0.5);
+        }
+
+        .gallery-item .btn-del-img {
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .gallery-item:hover .btn-del-img {
+            opacity: 1;
+        }
+
+        /* Notificación Toast */
         #widget-toast {
             position: fixed;
             bottom: 24px;
             left: 50%;
             transform: translateX(-50%) translateY(30px);
             background: rgba(15, 23, 42, 0.95);
-            border: 1px solid rgba(56, 189, 248, 0.4);
-            color: #ffffff;
+            border: 1px solid rgba(34, 211, 238, 0.5);
+            color: #38bdf8;
             padding: 8px 18px;
             border-radius: 999px;
-            font-size: 11px;
+            font-size: 13px;
             font-weight: 700;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
             opacity: 0;
             pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            z-index: 999;
-            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            z-index: 300;
         }
         #widget-toast.show {
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+
+        input[type="range"] {
+            accent-color: #22d3ee;
+        }
     </style>
 </head>
 <body>
-
     <div id="obs-canvas">
+        <div id="widget-toast">Ajuste guardado</div>
 
-        <div id="draggable-wrapper" title="Clic para configurar • Arrastra para mover • Esquinas para estirar">
-            <div class="corner-resize-zone corner-tl" data-corner="tl"></div>
-            <div class="corner-resize-zone corner-tr" data-corner="tr"></div>
-            <div class="corner-resize-zone corner-bl" data-corner="bl"></div>
-            <div class="corner-resize-zone corner-br" data-corner="br"></div>
+        <!-- Contenedor Arrastrable del Banner -->
+        <div id="draggable-wrapper">
+            <!-- Esquinas invisibles para redimensionar en OBS -->
+            <div class="corner-resize-zone corner-tl" data-corner="tl" title="Arrastra para redimensionar"></div>
+            <div class="corner-resize-zone corner-tr" data-corner="tr" title="Arrastra para redimensionar"></div>
+            <div class="corner-resize-zone corner-bl" data-corner="bl" title="Arrastra para redimensionar"></div>
+            <div class="corner-resize-zone corner-br" data-corner="br" title="Arrastra para redimensionar"></div>
 
-            <div id="ad-motion-stage" class="motion-float">
-                <div id="ad-box" class="ad-box border-spin glow-enabled" style="width: 480px; height: 270px;">
-                    <div class="border-effect-layer"></div>
+            <div id="ad-box" class="ad-box border-spin glow-enabled glow-pulse" title="Haz clic para abrir los ajustes en OBS">
+                <div class="border-effect-layer"></div>
 
-                    <div class="ad-inner-viewport">
-                        <img id="ad-image" src="" alt="Publicidad" class="object-cover" />
+                <div class="ad-inner-viewport">
+                    <div id="ad-motion-stage" class="motion-float">
+                        <img id="ad-image" src="" alt="Banner Publicitario" class="object-cover hidden"/>
 
-                        <div id="ad-text-promo" class="hidden absolute inset-0 w-full h-full flex flex-col items-center justify-center text-center select-none pointer-events-none overflow-hidden transition-opacity duration-300">
-                            <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(circle at 50% 20%, rgba(255,255,255,0.45), transparent 70%), linear-gradient(rgba(255,255,255,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.08) 1px, transparent 1px); background-size: 100% 100%, 28px 28px, 28px 28px;"></div>
-                            
-                            <div id="ad-text-inner" class="relative z-10 w-full h-full flex flex-col items-center justify-center text-center box-border overflow-hidden">
-                                <div id="promo-render-tag" class="hidden mb-1.5 px-3 py-0.5 rounded-full border uppercase tracking-widest leading-tight max-w-full break-words shrink-0"></div>
-                                <div id="promo-render-title" class="max-w-full break-words leading-tight tracking-tight drop-shadow-[0_2px_10px_rgba(0,0,0,0.45)]"></div>
-                                <div id="promo-render-sub" class="max-w-full break-words leading-snug mt-1 opacity-95 drop-shadow-[0_1px_6px_rgba(0,0,0,0.4)]"></div>
-                                <div id="promo-render-bar" class="mt-2.5 rounded-full opacity-50 shrink-0"></div>
+                        <!-- Renderizador de Promo de Texto -->
+                        <div id="ad-text-promo" class="w-full h-full flex flex-col justify-center items-center text-center relative overflow-hidden">
+                            <div id="ad-text-inner" class="flex flex-col items-center justify-center w-full h-full">
+                                <span id="promo-render-tag" class="uppercase tracking-widest font-black rounded-full border border-cyan-400 mb-1.5 px-3 py-0.5 text-xs">DESTACADO</span>
+                                <h2 id="promo-render-title" class="font-black text-white leading-tight drop-shadow-md text-2xl">¡SÍGUENOS EN VIVO!</h2>
+                                <p id="promo-render-sub" class="text-slate-200 font-semibold opacity-90 mt-1 text-sm">Haz clic aquí para personalizar en OBS</p>
+                                <div id="promo-render-bar" class="w-16 h-1 rounded-full bg-cyan-400 mt-2 opacity-80"></div>
                             </div>
                         </div>
 
@@ -552,614 +485,255 @@
                         <div id="ad-badge" class="hidden">PATROCINADOR</div>
 
                         <div id="sleeping-indicator" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 z-30">
-                            <span class="text-xs font-bold uppercase tracking-widest text-cyan-400 mb-1" id="sleeping-status-text">En pausa (Oculto en Stream)</span>
-                            <span class="text-[11px] text-slate-300">Haz clic para abrir ajustes o reiniciar ciclo</span>
+                            <span class="text-sm font-extrabold uppercase tracking-widest text-cyan-400 mb-1" id="sleeping-status-text">En pausa (Oculto en Stream)</span>
+                            <span class="text-xs text-slate-300">Haz clic para abrir ajustes o reiniciar ciclo</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
+        <!-- Menú de Personalización Flotante para OBS -->
         <div id="settings-modal" class="settings-modal" onclick="event.stopPropagation()">
-            <div class="modal-corner-resize modal-corner-tl" data-mcorner="tl" title="Arrastra para ampliar o reducir este menú"></div>
-            <div class="modal-corner-resize modal-corner-tr" data-mcorner="tr" title="Arrastra para ampliar o reducir este menú"></div>
-            <div class="modal-corner-resize modal-corner-bl" data-mcorner="bl" title="Arrastra para ampliar o reducir este menú"></div>
-            <div class="modal-corner-resize modal-corner-br" data-mcorner="br" title="Arrastra para ampliar o reducir este menú"></div>
+            <div class="modal-corner-resize modal-corner-tl" data-mcorner="tl"></div>
+            <div class="modal-corner-resize modal-corner-tr" data-mcorner="tr"></div>
+            <div class="modal-corner-resize modal-corner-bl" data-mcorner="bl"></div>
+            <div class="modal-corner-resize modal-corner-br" data-mcorner="br"></div>
 
-            <div id="modal-drag-header" class="flex items-center justify-between border-b border-white/10 pb-3 mb-3" title="Arrastra desde aquí para mover este panel">
+            <!-- Cabecera del Panel -->
+            <div id="modal-drag-header" class="flex items-center justify-between border-b border-white/10 pb-3 mb-3.5" title="Arrastra desde aquí para mover este menú">
                 <div class="flex items-center gap-2.5 pointer-events-none">
-                    <span class="w-3 h-3 rounded-full bg-cyan-400 shadow-[0_0_10px_#22d3ee]"></span>
+                    <span class="w-3.5 h-3.5 rounded-full bg-cyan-400 shadow-[0_0_12px_#22d3ee]"></span>
                     <div>
-                        <h3 class="text-xs font-extrabold uppercase tracking-wider text-white flex items-center gap-1.5">
+                        <h3 class="text-sm font-black uppercase tracking-wider text-white flex items-center gap-2">
                             Widget Publicitario OBS
-                            <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-white/10 text-slate-300">✥ Mover</span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded bg-white/10 text-slate-300">✥ Mover</span>
                         </h3>
-                        <p class="text-[10px] text-slate-400" id="cycle-live-status">Estado: Visible en pantalla</p>
+                        <p class="text-xs text-slate-400" id="cycle-live-status">Estado: Visible en pantalla</p>
                     </div>
                 </div>
-                <div class="flex items-center gap-1" onmousedown="event.stopPropagation()">
-                    <div class="flex items-center bg-slate-900 border border-white/10 rounded-lg px-1 py-0.5 mr-0.5" title="Tamaño del menú de configuración">
-                        <button id="btn-modal-zoom-out" type="button" class="px-1.5 text-xs font-bold text-slate-300 hover:text-cyan-400 transition">−</button>
-                        <span id="label-modal-scale" class="text-[9px] font-bold text-cyan-300 px-1">100%</span>
-                        <button id="btn-modal-zoom-in" type="button" class="px-1.5 text-xs font-bold text-slate-300 hover:text-cyan-400 transition">+</button>
-                    </div>
-                    <button id="btn-copy-obs-url" class="px-2 py-1 rounded-lg bg-sky-500/20 hover:bg-sky-500/30 text-sky-300 border border-sky-500/40 text-[10px] font-bold transition flex items-center gap-1" title="Copiar enlace directo para OBS Studio">
-                        <i class="fa-solid fa-link"></i> OBS
-                    </button>
-                    <button id="btn-force-show" class="px-2 py-1 rounded-lg bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold transition" title="Reiniciar y mostrar inmediatamente">
+                <div class="flex items-center gap-1.5" onmousedown="event.stopPropagation()">
+                    <button id="btn-force-show" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 text-xs font-bold transition" title="Reiniciar y mostrar inmediatamente">
                         ↻ Reiniciar
                     </button>
-                    <button id="btn-center-pos" class="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-[10px] font-semibold transition" title="Centrar en el lienzo">
+                    <button id="btn-center-pos" class="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10 text-xs font-semibold transition" title="Centrar en el lienzo">
                         Centrar
                     </button>
-                    <button id="btn-close-modal" class="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                    <button id="btn-close-modal" class="text-slate-400 hover:text-white p-1.5 rounded-xl hover:bg-white/10 transition" title="Cerrar menú">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
                 </div>
             </div>
 
-            <div class="grid grid-cols-5 gap-1 mb-4 bg-slate-900/90 p-1 rounded-xl border border-white/10">
-                <button class="tab-btn active py-1.5 px-1.5 rounded-lg text-[10px] font-bold text-slate-300 border border-transparent transition" data-tab="tab-images">
+            <!-- Botones de Pestañas con Texto Ampliado -->
+            <div class="grid grid-cols-5 gap-1.5 mb-4 bg-slate-900/90 p-1.5 rounded-xl border border-white/10">
+                <button class="tab-btn active py-2 px-1 rounded-lg text-xs font-black text-slate-300 border border-transparent transition" data-tab="tab-images">
                     🖼️ Imagen
                 </button>
-                <button class="tab-btn py-1.5 px-1.5 rounded-lg text-[10px] font-bold text-slate-300 border border-transparent transition" data-tab="tab-shape">
+                <button class="tab-btn py-2 px-1 rounded-lg text-xs font-black text-slate-300 border border-transparent transition" data-tab="tab-shape">
                     📐 Forma
                 </button>
-                <button class="tab-btn py-1.5 px-1.5 rounded-lg text-[10px] font-bold text-slate-300 border border-transparent transition" data-tab="tab-timing">
+                <button class="tab-btn py-2 px-1 rounded-lg text-xs font-black text-slate-300 border border-transparent transition" data-tab="tab-timing">
                     ⏱️ Tiempos
                 </button>
-                <button class="tab-btn py-1.5 px-1.5 rounded-lg text-[10px] font-bold text-slate-300 border border-transparent transition" data-tab="tab-motion">
+                <button class="tab-btn py-2 px-1 rounded-lg text-xs font-black text-slate-300 border border-transparent transition" data-tab="tab-motion">
                     💫 Movim.
                 </button>
-                <button class="tab-btn py-1.5 px-1.5 rounded-lg text-[10px] font-bold text-slate-300 border border-transparent transition" data-tab="tab-effects">
+                <button class="tab-btn py-2 px-1 rounded-lg text-xs font-black text-slate-300 border border-transparent transition" data-tab="tab-effects">
                     ✨ Marco
                 </button>
             </div>
 
-            <div id="tab-images" class="tab-content space-y-3.5">
-                <!-- Autenticación Google / Firebase para Subida y Registro en Nube -->
-                <div id="sponsor-auth-section" class="mb-3">
-                    <!-- Estado 1: No autenticado -->
-                    <div id="sponsor-auth-logged-out" class="p-3 rounded-2xl bg-gradient-to-r from-slate-900 via-sky-950/70 to-slate-900 border border-cyan-500/30 text-center shadow-lg">
-                        <div class="flex items-center justify-center gap-2 mb-1">
-                            <i class="fa-brands fa-google text-cyan-400 text-sm"></i>
-                            <span class="text-xs font-extrabold text-white uppercase tracking-wider">Inicia Sesión con Google</span>
-                        </div>
-                        <p class="text-[11px] text-slate-300 leading-snug mb-2.5">
-                            Requerido para subir y guardar imágenes en tu cuenta, acceder a ellas desde cualquier dispositivo, usarlas en OBS y eliminarlas cuando desees.
-                        </p>
-                        <button id="btn-sponsor-login-google" type="button" class="px-3.5 py-1.5 bg-white hover:bg-slate-100 text-slate-950 font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-2 mx-auto active:scale-95">
-                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-4 h-4"/>
-                            <span>Conectar con Google</span>
-                        </button>
-                    </div>
-
-                    <!-- Estado 2: Autenticado -->
-                    <div id="sponsor-auth-logged-in" class="hidden p-2.5 rounded-2xl bg-slate-900/90 border border-cyan-500/35 shadow-lg flex items-center justify-between">
-                        <div class="flex items-center gap-2.5">
-                            <img id="sponsor-auth-avatar" class="w-8 h-8 rounded-full border-2 border-cyan-400 object-cover" src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Avatar"/>
-                            <div class="leading-tight">
-                                <span id="sponsor-auth-name" class="text-xs font-bold text-white block">Usuario Conectado</span>
-                                <span id="sponsor-auth-email" class="text-[10px] text-cyan-300/80 block">email@gmail.com</span>
-                            </div>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2 py-0.5 rounded-full flex items-center gap-1" title="Sincronizado en tiempo real con Firebase RTDB">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> Nube
-                            </span>
-                            <button id="btn-sponsor-logout" type="button" class="text-[10px] font-semibold text-rose-300 hover:text-white bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 px-2 py-1 rounded-lg transition" title="Cerrar sesión">
-                                Salir
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Subir imagen a Google Drive CDN (PNG, JPG, GIF, WEBP)</label>
-                        <span class="text-[9px] text-emerald-400 font-semibold flex items-center gap-1">
-                            <i class="fa-brands fa-google-drive"></i> Sincronizado
-                        </span>
-                    </div>
-                    <label for="file-upload-input" class="flex flex-col items-center justify-center w-full py-3.5 px-4 border-2 border-dashed border-cyan-400/40 hover:border-cyan-400 rounded-xl bg-cyan-500/5 hover:bg-cyan-500/10 cursor-pointer transition group">
+            <!-- Pestaña 1: IMÁGENES & PROMOS (100% Memoria Local / Ligera) -->
+            <div id="tab-images" class="tab-content space-y-4">
+                
+                <!-- Subida Local a la Memoria del Navegador / OBS -->
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow">
+                    <label class="text-xs font-black uppercase tracking-wider text-cyan-300 block mb-1">
+                        📁 Cargar Imagen Local (Memoria del Navegador)
+                    </label>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-2.5">
+                        Selecciona imágenes desde tu computadora. Se guardan al instante en la memoria local de tu navegador u OBS sin cuentas ni subidas pesadas.
+                    </p>
+                    <label for="file-upload-input" class="flex flex-col items-center justify-center w-full py-4 px-4 border-2 border-dashed border-cyan-400/40 hover:border-cyan-400 rounded-xl bg-cyan-500/5 hover:bg-cyan-500/10 cursor-pointer transition group">
                         <div class="flex items-center gap-2 text-cyan-300 group-hover:scale-105 transition">
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                            </svg>
-                            <span class="text-xs font-bold">Subir Imagen(es) a tu Google Drive</span>
+                            <i class="fa-solid fa-cloud-arrow-up text-lg"></i>
+                            <span class="text-xs font-bold">Seleccionar de tu equipo (PNG, JPG, GIF, WebP)</span>
                         </div>
-                        <span class="text-[10px] text-slate-400 mt-1">Se suben automáticamente a tu Drive y se generan URLs directas de alta velocidad</span>
                         <input id="file-upload-input" type="file" accept="image/*" multiple class="hidden" />
                     </label>
-
-                    <!-- Estado y Progreso de Subida a Google Drive -->
-                    <div id="drive-upload-status" class="hidden mt-2 p-2.5 rounded-xl bg-slate-900 border border-cyan-500/30 text-xs text-slate-200">
-                        <div class="flex items-center justify-between mb-1.5">
-                            <span id="drive-upload-text" class="flex items-center gap-1.5 font-bold text-[11px] text-cyan-300">
-                                <i class="fa-solid fa-spinner fa-spin text-cyan-400"></i> Subiendo a tu Google Drive...
-                            </span>
-                            <span id="drive-upload-percent" class="text-[10px] font-extrabold text-cyan-400">0%</span>
-                        </div>
-                        <div class="w-full bg-slate-950 rounded-full h-1.5 overflow-hidden">
-                            <div id="drive-upload-bar" class="bg-gradient-to-r from-cyan-400 to-blue-500 h-full w-0 transition-all duration-300"></div>
-                        </div>
-                    </div>
                 </div>
 
-                <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">O agregar imagen por enlace (URL directa)</label>
-                    <div class="flex gap-1.5">
-                        <input type="text" id="input-image-url" placeholder="https://ejemplo.com/mi-banner.png" class="flex-1 bg-slate-900 border border-white/15 rounded-xl px-3 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
-                        <button id="btn-add-url" class="px-3 py-1.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl transition">
-                            Añadir
+                <!-- O agregar imagen por enlace directo (URL) -->
+                <div class="p-3.5 rounded-2xl bg-slate-900/90 border border-white/10">
+                    <label class="text-xs font-black uppercase tracking-wider text-slate-300 block mb-1.5">
+                        🔗 O Pegar Enlace Directo de Imagen (URL)
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-image-url" placeholder="https://ejemplo.com/mi-banner.png" class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-cyan-400">
+                        <button id="btn-add-url" type="button" class="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs rounded-xl transition">
+                            + Añadir
                         </button>
                     </div>
                 </div>
 
-                <div class="bg-slate-900/80 p-3 rounded-xl border border-cyan-500/25 space-y-2">
+                <!-- Creador de Promo de Texto con Fondo -->
+                <div class="bg-slate-900/90 p-3.5 rounded-2xl border border-cyan-500/25 space-y-2.5">
                     <div class="flex items-center justify-between">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-cyan-400">✍️ Crear Promo de Solo Texto con Fondo Genérico</label>
-                        <span class="text-[9px] text-slate-400">Fuentes y colores editables</span>
+                        <label class="text-xs font-black uppercase tracking-wider text-cyan-400">
+                            ✍️ Crear Promo de Texto Personalizada
+                        </label>
+                        <span class="text-xs text-slate-400">Genera un nuevo banner</span>
                     </div>
 
-                    <div class="flex items-center gap-2">
-                        <span class="text-[10px] font-semibold text-slate-400 shrink-0">Tipografía:</span>
-                        <select id="select-promo-font" class="w-full bg-slate-950 border border-white/15 rounded-lg px-2 py-1 text-[11px] text-white focus:outline-none focus:border-cyan-400">
-                            <option value="Plus Jakarta Sans, sans-serif">Moderna (Plus Jakarta Sans)</option>
-                            <option value="Orbitron, sans-serif">Gamer / Sci-Fi (Orbitron)</option>
-                            <option value="Impact, Arial Black, sans-serif">Impacto / Cartel (Impact)</option>
-                            <option value="Cinzel, Georgia, serif">Elegante / Épica (Cinzel Serif)</option>
-                            <option value="JetBrains Mono, monospace">Código / Tech (Monospace)</option>
-                        </select>
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                        <input type="text" id="input-promo-tag" placeholder="Tag superior (Ej. VIP / SORTEO)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400">
-                        <select id="select-tag-weight" class="bg-slate-950 border border-white/15 rounded-lg px-1.5 py-1 text-[10px] text-slate-200 focus:outline-none" title="Grosor del Tag">
-                            <option value="300">Delgada</option>
-                            <option value="500">Normal</option>
-                            <option value="700">Gruesa</option>
-                            <option value="900" selected>Extra Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-tag-color" value="#38bdf8" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0 shrink-0" title="Color del texto del Tag">
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                        <input type="text" id="input-promo-title" placeholder="Texto Principal (Ej. ¡SORTEO HOY!)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
-                        <select id="select-title-weight" class="bg-slate-950 border border-white/15 rounded-lg px-1.5 py-1 text-[10px] text-slate-200 focus:outline-none" title="Grosor del Título">
-                            <option value="300">Delgada</option>
-                            <option value="400">Normal</option>
-                            <option value="700">Gruesa</option>
-                            <option value="900" selected>Extra Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-title-color" value="#ffffff" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0 shrink-0" title="Color del Título Principal">
-                    </div>
-
-                    <div class="flex items-center gap-1.5">
-                        <input type="text" id="input-promo-sub" placeholder="Subtítulo (Ej. Usa !sorteo en el chat)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-cyan-400">
-                        <select id="select-sub-weight" class="bg-slate-950 border border-white/15 rounded-lg px-1.5 py-1 text-[10px] text-slate-200 focus:outline-none" title="Grosor del Subtítulo">
-                            <option value="300">Delgada</option>
-                            <option value="400">Normal</option>
-                            <option value="600" selected>Media</option>
-                            <option value="800">Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-sub-color" value="#e2e8f0" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0 shrink-0" title="Color del Subtítulo">
-                    </div>
-                    
-                    <div class="flex items-center justify-between gap-2 pt-1">
-                        <div class="flex items-center gap-1.5" id="promo-bg-presets">
-                            <span class="text-[10px] font-semibold text-slate-400 mr-0.5">Fondo:</span>
-                            <button type="button" class="promo-bg-btn ring-2 ring-white w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #0f172a, #0284c7)" data-c1="#0f172a" data-c2="#0284c7" title="Ciber Azul"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #3b0764, #db2777)" data-c1="#3b0764" data-c2="#db2777" title="Neón Púrpura / Rosa"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #450a0a, #ea580c)" data-c1="#450a0a" data-c2="#ea580c" title="Fuego / Naranja"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #064e3b, #10b981)" data-c1="#064e3b" data-c2="#10b981" title="Esmeralda Gamer"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #422006, #eab308)" data-c1="#422006" data-c2="#eab308" title="Dorado VIP"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-5 h-5 rounded-full transition" style="background: linear-gradient(135deg, #090d16, #1e293b)" data-c1="#090d16" data-c2="#1e293b" title="Oscuro Elegante"></button>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <span class="text-[9px] font-medium text-cyan-400 hidden sm:inline" title="Los cambios se reflejan y adaptan de inmediato"><i class="fa-solid fa-bolt"></i> En vivo</span>
-                            <button type="button" id="btn-create-text-ad" class="px-2.5 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-extrabold text-[10px] rounded-lg shadow transition shrink-0" title="Añade esta promo como otra imagen a la rotación sin sobreescribir la actual">
-                                + Añadir Variante
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Imágenes en Lista (<span id="gallery-count">2</span>)</span>
-                        <div class="flex items-center gap-2">
-                            <span class="text-[9px] text-cyan-400/80"><i class="fa-solid fa-cloud"></i> Google Drive CDN</span>
-                            <button id="btn-restore-demo" class="text-[10px] text-cyan-400 hover:underline font-semibold">Cargar Demos</button>
-                        </div>
-                    </div>
-                    <div id="image-gallery-list" class="grid grid-cols-4 gap-2 max-h-28 overflow-y-auto p-1 bg-slate-900/70 rounded-xl border border-white/10">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-2 pt-1 border-t border-white/10">
-                    <div>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Ajuste dentro del marco</label>
-                        <select id="select-object-fit" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="cover">Llenar todo (Cover)</option>
-                            <option value="contain">Completa sin cortar (Contain)</option>
-                            <option value="fill">Estirar a los bordes (Fill)</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Etiqueta esquinera (Opcional)</label>
-                        <input type="text" id="input-badge-text" placeholder="Vacío = Oculta (Ej. SPONSOR)" maxlength="22" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-shape" class="tab-content hidden space-y-3.5">
-                <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Formatos Preestablecidos Adaptables</label>
                     <div class="grid grid-cols-2 gap-2">
-                        <button class="preset-shape-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="rect-thin">
-                            <div class="w-9 h-3 rounded bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Rectangular Delgado</div>
-                                <div class="text-[10px] text-slate-400">Banner 640 × 130 px</div>
-                            </div>
-                        </button>
+                        <input type="text" id="input-promo-tag" placeholder="Tag (Ej. VIP / DESTACADO)" class="bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400" value="DESTACADO">
+                        <input type="text" id="input-promo-title" placeholder="Título (Ej. ¡SÍGUENOS EN VIVO!)" class="bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400" value="¡SÍGUENOS EN VIVO!">
+                    </div>
 
-                        <button class="preset-shape-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="rect-thick">
-                            <div class="w-9 h-5 rounded-md bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Rectangular Grueso</div>
-                                <div class="text-[10px] text-slate-400">Medio 520 × 220 px</div>
-                            </div>
-                        </button>
+                    <input type="text" id="input-promo-sub" placeholder="Subtítulo o código (Ej. Usa código STREAM20)" class="w-full bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-cyan-400" value="Haz clic aquí para personalizar en OBS">
 
-                        <button class="preset-shape-btn active flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="rect-16-9">
-                            <div class="w-9 h-6 rounded-md bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Máximo 16:9</div>
-                                <div class="text-[10px] text-slate-400">Widescreen 560 × 315 px</div>
-                            </div>
-                        </button>
-
-                        <button class="preset-shape-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="square">
-                            <div class="w-6 h-6 mx-1.5 rounded-md bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Cuadrado (1:1)</div>
-                                <div class="text-[10px] text-slate-400">Box 320 × 320 px</div>
-                            </div>
-                        </button>
-
-                        <button class="preset-shape-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="circle">
-                            <div class="w-6 h-6 mx-1.5 rounded-full bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Circular</div>
-                                <div class="text-[10px] text-slate-400">Redondo 300 × 300 px</div>
-                            </div>
-                        </button>
-
-                        <button class="preset-shape-btn flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-white/10 text-left transition" data-shape="vertical">
-                            <div class="w-4 h-7 mx-2.5 rounded bg-cyan-400/30 border border-cyan-400 shrink-0"></div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Vertical (Torre)</div>
-                                <div class="text-[10px] text-slate-400">9:16 • 260 × 460 px</div>
-                            </div>
+                    <div class="flex items-center justify-between pt-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400">Color 1:</span>
+                            <input type="color" id="picker-promo-c1" value="#0f172a" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0">
+                            <span class="text-xs text-slate-400 ml-1">Color 2:</span>
+                            <input type="color" id="picker-promo-c2" value="#0284c7" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0">
+                        </div>
+                        <button id="btn-create-text-ad" type="button" class="px-3.5 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs rounded-xl shadow transition">
+                            + Añadir Banner
                         </button>
                     </div>
                 </div>
 
-                <div class="pt-2 border-t border-white/10">
-                    <div class="flex justify-between items-center mb-1">
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Redondeo de Esquinas</span>
-                        <span id="label-corner-radius" class="text-xs font-bold text-cyan-400">24px</span>
+                <!-- Galería de Banners en Memoria -->
+                <div>
+                    <div class="flex items-center justify-between mb-2">
+                        <label class="text-xs font-black uppercase tracking-wider text-slate-300 block">
+                            📚 Banners en Memoria (<span id="gallery-count">0</span>)
+                        </label>
+                        <button id="btn-reset-demos" type="button" class="text-xs font-semibold text-slate-400 hover:text-cyan-300 transition">
+                            ↻ Restablecer Demos
+                        </button>
                     </div>
-                    <input type="range" id="slider-corner-radius" min="0" max="160" value="24" class="w-full">
+                    <div id="gallery-container" class="grid grid-cols-3 gap-2.5 max-h-48 overflow-y-auto p-1.5 rounded-xl bg-slate-950/70 border border-white/10"></div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3 pt-1">
+            </div>
+
+            <!-- Pestaña 2: FORMA Y TAMAÑO -->
+            <div id="tab-shape" class="tab-content hidden space-y-4">
+                <div class="space-y-3 p-3 rounded-2xl bg-slate-900/80 border border-white/10">
                     <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ancho Base</span>
-                            <span id="label-width" class="text-xs font-bold text-slate-200">480px</span>
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                            <span>Ancho:</span>
+                            <span id="label-width" class="text-cyan-400 font-extrabold">480px</span>
                         </div>
-                        <input type="range" id="slider-width" min="140" max="1100" step="10" value="480" class="w-full">
+                        <input type="range" id="slider-width" min="150" max="900" value="480" class="w-full">
                     </div>
                     <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Alto Base</span>
-                            <span id="label-height" class="text-xs font-bold text-slate-200">270px</span>
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                            <span>Alto:</span>
+                            <span id="label-height" class="text-cyan-400 font-extrabold">220px</span>
                         </div>
-                        <input type="range" id="slider-height" min="80" max="800" step="10" value="270" class="w-full">
+                        <input type="range" id="slider-height" min="80" max="600" value="220" class="w-full">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                            <span>Redondeo de Esquinas:</span>
+                            <span id="label-corner-radius" class="text-cyan-400 font-extrabold">24px</span>
+                        </div>
+                        <input type="range" id="slider-corner-radius" min="0" max="140" value="24" class="w-full">
                     </div>
                 </div>
             </div>
 
-            <div id="tab-timing" class="tab-content hidden space-y-3.5">
-                <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Modo de Visualización y Repetición</label>
-                    <div class="grid grid-cols-3 gap-1.5">
-                        <button class="loop-mode-btn py-2 px-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-bold text-slate-300 transition" data-loopmode="always">
-                            📌 Siempre Fijo
+            <!-- Pestaña 3: TIEMPOS Y ROTACIÓN -->
+            <div id="tab-timing" class="tab-content hidden space-y-4">
+                <div class="p-3 rounded-2xl bg-slate-900/80 border border-white/10 space-y-3">
+                    <label class="text-xs font-black uppercase tracking-wider text-slate-300 block">Modo de Visualización</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" class="loop-mode-btn active p-2.5 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold text-slate-200" data-loop="always">
+                            ♾️ Siempre Visible
                         </button>
-                        <button class="loop-mode-btn active py-2 px-2 rounded-xl bg-cyan-500/20 border border-cyan-400 text-xs font-bold text-cyan-300 transition" data-loopmode="infinite">
-                            ♾️ Bucle Infinito
-                        </button>
-                        <button class="loop-mode-btn py-2 px-2 rounded-xl bg-slate-900 border border-white/10 text-xs font-bold text-slate-300 transition" data-loopmode="count">
-                            🔢 Por Cantidad
+                        <button type="button" class="loop-mode-btn p-2.5 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold text-slate-200" data-loop="cycle">
+                            ⏱️ Intervalo Oculto
                         </button>
                     </div>
                 </div>
+            </div>
 
-                <div id="timing-controls-box" class="space-y-3 bg-slate-900/70 p-3 rounded-xl border border-white/10">
+            <!-- Pestaña 4: MOVIMIENTO Y ANIMACIONES -->
+            <div id="tab-motion" class="tab-content hidden space-y-4">
+                <div class="p-3 rounded-2xl bg-slate-900/80 border border-white/10 space-y-3">
+                    <label class="text-xs font-black uppercase tracking-wider text-slate-300 block">Efecto de Movimiento</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" class="motion-preset-btn active p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="float">Flotar</button>
+                        <button type="button" class="motion-preset-btn p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="heartbeat">Latido</button>
+                        <button type="button" class="motion-preset-btn p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="sway">Balanceo</button>
+                        <button type="button" class="motion-preset-btn p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="bounce">Rebote</button>
+                        <button type="button" class="motion-preset-btn p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="tilt3d">3D Tilt</button>
+                        <button type="button" class="motion-preset-btn p-2 rounded-xl border border-white/15 bg-slate-950 text-xs font-bold" data-motion="none">Ninguno</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 5: MARCO Y RESPLANDOR NEÓN -->
+            <div id="tab-effects" class="tab-content hidden space-y-4">
+                <div class="p-3.5 rounded-2xl bg-slate-900/80 border border-white/10 space-y-3.5">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block mb-1">Tiempo en Pantalla</label>
-                            <div class="flex items-center gap-1">
-                                <input type="number" id="input-show-val" min="1" max="3600" value="10" class="w-full bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-sm font-bold text-white text-center focus:outline-none focus:border-emerald-400">
-                                <select id="select-show-unit" class="bg-slate-950 border border-white/15 rounded-xl px-2 py-1.5 text-xs font-bold text-emerald-300 focus:outline-none focus:border-emerald-400 cursor-pointer">
-                                    <option value="sec">Seg</option>
-                                    <option value="min">Min</option>
-                                </select>
+                            <label class="text-xs font-bold text-slate-300 block mb-1">Color Láser 1:</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="picker-color-1" value="#00f2fe" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0">
+                                <span class="text-xs font-mono text-slate-300" id="label-color-1">#00f2fe</span>
                             </div>
                         </div>
                         <div>
-                            <label class="text-[10px] font-bold uppercase tracking-wider text-amber-400 block mb-1">Tiempo Oculto / Pausa</label>
-                            <div class="flex items-center gap-1">
-                                <input type="number" id="input-hide-val" min="1" max="3600" value="8" class="w-full bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-sm font-bold text-white text-center focus:outline-none focus:border-amber-400">
-                                <select id="select-hide-unit" class="bg-slate-950 border border-white/15 rounded-xl px-2 py-1.5 text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-400 cursor-pointer">
-                                    <option value="sec">Seg</option>
-                                    <option value="min">Min</option>
-                                </select>
+                            <label class="text-xs font-bold text-slate-300 block mb-1">Color Láser 2:</label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" id="picker-color-2" value="#4facfe" class="w-8 h-8 rounded-lg cursor-pointer bg-transparent border-0">
+                                <span class="text-xs font-mono text-slate-300" id="label-color-2">#4facfe</span>
                             </div>
                         </div>
                     </div>
 
-                    <div id="repeat-count-row" class="hidden pt-2 border-t border-white/10 flex items-center justify-between">
-                        <div>
-                            <span class="text-xs font-bold text-white block">Cantidad de veces a mostrar</span>
-                            <span class="text-[10px] text-slate-400">Al cumplirse, quedará oculto hasta reiniciar</span>
+                    <div>
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                            <span>Grosor del Borde:</span>
+                            <span id="label-border-width" class="text-cyan-400 font-extrabold">4px</span>
                         </div>
-                        <div class="flex items-center gap-1.5">
-                            <input type="number" id="input-max-loops" min="1" max="999" value="3" class="w-20 bg-slate-950 border border-cyan-400/50 rounded-xl px-2.5 py-1.5 text-sm font-bold text-cyan-300 text-center focus:outline-none">
-                            <span class="text-xs text-slate-400">veces</span>
-                        </div>
+                        <input type="range" id="slider-border-width" min="0" max="14" value="4" class="w-full">
                     </div>
-                </div>
 
-                <div class="grid grid-cols-2 gap-2 pt-1">
                     <div>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Animación Entrada/Salida</label>
-                        <select id="select-transition-style" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="zoom">Zoom Elástico Suave</option>
-                            <option value="fade">Desvanecimiento (Fade)</option>
-                            <option value="slide-up">Deslizar Vertical</option>
-                            <option value="slide-side">Deslizar Lateral</option>
-                        </select>
+                        <div class="flex justify-between text-xs font-bold text-slate-300 mb-1">
+                            <span>Resplandor Neón:</span>
+                            <span id="label-glow" class="text-cyan-400 font-extrabold">25px</span>
+                        </div>
+                        <input type="range" id="slider-glow" min="0" max="60" value="25" class="w-full">
                     </div>
-                    <div>
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Rotación de Galería</label>
-                        <select id="select-slide-mode" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="each-cycle">Cambiar en cada aparición</option>
-                            <option value="timer-5">Cambiar cada 5 seg</option>
-                            <option value="timer-10">Cambiar cada 10 seg</option>
-                        </select>
+
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-xs font-bold text-slate-300">Destello de Cristal (Shimmer):</span>
+                        <input type="checkbox" id="check-shimmer" class="w-5 h-5 accent-cyan-400 rounded cursor-pointer" checked>
                     </div>
                 </div>
             </div>
 
-            <div id="tab-motion" class="tab-content hidden space-y-3.5">
-                <div class="bg-slate-900/70 p-3 rounded-xl border border-white/10 space-y-2.5">
-                    <div class="flex items-center justify-between">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-cyan-400">1. Movimiento al estar en Pantalla</label>
-                        <span class="text-[10px] text-slate-400" id="label-motion-name">Levitación</span>
-                    </div>
-                    <div class="grid grid-cols-4 gap-1.5">
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-motion="none">
-                            🛑 Quieto
-                        </button>
-                        <button class="motion-type-btn active py-1.5 px-1.5 rounded-lg bg-cyan-500/20 border border-cyan-400 text-[10px] font-bold text-white transition" data-motion="float">
-                            ☁️ Flotar
-                        </button>
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-motion="heartbeat">
-                            💓 Latido
-                        </button>
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-motion="sway">
-                            🌊 Péndulo
-                        </button>
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-motion="shake">
-                            📳 Sacudida
-                        </button>
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-motion="bounce">
-                            🏀 Rebote
-                        </button>
-                        <button class="motion-type-btn py-1.5 px-1.5 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition col-span-2" data-motion="tilt3d">
-                            🎲 Giro 3D
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-1">
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Intensidad Mov.</span>
-                                <span id="label-motion-intensity" class="text-xs font-bold text-cyan-400">50%</span>
-                            </div>
-                            <input type="range" id="slider-motion-intensity" min="5" max="100" value="50" class="w-full">
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Velocidad Mov.</span>
-                                <span id="label-motion-speed" class="text-xs font-bold text-cyan-400">Media</span>
-                            </div>
-                            <input type="range" id="slider-motion-speed" min="1" max="10" value="5" class="w-full">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="bg-slate-900/70 p-3 rounded-xl border border-white/10 space-y-2.5">
-                    <div class="flex items-center justify-between">
-                        <label class="text-[10px] font-bold uppercase tracking-wider text-amber-400">2. Efecto de Titileo / Parpadeo</label>
-                        <span class="text-[10px] text-slate-400" id="label-flicker-name">Desactivado</span>
-                    </div>
-                    <div class="grid grid-cols-5 gap-1">
-                        <button class="flicker-type-btn active py-1.5 px-1 rounded-lg bg-cyan-500/20 border border-cyan-400 text-[10px] font-bold text-white transition" data-flicker="none">
-                            🚫 Sin
-                        </button>
-                        <button class="flicker-type-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-flicker="neon">
-                            ⚡ Titileo
-                        </button>
-                        <button class="flicker-type-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-flicker="blink">
-                            👁️ Parpadeo
-                        </button>
-                        <button class="flicker-type-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-flicker="flash">
-                            📸 Flash
-                        </button>
-                        <button class="flicker-type-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-flicker="chroma">
-                            🌈 Chroma
-                        </button>
-                    </div>
-
-                    <div class="grid grid-cols-2 gap-3 pt-1">
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Intensidad Titileo</span>
-                                <span id="label-flicker-intensity" class="text-xs font-bold text-amber-400">55%</span>
-                            </div>
-                            <input type="range" id="slider-flicker-intensity" min="5" max="100" value="55" class="w-full">
-                        </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Rapidez Parpadeo</span>
-                                <span id="label-flicker-speed" class="text-xs font-bold text-amber-400">Media</span>
-                            </div>
-                            <input type="range" id="slider-flicker-speed" min="1" max="10" value="5" class="w-full">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="tab-effects" class="tab-content hidden space-y-3">
-                <div>
-                    <label class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">Marco Luminoso al Contorno</label>
-                    <div class="grid grid-cols-4 gap-1.5">
-                        <button class="border-style-btn active py-1.5 px-2 rounded-xl bg-cyan-500/20 border border-cyan-400 text-[11px] font-bold text-white transition" data-border="spin">
-                            ⚡ Láser Giro
-                        </button>
-                        <button class="border-style-btn py-1.5 px-2 rounded-xl bg-slate-900 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-border="solid">
-                            💡 Neón Fijo
-                        </button>
-                        <button class="border-style-btn py-1.5 px-2 rounded-xl bg-slate-900 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-border="rgb">
-                            🌈 RGB Giro
-                        </button>
-                        <button class="border-style-btn py-1.5 px-2 rounded-xl bg-slate-900 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-border="none">
-                            🚫 Sin Marco
-                        </button>
-                    </div>
-                </div>
-
-                <div id="border-spin-controls" class="grid grid-cols-2 gap-3 bg-slate-900/70 p-2.5 rounded-xl border border-white/10">
-                    <div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">Dirección de Giro</span>
-                        <div class="grid grid-cols-2 gap-1">
-                            <button type="button" class="spin-dir-btn active py-1 px-2 rounded-lg bg-cyan-500/20 border border-cyan-400 text-[10px] font-bold text-white transition" data-dir="normal">
-                                ↻ Derecha
-                            </button>
-                            <button type="button" class="spin-dir-btn py-1 px-2 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-dir="reverse">
-                                ↺ Izquierda
-                            </button>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Velocidad Giro</span>
-                            <span id="label-border-speed" class="text-xs font-bold text-cyan-400">5/10</span>
-                        </div>
-                        <input type="range" id="slider-border-speed" min="1" max="10" value="5" class="w-full mt-1">
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between bg-slate-900/70 p-2.5 rounded-xl border border-white/10">
-                    <span class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Colores del Marco y Resplandor</span>
-                    <div class="flex items-center gap-2">
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #00f2fe, #4facfe)" data-c1="#00f2fe" data-c2="#4facfe" title="Cian Eléctrico"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #ff0844, #ffb199)" data-c1="#ff0844" data-c2="#ffb199" title="Rojo / Coral"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #a855f7, #ec4899)" data-c1="#a855f7" data-c2="#ec4899" title="Violeta Neón"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #10b981, #a3e635)" data-c1="#10b981" data-c2="#a3e635" title="Verde Esmeralda"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #f59e0b, #fef08a)" data-c1="#f59e0b" data-c2="#fef08a" title="Dorado VIP"></button>
-                        <input type="color" id="picker-color-1" value="#00f2fe" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0" title="Color Principal">
-                        <input type="color" id="picker-color-2" value="#4facfe" class="w-6 h-6 rounded cursor-pointer bg-transparent border-0" title="Color Secundario">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Grosor del Marco</span>
-                            <span id="label-border-width" class="text-xs font-bold text-cyan-400">4px</span>
-                        </div>
-                        <input type="range" id="slider-border-width" min="0" max="16" value="4" class="w-full">
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resplandor (Glow)</span>
-                            <span id="label-glow" class="text-xs font-bold text-cyan-400">25px</span>
-                        </div>
-                        <input type="range" id="slider-glow" min="0" max="70" value="25" class="w-full">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-2 gap-3 pt-1 border-t border-white/10">
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Opacidad Imagen</span>
-                            <span id="label-img-opacity" class="text-xs font-bold text-emerald-400">100%</span>
-                        </div>
-                        <input type="range" id="slider-img-opacity" min="10" max="100" value="100" class="w-full">
-                    </div>
-                    <div>
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fondo Cristal (PNG)</span>
-                            <span id="label-bg-opacity" class="text-xs font-bold text-emerald-400">40%</span>
-                        </div>
-                        <input type="range" id="slider-bg-opacity" min="0" max="100" value="40" class="w-full">
-                    </div>
-                </div>
-
-                <div class="flex items-center justify-between gap-2 pt-1">
-                    <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer bg-slate-900/70 px-3 py-2 rounded-xl border border-white/10 w-full">
-                        <input type="checkbox" id="check-shimmer" checked class="accent-cyan-400 rounded">
-                        <span>Activar Barrido de Reflejo Cristalino (Shimmer periódico sobre la imagen)</span>
-                    </label>
-                </div>
-            </div>
         </div>
-
-        <!-- Toast Flotante -->
-        <div id="widget-toast">Mensaje</div>
-
     </div>
 
-    <script type="module">
-        import { auth, rtdb, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from '../firebase-config.js';
-        import { ref, get, set, update, onValue, remove } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
-
-        // Endpoint Google Apps Script conectado a Google Drive con CDN lh3
-        var APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
-        var STORAGE_KEY = 'multiideas_obs_ad_widget_v1';
+    <!-- Motor JavaScript 100% Local, Ligero y Ultra-Fluido -->
+    <script>
+        var STORAGE_KEY = 'multiideas_obs_ad_widget_local_v2';
         var isPreview = false;
         try {
             isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
         } catch(e) {
             isPreview = (window.location.search.indexOf('preview=true') !== -1);
-        }
-
-        var currentAuthUser = null;
-        var activeUid = null;
-        var isFirebaseSyncActive = false;
-        var urlParams = new URLSearchParams(window.location.search);
-        var paramUid = urlParams.get('uid');
-        if (paramUid) {
-            activeUid = paramUid;
         }
 
         function showToast(text, duration) {
@@ -1169,27 +743,13 @@
             toast.classList.add('show');
             setTimeout(function() {
                 toast.classList.remove('show');
-            }, duration || 2800);
+            }, duration || 2600);
         }
 
-        function createDemoBannerSVG(title, subtitle, c1, c2, badge, customStyles) {
+        function createDemoBannerSVG(title, subtitle, c1, c2, badge) {
             var safeTitle = String(title || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var safeSub = String(subtitle || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
             var safeBadge = String(badge || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            var titleSize = safeTitle.length > 22 ? 42 : (safeTitle.length > 16 ? 48 : 56);
-            var subSize = safeSub.length > 48 ? 20 : 25;
-
-            var fontFamily = customStyles && customStyles.fontFamily ? customStyles.fontFamily : 'Plus Jakarta Sans, sans-serif';
-            var titleWeight = customStyles && customStyles.titleWeight ? customStyles.titleWeight : '800';
-            var titleColor = customStyles && customStyles.titleColor ? customStyles.titleColor : '#ffffff';
-            var subWeight = customStyles && customStyles.subWeight ? customStyles.subWeight : '600';
-            var subColor = customStyles && customStyles.subColor ? customStyles.subColor : '#e2e8f0';
-            var tagWeight = customStyles && customStyles.tagWeight ? customStyles.tagWeight : '800';
-            var tagColor = customStyles && customStyles.tagColor ? customStyles.tagColor : '#ffffff';
-
-            var badgeBlock = safeBadge.trim() !== '' ? 
-                '<rect x="400" y="68" width="' + Math.max(140, safeBadge.length * 16 + 44) + '" height="40" rx="20" transform="translate(-' + (Math.max(140, safeBadge.length * 16 + 44) / 2) + ', 0)" fill="#000000" fill-opacity="0.32" stroke="' + tagColor + '" stroke-opacity="0.65" stroke-width="1.8"/>' +
-                '<text x="400" y="94" font-family="' + fontFamily + '" font-size="16" font-weight="' + tagWeight + '" fill="' + tagColor + '" text-anchor="middle" letter-spacing="2.5">' + safeBadge.toUpperCase() + '</text>' : '';
 
             var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">' +
                 '<defs>' +
@@ -1197,23 +757,15 @@
                         '<stop offset="0%" stop-color="' + c1 + '"/>' +
                         '<stop offset="100%" stop-color="' + c2 + '"/>' +
                     '</linearGradient>' +
-                    '<radialGradient id="flare" cx="50%" cy="20%" r="65%">' +
-                        '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.25"/>' +
-                        '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
-                    '</radialGradient>' +
-                    '<pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">' +
-                        '<path d="M 40 0 L 0 0 0 40" fill="none" stroke="#ffffff" stroke-width="1" stroke-opacity="0.05"/>' +
-                    '</pattern>' +
                 '</defs>' +
                 '<rect width="800" height="450" fill="url(#bg)"/>' +
-                '<rect width="800" height="450" fill="url(#grid)"/>' +
-                '<rect width="800" height="450" fill="url(#flare)"/>' +
-                '<circle cx="710" cy="75" r="170" fill="#ffffff" fill-opacity="0.06"/>' +
-                '<circle cx="90" cy="390" r="210" fill="#000000" fill-opacity="0.22"/>' +
-                badgeBlock +
-                '<text x="400" y="' + (safeBadge.trim() !== '' ? '230' : '205') + '" font-family="' + fontFamily + '" font-size="' + titleSize + '" font-weight="' + titleWeight + '" fill="' + titleColor + '" text-anchor="middle">' + safeTitle + '</text>' +
-                '<text x="400" y="' + (safeBadge.trim() !== '' ? '288' : '268') + '" font-family="' + fontFamily + '" font-size="' + subSize + '" font-weight="' + subWeight + '" fill="' + subColor + '" text-anchor="middle" opacity="0.95">' + safeSub + '</text>' +
-                '<rect x="300" y="340" width="200" height="6" rx="3" fill="' + titleColor + '" fill-opacity="0.45"/>' +
+                '<circle cx="700" cy="80" r="180" fill="#ffffff" fill-opacity="0.08"/>' +
+                '<circle cx="80" cy="380" r="200" fill="#000000" fill-opacity="0.25"/>' +
+                '<rect x="300" y="65" width="200" height="38" rx="19" fill="#000000" fill-opacity="0.35" stroke="#38bdf8" stroke-width="1.8"/>' +
+                '<text x="400" y="90" font-family="Plus Jakarta Sans, sans-serif" font-size="16" font-weight="900" fill="#38bdf8" text-anchor="middle" letter-spacing="2.5">' + safeBadge.toUpperCase() + '</text>' +
+                '<text x="400" y="215" font-family="Plus Jakarta Sans, sans-serif" font-size="52" font-weight="900" fill="#ffffff" text-anchor="middle">' + safeTitle + '</text>' +
+                '<text x="400" y="275" font-family="Plus Jakarta Sans, sans-serif" font-size="24" font-weight="600" fill="#e2e8f0" text-anchor="middle">' + safeSub + '</text>' +
+                '<rect x="320" y="335" width="160" height="5" rx="2.5" fill="#38bdf8" fill-opacity="0.6"/>' +
             '</svg>';
             return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
         }
@@ -1224,23 +776,13 @@
                 name: 'Banner Canal / Redes',
                 type: 'text',
                 isTextPromo: true,
-                isDrive: false,
-                src: createDemoBannerSVG('¡SÍGUENOS EN VIVO!', 'Haz clic aquí para subir tu propia publicidad', '#0f172a', '#0284c7', 'DESTACADO'),
+                src: createDemoBannerSVG('¡SÍGUENOS EN VIVO!', 'Haz clic para personalizar en OBS', '#0f172a', '#0284c7', 'DESTACADO'),
                 promoData: {
                     title: '¡SÍGUENOS EN VIVO!',
-                    sub: 'Haz clic aquí para subir tu propia publicidad',
+                    sub: 'Haz clic para personalizar en OBS',
                     tag: 'DESTACADO',
                     c1: '#0f172a',
-                    c2: '#0284c7',
-                    styles: {
-                        fontFamily: 'Plus Jakarta Sans, sans-serif',
-                        tagWeight: '800',
-                        tagColor: '#38bdf8',
-                        titleWeight: '800',
-                        titleColor: '#ffffff',
-                        subWeight: '600',
-                        subColor: '#e2e8f0'
-                    }
+                    c2: '#0284c7'
                 }
             },
             {
@@ -1248,23 +790,13 @@
                 name: 'Promo Patrocinador',
                 type: 'text',
                 isTextPromo: true,
-                isDrive: false,
-                src: createDemoBannerSVG('CÓDIGO: STREAM20', '20% de descuento en toda la tienda oficial', '#3b0764', '#db2777', 'SPONSOR'),
+                src: createDemoBannerSVG('CÓDIGO: STREAM20', '20% de descuento en la tienda', '#3b0764', '#db2777', 'SPONSOR'),
                 promoData: {
                     title: 'CÓDIGO: STREAM20',
-                    sub: '20% de descuento en toda la tienda oficial',
+                    sub: '20% de descuento en la tienda',
                     tag: 'SPONSOR',
                     c1: '#3b0764',
-                    c2: '#db2777',
-                    styles: {
-                        fontFamily: 'Plus Jakarta Sans, sans-serif',
-                        tagWeight: '800',
-                        tagColor: '#f472b6',
-                        titleWeight: '800',
-                        titleColor: '#ffffff',
-                        subWeight: '600',
-                        subColor: '#fce7f3'
-                    }
+                    c2: '#db2777'
                 }
             }
         ];
@@ -1272,87 +804,40 @@
         var state = {
             images: [].concat(DEFAULT_IMAGES),
             currentIndex: 0,
-            shapePreset: 'rect-16-9',
             width: 480,
-            height: 270,
+            height: 220,
             cornerRadius: 24,
-            objectFit: 'cover',
-            badgeText: '',
-            loopMode: 'infinite',
-            showValue: 10,
-            showUnit: 'sec',
-            hideValue: 8,
-            hideUnit: 'sec',
-            maxLoops: 3,
-            completedLoops: 0,
-            transitionStyle: 'zoom',
-            slideMode: 'each-cycle',
-            motionType: 'float',
-            motionIntensity: 50,
-            motionSpeed: 5,
-            flickerType: 'none',
-            flickerIntensity: 55,
-            flickerSpeed: 5,
-            borderStyle: 'spin',
-            borderSpinDir: 'normal',
-            borderSpinSpeed: 5,
-            borderWidth: 4,
-            glowIntensity: 25,
-            color1: '#00f2fe',
-            color2: '#4facfe',
-            imgOpacity: 100,
-            bgOpacity: 40,
-            shimmer: true,
             posX: null,
             posY: null,
             scale: 1,
-            modalX: null,
-            modalY: null,
-            modalScale: 1
+            color1: '#00f2fe',
+            color2: '#4facfe',
+            borderWidth: 4,
+            glowIntensity: 25,
+            borderStyle: 'spin',
+            borderSpinDir: 'normal',
+            borderSpinSpeed: 4,
+            motionType: 'float',
+            motionIntensity: 50,
+            motionSpeed: 5,
+            shimmer: true,
+            loopMode: 'always'
         };
 
-        function saveStateToStorage() {
-            if (isPreview) return; // En modo previsualización (iframe/modal) no sobreescribir las coordenadas principales de OBS
-            try {
-                var toSave = JSON.parse(JSON.stringify(state));
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(toSave));
-            } catch(e) {
-                console.warn('No se pudo guardar en localStorage:', e);
-            }
+        var draggableWrapper = document.getElementById('draggable-wrapper');
+        var adBox = document.getElementById('ad-box');
+        var adImage = document.getElementById('ad-image');
+        var adTextPromo = document.getElementById('ad-text-promo');
+        var promoRenderTag = document.getElementById('promo-render-tag');
+        var promoRenderTitle = document.getElementById('promo-render-title');
+        var promoRenderSub = document.getElementById('promo-render-sub');
+        var shimmerLayer = document.getElementById('shimmer-layer');
+        var settingsModal = document.getElementById('settings-modal');
 
-            if (activeUid) {
-                try {
-                    const cleanImages = (state.images || []).map(img => {
-                        const copy = { ...img };
-                        // Si la imagen tiene data URI base64 muy grande temporal, preservar src limpio
-                        return copy;
-                    });
-                    const cloudState = {
-                        images: cleanImages,
-                        width: state.width,
-                        height: state.height,
-                        scale: state.scale,
-                        posX: state.posX,
-                        posY: state.posY,
-                        color1: state.color1,
-                        color2: state.color2,
-                        glowIntensity: state.glowIntensity,
-                        borderWidth: state.borderWidth,
-                        shimmer: state.shimmer,
-                        shapePreset: state.shapePreset,
-                        cornerRadius: state.cornerRadius,
-                        motionPreset: state.motionType || 'float',
-                        slideMode: state.slideMode,
-                        loopMode: state.loopMode,
-                        showValue: state.showValue,
-                        hideValue: state.hideValue,
-                        updatedAt: Date.now()
-                    };
-                    set(ref(rtdb, 'users/' + activeUid + '/widgets_config/sponsor'), cloudState);
-                } catch(cloudErr) {
-                    console.warn('[Firebase Cloud Save Notice]:', cloudErr);
-                }
-            }
+        function saveStateToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch(e) {}
         }
 
         function loadStateFromStorage() {
@@ -1361,294 +846,17 @@
                 if (raw) {
                     var parsed = JSON.parse(raw);
                     for (var k in parsed) {
-                        if (parsed.hasOwnProperty(k)) {
-                            state[k] = parsed[k];
-                        }
+                        if (parsed.hasOwnProperty(k)) state[k] = parsed[k];
                     }
                 }
-            } catch(e) {
-                console.warn('Error cargando estado desde localStorage:', e);
-            }
+            } catch(e) {}
 
             if (isPreview) {
-                // En modo preview (galería / modal), forzar centrado independiente de la pantalla OBS
                 state.posX = null;
                 state.posY = null;
             }
-
-            // Asegurar que si hay imágenes de demo o promos previas en el storage, tengan su promoData intacto
-            if (Array.isArray(state.images)) {
-                for (var i = 0; i < state.images.length; i++) {
-                    var img = state.images[i];
-                    if (!img.promoData) {
-                        for (var d = 0; d < DEFAULT_IMAGES.length; d++) {
-                            if (DEFAULT_IMAGES[d].id === img.id) {
-                                img.promoData = JSON.parse(JSON.stringify(DEFAULT_IMAGES[d].promoData));
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        function syncWithFirebase(uid) {
-            if (!uid || isFirebaseSyncActive) return;
-            isFirebaseSyncActive = true;
-            try {
-                const sponsorRef = ref(rtdb, 'users/' + uid + '/widgets_config/sponsor');
-                onValue(sponsorRef, (snapshot) => {
-                    if (!snapshot.exists()) return;
-                    const cloudData = snapshot.val();
-                    if (cloudData && Array.isArray(cloudData.images) && cloudData.images.length > 0) {
-                        state.images = cloudData.images;
-                        if (typeof cloudData.width === 'number') state.width = cloudData.width;
-                        if (typeof cloudData.height === 'number') state.height = cloudData.height;
-                        if (cloudData.color1) state.color1 = cloudData.color1;
-                        if (cloudData.color2) state.color2 = cloudData.color2;
-                        if (typeof cloudData.glowIntensity === 'number') state.glowIntensity = cloudData.glowIntensity;
-                        if (typeof cloudData.borderWidth === 'number') state.borderWidth = cloudData.borderWidth;
-                        if (cloudData.shimmer !== undefined) state.shimmer = cloudData.shimmer;
-                        if (cloudData.shapePreset) state.shapePreset = cloudData.shapePreset;
-                        if (typeof cloudData.cornerRadius === 'number') state.cornerRadius = cloudData.cornerRadius;
-                        if (cloudData.slideMode) state.slideMode = cloudData.slideMode;
-                        if (cloudData.loopMode) state.loopMode = cloudData.loopMode;
-                        if (typeof cloudData.showValue === 'number') state.showValue = cloudData.showValue;
-                        if (typeof cloudData.hideValue === 'number') state.hideValue = cloudData.hideValue;
-
-                        if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-                        applyVisualState();
-                        renderGalleryThumbnails();
-                    }
-                });
-            } catch(e) {
-                console.warn('[Firebase RTDB sync error]:', e);
-            }
-        }
-
-        function setupFirebaseAuth() {
-            const btnLogin = document.getElementById('btn-sponsor-login-google');
-            const btnLogout = document.getElementById('btn-sponsor-logout');
-            const loggedOutBox = document.getElementById('sponsor-auth-logged-out');
-            const loggedInBox = document.getElementById('sponsor-auth-logged-in');
-            const avatarEl = document.getElementById('sponsor-auth-avatar');
-            const nameEl = document.getElementById('sponsor-auth-name');
-            const emailEl = document.getElementById('sponsor-auth-email');
-
-            if (btnLogin) {
-                btnLogin.addEventListener('click', async () => {
-                    try {
-                        const provider = new GoogleAuthProvider();
-                        const res = await signInWithPopup(auth, provider);
-                        if (res && res.user) {
-                            showToast('✅ ¡Bienvenido, ' + (res.user.displayName || 'Streamer') + '!');
-                        }
-                    } catch(e) {
-                        console.warn('[Firebase Auth] Error al iniciar sesión:', e);
-                        showToast('⚠️ No se pudo completar el inicio de sesión.');
-                    }
-                });
-            }
-
-            if (btnLogout) {
-                btnLogout.addEventListener('click', async () => {
-                    try {
-                        await signOut(auth);
-                        currentAuthUser = null;
-                        activeUid = null;
-                        isFirebaseSyncActive = false;
-                        if (loggedOutBox) loggedOutBox.classList.remove('hidden');
-                        if (loggedInBox) loggedInBox.classList.add('hidden');
-                        showToast('👋 Sesión cerrada.');
-                    } catch(e) {
-                        console.warn('[Firebase Auth] Error al cerrar sesión:', e);
-                    }
-                });
-            }
-
-            try {
-                onAuthStateChanged(auth, (user) => {
-                    currentAuthUser = user;
-                    if (user) {
-                        activeUid = user.uid;
-                        if (loggedOutBox) loggedOutBox.classList.add('hidden');
-                        if (loggedInBox) loggedInBox.classList.remove('hidden');
-                        if (avatarEl) avatarEl.src = user.photoURL || 'https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg';
-                        if (nameEl) nameEl.textContent = user.displayName || 'Usuario Google';
-                        if (emailEl) emailEl.textContent = user.email || '';
-                        syncWithFirebase(user.uid);
-                    } else {
-                        if (!paramUid) {
-                            activeUid = null;
-                            if (loggedOutBox) loggedOutBox.classList.remove('hidden');
-                            if (loggedInBox) loggedInBox.classList.add('hidden');
-                        } else {
-                            syncWithFirebase(paramUid);
-                        }
-                    }
-                });
-            } catch(err) {
-                console.warn('[Firebase Auth setup notice]:', err);
-            }
-        }
-
-        var cycleTimeout = null;
-        var slideInterval = null;
-        var isCurrentlyVisible = true;
-
-        var draggableWrapper = document.getElementById('draggable-wrapper');
-        var adMotionStage = document.getElementById('ad-motion-stage');
-        var adBox = document.getElementById('ad-box');
-        var adImage = document.getElementById('ad-image');
-        var adTextPromo = document.getElementById('ad-text-promo');
-        var adTextInner = document.getElementById('ad-text-inner');
-        var promoRenderTag = document.getElementById('promo-render-tag');
-        var promoRenderTitle = document.getElementById('promo-render-title');
-        var promoRenderSub = document.getElementById('promo-render-sub');
-        var promoRenderBar = document.getElementById('promo-render-bar');
-        var shimmerLayer = document.getElementById('shimmer-layer');
-        var adBadge = document.getElementById('ad-badge');
-        var sleepingIndicator = document.getElementById('sleeping-indicator');
-        var sleepingStatusText = document.getElementById('sleeping-status-text');
-        var settingsModal = document.getElementById('settings-modal');
-        var cycleLiveStatus = document.getElementById('cycle-live-status');
-
-        function fitAdaptivePromoText(promoData) {
-            if (!promoData) return;
-
-            var styles = promoData.styles || {};
-            var fontFamily = styles.fontFamily || 'Plus Jakarta Sans, sans-serif';
-
-            adTextPromo.style.background = 'linear-gradient(135deg, ' + (promoData.c1 || '#0f172a') + ', ' + (promoData.c2 || '#0284c7') + ')';
-            adTextPromo.style.opacity = (state.imgOpacity / 100).toFixed(2);
-            adTextPromo.style.fontFamily = fontFamily;
-
-            var minDim = Math.min(state.width, state.height);
-            var isRoundish = state.shapePreset === 'circle' || state.cornerRadius >= minDim * 0.35;
-            var isThin = state.height < 165;
-            var aspectRatio = state.width / Math.max(1, state.height);
-            var isUltraWide = aspectRatio >= 2.4 || (isThin && aspectRatio >= 1.8);
-
-            var padX, padY;
-            if (isRoundish) {
-                padX = Math.round(state.width * 0.16);
-                padY = Math.round(state.height * 0.15);
-            } else if (isUltraWide) {
-                padX = Math.max(16, Math.min(36, Math.round(state.width * 0.05)));
-                padY = Math.max(4, Math.min(10, Math.round(state.height * 0.05)));
-            } else {
-                padX = Math.max(14, Math.min(32, Math.round(state.width * 0.065)));
-                padY = Math.max(8, Math.min(20, Math.round(state.height * 0.075)));
-            }
-            adTextInner.style.padding = padY + 'px ' + padX + 'px';
-
-            var tagText = (promoData.tag || '').trim();
-            if (tagText !== '') {
-                promoRenderTag.textContent = tagText;
-                promoRenderTag.style.color = styles.tagColor || '#38bdf8';
-                promoRenderTag.style.fontWeight = styles.tagWeight || '800';
-                promoRenderTag.style.borderColor = styles.tagColor || '#38bdf8';
-                promoRenderTag.style.backgroundColor = 'rgba(0, 0, 0, 0.35)';
-                promoRenderTag.classList.remove('hidden');
-                if (isThin) {
-                    promoRenderTag.style.padding = '1px 8px';
-                    promoRenderTag.style.letterSpacing = '0.08em';
-                } else {
-                    promoRenderTag.style.padding = '2px 12px';
-                    promoRenderTag.style.letterSpacing = '0.12em';
-                }
-            } else {
-                promoRenderTag.classList.add('hidden');
-            }
-
-            var titleText = (promoData.title || '').trim() || '¡PROMOCIÓN!';
-            promoRenderTitle.textContent = titleText;
-            promoRenderTitle.style.color = styles.titleColor || '#ffffff';
-            promoRenderTitle.style.fontWeight = styles.titleWeight || '900';
-
-            var subText = (promoData.sub || '').trim();
-            if (subText !== '') {
-                promoRenderSub.textContent = subText;
-                promoRenderSub.style.color = styles.subColor || '#e2e8f0';
-                promoRenderSub.style.fontWeight = styles.subWeight || '600';
-                promoRenderSub.classList.remove('hidden');
-            } else {
-                promoRenderSub.classList.add('hidden');
-            }
-
-            // Barra decorativa: oculta en banners delgados o ultrawide para maximizar altura del texto
-            if (state.height < 170 || isUltraWide) {
-                promoRenderBar.classList.add('hidden');
-            } else {
-                promoRenderBar.classList.remove('hidden');
-                promoRenderBar.style.backgroundColor = styles.titleColor || '#ffffff';
-                promoRenderBar.style.width = Math.min(120, Math.round(state.width * 0.28)) + 'px';
-                promoRenderBar.style.height = '4px';
-                promoRenderBar.style.marginTop = '10px';
-            }
-
-            // Dimensiones internas disponibles
-            var availW = Math.max(50, state.width - padX * 2 - state.borderWidth * 2);
-            var availH = Math.max(40, state.height - padY * 2 - state.borderWidth * 2);
-
-            var hasTag = tagText !== '';
-            var hasSub = subText !== '';
-            var hasBar = !promoRenderBar.classList.contains('hidden');
-
-            var reservedH = 0;
-            if (hasTag) reservedH += isThin ? 18 : 28;
-            if (hasBar) reservedH += 18;
-
-            var textRoomH = Math.max(26, availH - reservedH);
-
-            // Determinar si el título necesita envolverse en varias líneas según el ancho disponible
-            var charsPerTitleLine = Math.max(6, Math.floor(availW / 18));
-            var titleLines = (titleText.length > charsPerTitleLine && !isUltraWide) ? 2 : 1;
-            if (titleText.length > charsPerTitleLine * 2.2 && !isUltraWide) titleLines = 3;
-
-            var subLines = hasSub ? ((subText.length > Math.max(10, Math.floor(availW / 9))) ? 2 : 1) : 0;
-
-            // Cálculo óptimo de tamaño de fuente
-            var lineWeightSum = titleLines * 1.25 + (hasSub ? subLines * 0.72 : 0);
-            var maxTitleFromH = Math.floor(textRoomH / lineWeightSum);
-            var maxTitleFromW = Math.floor((availW * 0.95) / (Math.ceil(titleText.length / titleLines) * 0.58));
-
-            var targetTitleSize = Math.max(13, Math.min(54, Math.min(maxTitleFromH, maxTitleFromW)));
-
-            // Ajustes específicos según la proporción para lucir siempre nítido y balanceado
-            if (isUltraWide) {
-                targetTitleSize = Math.max(18, Math.min(36, targetTitleSize));
-            } else if (state.height >= 260 && state.width >= 450) {
-                targetTitleSize = Math.max(22, Math.min(52, targetTitleSize));
-            } else if (state.height <= 140) {
-                targetTitleSize = Math.max(15, Math.min(28, targetTitleSize));
-            }
-
-            var applyFontSizes = function(tSize) {
-                var sSize = Math.max(10, Math.round(tSize * (isThin ? 0.52 : 0.48)));
-                var tgSize = Math.max(9, Math.round(tSize * (isThin ? 0.38 : 0.35)));
-                promoRenderTitle.style.fontSize = tSize + 'px';
-                promoRenderTitle.style.lineHeight = isThin ? '1.12' : '1.18';
-                promoRenderSub.style.fontSize = sSize + 'px';
-                promoRenderSub.style.lineHeight = isThin ? '1.18' : '1.25';
-                promoRenderTag.style.fontSize = tgSize + 'px';
-                promoRenderTag.style.marginBottom = Math.max(2, Math.round(tSize * (isThin ? 0.08 : 0.14))) + 'px';
-                promoRenderSub.style.marginTop = Math.max(2, Math.round(tSize * (isThin ? 0.06 : 0.12))) + 'px';
-            };
-
-            applyFontSizes(targetTitleSize);
-
-            // Refinamiento suave: Si el texto excede el contenedor visible real, reducir 1px progresivamente
-            var guard = 0;
-            while (
-                guard < 30 &&
-                targetTitleSize > 12 &&
-                (adTextInner.scrollHeight > adTextInner.clientHeight + 2 ||
-                 adTextInner.scrollWidth > adTextInner.clientWidth + 2)
-            ) {
-                targetTitleSize -= 1;
-                applyFontSizes(targetTitleSize);
-                guard++;
+            if (!state.images || state.images.length === 0) {
+                state.images = [].concat(DEFAULT_IMAGES);
             }
         }
 
@@ -1659,28 +867,9 @@
             root.style.setProperty('--glow-intensity', state.glowIntensity + 'px');
             root.style.setProperty('--border-width', state.borderWidth + 'px');
             root.style.setProperty('--corner-radius', state.cornerRadius + 'px');
-            root.style.setProperty('--img-opacity', (state.imgOpacity / 100).toFixed(2));
-            root.style.setProperty('--bg-opacity', (state.bgOpacity / 100).toFixed(2));
-
-            var motionAmp = (state.motionIntensity / 50).toFixed(2);
-            var motionDuration = Math.max(0.6, (6.2 - state.motionSpeed * 0.52)).toFixed(2);
-            root.style.setProperty('--motion-amp', motionAmp);
-            root.style.setProperty('--motion-speed', motionDuration + 's');
-
-            var flickerAmp = (state.flickerIntensity / 100).toFixed(2);
-            var flickerDuration = Math.max(0.4, (5.2 - state.flickerSpeed * 0.45)).toFixed(2);
-            root.style.setProperty('--flicker-amp', flickerAmp);
-            root.style.setProperty('--flicker-speed', flickerDuration + 's');
-
-            var spinDuration = Math.max(0.7, (8.5 - state.borderSpinSpeed * 0.75)).toFixed(2);
-            root.style.setProperty('--border-spin-speed', spinDuration + 's');
-            root.style.setProperty('--border-spin-dir', state.borderSpinDir);
 
             adBox.style.width = state.width + 'px';
             adBox.style.height = state.height + 'px';
-
-            adBox.classList.remove('border-spin', 'border-solid', 'border-rgb', 'border-none');
-            adBox.classList.add('border-' + state.borderStyle);
 
             if (state.glowIntensity > 0) {
                 adBox.classList.add('glow-enabled', 'glow-pulse');
@@ -1688,102 +877,45 @@
                 adBox.classList.remove('glow-enabled', 'glow-pulse');
             }
 
-            adMotionStage.className = '';
+            var stage = document.getElementById('ad-motion-stage');
+            stage.className = '';
             if (state.motionType !== 'none') {
-                adMotionStage.classList.add('motion-' + state.motionType);
-            }
-
-            var flickerClasses = ['flicker-neon', 'flicker-blink', 'flicker-flash', 'flicker-chroma'];
-            adImage.classList.remove.apply(adImage.classList, flickerClasses);
-            adTextPromo.classList.remove.apply(adTextPromo.classList, flickerClasses);
-            if (state.flickerType !== 'none') {
-                adImage.classList.add('flicker-' + state.flickerType);
-                adTextPromo.classList.add('flicker-' + state.flickerType);
+                stage.classList.add('motion-' + state.motionType);
             }
 
             shimmerLayer.style.display = state.shimmer ? 'block' : 'none';
 
-            adImage.classList.remove('object-cover', 'object-contain', 'object-fill');
-            adImage.classList.add('object-' + state.objectFit);
-
-            if (state.badgeText && state.badgeText.trim() !== '') {
-                adBadge.textContent = state.badgeText.trim();
-                adBadge.classList.remove('hidden');
-            } else {
-                adBadge.classList.add('hidden');
-            }
-
             if (state.images.length > 0) {
                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-                var currentItem = state.images[state.currentIndex];
-                if (currentItem.promoData) {
+                var cur = state.images[state.currentIndex];
+                if (cur.promoData) {
                     adImage.classList.add('hidden');
                     adTextPromo.classList.remove('hidden');
-                    fitAdaptivePromoText(currentItem.promoData);
+                    promoRenderTag.textContent = cur.promoData.tag || 'DESTACADO';
+                    promoRenderTitle.textContent = cur.promoData.title || '¡SÍGUENOS!';
+                    promoRenderSub.textContent = cur.promoData.sub || '';
+                    adTextPromo.style.background = 'linear-gradient(135deg, ' + (cur.promoData.c1 || '#0f172a') + ', ' + (cur.promoData.c2 || '#0284c7') + ')';
                 } else {
                     adTextPromo.classList.add('hidden');
                     adImage.classList.remove('hidden');
-                    adImage.style.opacity = '';
-                    adImage.src = currentItem.src;
+                    adImage.src = cur.src;
                 }
             }
 
-            function setSafeText(id, val) {
-                var el = document.getElementById(id);
-                if (el) el.textContent = val;
-            }
-            function setSafeVal(id, val) {
-                var el = document.getElementById(id);
-                if (el) el.value = val;
-            }
-
-            setSafeText('label-corner-radius', state.cornerRadius + 'px');
-            setSafeVal('slider-corner-radius', state.cornerRadius);
-            setSafeText('label-width', state.width + 'px');
-            setSafeVal('slider-width', state.width);
-            setSafeText('label-height', state.height + 'px');
-            setSafeVal('slider-height', state.height);
-            setSafeText('label-border-width', state.borderWidth + 'px');
-            setSafeVal('slider-border-width', state.borderWidth);
-            setSafeText('label-glow', state.glowIntensity + 'px');
-            setSafeVal('slider-glow', state.glowIntensity);
-            setSafeText('label-img-opacity', state.imgOpacity + '%');
-            setSafeVal('slider-img-opacity', state.imgOpacity);
-            setSafeText('label-bg-opacity', state.bgOpacity + '%');
-            setSafeVal('slider-bg-opacity', state.bgOpacity);
-
-            setSafeText('label-motion-intensity', state.motionIntensity + '%');
-            setSafeVal('slider-motion-intensity', state.motionIntensity);
-            setSafeText('label-motion-speed', state.motionSpeed + '/10');
-            setSafeVal('slider-motion-speed', state.motionSpeed);
-
-            setSafeText('label-flicker-intensity', state.flickerIntensity + '%');
-            setSafeVal('slider-flicker-intensity', state.flickerIntensity);
-            setSafeText('label-flicker-speed', state.flickerSpeed + '/10');
-            setSafeVal('slider-flicker-speed', state.flickerSpeed);
-
-            setSafeText('label-border-speed', state.borderSpinSpeed + '/10');
-            setSafeVal('slider-border-speed', state.borderSpinSpeed);
-
             applyPositionAndScale();
-            saveStateToStorage();
         }
 
         function applyPositionAndScale() {
             if (isPreview) {
-                // En iframe o preview: siempre centrado y escalado armónico al viewport disponible
                 draggableWrapper.style.left = '50%';
                 draggableWrapper.style.top = '50%';
-
-                var stageW = window.innerWidth || document.documentElement.clientWidth || 500;
-                var stageH = window.innerHeight || document.documentElement.clientHeight || 320;
+                var stageW = window.innerWidth || 560;
+                var stageH = window.innerHeight || 320;
                 var targetW = Math.max(100, state.width || 480);
-                var targetH = Math.max(80, state.height || 270);
-
-                var fitScaleX = (stageW * 0.88) / targetW;
-                var fitScaleY = (stageH * 0.88) / targetH;
+                var targetH = Math.max(80, state.height || 220);
+                var fitScaleX = (stageW * 0.86) / targetW;
+                var fitScaleY = (stageH * 0.86) / targetH;
                 var autoScale = Math.min(1.0, Math.min(fitScaleX, fitScaleY));
-
                 draggableWrapper.style.transform = 'translate(-50%, -50%) scale(' + autoScale.toFixed(3) + ')';
             } else {
                 if (state.posX !== null && state.posY !== null) {
@@ -1797,421 +929,106 @@
             }
         }
 
-        function applyModalTransform() {
-            if (state.modalX !== null && state.modalY !== null) {
-                settingsModal.style.left = state.modalX + 'px';
-                settingsModal.style.top = state.modalY + 'px';
-            } else {
-                settingsModal.style.left = '50%';
-                settingsModal.style.top = '50%';
-            }
-            var activeScale = settingsModal.classList.contains('open') ? state.modalScale : state.modalScale * 0.95;
-            settingsModal.style.transform = 'translate(-50%, -50%) scale(' + activeScale + ')';
-            var scaleLabel = document.getElementById('label-modal-scale');
-            if (scaleLabel) {
-                scaleLabel.textContent = Math.round(state.modalScale * 100) + '%';
-            }
-        }
-
-        function applyShapePreset(preset) {
-            state.shapePreset = preset;
-            var shapeBtns = document.querySelectorAll('.preset-shape-btn');
-            for (var i = 0; i < shapeBtns.length; i++) {
-                shapeBtns[i].classList.toggle('active', shapeBtns[i].dataset.shape === preset);
-            }
-
-            if (preset === 'rect-thin') {
-                state.width = 640;
-                state.height = 130;
-                state.cornerRadius = 20;
-            } else if (preset === 'rect-thick') {
-                state.width = 520;
-                state.height = 220;
-                state.cornerRadius = 24;
-            } else if (preset === 'rect-16-9') {
-                state.width = 560;
-                state.height = 315;
-                state.cornerRadius = 24;
-            } else if (preset === 'square') {
-                state.width = 320;
-                state.height = 320;
-                state.cornerRadius = 28;
-            } else if (preset === 'circle') {
-                state.width = 300;
-                state.height = 300;
-                state.cornerRadius = 160;
-            } else if (preset === 'vertical') {
-                state.width = 260;
-                state.height = 460;
-                state.cornerRadius = 24;
-            }
-
-            applyVisualState();
-        }
-
-        function clearAllTimers() {
-            if (cycleTimeout) {
-                clearTimeout(cycleTimeout);
-                cycleTimeout = null;
-            }
-            if (slideInterval) {
-                clearInterval(slideInterval);
-                slideInterval = null;
-            }
-        }
-
-        var sleepTransitionTimeout = null;
-
-        function setAdVisibility(visible, reasonText) {
-            isCurrentlyVisible = visible;
-            if (sleepTransitionTimeout) {
-                clearTimeout(sleepTransitionTimeout);
-                sleepTransitionTimeout = null;
-            }
-
-            adBox.classList.remove(
-                'ad-hidden-fade',
-                'ad-hidden-zoom',
-                'ad-hidden-slide-up',
-                'ad-hidden-slide-side',
-                'is-sleeping'
-            );
-
-            if (visible) {
-                sleepingIndicator.classList.add('hidden');
-                updateStatusBanner();
-            } else {
-                // 1. Animación de salida limpia: el banner desaparece 100% sin mostrar el indicador
-                adBox.classList.add('ad-hidden-' + state.transitionStyle);
-                sleepingStatusText.textContent = reasonText || 'En pausa (Oculto en Stream)';
-                updateStatusBanner(reasonText);
-
-                // 2. Solo tras completarse el desvanecimiento (650ms), se habilita el indicador para hover
-                sleepTransitionTimeout = setTimeout(function() {
-                    if (!isCurrentlyVisible) {
-                        adBox.classList.add('is-sleeping');
-                        sleepingIndicator.classList.remove('hidden');
-                    }
-                }, 650);
-            }
-        }
-
-        function getShowSecondsTotal() {
-            var mult = state.showUnit === 'min' ? 60 : 1;
-            return Math.max(1, state.showValue) * mult;
-        }
-
-        function getHideSecondsTotal() {
-            var mult = state.hideUnit === 'min' ? 60 : 1;
-            return Math.max(1, state.hideValue) * mult;
-        }
-
-        function formatUnitText(val, unit) {
-            return val + ' ' + (unit === 'min' ? 'min' : 'seg');
-        }
-
-        function updateStatusBanner(extra) {
-            if (state.loopMode === 'always') {
-                cycleLiveStatus.textContent = 'Estado: Siempre visible en pantalla';
-            } else if (state.loopMode === 'infinite') {
-                cycleLiveStatus.textContent = isCurrentlyVisible ?
-                    'Estado: Visible (' + formatUnitText(state.showValue, state.showUnit) + ') • Bucle Infinito' :
-                    'Estado: En espera (' + formatUnitText(state.hideValue, state.hideUnit) + ') • Bucle Infinito';
-            } else if (state.loopMode === 'count') {
-                cycleLiveStatus.textContent = extra ?
-                    'Estado: ' + extra :
-                    'Mostrado: ' + state.completedLoops + ' de ' + state.maxLoops + ' veces';
-            }
-        }
-
-        function nextImageInGallery() {
-            if (state.images.length <= 1) return;
-            state.currentIndex = (state.currentIndex + 1) % state.images.length;
-            adImage.style.opacity = '0';
-            adTextPromo.style.opacity = '0';
-            setTimeout(function() {
-                applyVisualState();
-                renderGalleryThumbnails();
-            }, 220);
-        }
-
-        function startCycleEngine(resetCounter) {
-            clearAllTimers();
-            if (resetCounter) {
-                state.completedLoops = 0;
-            }
-
-            if (isPreview) {
-                // Modo previsualización: El banner permanece 100% visible sin esconderse
-                setAdVisibility(true);
-                // Si hay más de un banner, ciclar automáticamente cada 4.5s para mostrar la rotación interactiva
-                if (state.images.length > 1) {
-                    slideInterval = setInterval(function() {
-                        nextImageInGallery();
-                    }, 4500);
-                }
-                return;
-            }
-
-            if (state.slideMode === 'timer-5' || state.slideMode === 'timer-10') {
-                var sec = state.slideMode === 'timer-5' ? 5000 : 10000;
-                slideInterval = setInterval(function() {
-                    if (isCurrentlyVisible) nextImageInGallery();
-                }, sec);
-            }
-
-            if (state.loopMode === 'always') {
-                setAdVisibility(true);
-                return;
-            }
-
-            var runShowPhase = function() {
-                setAdVisibility(true);
-                state.completedLoops++;
-                updateStatusBanner();
-
-                cycleTimeout = setTimeout(function() {
-                    if (state.loopMode === 'count' && state.completedLoops >= state.maxLoops) {
-                        setAdVisibility(false, 'Ciclo finalizado (' + state.maxLoops + '/' + state.maxLoops + ')');
-                        return;
-                    }
-                    runHidePhase();
-                }, getShowSecondsTotal() * 1000);
-            };
-
-            var runHidePhase = function() {
-                setAdVisibility(false, 'En espera (' + formatUnitText(state.hideValue, state.hideUnit) + ' para reaparecer)');
-
-                cycleTimeout = setTimeout(function() {
-                    if (state.slideMode === 'each-cycle' && state.images.length > 1) {
-                        state.currentIndex = (state.currentIndex + 1) % state.images.length;
-                        applyVisualState();
-                        renderGalleryThumbnails();
-                    }
-                    runShowPhase();
-                }, getHideSecondsTotal() * 1000);
-            };
-
-            runShowPhase();
-        }
-
         function renderGalleryThumbnails() {
-            var container = document.getElementById('image-gallery-list');
-            var countLabel = document.getElementById('gallery-count');
-            if (countLabel) countLabel.textContent = state.images.length;
+            var container = document.getElementById('gallery-container');
             if (!container) return;
             container.innerHTML = '';
+            var countEl = document.getElementById('gallery-count');
+            if (countEl) countEl.textContent = state.images.length;
 
-            for (var i = 0; i < state.images.length; i++) {
-                (function(idx, imgObj) {
-                    var item = document.createElement('div');
-                    var isSelected = idx === state.currentIndex;
-                    var isDrive = imgObj.isDrive || (imgObj.src && imgObj.src.indexOf('googleusercontent.com') !== -1);
-                    var isText = imgObj.isTextPromo || imgObj.type === 'text' || (imgObj.promoData && !isDrive);
-                    var isUploading = imgObj.isUploading;
+            state.images.forEach(function(img, idx) {
+                var item = document.createElement('div');
+                item.className = 'gallery-item h-20 flex items-center justify-center relative p-1.5 ' + (idx === state.currentIndex ? 'active' : '');
 
-                    item.className = 'relative group rounded-lg overflow-hidden border-2 cursor-pointer h-14 bg-slate-950 transition ' + 
-                        (isSelected ? 'border-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.4)]' : 'border-white/10 hover:border-white/30');
+                if (img.promoData) {
+                    item.innerHTML = '<div class="w-full h-full rounded-lg flex flex-col items-center justify-center text-center p-1" style="background: linear-gradient(135deg, ' + img.promoData.c1 + ', ' + img.promoData.c2 + ');">' +
+                        '<span class="text-[9px] font-bold text-cyan-300 truncate w-full">' + (img.promoData.tag || 'PROMO') + '</span>' +
+                        '<span class="text-[11px] font-black text-white truncate w-full">' + (img.promoData.title || 'TEXTO') + '</span>' +
+                    '</div>';
+                } else {
+                    item.innerHTML = '<img src="' + img.src + '" class="w-full h-full object-cover rounded-lg" alt="Thumbnail">';
+                }
 
-                    var cloudBadge = isDrive ? 
-                        '<span class="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-cyan-950/90 border border-cyan-400/40 text-[8px] text-cyan-300 font-bold" title="Alojada en Google Drive CDN"><i class="fa-brands fa-google-drive"></i></span>' : '';
-                    var textBadge = isText ?
-                        '<span class="absolute bottom-0.5 left-0.5 px-1 py-0.2 rounded bg-purple-950/90 border border-purple-400/40 text-[8px] text-purple-300 font-bold" title="Promo de Texto"><i class="fa-solid fa-font"></i></span>' : '';
-                    
-                    var uploadBadge = isUploading ?
-                        '<div class="absolute inset-0 bg-slate-950/70 flex items-center justify-center text-[10px] text-cyan-300 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i> Subiendo</div>' : '';
-
-                    var previewContent = '';
-                    if (isText && imgObj.promoData) {
-                        previewContent = '<div class="w-full h-full flex flex-col items-center justify-center p-1 text-center" style="background: linear-gradient(135deg, ' + (imgObj.promoData.c1 || '#0f172a') + ', ' + (imgObj.promoData.c2 || '#0284c7') + ')">' +
-                            '<span class="text-[9px] font-bold text-white truncate max-w-full leading-tight">' + (imgObj.promoData.title || imgObj.name || 'Promo') + '</span></div>';
-                    } else {
-                        previewContent = '<img src="' + imgObj.src + '" class="w-full h-full object-cover" alt="' + imgObj.name + '" />';
+                var delBtn = document.createElement('button');
+                delBtn.className = 'btn-del-img absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600/90 text-white flex items-center justify-center text-xs shadow hover:bg-rose-500 transition';
+                delBtn.innerHTML = '<i class="fa-solid fa-trash-can"></i>';
+                delBtn.title = 'Eliminar este banner';
+                delBtn.onclick = function(e) {
+                    e.stopPropagation();
+                    if (state.images.length <= 1) {
+                        showToast('⚠️ Debes mantener al menos un banner');
+                        return;
                     }
-
-                    item.innerHTML = previewContent + cloudBadge + textBadge + uploadBadge +
-                        '<button class="btn-del-img absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow" title="Eliminar este banner de la rotación">×</button>';
-
-                    item.addEventListener('click', function(e) {
-                        if (e.target.classList.contains('btn-del-img')) {
-                            e.stopPropagation();
-                            if (confirm('¿Eliminar "' + (imgObj.name || 'este banner') + '" de tu lista?')) {
-                                if (state.images.length > 1) {
-                                    state.images.splice(idx, 1);
-                                } else {
-                                    state.images = [JSON.parse(JSON.stringify(DEFAULT_IMAGES[0]))];
-                                }
-                                if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-                                populatePromoInputsFromCurrent();
-                                applyVisualState();
-                                renderGalleryThumbnails();
-                                saveStateToStorage();
-                                showToast('🗑️ Banner eliminado con éxito');
-                            }
-                            return;
-                        }
-                        state.currentIndex = idx;
-                        populatePromoInputsFromCurrent();
-                        applyVisualState();
-                        renderGalleryThumbnails();
-                    });
-
-                    container.appendChild(item);
-                })(i, state.images[i]);
-            }
-        }
-
-        // =======================================================================
-        // SUBIDA ASÍNCRONA A GOOGLE DRIVE CON APPS SCRIPT Y VINCULACIÓN A GMAIL
-        // =======================================================================
-        async function uploadImageToGoogleDrive(file, base64Clean, imgObjReference) {
-            var statusBox = document.getElementById('drive-upload-status');
-            var statusText = document.getElementById('drive-upload-text');
-            var statusPercent = document.getElementById('drive-upload-percent');
-            var progressBar = document.getElementById('drive-upload-bar');
-
-            if (!currentAuthUser) {
-                showToast('🔐 Inicia sesión con Google para registrar tus imágenes en tu cuenta');
-                const btnLogin = document.getElementById('btn-sponsor-login-google');
-                if (btnLogin) btnLogin.click();
-                imgObjReference.isUploading = false;
-                renderGalleryThumbnails();
-                return;
-            }
-
-            if (statusBox) statusBox.classList.remove('hidden');
-            if (progressBar) progressBar.style.width = '45%';
-            if (statusPercent) statusPercent.textContent = '45%';
-            if (statusText) statusText.innerHTML = '<i class="fa-solid fa-cloud-arrow-up fa-bounce text-cyan-400"></i> Subiendo "' + file.name + '" a tu Google Drive...';
-
-            try {
-                var payload = {
-                    base64: base64Clean,
-                    userName: currentAuthUser.displayName || 'Usuario Streamer',
-                    userEmail: currentAuthUser.email,
-                    filename: file.name,
-                    mimeType: file.type || 'image/png',
-                    folderName: 'Sponsors_Publicidad',
-                    subfolderName: 'Sponsors_OBS',
-                    isShop: true,
-                    inRoot: true,
-                    keepFiles: true
-                };
-
-                if (progressBar) progressBar.style.width = '75%';
-                if (statusPercent) statusPercent.textContent = '75%';
-
-                var res = await fetch(APPS_SCRIPT_UPLOAD_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                    body: JSON.stringify(payload)
-                });
-
-                var data = await res.json();
-                if (data && data.status === 'success' && data.fileId) {
-                    var cdnUrl = 'https://lh3.googleusercontent.com/d/' + data.fileId;
-                    imgObjReference.src = cdnUrl;
-                    imgObjReference.driveId = data.fileId;
-                    imgObjReference.isDrive = true;
-                    imgObjReference.isTextPromo = false;
-                    imgObjReference.type = 'image';
-                    imgObjReference.isUploading = false;
-                    imgObjReference.userId = currentAuthUser.uid;
-                    imgObjReference.userEmail = currentAuthUser.email;
-
-                    if (progressBar) progressBar.style.width = '100%';
-                    if (statusPercent) statusPercent.textContent = '100%';
-                    if (statusText) statusText.innerHTML = '<i class="fa-solid fa-circle-check text-emerald-400"></i> ¡Subida exitosa a tu Google Drive CDN!';
-
+                    state.images.splice(idx, 1);
+                    if (state.currentIndex >= state.images.length) state.currentIndex = 0;
                     applyVisualState();
                     renderGalleryThumbnails();
                     saveStateToStorage();
-                    showToast('☁️ ¡Imagen guardada permanentemente en tu Google Drive!');
+                    showToast('🗑️ Banner eliminado');
+                };
 
-                    setTimeout(function() {
-                        if (statusBox) statusBox.classList.add('hidden');
-                    }, 3500);
-                } else {
-                    throw new Error(data ? data.message : 'Respuesta no válida del servidor');
-                }
-            } catch (err) {
-                console.warn('[Google Drive Upload] Error:', err);
-                imgObjReference.isUploading = false;
-                renderGalleryThumbnails();
-                if (statusText) statusText.innerHTML = '<i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Falló Google Drive. Se mantendrá copia local.';
-                showToast('⚠️ Se usó copia local temporal.');
-                setTimeout(function() {
-                    if (statusBox) statusBox.classList.add('hidden');
-                }, 4000);
-            }
+                item.onclick = function() {
+                    state.currentIndex = idx;
+                    applyVisualState();
+                    renderGalleryThumbnails();
+                    saveStateToStorage();
+                };
+
+                item.appendChild(delBtn);
+                container.appendChild(item);
+            });
         }
 
+        // Subida de imagen local (FileReader a base64 en cache del navegador)
         document.getElementById('file-upload-input').addEventListener('change', function(e) {
-            var files = Array.prototype.slice.call(e.target.files || []);
-            if (!files.length) return;
-
-            if (!currentAuthUser) {
-                showToast('🔐 Inicia sesión con Google para subir imágenes a tu cuenta');
-                const btnLogin = document.getElementById('btn-sponsor-login-google');
-                if (btnLogin) btnLogin.click();
-                e.target.value = '';
-                return;
-            }
-
-            var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
+            var files = e.target.files;
+            if (!files || files.length === 0) return;
 
             for (var i = 0; i < files.length; i++) {
-                (function(file, index) {
+                (function(file) {
                     var reader = new FileReader();
-                    reader.onload = function(ev) {
-                        var base64Data = ev.target.result;
-                        var base64Clean = base64Data.split(',')[1] || base64Data;
-
+                    reader.onload = function(evt) {
+                        var dataUrl = evt.target.result;
+                        var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
                         var newImg = {
-                            id: 'user-' + Date.now() + '-' + index,
-                            name: file.name,
-                            src: base64Data, // Vista previa instantánea
+                            id: 'img-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
                             type: 'image',
-                            isTextPromo: false,
-                            isUploading: true,
-                            isDrive: false
+                            src: dataUrl,
+                            alt: file.name,
+                            isTextPromo: false
                         };
-
-                        if (onlyDemos && index === 0) {
+                        if (onlyDemos) {
                             state.images = [newImg];
                             state.currentIndex = 0;
                         } else {
                             state.images.push(newImg);
                             state.currentIndex = state.images.length - 1;
                         }
-
                         applyVisualState();
                         renderGalleryThumbnails();
-
-                        // Disparar subida a Google Drive en segundo plano con la cuenta autenticada
-                        uploadImageToGoogleDrive(file, base64Clean, newImg);
+                        saveStateToStorage();
+                        showToast('✨ Imagen agregada a la memoria local');
                     };
                     reader.readAsDataURL(file);
-                })(files[i], i);
+                })(files[i]);
             }
             e.target.value = '';
         });
 
+        // Añadir imagen por URL directa
         document.getElementById('btn-add-url').addEventListener('click', function() {
             var input = document.getElementById('input-image-url');
-            var url = input.value.trim();
+            var url = (input && input.value || '').trim();
             if (!url) return;
 
             var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
             var newImg = {
-                id: 'url-' + Date.now(),
-                name: 'Imagen Web',
-                src: url,
+                id: 'img-' + Date.now(),
                 type: 'image',
-                isTextPromo: false,
-                isDrive: url.indexOf('googleusercontent.com') !== -1
+                src: url,
+                alt: 'Sponsor Image',
+                isTextPromo: false
             };
-
             if (onlyDemos) {
                 state.images = [newImg];
                 state.currentIndex = 0;
@@ -2219,183 +1036,32 @@
                 state.images.push(newImg);
                 state.currentIndex = state.images.length - 1;
             }
-
-            input.value = '';
             applyVisualState();
             renderGalleryThumbnails();
             saveStateToStorage();
-            showToast('✅ Imagen agregada a la lista');
+            input.value = '';
+            showToast('✨ Imagen añadida por enlace');
         });
 
-        var selectedPromoC1 = '#0f172a';
-        var selectedPromoC2 = '#0284c7';
-        var promoThumbDebounceTimer = null;
-
-        function populatePromoInputsFromCurrent() {
-            if (!state.images || state.images.length === 0) return;
-            if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-            var currentItem = state.images[state.currentIndex];
-            if (!currentItem || !currentItem.promoData) return;
-
-            var p = currentItem.promoData;
-            var s = p.styles || {};
-
-            var titleInput = document.getElementById('input-promo-title');
-            var subInput = document.getElementById('input-promo-sub');
-            var tagInput = document.getElementById('input-promo-tag');
-
-            if (titleInput && document.activeElement !== titleInput) titleInput.value = p.title || '';
-            if (subInput && document.activeElement !== subInput) subInput.value = p.sub || '';
-            if (tagInput && document.activeElement !== tagInput) tagInput.value = p.tag || '';
-
-            if (s.fontFamily) document.getElementById('select-promo-font').value = s.fontFamily;
-            if (s.tagWeight) document.getElementById('select-tag-weight').value = s.tagWeight;
-            if (s.tagColor) document.getElementById('picker-tag-color').value = s.tagColor;
-            if (s.titleWeight) document.getElementById('select-title-weight').value = s.titleWeight;
-            if (s.titleColor) document.getElementById('picker-title-color').value = s.titleColor;
-            if (s.subWeight) document.getElementById('select-sub-weight').value = s.subWeight;
-            if (s.subColor) document.getElementById('picker-sub-color').value = s.subColor;
-
-            if (p.c1 && p.c2) {
-                selectedPromoC1 = p.c1;
-                selectedPromoC2 = p.c2;
-                var promoBgBtns = document.querySelectorAll('.promo-bg-btn');
-                for (var j = 0; j < promoBgBtns.length; j++) {
-                    var match = promoBgBtns[j].dataset.c1 === p.c1 && promoBgBtns[j].dataset.c2 === p.c2;
-                    promoBgBtns[j].classList.toggle('ring-2', match);
-                    promoBgBtns[j].classList.toggle('ring-white', match);
-                    promoBgBtns[j].classList.toggle('opacity-100', match);
-                    promoBgBtns[j].classList.toggle('opacity-70', !match);
-                }
-            }
-        }
-
-        // SINCRONIZACIÓN PROTEGIDA: Solo altera el banner actual si es una promo de texto
-        // NUNCA sobreescribe la imagen subida a Google Drive del streamer
-        function syncActivePromoFromInputs() {
-            if (!state.images || state.images.length === 0) return;
-            if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-            var currentItem = state.images[state.currentIndex];
-            if (!currentItem) return;
-
-            // PROTECCIÓN CLAVE: Si el streamer tiene seleccionada una foto/imagen de Drive, NO sobreescribir su archivo
-            if (!currentItem.isTextPromo) {
-                return;
-            }
-
-            var titleInput = document.getElementById('input-promo-title');
-            var subInput = document.getElementById('input-promo-sub');
-            var tagInput = document.getElementById('input-promo-tag');
-
-            var titleText = titleInput ? titleInput.value : '';
-            var subText = subInput ? subInput.value : '';
-            var tagText = tagInput ? tagInput.value : '';
-
-            var customStyles = {
-                fontFamily: document.getElementById('select-promo-font').value,
-                tagWeight: document.getElementById('select-tag-weight').value,
-                tagColor: document.getElementById('picker-tag-color').value,
-                titleWeight: document.getElementById('select-title-weight').value,
-                titleColor: document.getElementById('picker-title-color').value,
-                subWeight: document.getElementById('select-sub-weight').value,
-                subColor: document.getElementById('picker-sub-color').value
-            };
-
-            currentItem.promoData = {
-                title: titleText,
-                sub: subText,
-                tag: tagText,
-                c1: selectedPromoC1,
-                c2: selectedPromoC2,
-                styles: customStyles
-            };
-            currentItem.name = titleText.trim() || 'Promo Publicitaria';
-
-            // Actualización inmediata en vivo
-            applyVisualState();
-
-            // Actualizar la miniatura SVG de la lista (con leve debounce)
-            if (promoThumbDebounceTimer) clearTimeout(promoThumbDebounceTimer);
-            promoThumbDebounceTimer = setTimeout(function() {
-                if (currentItem && currentItem.promoData) {
-                    currentItem.src = createDemoBannerSVG(
-                        currentItem.promoData.title || '¡PROMOCIÓN!',
-                        currentItem.promoData.sub || '',
-                        currentItem.promoData.c1,
-                        currentItem.promoData.c2,
-                        currentItem.promoData.tag || '',
-                        currentItem.promoData.styles
-                    );
-                    renderGalleryThumbnails();
-                    saveStateToStorage();
-                }
-            }, 300);
-        }
-
-        var promoBgBtns = document.querySelectorAll('.promo-bg-btn');
-        for (var b = 0; b < promoBgBtns.length; b++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    selectedPromoC1 = btn.dataset.c1;
-                    selectedPromoC2 = btn.dataset.c2;
-                    for (var j = 0; j < promoBgBtns.length; j++) {
-                        promoBgBtns[j].classList.remove('ring-2', 'ring-white', 'opacity-100');
-                        promoBgBtns[j].classList.add('opacity-70');
-                    }
-                    btn.classList.add('ring-2', 'ring-white', 'opacity-100');
-                    btn.classList.remove('opacity-70');
-                    syncActivePromoFromInputs();
-                });
-            })(promoBgBtns[b]);
-        }
-
-        // Conectar eventos en tiempo real para todos los campos de texto, fuentes y colores
-        ['input-promo-title', 'input-promo-sub', 'input-promo-tag', 'picker-tag-color', 'picker-title-color', 'picker-sub-color'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.addEventListener('input', syncActivePromoFromInputs);
-        });
-
-        ['select-promo-font', 'select-tag-weight', 'select-title-weight', 'select-sub-weight'].forEach(function(id) {
-            var el = document.getElementById(id);
-            if (el) el.addEventListener('change', syncActivePromoFromInputs);
-        });
-
-        // BOTÓN: Crea una NUEVA promo de texto sin reemplazar ni borrar la imagen subida
+        // Crear banner de texto independiente
         document.getElementById('btn-create-text-ad').addEventListener('click', function() {
-            var titleInput = document.getElementById('input-promo-title');
-            var subInput = document.getElementById('input-promo-sub');
-            var tagInput = document.getElementById('input-promo-tag');
-
-            var titleText = titleInput.value.trim() || '¡NUEVA PROMOCIÓN!';
-            var subText = subInput.value.trim() || 'Disponible ahora en el directo';
-            var tagText = tagInput.value.trim() || 'PROMO';
-
-            var customStyles = {
-                fontFamily: document.getElementById('select-promo-font').value,
-                tagWeight: document.getElementById('select-tag-weight').value,
-                tagColor: document.getElementById('picker-tag-color').value,
-                titleWeight: document.getElementById('select-title-weight').value,
-                titleColor: document.getElementById('picker-title-color').value,
-                subWeight: document.getElementById('select-sub-weight').value,
-                subColor: document.getElementById('picker-sub-color').value
-            };
-
-            var generatedSrc = createDemoBannerSVG(titleText, subText, selectedPromoC1, selectedPromoC2, tagText, customStyles);
+            var tag = (document.getElementById('input-promo-tag').value || 'DESTACADO').trim();
+            var title = (document.getElementById('input-promo-title').value || '¡SÍGUENOS EN VIVO!').trim();
+            var sub = (document.getElementById('input-promo-sub').value || '').trim();
+            var c1 = document.getElementById('picker-promo-c1').value || '#0f172a';
+            var c2 = document.getElementById('picker-promo-c2').value || '#0284c7';
 
             var newPromo = {
                 id: 'promo-' + Date.now(),
-                name: titleText,
                 type: 'text',
                 isTextPromo: true,
-                isDrive: false,
-                src: generatedSrc,
+                src: createDemoBannerSVG(title, sub, c1, c2, tag),
                 promoData: {
-                    title: titleText,
-                    sub: subText,
-                    tag: tagText,
-                    c1: selectedPromoC1,
-                    c2: selectedPromoC2,
-                    styles: customStyles
+                    tag: tag,
+                    title: title,
+                    sub: sub,
+                    c1: c1,
+                    c2: c2
                 }
             };
 
@@ -2407,489 +1073,204 @@
                 state.images.push(newPromo);
                 state.currentIndex = state.images.length - 1;
             }
-
             applyVisualState();
             renderGalleryThumbnails();
             saveStateToStorage();
-            showToast('✍️ ¡Variante de texto añadida como nuevo banner sin tocar tus imágenes!');
+            showToast('✨ Promo de texto añadida');
         });
 
-        document.getElementById('btn-restore-demo').addEventListener('click', function() {
+        // Restablecer demos
+        document.getElementById('btn-reset-demos').addEventListener('click', function() {
             state.images = [].concat(DEFAULT_IMAGES);
             state.currentIndex = 0;
             applyVisualState();
             renderGalleryThumbnails();
             saveStateToStorage();
-            showToast('🔄 Demos restablecidos');
+            showToast('↻ Banners de demo restablecidos');
         });
 
-        var tabBtns = document.querySelectorAll('.tab-btn');
-        for (var t = 0; t < tabBtns.length; t++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    for (var x = 0; x < tabBtns.length; x++) {
-                        tabBtns[x].classList.remove('active');
-                    }
-                    var contents = document.querySelectorAll('.tab-content');
-                    for (var y = 0; y < contents.length; y++) {
-                        contents[y].classList.add('hidden');
-                    }
-                    btn.classList.add('active');
-                    document.getElementById(btn.dataset.tab).classList.remove('hidden');
-                });
-            })(tabBtns[t]);
-        }
-
-        var presetShapeBtns = document.querySelectorAll('.preset-shape-btn');
-        for (var p = 0; p < presetShapeBtns.length; p++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    applyShapePreset(btn.dataset.shape);
-                });
-            })(presetShapeBtns[p]);
-        }
-
-        document.getElementById('slider-corner-radius').addEventListener('input', function(e) {
-            state.cornerRadius = parseInt(e.target.value, 10);
-            applyVisualState();
+        // Pestañas
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+                document.querySelectorAll('.tab-content').forEach(function(c) { c.classList.add('hidden'); });
+                btn.classList.add('active');
+                var tabId = btn.getAttribute('data-tab');
+                var target = document.getElementById(tabId);
+                if (target) target.classList.remove('hidden');
+            });
         });
+
+        // Controles de forma y colores
         document.getElementById('slider-width').addEventListener('input', function(e) {
             state.width = parseInt(e.target.value, 10);
+            document.getElementById('label-width').textContent = state.width + 'px';
             applyVisualState();
+            saveStateToStorage();
         });
         document.getElementById('slider-height').addEventListener('input', function(e) {
             state.height = parseInt(e.target.value, 10);
+            document.getElementById('label-height').textContent = state.height + 'px';
             applyVisualState();
-        });
-
-        document.getElementById('select-object-fit').addEventListener('change', function(e) {
-            state.objectFit = e.target.value;
-            applyVisualState();
-        });
-        document.getElementById('input-badge-text').addEventListener('input', function(e) {
-            state.badgeText = e.target.value;
-            applyVisualState();
-        });
-
-        var loopModeBtns = document.querySelectorAll('.loop-mode-btn');
-        for (var l = 0; l < loopModeBtns.length; l++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.loopMode = btn.dataset.loopmode;
-                    for (var k = 0; k < loopModeBtns.length; k++) {
-                        loopModeBtns[k].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-cyan-300');
-                        loopModeBtns[k].classList.add('bg-slate-900', 'border-white/10', 'text-slate-300');
-                    }
-                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-cyan-300');
-                    btn.classList.remove('bg-slate-900', 'border-white/10', 'text-slate-300');
-
-                    document.getElementById('timing-controls-box').classList.toggle('opacity-40', state.loopMode === 'always');
-                    document.getElementById('repeat-count-row').classList.toggle('hidden', state.loopMode !== 'count');
-
-                    startCycleEngine(true);
-                    saveStateToStorage();
-                });
-            })(loopModeBtns[l]);
-        }
-
-        document.getElementById('input-show-val').addEventListener('change', function(e) {
-            state.showValue = Math.max(1, parseInt(e.target.value, 10) || 10);
-            startCycleEngine(true);
             saveStateToStorage();
         });
-        document.getElementById('select-show-unit').addEventListener('change', function(e) {
-            state.showUnit = e.target.value;
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
-        document.getElementById('input-hide-val').addEventListener('change', function(e) {
-            state.hideValue = Math.max(1, parseInt(e.target.value, 10) || 8);
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
-        document.getElementById('select-hide-unit').addEventListener('change', function(e) {
-            state.hideUnit = e.target.value;
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
-        document.getElementById('input-max-loops').addEventListener('change', function(e) {
-            state.maxLoops = Math.max(1, parseInt(e.target.value, 10) || 3);
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
-        document.getElementById('select-transition-style').addEventListener('change', function(e) {
-            state.transitionStyle = e.target.value;
-            saveStateToStorage();
-        });
-        document.getElementById('select-slide-mode').addEventListener('change', function(e) {
-            state.slideMode = e.target.value;
-            startCycleEngine(false);
-            saveStateToStorage();
-        });
-
-        var motionNames = {
-            none: 'Quieto (Sin movimiento)',
-            float: 'Levitación Suave',
-            heartbeat: 'Latido / Pulso',
-            sway: 'Péndulo / Balanceo',
-            shake: 'Sacudida Energética',
-            bounce: 'Rebote Elástico',
-            tilt3d: 'Giro Perspectiva 3D'
-        };
-
-        var motionTypeBtns = document.querySelectorAll('.motion-type-btn');
-        for (var m = 0; m < motionTypeBtns.length; m++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.motionType = btn.dataset.motion;
-                    for (var i = 0; i < motionTypeBtns.length; i++) {
-                        motionTypeBtns[i].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                        motionTypeBtns[i].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    }
-                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    document.getElementById('label-motion-name').textContent = motionNames[state.motionType] || '';
-                    applyVisualState();
-                });
-            })(motionTypeBtns[m]);
-        }
-
-        document.getElementById('slider-motion-intensity').addEventListener('input', function(e) {
-            state.motionIntensity = parseInt(e.target.value, 10);
+        document.getElementById('slider-corner-radius').addEventListener('input', function(e) {
+            state.cornerRadius = parseInt(e.target.value, 10);
+            document.getElementById('label-corner-radius').textContent = state.cornerRadius + 'px';
             applyVisualState();
+            saveStateToStorage();
         });
-        document.getElementById('slider-motion-speed').addEventListener('input', function(e) {
-            state.motionSpeed = parseInt(e.target.value, 10);
-            applyVisualState();
-        });
-
-        var flickerNames = {
-            none: 'Desactivado',
-            neon: 'Titileo Eléctrico Neón',
-            blink: 'Parpadeo Suave',
-            flash: 'Destello Flash',
-            chroma: 'Pulso de Color Chroma'
-        };
-
-        var flickerTypeBtns = document.querySelectorAll('.flicker-type-btn');
-        for (var f = 0; f < flickerTypeBtns.length; f++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.flickerType = btn.dataset.flicker;
-                    for (var i = 0; i < flickerTypeBtns.length; i++) {
-                        flickerTypeBtns[i].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                        flickerTypeBtns[i].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    }
-                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    document.getElementById('label-flicker-name').textContent = flickerNames[state.flickerType] || '';
-                    applyVisualState();
-                });
-            })(flickerTypeBtns[f]);
-        }
-
-        document.getElementById('slider-flicker-intensity').addEventListener('input', function(e) {
-            state.flickerIntensity = parseInt(e.target.value, 10);
-            applyVisualState();
-        });
-        document.getElementById('slider-flicker-speed').addEventListener('input', function(e) {
-            state.flickerSpeed = parseInt(e.target.value, 10);
-            applyVisualState();
-        });
-
-        var borderStyleBtns = document.querySelectorAll('.border-style-btn');
-        for (var bs = 0; bs < borderStyleBtns.length; bs++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.borderStyle = btn.dataset.border;
-                    for (var i = 0; i < borderStyleBtns.length; i++) {
-                        borderStyleBtns[i].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                        borderStyleBtns[i].classList.add('bg-slate-900', 'border-white/10', 'text-slate-300');
-                    }
-                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                    btn.classList.remove('bg-slate-900', 'border-white/10', 'text-slate-300');
-                    applyVisualState();
-                });
-            })(borderStyleBtns[bs]);
-        }
-
-        var spinDirBtns = document.querySelectorAll('.spin-dir-btn');
-        for (var sd = 0; sd < spinDirBtns.length; sd++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.borderSpinDir = btn.dataset.dir;
-                    for (var i = 0; i < spinDirBtns.length; i++) {
-                        spinDirBtns[i].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                        spinDirBtns[i].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    }
-                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
-                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
-                    applyVisualState();
-                });
-            })(spinDirBtns[sd]);
-        }
-
-        document.getElementById('slider-border-speed').addEventListener('input', function(e) {
-            state.borderSpinSpeed = parseInt(e.target.value, 10);
-            applyVisualState();
-        });
-
-        var colorPresets = document.querySelectorAll('.color-preset');
-        for (var cp = 0; cp < colorPresets.length; cp++) {
-            (function(btn) {
-                btn.addEventListener('click', function() {
-                    state.color1 = btn.dataset.c1;
-                    state.color2 = btn.dataset.c2;
-                    document.getElementById('picker-color-1').value = state.color1;
-                    document.getElementById('picker-color-2').value = state.color2;
-                    applyVisualState();
-                });
-            })(colorPresets[cp]);
-        }
 
         document.getElementById('picker-color-1').addEventListener('input', function(e) {
             state.color1 = e.target.value;
+            document.getElementById('label-color-1').textContent = state.color1;
             applyVisualState();
+            saveStateToStorage();
         });
         document.getElementById('picker-color-2').addEventListener('input', function(e) {
             state.color2 = e.target.value;
+            document.getElementById('label-color-2').textContent = state.color2;
             applyVisualState();
+            saveStateToStorage();
         });
-
         document.getElementById('slider-border-width').addEventListener('input', function(e) {
             state.borderWidth = parseInt(e.target.value, 10);
+            document.getElementById('label-border-width').textContent = state.borderWidth + 'px';
             applyVisualState();
+            saveStateToStorage();
         });
         document.getElementById('slider-glow').addEventListener('input', function(e) {
             state.glowIntensity = parseInt(e.target.value, 10);
+            document.getElementById('label-glow').textContent = state.glowIntensity + 'px';
             applyVisualState();
-        });
-        document.getElementById('slider-img-opacity').addEventListener('input', function(e) {
-            state.imgOpacity = parseInt(e.target.value, 10);
-            applyVisualState();
-        });
-        document.getElementById('slider-bg-opacity').addEventListener('input', function(e) {
-            state.bgOpacity = parseInt(e.target.value, 10);
-            applyVisualState();
+            saveStateToStorage();
         });
         document.getElementById('check-shimmer').addEventListener('change', function(e) {
             state.shimmer = e.target.checked;
             applyVisualState();
+            saveStateToStorage();
         });
 
-        document.getElementById('btn-force-show').addEventListener('click', function() {
-            startCycleEngine(true);
-            showToast('↻ Ciclo reiniciado');
+        // Presets de movimiento
+        document.querySelectorAll('.motion-preset-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.motion-preset-btn').forEach(function(b) { b.classList.remove('active', 'border-cyan-400'); });
+                btn.classList.add('active', 'border-cyan-400');
+                state.motionType = btn.getAttribute('data-motion');
+                applyVisualState();
+                saveStateToStorage();
+            });
         });
+
+        // Interacción: Clic en el banner para abrir/cerrar ajustes en OBS
+        adBox.addEventListener('click', function(e) {
+            if (isPreview) return;
+            var isOpen = settingsModal.classList.toggle('open');
+            document.body.classList.toggle('settings-open', isOpen);
+        });
+
+        document.getElementById('btn-close-modal').addEventListener('click', function() {
+            settingsModal.classList.remove('open');
+            document.body.classList.remove('settings-open');
+        });
+
         document.getElementById('btn-center-pos').addEventListener('click', function() {
             state.posX = window.innerWidth / 2;
             state.posY = window.innerHeight / 2;
             state.scale = 1;
             applyPositionAndScale();
             saveStateToStorage();
-            showToast('🎯 Widget centrado');
-        });
-        document.getElementById('btn-close-modal').addEventListener('click', function() {
-            settingsModal.classList.remove('open');
-            document.body.classList.remove('settings-open');
-            applyModalTransform();
+            showToast('📍 Banner centrado');
         });
 
-        document.getElementById('btn-copy-obs-url').addEventListener('click', function() {
-            var base = window.location.href.split('?')[0].split('#')[0];
-            var url = activeUid ? (base + '?uid=' + encodeURIComponent(activeUid)) : base;
-            navigator.clipboard.writeText(url).then(function() {
-                showToast('📋 ¡Enlace OBS copiado con tu cuenta!');
-            }).catch(function() {
-                prompt('Copia este enlace para OBS Studio:', url);
-            });
+        document.getElementById('btn-force-show').addEventListener('click', function() {
+            state.currentIndex = (state.currentIndex + 1) % state.images.length;
+            applyVisualState();
+            renderGalleryThumbnails();
+            showToast('↻ Siguiente banner');
         });
 
-        document.getElementById('btn-modal-zoom-in').addEventListener('click', function() {
-            state.modalScale = Math.min(2.2, +(state.modalScale + 0.12).toFixed(2));
-            applyModalTransform();
-            saveStateToStorage();
-        });
-        document.getElementById('btn-modal-zoom-out').addEventListener('click', function() {
-            state.modalScale = Math.max(0.65, +(state.modalScale - 0.12).toFixed(2));
-            applyModalTransform();
-            saveStateToStorage();
-        });
-
-        var modalDragHeader = document.getElementById('modal-drag-header');
-        var isModalDragging = false;
-        var isModalResizing = false;
-        var activeModalCorner = null;
-        var startModalMouseX = 0;
-        var startModalMouseY = 0;
-        var startModalX = 0;
-        var startModalY = 0;
-        var startModalScale = 1;
-
-        function initModalCenterIfNeeded() {
-            if (state.modalX === null || state.modalY === null) {
-                var rect = settingsModal.getBoundingClientRect();
-                state.modalX = rect.left + rect.width / 2;
-                state.modalY = rect.top + rect.height / 2;
-            }
-        }
-
-        modalDragHeader.addEventListener('mousedown', function(e) {
-            if (e.button !== 0) return;
-            initModalCenterIfNeeded();
-            isModalDragging = true;
-            startModalMouseX = e.clientX;
-            startModalMouseY = e.clientY;
-            startModalX = state.modalX;
-            startModalY = state.modalY;
-            e.stopPropagation();
-        });
-
-        var modalCornerZones = document.querySelectorAll('.modal-corner-resize');
-        for (var mc = 0; mc < modalCornerZones.length; mc++) {
-            (function(cornerEl) {
-                cornerEl.addEventListener('mousedown', function(e) {
-                    if (e.button !== 0) return;
-                    initModalCenterIfNeeded();
-                    isModalResizing = true;
-                    activeModalCorner = cornerEl.dataset.mcorner;
-                    startModalMouseX = e.clientX;
-                    startModalMouseY = e.clientY;
-                    startModalScale = state.modalScale;
-                    e.stopPropagation();
-                });
-            })(modalCornerZones[mc]);
-        }
-
+        // Arrastrar el widget en OBS
         var isDragging = false;
-        var isResizing = false;
-        var activeCorner = null;
-        var pointerMoved = false;
-        var startMouseX = 0;
-        var startMouseY = 0;
-        var startPosX = 0;
-        var startPosY = 0;
-        var startScale = 1;
+        var dragStartX = 0, dragStartY = 0;
+        var initialPosX = 0, initialPosY = 0;
 
-        draggableWrapper.addEventListener('mousedown', function(e) {
-            if (e.button !== 0) return;
-            pointerMoved = false;
-            startMouseX = e.clientX;
-            startMouseY = e.clientY;
-
-            var rect = draggableWrapper.getBoundingClientRect();
-            var centerX = rect.left + rect.width / 2;
-            var centerY = rect.top + rect.height / 2;
-
-            if (state.posX === null || state.posY === null) {
-                state.posX = centerX;
-                state.posY = centerY;
-            }
-            startPosX = state.posX;
-            startPosY = state.posY;
-            startScale = state.scale;
-
-            if (e.target.classList.contains('corner-resize-zone')) {
-                isResizing = true;
-                activeCorner = e.target.dataset.corner;
-            } else {
-                isDragging = true;
-            }
-            e.stopPropagation();
+        draggableWrapper.addEventListener('pointerdown', function(e) {
+            if (isPreview) return;
+            if (e.target.closest('.corner-resize-zone') || e.target.closest('.settings-modal')) return;
+            isDragging = true;
+            dragStartX = e.clientX;
+            dragStartY = e.clientY;
+            initialPosX = state.posX !== null ? state.posX : window.innerWidth / 2;
+            initialPosY = state.posY !== null ? state.posY : window.innerHeight / 2;
+            draggableWrapper.setPointerCapture(e.pointerId);
         });
 
-        window.addEventListener('mousemove', function(e) {
-            if (isModalDragging) {
-                var dxM = e.clientX - startModalMouseX;
-                var dyM = e.clientY - startModalMouseY;
-                state.modalX = Math.max(80, Math.min(window.innerWidth - 80, startModalX + dxM));
-                state.modalY = Math.max(60, Math.min(window.innerHeight - 60, startModalY + dyM));
-                applyModalTransform();
-                return;
-            }
-            if (isModalResizing) {
-                var dxMR = e.clientX - startModalMouseX;
-                var dyMR = e.clientY - startModalMouseY;
-                var deltaM = 0;
-                if (activeModalCorner === 'br') deltaM = (dxMR + dyMR) / 2;
-                else if (activeModalCorner === 'tl') deltaM = (-dxMR - dyMR) / 2;
-                else if (activeModalCorner === 'tr') deltaM = (dxMR - dyMR) / 2;
-                else if (activeModalCorner === 'bl') deltaM = (-dxMR + dyMR) / 2;
+        window.addEventListener('pointermove', function(e) {
+            if (!isDragging) return;
+            var dx = e.clientX - dragStartX;
+            var dy = e.clientY - dragStartY;
+            state.posX = Math.round(initialPosX + dx);
+            state.posY = Math.round(initialPosY + dy);
+            applyPositionAndScale();
+        });
 
-                state.modalScale = Math.max(0.65, Math.min(2.2, +(startModalScale + deltaM * 0.003).toFixed(2)));
-                applyModalTransform();
-                return;
-            }
-
-            if (!isDragging && !isResizing) return;
-
-            var dx = e.clientX - startMouseX;
-            var dy = e.clientY - startMouseY;
-
-            if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
-                pointerMoved = true;
-            }
-
+        window.addEventListener('pointerup', function(e) {
             if (isDragging) {
-                state.posX = Math.max(40, Math.min(window.innerWidth - 40, startPosX + dx));
-                state.posY = Math.max(40, Math.min(window.innerHeight - 40, startPosY + dy));
-                applyPositionAndScale();
-            } else if (isResizing) {
-                var delta = 0;
-                if (activeCorner === 'br') delta = (dx + dy) / 2;
-                else if (activeCorner === 'tl') delta = (-dx - dy) / 2;
-                else if (activeCorner === 'tr') delta = (dx - dy) / 2;
-                else if (activeCorner === 'bl') delta = (-dx + dy) / 2;
-
-                state.scale = Math.max(0.3, Math.min(3.0, startScale + delta * 0.0035));
-                applyPositionAndScale();
-            }
-        });
-
-        window.addEventListener('mouseup', function() {
-            if (isModalDragging || isModalResizing) {
-                isModalDragging = false;
-                isModalResizing = false;
-                activeModalCorner = null;
-                saveStateToStorage();
-                return;
-            }
-
-            if ((isDragging || isResizing) && !pointerMoved) {
-                if (!isPreview) {
-                    var isOpen = settingsModal.classList.toggle('open');
-                    document.body.classList.toggle('settings-open', isOpen);
-                    applyModalTransform();
-                }
-            }
-            if (isDragging || isResizing) {
+                isDragging = false;
                 saveStateToStorage();
             }
-            isDragging = false;
-            isResizing = false;
-            activeCorner = null;
         });
 
-        document.getElementById('obs-canvas').addEventListener('mousedown', function(e) {
-            if (e.target.id === 'obs-canvas') {
-                settingsModal.classList.remove('open');
-                document.body.classList.remove('settings-open');
-                applyModalTransform();
-            }
+        // Arrastrar la ventana de ajustes
+        var isModalDragging = false;
+        var modalStartX = 0, modalStartY = 0;
+        var initialModalX = 0, initialModalY = 0;
+        var dragHeader = document.getElementById('modal-drag-header');
+
+        dragHeader.addEventListener('pointerdown', function(e) {
+            isModalDragging = true;
+            modalStartX = e.clientX;
+            modalStartY = e.clientY;
+            var rect = settingsModal.getBoundingClientRect();
+            initialModalX = rect.left + rect.width / 2;
+            initialModalY = rect.top + rect.height / 2;
+            dragHeader.setPointerCapture(e.pointerId);
         });
 
-        // Soporte para postMessage desde el modal/estudio principal
-        window.addEventListener('message', function(event) {
-            if (!event || !event.data) return;
-            var d = event.data;
+        window.addEventListener('pointermove', function(e) {
+            if (!isModalDragging) return;
+            var dx = e.clientX - modalStartX;
+            var dy = e.clientY - modalStartY;
+            settingsModal.style.left = (initialModalX + dx) + 'px';
+            settingsModal.style.top = (initialModalY + dy) + 'px';
+        });
+
+        window.addEventListener('pointerup', function() {
+            isModalDragging = false;
+        });
+
+        // Escuchar postMessages desde el panel web de la galería
+        window.addEventListener('message', function(evt) {
+            var d = evt.data;
+            if (!d || typeof d !== 'object') return;
+
             if (d.type === 'NEXT_AD') {
-                nextImageInGallery();
+                state.currentIndex = (state.currentIndex + 1) % state.images.length;
+                applyVisualState();
+                renderGalleryThumbnails();
             } else if (d.type === 'RESTART_CYCLE') {
-                startCycleEngine(true);
-            } else if (d.type === 'OPEN_SETTINGS') {
-                var isOpen = settingsModal.classList.toggle('open');
-                document.body.classList.toggle('settings-open', isOpen);
-                applyModalTransform();
+                state.currentIndex = 0;
+                applyVisualState();
+                renderGalleryThumbnails();
+                showToast('↻ Ciclo reiniciado');
+            } else if (d.type === 'SET_SPONSOR_STYLE') {
+                if (d.color1) state.color1 = d.color1;
+                if (d.color2) state.color2 = d.color2;
+                if (typeof d.borderWidth === 'number') state.borderWidth = d.borderWidth;
+                if (typeof d.glowIntensity === 'number') state.glowIntensity = d.glowIntensity;
+                applyVisualState();
+                saveStateToStorage();
             } else if (d.type === 'ADD_IMAGE' && d.image) {
                 var onlyDemos = state.images.every(function(img) { return img.id && img.id.startsWith('demo-'); });
                 if (onlyDemos) {
@@ -2902,60 +1283,30 @@
                 applyVisualState();
                 renderGalleryThumbnails();
                 saveStateToStorage();
-            } else if (d.type === 'SET_SPONSOR_STYLE') {
-                if (d.color1) state.color1 = d.color1;
-                if (d.color2) state.color2 = d.color2;
-                if (typeof d.borderWidth === 'number') state.borderWidth = d.borderWidth;
-                if (typeof d.glowIntensity === 'number') state.glowIntensity = d.glowIntensity;
-                if (d.shimmer !== undefined) state.shimmer = !!d.shimmer;
-                applyVisualState();
-                saveStateToStorage();
-            } else if (d.type === 'SET_SPONSOR_TIMING') {
-                if (typeof d.showValue === 'number') state.showValue = d.showValue;
-                if (typeof d.hideValue === 'number') state.hideValue = d.hideValue;
-                if (d.slideMode) state.slideMode = d.slideMode;
-                startCycleEngine(true);
-                saveStateToStorage();
+                showToast('✨ Banner añadido a la rotación');
             }
         });
 
-        window.addEventListener('resize', function() {
+        // Ciclo automático en preview
+        setInterval(function() {
+            if (isPreview && state.images.length > 1) {
+                state.currentIndex = (state.currentIndex + 1) % state.images.length;
+                applyVisualState();
+            }
+        }, 5000);
+
+        // Inicialización
+        function init() {
             if (isPreview) {
-                applyPositionAndScale();
-                if (state.images.length > 0 && state.images[state.currentIndex] && state.images[state.currentIndex].promoData) {
-                    fitAdaptivePromoText(state.images[state.currentIndex].promoData);
-                }
+                document.body.classList.add('is-preview-mode');
             }
-        });
-
-        var widgetInitialized = false;
-        function initWidget() {
-            if (widgetInitialized) return;
-            widgetInitialized = true;
-            try {
-                if (isPreview) {
-                    document.body.classList.add('is-preview-mode');
-                    settingsModal.classList.remove('open');
-                    document.body.classList.remove('settings-open');
-                }
-                loadStateFromStorage();
-                populatePromoInputsFromCurrent();
-                renderGalleryThumbnails();
-                applyVisualState();
-                applyModalTransform();
-                startCycleEngine(true);
-                setupFirebaseAuth();
-            } catch(e) {
-                console.error('Error inicializando widget sponsor:', e);
-            }
+            loadStateFromStorage();
+            applyVisualState();
+            renderGalleryThumbnails();
         }
 
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            initWidget();
-        } else {
-            document.addEventListener('DOMContentLoaded', initWidget);
-            window.addEventListener('load', initWidget);
-        }
+        window.addEventListener('DOMContentLoaded', init);
+        window.addEventListener('resize', applyPositionAndScale);
     </script>
 </body>
 </html>
