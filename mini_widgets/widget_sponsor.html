@@ -16,7 +16,7 @@
             --border-width: 4px;
             --corner-radius: 24px;
             --img-opacity: 1;
-            --bg-opacity: 0.4;
+            --bg-opacity: 1;
             --motion-amp: 1;
             --motion-speed: 3.5s;
             --flicker-amp: 0.5;
@@ -62,7 +62,7 @@
             cursor: grab;
             z-index: 20;
             touch-action: none;
-            transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: opacity 0.4s ease;
         }
 
         #draggable-wrapper:active {
@@ -89,9 +89,9 @@
             border-radius: var(--corner-radius);
             padding: var(--border-width);
             transition: border-radius 0.2s ease,
-                        box-shadow 0.4s ease,
-                        transform 0.65s cubic-bezier(0.16, 1, 0.3, 1),
-                        opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+                        box-shadow 0.3s ease,
+                        transform 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+                        opacity 0.4s ease;
         }
 
         #ad-motion-stage {
@@ -213,13 +213,13 @@
             50% { filter: hue-rotate(calc(140deg * var(--flicker-amp))) saturate(calc(1 + 0.8 * var(--flicker-amp))); }
         }
 
-        /* Resplandores y Efectos Neón */
+        /* Resplandores y Efectos Neón - Completamente Estables y Constantes (Sin parpadeo involuntario) */
         .glow-enabled {
             box-shadow: 0 0 var(--glow-intensity) var(--glow-color),
-                        0 0 calc(var(--glow-intensity) * 1.8) color-mix(in srgb, var(--glow-color) 45%, transparent),
-                        0 15px 35px -10px rgba(0, 0, 0, 0.65);
+                        0 15px 35px -10px rgba(0, 0, 0, 0.75);
         }
 
+        /* Solo se activa si el usuario elige Latido */
         .glow-pulse {
             animation: pulseGlow 3s ease-in-out infinite;
         }
@@ -227,13 +227,11 @@
         @keyframes pulseGlow {
             0%, 100% {
                 box-shadow: 0 0 var(--glow-intensity) var(--glow-color),
-                            0 0 calc(var(--glow-intensity) * 1.6) color-mix(in srgb, var(--glow-color) 40%, transparent),
-                            0 15px 35px -10px rgba(0, 0, 0, 0.65);
+                            0 15px 35px -10px rgba(0, 0, 0, 0.75);
             }
             50% {
-                box-shadow: 0 0 calc(var(--glow-intensity) * 1.45) var(--glow-color),
-                            0 0 calc(var(--glow-intensity) * 2.5) color-mix(in srgb, var(--glow-color-2) 65%, transparent),
-                            0 15px 35px -10px rgba(0, 0, 0, 0.65);
+                box-shadow: 0 0 calc(var(--glow-intensity) * 1.5) var(--glow-color),
+                            0 15px 35px -10px rgba(0, 0, 0, 0.75);
             }
         }
 
@@ -297,6 +295,7 @@
             100% { transform: rotate(360deg); }
         }
 
+        /* Viewport Interior: Fondo Sólido de Contraste para que las Imágenes Nunca se vean Lavadas ni Semi-transparentes */
         .ad-inner-viewport {
             position: relative;
             width: 100%;
@@ -307,9 +306,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            background: rgba(15, 23, 42, var(--bg-opacity));
-            backdrop-filter: blur(calc(var(--bg-opacity) * 16px));
-            -webkit-backdrop-filter: blur(calc(var(--bg-opacity) * 16px));
+            background: #090e1a;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
         }
 
         .border-none .ad-inner-viewport {
@@ -319,8 +317,8 @@
         #ad-image {
             width: 100%;
             height: 100%;
-            opacity: var(--img-opacity);
-            transition: opacity 0.45s ease, transform 0.45s ease;
+            opacity: 1;
+            transition: opacity 0.3s ease, transform 0.45s ease;
             pointer-events: none;
         }
 
@@ -357,11 +355,11 @@
             font-weight: 800;
             letter-spacing: 0.08em;
             text-transform: uppercase;
-            background: rgba(10, 14, 26, 0.82);
+            background: rgba(10, 14, 26, 0.88);
             color: #ffffff;
-            border: 1px solid rgba(255, 255, 255, 0.22);
+            border: 1px solid rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(8px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.45);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             pointer-events: none;
         }
 
@@ -385,14 +383,15 @@
             pointer-events: none !important;
         }
 
+        /* En ningún caso se opaca el widget al 45% al configurar */
         #draggable-wrapper:hover .ad-box.is-sleeping,
         body.settings-open .ad-box.is-sleeping {
-            opacity: 0.45 !important;
-            transform: scale(0.98) !important;
+            opacity: 1 !important;
+            transform: scale(1) !important;
             pointer-events: auto !important;
         }
 
-        /* Menú de Configuración Flotante (Con texto optimizado y altamente legible) */
+        /* Menú de Configuración Flotante 100% Autónomo (Sin popups ni ventanas nativas bloqueables por OBS) */
         .settings-modal {
             position: fixed;
             top: 50%;
@@ -481,7 +480,11 @@
             box-shadow: 0 0 14px rgba(56, 189, 248, 0.25);
         }
 
-        .preset-shape-btn.active {
+        .preset-shape-btn.active,
+        .slide-mode-btn.active,
+        .trans-style-btn.active,
+        .obj-fit-btn.active,
+        .font-style-btn.active {
             background: rgba(56, 189, 248, 0.22);
             border-color: #38bdf8;
             color: #ffffff;
@@ -555,7 +558,7 @@
             </div>
         </div>
 
-        <!-- Menú de Ajustes Flotante en OBS -->
+        <!-- Menú de Ajustes Flotante en OBS (100% Botones y Paletas en Pantalla, sin ventanas nativas) -->
         <div id="settings-modal" class="settings-modal" onclick="event.stopPropagation()">
             <div class="modal-corner-resize modal-corner-tl" data-mcorner="tl" title="Arrastra para redimensionar este menú"></div>
             <div class="modal-corner-resize modal-corner-tr" data-mcorner="tr" title="Arrastra para redimensionar este menú"></div>
@@ -615,7 +618,7 @@
             <!-- Pestaña 1: CONTENIDO (IMÁGENES Y SPONSORS DE TEXTO) -->
             <div id="tab-images" class="tab-content space-y-3.5">
                 
-                <!-- Selector de Tipo de Añadido Rápido -->
+                <!-- Subir Imágenes Locales o Enlace -->
                 <div class="bg-slate-900/90 p-3 rounded-2xl border border-white/10">
                     <label class="text-xs font-black uppercase tracking-wider text-cyan-300 block mb-1.5">
                         📁 1. Cargar Imágenes Locales o Enlace
@@ -646,58 +649,43 @@
                         <span class="text-[11px] text-slate-400">Sin necesidad de crear imágenes</span>
                     </div>
 
-                    <!-- Tipografía y Escala de Letra Mejorada -->
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <span class="text-[11px] font-semibold text-slate-300 block mb-1">Tipografía:</span>
-                            <select id="select-promo-font" class="w-full bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-400">
-                                <option value="Plus Jakarta Sans, sans-serif">Moderna (Plus Jakarta Sans)</option>
-                                <option value="Orbitron, sans-serif">Gamer / Sci-Fi (Orbitron)</option>
-                                <option value="Impact, Arial Black, sans-serif">Impacto / Cartel (Impact)</option>
-                                <option value="Cinzel, Georgia, serif">Elegante / Épica (Cinzel Serif)</option>
-                                <option value="JetBrains Mono, monospace">Código / Tech (Monospace)</option>
-                            </select>
+                    <!-- Tipografía con Botones Táctiles Directos -->
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-300 block mb-1">Tipografía:</span>
+                        <div class="grid grid-cols-5 gap-1" id="font-buttons-group">
+                            <button type="button" class="font-style-btn active py-1.5 px-1 rounded-lg bg-cyan-500/20 border border-cyan-400 text-[10px] font-bold text-white transition" data-font="Plus Jakarta Sans, sans-serif">Moderna</button>
+                            <button type="button" class="font-style-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-font="Orbitron, sans-serif">Gamer</button>
+                            <button type="button" class="font-style-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-font="Impact, Arial Black, sans-serif">Impacto</button>
+                            <button type="button" class="font-style-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-font="Cinzel, Georgia, serif">Elegante</button>
+                            <button type="button" class="font-style-btn py-1.5 px-1 rounded-lg bg-slate-950 border border-white/10 text-[10px] font-bold text-slate-300 transition" data-font="JetBrains Mono, monospace">Tech</button>
                         </div>
-                        <div>
-                            <div class="flex justify-between items-center mb-1">
-                                <span class="text-[11px] font-semibold text-slate-300">Tamaño Letra:</span>
-                                <span id="label-font-scale" class="text-xs font-black text-cyan-400">100%</span>
-                            </div>
-                            <input type="range" id="slider-font-scale" min="65" max="150" value="100" class="w-full mt-1.5" title="Ajusta el tamaño del texto para que no se vea ni muy pequeño ni desborde">
+                    </div>
+
+                    <!-- Escala de Letra -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[11px] font-semibold text-slate-300">Tamaño Letra (Zoom Texto):</span>
+                            <span id="label-font-scale" class="text-xs font-black text-cyan-400">100%</span>
                         </div>
+                        <input type="range" id="slider-font-scale" min="65" max="150" value="100" class="w-full">
                     </div>
 
                     <!-- Tag superior -->
                     <div class="flex items-center gap-1.5">
                         <input type="text" id="input-promo-tag" placeholder="Tag superior (Ej. SPONSOR OFICIAL / VIP)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-cyan-300 focus:outline-none focus:border-cyan-400" value="PATROCINADOR">
-                        <select id="select-tag-weight" class="bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none" title="Grosor del Tag">
-                            <option value="400">Normal</option>
-                            <option value="700">Gruesa</option>
-                            <option value="900" selected>Extra Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-tag-color" value="#38bdf8" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0 shrink-0" title="Color del Tag">
+                        <input type="text" id="input-tag-color" value="#38bdf8" placeholder="#hex" maxlength="7" class="w-20 bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs font-mono text-center text-cyan-300 focus:outline-none" title="Color Hex del Tag">
                     </div>
 
                     <!-- Título Principal -->
                     <div class="flex items-center gap-1.5">
                         <input type="text" id="input-promo-title" placeholder="Texto Principal (Ej. ¡USA CÓDIGO: STREAM20!)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs font-bold text-white focus:outline-none focus:border-cyan-400" value="CÓDIGO: STREAM20">
-                        <select id="select-title-weight" class="bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none" title="Grosor del Título">
-                            <option value="400">Normal</option>
-                            <option value="700">Gruesa</option>
-                            <option value="900" selected>Extra Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-title-color" value="#ffffff" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0 shrink-0" title="Color del Título">
+                        <input type="text" id="input-title-color" value="#ffffff" placeholder="#hex" maxlength="7" class="w-20 bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs font-mono text-center text-white focus:outline-none" title="Color Hex del Título">
                     </div>
 
                     <!-- Subtítulo -->
                     <div class="flex items-center gap-1.5">
                         <input type="text" id="input-promo-sub" placeholder="Subtítulo (Ej. 20% de descuento en la tienda oficial)" class="flex-1 bg-slate-950 border border-white/15 rounded-lg px-2.5 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-cyan-400" value="20% de descuento en toda la tienda">
-                        <select id="select-sub-weight" class="bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs text-slate-200 focus:outline-none" title="Grosor del Subtítulo">
-                            <option value="400">Normal</option>
-                            <option value="600" selected>Media</option>
-                            <option value="800">Gruesa</option>
-                        </select>
-                        <input type="color" id="picker-sub-color" value="#e2e8f0" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0 shrink-0" title="Color del Subtítulo">
+                        <input type="text" id="input-sub-color" value="#e2e8f0" placeholder="#hex" maxlength="7" class="w-20 bg-slate-950 border border-white/15 rounded-lg px-2 py-1.5 text-xs font-mono text-center text-slate-200 focus:outline-none" title="Color Hex del Subtítulo">
                     </div>
                     
                     <!-- Presets de Fondo y Botón Añadir -->
@@ -710,7 +698,7 @@
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow" style="background: linear-gradient(135deg, #064e3b, #10b981)" data-c1="#064e3b" data-c2="#10b981" title="Esmeralda Gamer"></button>
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow" style="background: linear-gradient(135deg, #422006, #eab308)" data-c1="#422006" data-c2="#eab308" title="Dorado VIP"></button>
                             <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow" style="background: linear-gradient(135deg, #090d16, #1e293b)" data-c1="#090d16" data-c2="#1e293b" title="Oscuro Elegante"></button>
-                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow border border-white/30" style="background: rgba(15, 23, 42, 0.3)" data-c1="rgba(15,23,42,0.3)" data-c2="rgba(2,132,199,0.3)" title="Cristal Translúcido"></button>
+                            <button type="button" class="promo-bg-btn opacity-70 hover:opacity-100 w-6 h-6 rounded-full transition shadow border border-white/30" style="background: rgba(15, 23, 42, 0.4)" data-c1="rgba(15,23,42,0.4)" data-c2="rgba(2,132,199,0.4)" title="Cristal Translúcido"></button>
                         </div>
                         <button type="button" id="btn-create-text-ad" class="px-3.5 py-2 bg-gradient-to-r from-cyan-400 to-blue-500 hover:from-cyan-300 hover:to-blue-400 text-slate-950 font-black text-xs rounded-xl shadow transition shrink-0">
                             + Añadir Sponsor
@@ -731,14 +719,15 @@
                     <div id="image-gallery-list" class="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-1.5 bg-slate-900/80 rounded-xl border border-white/10"></div>
                 </div>
 
+                <!-- Ajuste de Imagen y Etiqueta Esquinera (Botones Táctiles para OBS) -->
                 <div class="grid grid-cols-2 gap-2.5 pt-1 border-t border-white/10">
                     <div>
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Ajuste de Imagen (Object-Fit)</label>
-                        <select id="select-object-fit" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="cover">Llenar todo (Cover)</option>
-                            <option value="contain">Completa sin cortar (Contain)</option>
-                            <option value="fill">Estirar a los bordes (Fill)</option>
-                        </select>
+                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Ajuste de Imagen</label>
+                        <div class="grid grid-cols-3 gap-1" id="objfit-buttons-group">
+                            <button type="button" class="obj-fit-btn active py-1.5 px-1 rounded-xl bg-cyan-500/20 border border-cyan-400 text-[11px] font-bold text-white transition" data-fit="cover">Llenar</button>
+                            <button type="button" class="obj-fit-btn py-1.5 px-1 rounded-xl bg-slate-950 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-fit="contain">Completa</button>
+                            <button type="button" class="obj-fit-btn py-1.5 px-1 rounded-xl bg-slate-950 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-fit="fill">Estirar</button>
+                        </div>
                     </div>
                     <div>
                         <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Etiqueta Esquinera (Opcional)</label>
@@ -828,7 +817,7 @@
                 </div>
             </div>
 
-            <!-- Pestaña 3: TIEMPOS Y ROTACIÓN -->
+            <!-- Pestaña 3: TIEMPOS Y ROTACIÓN (100% Botones Táctiles para OBS) -->
             <div id="tab-timing" class="tab-content hidden space-y-3.5">
                 <div>
                     <label class="text-xs font-black uppercase tracking-wider text-slate-300 block mb-1.5">Modo de Visualización y Repetición</label>
@@ -851,20 +840,14 @@
                             <label class="text-xs font-bold uppercase tracking-wider text-emerald-400 block mb-1">Tiempo en Pantalla</label>
                             <div class="flex items-center gap-1.5">
                                 <input type="number" id="input-show-val" min="1" max="3600" value="10" class="w-full bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white text-center focus:outline-none focus:border-emerald-400">
-                                <select id="select-show-unit" class="bg-slate-950 border border-white/15 rounded-xl px-2 py-1.5 text-xs font-bold text-emerald-300 focus:outline-none focus:border-emerald-400 cursor-pointer">
-                                    <option value="sec">Seg</option>
-                                    <option value="min">Min</option>
-                                </select>
+                                <button type="button" id="btn-toggle-show-unit" class="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-emerald-500/40 text-xs font-black text-emerald-400 hover:bg-emerald-500/10 transition" title="Alternar entre Segundos y Minutos">Seg</button>
                             </div>
                         </div>
                         <div>
                             <label class="text-xs font-bold uppercase tracking-wider text-amber-400 block mb-1">Tiempo Oculto / Pausa</label>
                             <div class="flex items-center gap-1.5">
                                 <input type="number" id="input-hide-val" min="1" max="3600" value="8" class="w-full bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs font-bold text-white text-center focus:outline-none focus:border-amber-400">
-                                <select id="select-hide-unit" class="bg-slate-950 border border-white/15 rounded-xl px-2 py-1.5 text-xs font-bold text-amber-300 focus:outline-none focus:border-amber-400 cursor-pointer">
-                                    <option value="sec">Seg</option>
-                                    <option value="min">Min</option>
-                                </select>
+                                <button type="button" id="btn-toggle-hide-unit" class="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-amber-500/40 text-xs font-black text-amber-400 hover:bg-amber-500/10 transition" title="Alternar entre Segundos y Minutos">Seg</button>
                             </div>
                         </div>
                     </div>
@@ -881,23 +864,38 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2.5 pt-1">
-                    <div>
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Animación Entrada/Salida</label>
-                        <select id="select-transition-style" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="zoom">Zoom Elástico Suave</option>
-                            <option value="fade">Desvanecimiento (Fade)</option>
-                            <option value="slide-up">Deslizar Vertical</option>
-                            <option value="slide-side">Deslizar Lateral</option>
-                        </select>
+                <!-- Rotación de Galería (Botones directos para OBS) -->
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">Rotación de Galería</label>
+                    <div class="grid grid-cols-3 gap-1.5" id="slidemode-buttons-group">
+                        <button type="button" class="slide-mode-btn active py-2 px-1 rounded-xl bg-cyan-500/20 border border-cyan-400 text-xs font-bold text-white transition" data-slidemode="each-cycle">
+                            🔄 Al ciclo
+                        </button>
+                        <button type="button" class="slide-mode-btn py-2 px-1 rounded-xl bg-slate-950 border border-white/10 text-xs font-bold text-slate-300 transition" data-slidemode="timer-5">
+                            ⏱️ Cada 5 seg
+                        </button>
+                        <button type="button" class="slide-mode-btn py-2 px-1 rounded-xl bg-slate-950 border border-white/10 text-xs font-bold text-slate-300 transition" data-slidemode="timer-10">
+                            ⏱️ Cada 10 seg
+                        </button>
                     </div>
-                    <div>
-                        <label class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-1">Rotación de Galería</label>
-                        <select id="select-slide-mode" class="w-full bg-slate-900 border border-white/15 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none">
-                            <option value="each-cycle">Cambiar en cada aparición</option>
-                            <option value="timer-5">Cambiar cada 5 seg</option>
-                            <option value="timer-10">Cambiar cada 10 seg</option>
-                        </select>
+                </div>
+
+                <!-- Animación Entrada / Salida (Botones directos para OBS) -->
+                <div>
+                    <label class="text-xs font-bold uppercase tracking-wider text-slate-300 block mb-1.5">Animación Entrada / Salida</label>
+                    <div class="grid grid-cols-4 gap-1.5" id="trans-buttons-group">
+                        <button type="button" class="trans-style-btn active py-1.5 px-1 rounded-xl bg-cyan-500/20 border border-cyan-400 text-[11px] font-bold text-white transition" data-trans="zoom">
+                            🔍 Zoom
+                        </button>
+                        <button type="button" class="trans-style-btn py-1.5 px-1 rounded-xl bg-slate-950 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-trans="fade">
+                            🌫️ Fade
+                        </button>
+                        <button type="button" class="trans-style-btn py-1.5 px-1 rounded-xl bg-slate-950 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-trans="slide-up">
+                            ⬆️ Vertical
+                        </button>
+                        <button type="button" class="trans-style-btn py-1.5 px-1 rounded-xl bg-slate-950 border border-white/10 text-[11px] font-bold text-slate-300 transition" data-trans="slide-side">
+                            ⬅️ Lateral
+                        </button>
                     </div>
                 </div>
             </div>
@@ -993,7 +991,7 @@
                 </div>
             </div>
 
-            <!-- Pestaña 5: MARCO LUMINOSO Y CRISTAL -->
+            <!-- Pestaña 5: MARCO LUMINOSO Y COLOR STUDIO OBS -->
             <div id="tab-effects" class="tab-content hidden space-y-3.5">
                 <div>
                     <label class="text-xs font-black uppercase tracking-wider text-slate-300 block mb-1.5">Marco Luminoso al Contorno</label>
@@ -1034,16 +1032,62 @@
                     </div>
                 </div>
 
-                <div class="flex items-center justify-between bg-slate-900/80 p-2.5 rounded-xl border border-white/10">
-                    <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Colores de Resplandor Neón</span>
-                    <div class="flex items-center gap-2">
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #00f2fe, #4facfe)" data-c1="#00f2fe" data-c2="#4facfe" title="Cian Eléctrico"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #ff0844, #ffb199)" data-c1="#ff0844" data-c2="#ffb199" title="Rojo / Coral"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #a855f7, #ec4899)" data-c1="#a855f7" data-c2="#ec4899" title="Violeta Neón"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #10b981, #a3e635)" data-c1="#10b981" data-c2="#a3e635" title="Verde Esmeralda"></button>
-                        <button class="color-preset w-5 h-5 rounded-full border border-white/40" style="background: linear-gradient(135deg, #f59e0b, #fef08a)" data-c1="#f59e0b" data-c2="#fef08a" title="Dorado VIP"></button>
-                        <input type="color" id="picker-color-1" value="#00f2fe" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0" title="Color Principal">
-                        <input type="color" id="picker-color-2" value="#4facfe" class="w-7 h-7 rounded-lg cursor-pointer bg-transparent border-0" title="Color Secundario">
+                <!-- Color Studio para OBS (100% In-DOM, sin ventanas nativas) -->
+                <div class="bg-slate-900/90 p-3 rounded-2xl border border-white/10 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider text-cyan-300">🎨 Colores de Marco y Resplandor</span>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" id="btn-select-target-c1" class="px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow">
+                                <span class="w-3 h-3 rounded-full border border-white/40 shadow-sm" id="badge-color-1" style="background-color: #00f2fe"></span>
+                                Color 1
+                            </button>
+                            <button type="button" id="btn-select-target-c2" class="px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5">
+                                <span class="w-3 h-3 rounded-full border border-white/40 shadow-sm" id="badge-color-2" style="background-color: #4facfe"></span>
+                                Color 2
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Paleta de 14 Colores Neón Clickables Directos -->
+                    <div>
+                        <span class="text-[11px] font-semibold text-slate-400 block mb-1">Paleta de Colores Rápidos:</span>
+                        <div class="grid grid-cols-7 gap-1.5" id="color-palette-swatches">
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #00f2fe" data-color="#00f2fe" title="Cian"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #3b82f6" data-color="#3b82f6" title="Azul Real"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #a855f7" data-color="#a855f7" title="Violeta"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #ec4899" data-color="#ec4899" title="Rosa Neón"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #ff0844" data-color="#ff0844" title="Rojo Fuego"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #ea580c" data-color="#ea580c" title="Naranja"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #eab308" data-color="#eab308" title="Dorado VIP"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #10b981" data-color="#10b981" title="Verde Esmeralda"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #84cc16" data-color="#84cc16" title="Lima"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #06b6d4" data-color="#06b6d4" title="Turquesa"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #6366f1" data-color="#6366f1" title="Índigo"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #ffffff" data-color="#ffffff" title="Blanco Puro"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #94a3b8" data-color="#94a3b8" title="Plata"></button>
+                            <button type="button" class="swatch-btn h-6 rounded-lg border border-white/20 transition hover:scale-105 shadow" style="background-color: #0f172a" data-color="#0f172a" title="Oscuro"></button>
+                        </div>
+                    </div>
+
+                    <!-- Entrada Hex Directa sin Popups -->
+                    <div class="flex items-center gap-2 pt-1 border-t border-white/10">
+                        <span class="text-[11px] font-semibold text-slate-300">Código Hex Custom:</span>
+                        <input type="text" id="input-hex-custom" value="#00f2fe" placeholder="#00f2fe" maxlength="7" class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-3 py-1 text-xs font-mono text-cyan-300 text-center uppercase focus:outline-none focus:border-cyan-400">
+                        <button type="button" id="btn-apply-hex" class="px-3 py-1 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl transition">
+                            Aplicar
+                        </button>
+                    </div>
+
+                    <!-- Presets Dúo de Neón -->
+                    <div class="flex items-center justify-between pt-1">
+                        <span class="text-[10px] uppercase font-bold text-slate-400">Dúos Rápidos:</span>
+                        <div class="flex items-center gap-1.5">
+                            <button type="button" class="duo-preset-btn px-2 py-0.5 rounded-lg border border-white/20 text-[10px] font-bold text-white shadow" style="background: linear-gradient(135deg, #00f2fe, #4facfe)" data-c1="#00f2fe" data-c2="#4facfe">Cian</button>
+                            <button type="button" class="duo-preset-btn px-2 py-0.5 rounded-lg border border-white/20 text-[10px] font-bold text-white shadow" style="background: linear-gradient(135deg, #ff0844, #ffb199)" data-c1="#ff0844" data-c2="#ffb199">Rojo</button>
+                            <button type="button" class="duo-preset-btn px-2 py-0.5 rounded-lg border border-white/20 text-[10px] font-bold text-white shadow" style="background: linear-gradient(135deg, #a855f7, #ec4899)" data-c1="#a855f7" data-c2="#ec4899">Violeta</button>
+                            <button type="button" class="duo-preset-btn px-2 py-0.5 rounded-lg border border-white/20 text-[10px] font-bold text-white shadow" style="background: linear-gradient(135deg, #10b981, #a3e635)" data-c1="#10b981" data-c2="#a3e635">Verde</button>
+                            <button type="button" class="duo-preset-btn px-2 py-0.5 rounded-lg border border-white/20 text-[10px] font-bold text-white shadow" style="background: linear-gradient(135deg, #f59e0b, #fef08a)" data-c1="#f59e0b" data-c2="#fef08a">Dorado</button>
+                        </div>
                     </div>
                 </div>
 
@@ -1064,6 +1108,7 @@
                     </div>
                 </div>
 
+                <!-- Nitidez de Imagen y Fondo -->
                 <div class="grid grid-cols-2 gap-3 pt-1 border-t border-white/10">
                     <div>
                         <div class="flex justify-between items-center mb-1">
@@ -1074,16 +1119,16 @@
                     </div>
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Fondo Cristal (PNG)</span>
-                            <span id="label-bg-opacity" class="text-xs font-black text-emerald-400">40%</span>
+                            <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Fondo Oscuro Respaldo</span>
+                            <span id="label-bg-opacity" class="text-xs font-black text-emerald-400">100%</span>
                         </div>
-                        <input type="range" id="slider-bg-opacity" min="0" max="100" value="40" class="w-full">
+                        <input type="range" id="slider-bg-opacity" min="0" max="100" value="100" class="w-full" title="100% da máxima nitidez y evita que el láser atraviese la imagen">
                     </div>
                 </div>
 
                 <div class="flex items-center justify-between gap-2 pt-1">
                     <label class="flex items-center gap-2.5 text-xs text-slate-300 cursor-pointer bg-slate-900/80 px-3.5 py-2.5 rounded-xl border border-white/10 w-full hover:border-cyan-400/40 transition">
-                        <input type="checkbox" id="check-shimmer" checked class="w-4 h-4 accent-cyan-400 rounded">
+                        <input type="checkbox" id="check-shimmer" class="w-4 h-4 accent-cyan-400 rounded">
                         <span>Activar Barrido de Reflejo Cristalino (Shimmer periódico sobre la imagen)</span>
                     </label>
                 </div>
@@ -1238,9 +1283,11 @@
             color1: '#00f2fe',
             color2: '#4facfe',
             imgOpacity: 100,
-            bgOpacity: 40,
-            shimmer: true,
+            bgOpacity: 100,
+            shimmer: false,
             fontScale: 100,
+            activeColorTarget: 1, // 1 = Color 1, 2 = Color 2
+            selectedPromoFont: 'Plus Jakarta Sans, sans-serif',
             posX: null,
             posY: null,
             scale: 1,
@@ -1271,7 +1318,7 @@
         var settingsModal = document.getElementById('settings-modal');
         var cycleLiveStatus = document.getElementById('cycle-live-status');
 
-        /* Guardado Ligero en el Navegador de OBS */
+        /* Guardado Ligero y Robusto en OBS */
         function saveStateToStorage() {
             if (isPreview) return;
             if (saveTimeout) clearTimeout(saveTimeout);
@@ -1311,6 +1358,7 @@
                         bgOpacity: state.bgOpacity,
                         shimmer: state.shimmer,
                         fontScale: state.fontScale,
+                        selectedPromoFont: state.selectedPromoFont,
                         posX: state.posX,
                         posY: state.posY,
                         scale: state.scale,
@@ -1322,7 +1370,7 @@
                 } catch(e) {
                     console.warn('Almacenamiento local de OBS limitado:', e);
                 }
-            }, 300);
+            }, 250);
         }
 
         function loadStateFromStorage() {
@@ -1338,6 +1386,14 @@
                 }
             } catch(e) {
                 console.warn('Error al leer de localStorage:', e);
+            }
+
+            // Auto-corrección de versiones previas: si el fondo quedó en el valor antiguo bajo (como 36%), restaurar a 100% para máxima nitidez y opacidad
+            if (state.bgOpacity === undefined || state.bgOpacity < 90) {
+                state.bgOpacity = 100;
+            }
+            if (state.imgOpacity === undefined || state.imgOpacity < 10) {
+                state.imgOpacity = 100;
             }
 
             if (isPreview) {
@@ -1424,7 +1480,7 @@
             if (!promoData) return;
 
             var styles = promoData.styles || {};
-            var fontFamily = styles.fontFamily || 'Plus Jakarta Sans, sans-serif';
+            var fontFamily = styles.fontFamily || state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif';
 
             adTextPromo.style.background = 'linear-gradient(135deg, ' + (promoData.c1 || '#0f172a') + ', ' + (promoData.c2 || '#0284c7') + ')';
             adTextPromo.style.opacity = (state.imgOpacity / 100).toFixed(2);
@@ -1475,10 +1531,8 @@
             var availW = Math.max(60, state.width - padX * 2 - state.borderWidth * 2);
             var availH = Math.max(40, state.height - padY * 2 - state.borderWidth * 2);
 
-            // Escala de usuario seleccionada
             var scaleMultiplier = ((styles.fontScale || state.fontScale || 100) / 100);
 
-            // Cálculo dinámico proporcional según aspecto y longitud
             var hasTag = tagText !== '';
             var hasSub = subText !== '';
             var vSections = 1.0 + (hasTag ? 0.45 : 0) + (hasSub ? 0.6 : 0) + (state.height >= 160 ? 0.2 : 0);
@@ -1501,7 +1555,6 @@
 
             applyFontSizes(baseTitleSize);
 
-            // Reducción preventiva si el texto llega a desbordar el contenedor en tiempo real
             var guard = 0;
             while (
                 guard < 30 &&
@@ -1523,8 +1576,17 @@
             root.style.setProperty('--glow-intensity', state.glowIntensity + 'px');
             root.style.setProperty('--border-width', state.borderWidth + 'px');
             root.style.setProperty('--corner-radius', state.cornerRadius + 'px');
-            root.style.setProperty('--img-opacity', (state.imgOpacity / 100).toFixed(2));
+
+            var targetOpacity = (state.imgOpacity / 100).toFixed(2);
+            root.style.setProperty('--img-opacity', targetOpacity);
             root.style.setProperty('--bg-opacity', (state.bgOpacity / 100).toFixed(2));
+
+            // Fondo interior sólido para contraste perfecto (evita que la imagen se vea semitransparente)
+            var innerViewport = document.querySelector('.ad-inner-viewport');
+            if (innerViewport) {
+                var bgAlpha = (state.bgOpacity / 100).toFixed(2);
+                innerViewport.style.background = 'rgba(9, 14, 26, ' + bgAlpha + ')';
+            }
 
             var motionAmp = (state.motionIntensity / 50).toFixed(2);
             var motionDuration = Math.max(0.6, (6.2 - state.motionSpeed * 0.52)).toFixed(2);
@@ -1546,8 +1608,14 @@
             adBox.classList.remove('border-spin', 'border-solid', 'border-rgb', 'border-none');
             adBox.classList.add('border-' + state.borderStyle);
 
+            // Resplandor constante y limpio (sin pulsaciones molestas a menos que sea Latido)
             if (state.glowIntensity > 0) {
-                adBox.classList.add('glow-enabled', 'glow-pulse');
+                adBox.classList.add('glow-enabled');
+                if (state.motionType === 'heartbeat') {
+                    adBox.classList.add('glow-pulse');
+                } else {
+                    adBox.classList.remove('glow-pulse');
+                }
             } else {
                 adBox.classList.remove('glow-enabled', 'glow-pulse');
             }
@@ -1576,9 +1644,6 @@
             } else {
                 adBadge.classList.add('hidden');
             }
-
-            var targetOpacity = (state.imgOpacity / 100).toFixed(2);
-            root.style.setProperty('--img-opacity', targetOpacity);
 
             if (state.images.length > 0) {
                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
@@ -1632,6 +1697,17 @@
             if (fontScaleLabel && fontScaleSlider) {
                 fontScaleLabel.textContent = (state.fontScale || 100) + '%';
                 fontScaleSlider.value = state.fontScale || 100;
+            }
+
+            // Actualizar badges de Color Studio
+            var b1 = document.getElementById('badge-color-1');
+            if (b1) b1.style.backgroundColor = state.color1;
+            var b2 = document.getElementById('badge-color-2');
+            if (b2) b2.style.backgroundColor = state.color2;
+
+            var hexCustom = document.getElementById('input-hex-custom');
+            if (hexCustom) {
+                hexCustom.value = state.activeColorTarget === 1 ? state.color1 : state.color2;
             }
 
             applyPositionAndScale();
@@ -1953,6 +2029,23 @@
             })(promoBgBtns[b]);
         }
 
+        // Selector de Tipografía mediante Botones Táctiles
+        var fontBtns = document.querySelectorAll('.font-style-btn');
+        for (var fb = 0; fb < fontBtns.length; fb++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    state.selectedPromoFont = btn.dataset.font;
+                    for (var x = 0; x < fontBtns.length; x++) {
+                        fontBtns[x].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                        fontBtns[x].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    }
+                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    saveStateToStorage();
+                });
+            })(fontBtns[fb]);
+        }
+
         // Crear Sponsor / Anuncio de Solo Texto
         document.getElementById('btn-create-text-ad').addEventListener('click', function() {
             var titleInput = document.getElementById('input-promo-title');
@@ -1964,13 +2057,13 @@
             var tagText = tagInput.value.trim();
 
             var customStyles = {
-                fontFamily: document.getElementById('select-promo-font').value,
-                tagWeight: document.getElementById('select-tag-weight').value,
-                tagColor: document.getElementById('picker-tag-color').value,
-                titleWeight: document.getElementById('select-title-weight').value,
-                titleColor: document.getElementById('picker-title-color').value,
-                subWeight: document.getElementById('select-sub-weight').value,
-                subColor: document.getElementById('picker-sub-color').value,
+                fontFamily: state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif',
+                tagWeight: '900',
+                tagColor: document.getElementById('input-tag-color').value || '#38bdf8',
+                titleWeight: '900',
+                titleColor: document.getElementById('input-title-color').value || '#ffffff',
+                subWeight: '600',
+                subColor: document.getElementById('input-sub-color').value || '#e2e8f0',
                 fontScale: state.fontScale || 100
             };
 
@@ -2079,11 +2172,24 @@
             saveStateToStorage();
         });
 
-        document.getElementById('select-object-fit').addEventListener('change', function(e) {
-            state.objectFit = e.target.value;
-            applyVisualState();
-            saveStateToStorage();
-        });
+        // Botones de Ajuste de Imagen (Object-Fit) sin <select>
+        var objFitBtns = document.querySelectorAll('.obj-fit-btn');
+        for (var ofb = 0; ofb < objFitBtns.length; ofb++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    state.objectFit = btn.dataset.fit;
+                    for (var x = 0; x < objFitBtns.length; x++) {
+                        objFitBtns[x].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                        objFitBtns[x].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    }
+                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    applyVisualState();
+                    saveStateToStorage();
+                });
+            })(objFitBtns[ofb]);
+        }
+
         document.getElementById('input-badge-text').addEventListener('input', function(e) {
             state.badgeText = e.target.value;
             applyVisualState();
@@ -2117,35 +2223,75 @@
             startCycleEngine(true);
             saveStateToStorage();
         });
-        document.getElementById('select-show-unit').addEventListener('change', function(e) {
-            state.showUnit = e.target.value;
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
+        
+        // Alternar unidad de tiempo con Botones Táctiles
+        var btnToggleShowUnit = document.getElementById('btn-toggle-show-unit');
+        if (btnToggleShowUnit) {
+            btnToggleShowUnit.addEventListener('click', function() {
+                state.showUnit = state.showUnit === 'sec' ? 'min' : 'sec';
+                btnToggleShowUnit.textContent = state.showUnit === 'min' ? 'Min' : 'Seg';
+                startCycleEngine(true);
+                saveStateToStorage();
+            });
+        }
+
         document.getElementById('input-hide-val').addEventListener('change', function(e) {
             state.hideValue = Math.max(1, parseInt(e.target.value, 10) || 8);
             startCycleEngine(true);
             saveStateToStorage();
         });
-        document.getElementById('select-hide-unit').addEventListener('change', function(e) {
-            state.hideUnit = e.target.value;
-            startCycleEngine(true);
-            saveStateToStorage();
-        });
+
+        var btnToggleHideUnit = document.getElementById('btn-toggle-hide-unit');
+        if (btnToggleHideUnit) {
+            btnToggleHideUnit.addEventListener('click', function() {
+                state.hideUnit = state.hideUnit === 'sec' ? 'min' : 'sec';
+                btnToggleHideUnit.textContent = state.hideUnit === 'min' ? 'Min' : 'Seg';
+                startCycleEngine(true);
+                saveStateToStorage();
+            });
+        }
+
         document.getElementById('input-max-loops').addEventListener('change', function(e) {
             state.maxLoops = Math.max(1, parseInt(e.target.value, 10) || 3);
             startCycleEngine(true);
             saveStateToStorage();
         });
-        document.getElementById('select-transition-style').addEventListener('change', function(e) {
-            state.transitionStyle = e.target.value;
-            saveStateToStorage();
-        });
-        document.getElementById('select-slide-mode').addEventListener('change', function(e) {
-            state.slideMode = e.target.value;
-            startCycleEngine(false);
-            saveStateToStorage();
-        });
+
+        // Botones de Rotación de Galería (100% Funcionales en OBS)
+        var slideModeBtns = document.querySelectorAll('.slide-mode-btn');
+        for (var smb = 0; smb < slideModeBtns.length; smb++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    state.slideMode = btn.dataset.slidemode;
+                    for (var x = 0; x < slideModeBtns.length; x++) {
+                        slideModeBtns[x].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                        slideModeBtns[x].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    }
+                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    startCycleEngine(false);
+                    saveStateToStorage();
+                    showToast('⏱️ Rotación: ' + (state.slideMode === 'timer-5' ? '5 seg' : (state.slideMode === 'timer-10' ? '10 seg' : 'Por ciclo')));
+                });
+            })(slideModeBtns[smb]);
+        }
+
+        // Botones de Animación Entrada / Salida
+        var transStyleBtns = document.querySelectorAll('.trans-style-btn');
+        for (var tsb = 0; tsb < transStyleBtns.length; tsb++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    state.transitionStyle = btn.dataset.trans;
+                    for (var x = 0; x < transStyleBtns.length; x++) {
+                        transStyleBtns[x].classList.remove('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                        transStyleBtns[x].classList.add('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    }
+                    btn.classList.add('active', 'bg-cyan-500/20', 'border-cyan-400', 'text-white');
+                    btn.classList.remove('bg-slate-950', 'border-white/10', 'text-slate-300');
+                    saveStateToStorage();
+                });
+            })(transStyleBtns[tsb]);
+        }
 
         // Movimientos
         var motionNames = {
@@ -2266,30 +2412,82 @@
             saveStateToStorage();
         });
 
-        var colorPresets = document.querySelectorAll('.color-preset');
-        for (var cp = 0; cp < colorPresets.length; cp++) {
+        /* Color Studio 100% In-DOM (Sin Ventanas Emergentes Bloqueables) */
+        var btnSelectTargetC1 = document.getElementById('btn-select-target-c1');
+        var btnSelectTargetC2 = document.getElementById('btn-select-target-c2');
+
+        function updateColorTargetUI() {
+            if (state.activeColorTarget === 1) {
+                btnSelectTargetC1.className = 'px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow';
+                btnSelectTargetC2.className = 'px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5';
+                document.getElementById('input-hex-custom').value = state.color1;
+            } else {
+                btnSelectTargetC2.className = 'px-2 py-1 rounded-lg text-[11px] font-black border border-cyan-400 bg-cyan-500/20 text-white flex items-center gap-1.5 shadow';
+                btnSelectTargetC1.className = 'px-2 py-1 rounded-lg text-[11px] font-bold border border-white/15 bg-slate-950 text-slate-300 flex items-center gap-1.5';
+                document.getElementById('input-hex-custom').value = state.color2;
+            }
+        }
+
+        btnSelectTargetC1.addEventListener('click', function() {
+            state.activeColorTarget = 1;
+            updateColorTargetUI();
+        });
+        btnSelectTargetC2.addEventListener('click', function() {
+            state.activeColorTarget = 2;
+            updateColorTargetUI();
+        });
+
+        // Clic en cualquier muestra de la paleta
+        var swatchBtns = document.querySelectorAll('.swatch-btn');
+        for (var sw = 0; sw < swatchBtns.length; sw++) {
+            (function(btn) {
+                btn.addEventListener('click', function() {
+                    var picked = btn.dataset.color;
+                    if (state.activeColorTarget === 1) {
+                        state.color1 = picked;
+                    } else {
+                        state.color2 = picked;
+                    }
+                    applyVisualState();
+                    updateColorTargetUI();
+                    saveStateToStorage();
+                });
+            })(swatchBtns[sw]);
+        }
+
+        // Aplicar código Hex directo escrito en el campo
+        document.getElementById('btn-apply-hex').addEventListener('click', function() {
+            var val = document.getElementById('input-hex-custom').value.trim();
+            if (!val.startsWith('#')) val = '#' + val;
+            if (/^#[0-9A-Fa-f]{6}$/.test(val) || /^#[0-9A-Fa-f]{3}$/.test(val)) {
+                if (state.activeColorTarget === 1) {
+                    state.color1 = val;
+                } else {
+                    state.color2 = val;
+                }
+                applyVisualState();
+                updateColorTargetUI();
+                saveStateToStorage();
+                showToast('🎨 Color aplicado');
+            } else {
+                showToast('⚠️ Ingresa un código Hex válido (Ej: #00f2fe)');
+            }
+        });
+
+        // Presets Dúo de Neón
+        var duoBtns = document.querySelectorAll('.duo-preset-btn');
+        for (var dp = 0; dp < duoBtns.length; dp++) {
             (function(btn) {
                 btn.addEventListener('click', function() {
                     state.color1 = btn.dataset.c1;
                     state.color2 = btn.dataset.c2;
-                    document.getElementById('picker-color-1').value = state.color1;
-                    document.getElementById('picker-color-2').value = state.color2;
                     applyVisualState();
+                    updateColorTargetUI();
                     saveStateToStorage();
+                    showToast('✨ Dúo de color aplicado');
                 });
-            })(colorPresets[cp]);
+            })(duoBtns[dp]);
         }
-
-        document.getElementById('picker-color-1').addEventListener('input', function(e) {
-            state.color1 = e.target.value;
-            applyVisualState();
-            saveStateToStorage();
-        });
-        document.getElementById('picker-color-2').addEventListener('input', function(e) {
-            state.color2 = e.target.value;
-            applyVisualState();
-            saveStateToStorage();
-        });
 
         document.getElementById('slider-border-width').addEventListener('input', function(e) {
             state.borderWidth = parseInt(e.target.value, 10);
@@ -2536,14 +2734,57 @@
 
         // Sincronizar todos los controles del menú con el estado actual
         function syncUIWithState() {
-            var slideModeEl = document.getElementById('select-slide-mode');
-            if (slideModeEl) slideModeEl.value = state.slideMode || 'each-cycle';
+            // Rotación de galería (Botones)
+            var slideBtns = document.querySelectorAll('.slide-mode-btn');
+            for (var sb = 0; sb < slideBtns.length; sb++) {
+                var isSlideMatch = slideBtns[sb].dataset.slidemode === (state.slideMode || 'each-cycle');
+                slideBtns[sb].classList.toggle('active', isSlideMatch);
+                slideBtns[sb].classList.toggle('bg-cyan-500/20', isSlideMatch);
+                slideBtns[sb].classList.toggle('border-cyan-400', isSlideMatch);
+                slideBtns[sb].classList.toggle('text-white', isSlideMatch);
+                slideBtns[sb].classList.toggle('bg-slate-950', !isSlideMatch);
+                slideBtns[sb].classList.toggle('border-white/10', !isSlideMatch);
+                slideBtns[sb].classList.toggle('text-slate-300', !isSlideMatch);
+            }
 
-            var transStyleEl = document.getElementById('select-transition-style');
-            if (transStyleEl) transStyleEl.value = state.transitionStyle || 'zoom';
+            // Transiciones (Botones)
+            var transBtns = document.querySelectorAll('.trans-style-btn');
+            for (var tb = 0; tb < transBtns.length; tb++) {
+                var isTransMatch = transBtns[tb].dataset.trans === (state.transitionStyle || 'zoom');
+                transBtns[tb].classList.toggle('active', isTransMatch);
+                transBtns[tb].classList.toggle('bg-cyan-500/20', isTransMatch);
+                transBtns[tb].classList.toggle('border-cyan-400', isTransMatch);
+                transBtns[tb].classList.toggle('text-white', isTransMatch);
+                transBtns[tb].classList.toggle('bg-slate-950', !isTransMatch);
+                transBtns[tb].classList.toggle('border-white/10', !isTransMatch);
+                transBtns[tb].classList.toggle('text-slate-300', !isTransMatch);
+            }
 
-            var objFitEl = document.getElementById('select-object-fit');
-            if (objFitEl) objFitEl.value = state.objectFit || 'cover';
+            // Ajuste de imagen (Botones)
+            var fitBtns = document.querySelectorAll('.obj-fit-btn');
+            for (var fb = 0; fb < fitBtns.length; fb++) {
+                var isFitMatch = fitBtns[fb].dataset.fit === (state.objectFit || 'cover');
+                fitBtns[fb].classList.toggle('active', isFitMatch);
+                fitBtns[fb].classList.toggle('bg-cyan-500/20', isFitMatch);
+                fitBtns[fb].classList.toggle('border-cyan-400', isFitMatch);
+                fitBtns[fb].classList.toggle('text-white', isFitMatch);
+                fitBtns[fb].classList.toggle('bg-slate-950', !isFitMatch);
+                fitBtns[fb].classList.toggle('border-white/10', !isFitMatch);
+                fitBtns[fb].classList.toggle('text-slate-300', !isFitMatch);
+            }
+
+            // Tipografía de texto (Botones)
+            var fBtns = document.querySelectorAll('.font-style-btn');
+            for (var ft = 0; ft < fBtns.length; ft++) {
+                var isFMatch = fBtns[ft].dataset.font === (state.selectedPromoFont || 'Plus Jakarta Sans, sans-serif');
+                fBtns[ft].classList.toggle('active', isFMatch);
+                fBtns[ft].classList.toggle('bg-cyan-500/20', isFMatch);
+                fBtns[ft].classList.toggle('border-cyan-400', isFMatch);
+                fBtns[ft].classList.toggle('text-white', isFMatch);
+                fBtns[ft].classList.toggle('bg-slate-950', !isFMatch);
+                fBtns[ft].classList.toggle('border-white/10', !isFMatch);
+                fBtns[ft].classList.toggle('text-slate-300', !isFMatch);
+            }
 
             var badgeInput = document.getElementById('input-badge-text');
             if (badgeInput) badgeInput.value = state.badgeText || '';
@@ -2551,23 +2792,17 @@
             var showValInput = document.getElementById('input-show-val');
             if (showValInput) showValInput.value = state.showValue || 10;
 
-            var showUnitSelect = document.getElementById('select-show-unit');
-            if (showUnitSelect) showUnitSelect.value = state.showUnit || 'sec';
+            var btnShowUnit = document.getElementById('btn-toggle-show-unit');
+            if (btnShowUnit) btnShowUnit.textContent = state.showUnit === 'min' ? 'Min' : 'Seg';
 
             var hideValInput = document.getElementById('input-hide-val');
             if (hideValInput) hideValInput.value = state.hideValue || 8;
 
-            var hideUnitSelect = document.getElementById('select-hide-unit');
-            if (hideUnitSelect) hideUnitSelect.value = state.hideUnit || 'sec';
+            var btnHideUnit = document.getElementById('btn-toggle-hide-unit');
+            if (btnHideUnit) btnHideUnit.textContent = state.hideUnit === 'min' ? 'Min' : 'Seg';
 
             var maxLoopsInput = document.getElementById('input-max-loops');
             if (maxLoopsInput) maxLoopsInput.value = state.maxLoops || 3;
-
-            var color1Picker = document.getElementById('picker-color-1');
-            if (color1Picker) color1Picker.value = state.color1 || '#00f2fe';
-
-            var color2Picker = document.getElementById('picker-color-2');
-            if (color2Picker) color2Picker.value = state.color2 || '#4facfe';
 
             var checkShimmer = document.getElementById('check-shimmer');
             if (checkShimmer) checkShimmer.checked = Boolean(state.shimmer);
@@ -2649,6 +2884,8 @@
                 dirBtns[d].classList.toggle('border-white/10', !isDir);
                 dirBtns[d].classList.toggle('text-slate-300', !isDir);
             }
+
+            updateColorTargetUI();
         }
 
         // Ciclo automático suave en el mostrador web
