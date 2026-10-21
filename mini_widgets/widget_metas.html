@@ -1546,6 +1546,7 @@
                     for (var j = 0; j < types.length; j++) {
                         var t = types[j];
                         var el = document.getElementById('card-' + t);
+                        if (!el) continue;
                         el.classList.remove('carousel-enter');
                         if (t === state.activeSingle) {
                             el.classList.remove('carousel-hidden');
@@ -1557,6 +1558,7 @@
                     for (var k = 0; k < types.length; k++) {
                         var tk = types[k];
                         var elk = document.getElementById('card-' + tk);
+                        if (!elk) continue;
                         elk.classList.remove('carousel-enter');
                         if (state.goals[tk].enabled) {
                             elk.classList.remove('carousel-hidden');
@@ -1571,21 +1573,129 @@
                         for (var m = 0; m < types.length; m++) {
                             var tm = types[m];
                             var elm = document.getElementById('card-' + tm);
+                            if (!elm) continue;
                             if (tm === activeType) {
+                                var wasHidden = elm.classList.contains('carousel-hidden');
                                 elm.classList.remove('carousel-hidden');
-                                elm.classList.remove('carousel-enter');
-                                void elm.offsetWidth;
-                                elm.classList.add('carousel-enter');
+                                if (wasHidden) {
+                                    elm.classList.remove('carousel-enter');
+                                    void elm.offsetWidth;
+                                    elm.classList.add('carousel-enter');
+                                }
                             } else {
                                 elm.classList.add('carousel-hidden');
+                                elm.classList.remove('carousel-enter');
                             }
                         }
                     };
                     showCurrentCarousel();
+                    var speed = Math.max(4, Number(state.carouselSeconds) || 8);
                     carouselTimer = setInterval(function() {
                         carouselIndex = (carouselIndex + 1) % enabledTypes.length;
                         showCurrentCarousel();
-                    }, (state.carouselSeconds || 8) * 1000);
+                    }, speed * 1000);
+                }
+            }
+
+            // Cambiar automáticamente a la meta que disparó la alerta en modo 1x1 (Carrusel o Solo 1)
+            function switchToGoalOnAlert(type) {
+                if (!type) return;
+
+                if (state.viewMode === 'carousel') {
+                    if (state.goals[type] && !state.goals[type].enabled) {
+                        state.goals[type].enabled = true;
+                    }
+
+                    var types = ['followers', 'subs', 'kicks'];
+                    var enabledTypes = [];
+                    for (var i = 0; i < types.length; i++) {
+                        if (state.goals[types[i]].enabled) enabledTypes.push(types[i]);
+                    }
+                    if (enabledTypes.length === 0) enabledTypes.push(type);
+
+                    var idx = enabledTypes.indexOf(type);
+                    if (idx !== -1) {
+                        carouselIndex = idx;
+                    }
+
+                    // Limpiar el temporizador actual para reiniciar la cuenta completa sobre la meta de la alerta
+                    if (carouselTimer) {
+                        clearInterval(carouselTimer);
+                        carouselTimer = null;
+                    }
+
+                    // Mostrar inmediatamente la tarjeta de la meta de la alerta con transición suave
+                    for (var m = 0; m < types.length; m++) {
+                        var tm = types[m];
+                        var elm = document.getElementById('card-' + tm);
+                        if (!elm) continue;
+                        if (tm === type) {
+                            var wasHidden = elm.classList.contains('carousel-hidden');
+                            elm.classList.remove('carousel-hidden');
+                            if (wasHidden) {
+                                elm.classList.remove('carousel-enter');
+                                void elm.offsetWidth;
+                                elm.classList.add('carousel-enter');
+                            }
+                        } else {
+                            elm.classList.add('carousel-hidden');
+                            elm.classList.remove('carousel-enter');
+                        }
+                    }
+
+                    // Reiniciar el intervalo de rotación a partir del tiempo completo configurado
+                    var cycleSec = Math.max(5, Number(state.carouselSeconds) || 8);
+                    carouselTimer = setInterval(function() {
+                        var curTypes = ['followers', 'subs', 'kicks'];
+                        var curEnabled = [];
+                        for (var c = 0; c < curTypes.length; c++) {
+                            if (state.goals[curTypes[c]].enabled) curEnabled.push(curTypes[c]);
+                        }
+                        if (curEnabled.length === 0) curEnabled.push('followers');
+
+                        carouselIndex = (carouselIndex + 1) % curEnabled.length;
+                        var nextType = curEnabled[carouselIndex % curEnabled.length];
+
+                        for (var k = 0; k < curTypes.length; k++) {
+                            var tk = curTypes[k];
+                            var cardK = document.getElementById('card-' + tk);
+                            if (!cardK) continue;
+                            if (tk === nextType) {
+                                var wasH = cardK.classList.contains('carousel-hidden');
+                                cardK.classList.remove('carousel-hidden');
+                                if (wasH) {
+                                    cardK.classList.remove('carousel-enter');
+                                    void cardK.offsetWidth;
+                                    cardK.classList.add('carousel-enter');
+                                }
+                            } else {
+                                cardK.classList.add('carousel-hidden');
+                                cardK.classList.remove('carousel-enter');
+                            }
+                        }
+                    }, cycleSec * 1000);
+
+                } else if (state.viewMode === 'single') {
+                    state.activeSingle = type;
+                    currentlyEditingGoal = type;
+                    var singleTypes = ['followers', 'subs', 'kicks'];
+                    for (var s = 0; s < singleTypes.length; s++) {
+                        var st = singleTypes[s];
+                        var sEl = document.getElementById('card-' + st);
+                        if (!sEl) continue;
+                        if (st === type) {
+                            var wasS = sEl.classList.contains('carousel-hidden');
+                            sEl.classList.remove('carousel-hidden');
+                            if (wasS) {
+                                sEl.classList.remove('carousel-enter');
+                                void sEl.offsetWidth;
+                                sEl.classList.add('carousel-enter');
+                            }
+                        } else {
+                            sEl.classList.add('carousel-hidden');
+                            sEl.classList.remove('carousel-enter');
+                        }
+                    }
                 }
             }
 
@@ -1595,6 +1705,7 @@
             var animFrameId = null;
 
             function triggerGoalCelebration(type) {
+                switchToGoalOnAlert(type);
                 var card = document.getElementById('card-' + type);
                 var g = state.goals[type] || state.goals.followers;
                 if (!card) return;
@@ -1838,7 +1949,20 @@
 
                 var diff = g.current - prevVal;
                 var newPct = calculatePercentage(g.start, g.current, g.target);
-                renderAll();
+
+                // Si la barra avanzó positivamente (alerta recibida), cambiar de inmediato a esta meta en modo 1x1
+                if (diff > 0) {
+                    switchToGoalOnAlert(type);
+                }
+
+                renderGoalCard('followers');
+                renderGoalCard('subs');
+                renderGoalCard('kicks');
+                applyGlobalStyles();
+                if (diff <= 0) {
+                    applyVisibilityAndCarousel();
+                }
+                syncModalControls();
 
                 // Si la barra avanzó positivamente, disparar el efecto de avance
                 if (diff > 0) {
