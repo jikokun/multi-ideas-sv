@@ -1,0 +1,2993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OBS Goals Widget - Android 16/17 Liquid Glass Compact & Streamer.bot</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800;900&family=JetBrains+Mono:wght@400;600;700;800&family=Orbitron:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --card-radius: 24px;
+            --bar-height: 18px;
+            --glass-blur: 24px;
+            --font-main: 'Plus Jakarta Sans', sans-serif;
+            --font-weight-title: 800;
+            --font-weight-num: 800;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 1920px;
+            height: 1080px;
+            overflow: hidden;
+            background: transparent !important;
+            font-family: var(--font-main);
+            color: #ffffff;
+        }
+
+        /* Fondo guía opcional para previsualizar contraste sobre fondos claros u oscuros */
+        body.preview-grid {
+            background-color: #0b0f17 !important;
+            background-image: 
+                radial-gradient(circle at 20% 25%, rgba(0, 245, 212, 0.14) 0%, transparent 45%),
+                radial-gradient(circle at 75% 75%, rgba(168, 85, 247, 0.14) 0%, transparent 45%),
+                linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px) !important;
+            background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px !important;
+        }
+
+        body.preview-light {
+            background-color: #e2e8f0 !important;
+            background-image: 
+                linear-gradient(rgba(15, 23, 42, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px) !important;
+            background-size: 36px 36px !important;
+        }
+
+        /* Contenedor maestro cuando las barras están acopladas */
+        #widget-stage {
+            position: absolute;
+            left: 90px;
+            top: 90px;
+            transform-origin: top left;
+            z-index: 20;
+        }
+
+        #widget-stage.coupled-mode {
+            cursor: grab;
+        }
+        #widget-stage.coupled-mode:active {
+            cursor: grabbing;
+        }
+
+        /* En modo desacoplado, el escenario cubre el lienzo sin bloquear y cada tarjeta se mueve sola */
+        #widget-stage.decoupled-mode {
+            left: 0 !important;
+            top: 0 !important;
+            width: 1920px !important;
+            height: 1080px !important;
+            transform: none !important;
+            pointer-events: none;
+        }
+
+        #widget-stage.decoupled-mode #goals-wrapper {
+            width: 1920px !important;
+            height: 1080px !important;
+            display: block !important;
+            position: relative;
+        }
+
+        #widget-stage.decoupled-mode .goal-item {
+            position: absolute !important;
+            pointer-events: auto;
+            cursor: grab;
+            transform-origin: top left;
+        }
+        #widget-stage.decoupled-mode .goal-item:active {
+            cursor: grabbing;
+        }
+
+        /* Esquinas invisibles para estirar con el mouse (tanto acoplado como individual por tarjeta) */
+        .resize-handle, .card-resize-handle {
+            position: absolute;
+            width: 22px;
+            height: 22px;
+            z-index: 60;
+            opacity: 0;
+            transition: opacity 0.2s ease, background 0.2s ease;
+            border-radius: 5px;
+        }
+        #widget-stage.coupled-mode:hover .resize-handle {
+            opacity: 1;
+        }
+        #widget-stage.decoupled-mode .resize-handle {
+            display: none !important;
+        }
+        .goal-item .card-resize-handle {
+            display: none;
+        }
+        #widget-stage.decoupled-mode .goal-item .card-resize-handle {
+            display: block;
+        }
+        #widget-stage.decoupled-mode .goal-item:hover .card-resize-handle {
+            opacity: 1;
+        }
+
+        body.menu-open .resize-handle,
+        body.menu-open #widget-stage.decoupled-mode .goal-item .card-resize-handle {
+            background: rgba(0, 245, 212, 0.16);
+            border: 1px dashed rgba(0, 245, 212, 0.55);
+            opacity: 0.85;
+        }
+
+        .handle-tl { top: -8px; left: -8px; cursor: nwse-resize; }
+        .handle-tr { top: -8px; right: -8px; cursor: nesw-resize; }
+        .handle-bl { bottom: -8px; left: -8px; cursor: nesw-resize; }
+        .handle-br { bottom: -8px; right: -8px; cursor: nwse-resize; }
+
+        /* Tarjeta Android 16/17 Liquid Glass Compacta */
+        .android-glass-card {
+            position: relative;
+            backdrop-filter: blur(var(--glass-blur, 24px)) saturate(190%);
+            -webkit-backdrop-filter: blur(var(--glass-blur, 24px)) saturate(190%);
+            border-radius: var(--card-radius);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 
+                0 14px 36px -10px rgba(0, 0, 0, 0.55),
+                inset 0 1.5px 1px 0 rgba(255, 255, 255, 0.30),
+                inset 0 -1px 1px 0 rgba(255, 255, 255, 0.06);
+            padding: 12px 16px;
+            overflow: hidden;
+            transition: 
+                box-shadow 0.35s ease,
+                border-color 0.35s ease,
+                background 0.35s ease,
+                border-radius 0.3s ease;
+        }
+
+        /* Modo Sin Fondo (Transparente minimalista) */
+        .android-glass-card.frameless-mode {
+            background: transparent !important;
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            border-color: transparent !important;
+            box-shadow: none !important;
+            padding: 6px 10px;
+        }
+
+        /* Luz ambiental interna estilo Android 17 */
+        .ambient-orb {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            border-radius: 999px;
+            filter: blur(40px);
+            opacity: 0.24;
+            pointer-events: none;
+            z-index: 0;
+            transition: background 0.4s ease, opacity 0.4s ease;
+        }
+        .ambient-orb-1 { top: -60px; left: -30px; }
+        .ambient-orb-2 { bottom: -65px; right: -25px; }
+
+        /* Reflejo especular diagonal sutil */
+        .glass-sheen {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(
+                125deg,
+                rgba(255, 255, 255, 0.14) 0%,
+                rgba(255, 255, 255, 0.03) 32%,
+                rgba(255, 255, 255, 0) 60%
+            );
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* Pista de la barra (Track) */
+        .goal-track {
+            position: relative;
+            width: 100%;
+            height: var(--bar-height);
+            background: rgba(255, 255, 255, 0.10);
+            box-shadow: 
+                inset 0 2px 4px rgba(0, 0, 0, 0.45),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+            overflow: hidden;
+            transition: height 0.25s ease, border-radius 0.25s ease, clip-path 0.25s ease;
+        }
+
+        /* Formas de la barra */
+        .bar-shape-pill { border-radius: 999px; }
+        .bar-shape-squircle { border-radius: 10px; }
+        .bar-shape-slim { border-radius: 999px; height: 8px !important; }
+        .bar-shape-chunky { border-radius: 14px; height: 26px !important; }
+        .bar-shape-cyber {
+            border-radius: 4px;
+            clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+        }
+
+        /* Relleno de la barra (Fill) */
+        .goal-fill {
+            position: relative;
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            transition: width 0.75s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease;
+            overflow: hidden;
+        }
+
+        /* 1. Liquid Shimmer */
+        .fill-style-shimmer::after {
+            content: '';
+            position: absolute;
+            top: 0; left: -120%; width: 90%; height: 100%;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(255, 255, 255, 0.5) 50%,
+                transparent 100%
+            );
+            transform: skewX(-25deg);
+            animation: liquidShimmer 2.6s infinite ease-in-out;
+        }
+        @keyframes liquidShimmer {
+            0% { left: -120%; }
+            65%, 100% { left: 160%; }
+        }
+
+        /* 2. Stripes / Rayas Animadas */
+        .fill-style-stripes::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.24) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.24) 50%,
+                rgba(255, 255, 255, 0.24) 75%,
+                transparent 75%,
+                transparent 100%
+            );
+            background-size: 24px 24px;
+            animation: moveStripes 1s linear infinite;
+        }
+        @keyframes moveStripes {
+            0% { background-position: 0 0; }
+            100% { background-position: 24px 0; }
+        }
+
+        /* 3. Segmentos / Bloques */
+        .fill-segments-overlay {
+            position: absolute;
+            inset: 0;
+            display: none;
+            background-image: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 14px,
+                rgba(10, 14, 22, 0.55) 14px,
+                rgba(10, 14, 22, 0.55) 17px
+            );
+            pointer-events: none;
+            z-index: 4;
+        }
+        .goal-track.segmented-active .fill-segments-overlay {
+            display: block;
+        }
+
+        /* 4. Punta de Luz / Leading Cometa */
+        .fill-leading-tip {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 12px;
+            background: radial-gradient(circle at right center, #ffffff 0%, rgba(255,255,255,0.85) 35%, transparent 100%);
+            filter: blur(1px);
+            opacity: 0.95;
+            pointer-events: none;
+        }
+
+        /* 5. Onda líquida interna */
+        .fill-style-wave::after {
+            content: '';
+            position: absolute;
+            inset: -40% -20%;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.38) 0%, transparent 60%);
+            animation: liquidPulse 2s ease-in-out infinite alternate;
+        }
+        @keyframes liquidPulse {
+            0% { transform: translateX(-15%) scaleY(0.9); opacity: 0.35; }
+            100% { transform: translateX(15%) scaleY(1.2); opacity: 0.75; }
+        }
+
+        /* Insignia del icono estilo Android 17 Compact Squircle */
+        .goal-icon-badge {
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.35);
+            flex-shrink: 0;
+        }
+
+        /* Píldora de porcentaje estilo Android 17 */
+        .percent-pill {
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            letter-spacing: 0.02em;
+            background: rgba(255, 255, 255, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(8px);
+        }
+
+        /* Efectos de Meta Completada (100%) */
+        @keyframes cardCelebrationPulse {
+            0%, 100% { transform: scale(1); }
+            35% { transform: scale(1.035); }
+            70% { transform: scale(0.992); }
+        }
+        .completed-bounce {
+            animation: cardCelebrationPulse 0.85s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Efectos cuando AVANZA la barra (Nuevo Seguidor, Sub, Regalo o Kicks) */
+        @keyframes advanceCardPop {
+            0% { transform: scale(1); }
+            35% { transform: scale(1.022); }
+            100% { transform: scale(1); }
+        }
+        .advance-card-pop {
+            animation: advanceCardPop 0.48s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes advanceNumberBump {
+            0% { transform: scale(1); filter: brightness(1); }
+            40% { transform: scale(1.26); filter: brightness(1.5); }
+            100% { transform: scale(1); filter: brightness(1); }
+        }
+        .advance-num-bump {
+            display: inline-block;
+            animation: advanceNumberBump 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes advanceBadgeSpin {
+            0% { transform: scale(1) rotate(0deg); }
+            45% { transform: scale(1.22) rotate(-12deg); }
+            75% { transform: scale(1.12) rotate(8deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+        .advance-badge-pop {
+            animation: advanceBadgeSpin 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes advanceBarSurge {
+            0% { filter: brightness(1); }
+            40% { filter: brightness(1.65) saturate(1.4); }
+            100% { filter: brightness(1); }
+        }
+        .advance-fill-surge {
+            animation: advanceBarSurge 0.65s ease-out;
+        }
+
+        /* Destello de energía en el borde de la tarjeta al recibir evento */
+        .advance-border-flash {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            border: 2px solid var(--adv-color, #00f5d4);
+            box-shadow: 0 0 24px var(--adv-color, #00f5d4), inset 0 0 18px var(--adv-color, #00f5d4);
+            pointer-events: none;
+            z-index: 25;
+            animation: borderFlashOut 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes borderFlashOut {
+            0% { opacity: 0.95; transform: scale(0.99); }
+            100% { opacity: 0; transform: scale(1.03); }
+        }
+
+        /* Píldora flotante (+1 Seguidor, +5 Subs, +500 Kicks) */
+        .floating-delta-pill {
+            position: absolute;
+            right: 14px;
+            top: 6px;
+            padding: 2px 9px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            color: #ffffff;
+            background: rgba(10, 14, 24, 0.85);
+            border: 1.5px solid var(--adv-color, #00f5d4);
+            box-shadow: 0 6px 18px rgba(0,0,0,0.55), 0 0 12px var(--adv-color, #00f5d4);
+            pointer-events: none;
+            z-index: 40;
+            white-space: nowrap;
+            animation: floatDeltaUp 1.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes floatDeltaUp {
+            0% { opacity: 0; transform: translateY(10px) scale(0.75); }
+            20% { opacity: 1; transform: translateY(0px) scale(1.06); }
+            75% { opacity: 1; transform: translateY(-10px) scale(1); }
+            100% { opacity: 0; transform: translateY(-20px) scale(0.92); }
+        }
+
+        @keyframes rainbowBorderGlow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        .completed-rainbow-aura {
+            animation: rainbowBorderGlow 3s linear infinite;
+        }
+
+        @keyframes shockwaveRing {
+            0% { transform: scale(0.88); opacity: 0.95; }
+            100% { transform: scale(1.3); opacity: 0; }
+        }
+        .shockwave-effect {
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            border: 2px solid var(--goal-accent, #00f5d4);
+            pointer-events: none;
+            animation: shockwaveRing 0.95s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            z-index: 30;
+        }
+
+        /* Movimientos ambientales opcionales */
+        @keyframes idleFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+        }
+        .motion-float {
+            animation: idleFloat 4s ease-in-out infinite;
+        }
+
+        @keyframes idleBreathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.016); }
+        }
+        .motion-breathe {
+            animation: idleBreathe 3.4s ease-in-out infinite;
+        }
+
+        .carousel-hidden {
+            display: none !important;
+        }
+        .carousel-enter {
+            animation: carouselFadeSlide 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes carouselFadeSlide {
+            0% { opacity: 0; transform: translateY(10px) scale(0.97); filter: blur(4px); }
+            100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0px); }
+        }
+
+        /* PANEL DE CONFIGURACIÓN COMPACTO Y SIN POPUPS NATIVOS PARA OBS */
+        #settings-modal {
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 470px;
+            background: rgba(11, 15, 24, 0.95);
+            backdrop-filter: blur(28px) saturate(190%);
+            -webkit-backdrop-filter: blur(28px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 22px;
+            box-shadow: 
+                0 25px 60px rgba(0, 0, 0, 0.8),
+                inset 0 1px 1px rgba(255, 255, 255, 0.25);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transform-origin: top right;
+        }
+        #settings-modal.open {
+            display: flex;
+            animation: modalPop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        @keyframes modalPop {
+            0% { opacity: 0; transform: scale(0.95) translateY(6px); }
+            100% { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Botones de colores fundamentales (Swatches sin ventanas emergentes) */
+        .color-swatch-btn {
+            width: 18px;
+            height: 18px;
+            border-radius: 6px;
+            border: 1.5px solid rgba(255, 255, 255, 0.35);
+            cursor: pointer;
+            transition: transform 0.12s ease, border-color 0.12s ease;
+            flex-shrink: 0;
+        }
+        .color-swatch-btn:hover {
+            transform: scale(1.18);
+            border-color: #ffffff;
+        }
+
+        /* Sliders compactos */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 5px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.16);
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: #00f5d4;
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(0, 245, 212, 0.7);
+            border: 2px solid #ffffff;
+        }
+
+        #fx-canvas {
+            position: fixed;
+            inset: 0;
+            width: 1920px;
+            height: 1080px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        #interact-hint {
+            position: fixed;
+            bottom: 14px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(11, 15, 25, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 11px;
+            font-weight: 600;
+            padding: 4px 14px;
+            border-radius: 999px;
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+            z-index: 80;
+        }
+        body:hover #interact-hint {
+            opacity: 0.9;
+        }
+        body.menu-open #interact-hint {
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Canvas para efectos de Confeti, Chispas y Fuegos Artificiales al completar meta -->
+    <canvas id="fx-canvas" width="1920" height="1080"></canvas>
+
+    <div id="interact-hint">Clic rápido en cualquier barra: Abrir/Cerrar Configuración • Arrastrar: Mover • Esquinas: Cambiar Tamaño</div>
+
+    <!-- Escenario principal manipulable -->
+    <div id="widget-stage" class="coupled-mode">
+        <!-- 4 Esquinas Invisibles Globales (cuando están acopladas) -->
+        <div class="resize-handle handle-tl" data-corner="tl" title="Arrastrar para escalar (Doble clic: 100%)"></div>
+        <div class="resize-handle handle-tr" data-corner="tr" title="Arrastrar para escalar (Doble clic: 100%)"></div>
+        <div class="resize-handle handle-bl" data-corner="bl" title="Arrastrar para escalar (Doble clic: 100%)"></div>
+        <div class="resize-handle handle-br" data-corner="br" title="Arrastrar para escalar (Doble clic: 100%)"></div>
+
+        <!-- Contenedor de las Barras -->
+        <div id="goals-wrapper" class="flex flex-col gap-2.5 transition-all duration-300" style="width: 420px;">
+            
+            <!-- TARJETA 1: SEGUIDORES -->
+            <div id="card-followers" class="android-glass-card goal-item" data-type="followers">
+                <!-- Esquinas individuales para cuando están Desacopladas -->
+                <div class="card-resize-handle handle-tl" data-card="followers"></div>
+                <div class="card-resize-handle handle-tr" data-card="followers"></div>
+                <div class="card-resize-handle handle-bl" data-card="followers"></div>
+                <div class="card-resize-handle handle-br" data-card="followers"></div>
+
+                <div class="ambient-orb ambient-orb-1" id="orb1-followers"></div>
+                <div class="ambient-orb ambient-orb-2" id="orb2-followers"></div>
+                <div class="glass-sheen"></div>
+
+                <div class="relative z-10 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div id="badge-followers" class="goal-icon-badge">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="9" cy="7" r="4"/>
+                                    <path d="M19 8v6"/>
+                                    <path d="M22 11h-6"/>
+                                </svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <h3 id="title-followers" class="goal-title-text text-xs tracking-wide truncate">META DE SEGUIDORES</h3>
+                                    <span id="complete-tag-followers" class="hidden px-1.5 py-0.5 text-[9px] font-black uppercase rounded-full bg-emerald-400/25 text-emerald-200 border border-emerald-400/40">¡Logrado!</span>
+                                </div>
+                                <p id="subtitle-followers" class="goal-sub-text text-[10px] opacity-75 truncate">¡Gracias por apoyar el stream!</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="text-right">
+                                <div id="numbers-followers" class="goal-num-text text-sm tracking-tight leading-none">
+                                    <span id="current-followers">75</span>
+                                    <span class="opacity-50 mx-0.5">/</span>
+                                    <span id="target-followers" class="opacity-90">100</span>
+                                </div>
+                                <div id="range-info-followers" class="goal-sub-text text-[9px] opacity-65 mt-0.5">
+                                    Inicio: <span id="start-followers">0</span>
+                                </div>
+                            </div>
+                            <div id="percent-followers" class="percent-pill goal-num-text">75%</div>
+                        </div>
+                    </div>
+
+                    <div id="track-followers" class="goal-track bar-shape-pill">
+                        <div id="fill-followers" class="goal-fill fill-style-shimmer" style="width: 75%;">
+                            <div class="fill-leading-tip"></div>
+                        </div>
+                        <div class="fill-segments-overlay"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA 2: SUSCRIPTORES -->
+            <div id="card-subs" class="android-glass-card goal-item" data-type="subs">
+                <div class="card-resize-handle handle-tl" data-card="subs"></div>
+                <div class="card-resize-handle handle-tr" data-card="subs"></div>
+                <div class="card-resize-handle handle-bl" data-card="subs"></div>
+                <div class="card-resize-handle handle-br" data-card="subs"></div>
+
+                <div class="ambient-orb ambient-orb-1" id="orb1-subs"></div>
+                <div class="ambient-orb ambient-orb-2" id="orb2-subs"></div>
+                <div class="glass-sheen"></div>
+
+                <div class="relative z-10 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div id="badge-subs" class="goal-icon-badge">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"/>
+                                </svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <h3 id="title-subs" class="goal-title-text text-xs tracking-wide truncate">META DE SUSCRIPTORES</h3>
+                                    <span id="complete-tag-subs" class="hidden px-1.5 py-0.5 text-[9px] font-black uppercase rounded-full bg-purple-400/25 text-purple-200 border border-purple-400/40">¡Logrado!</span>
+                                </div>
+                                <p id="subtitle-subs" class="goal-sub-text text-[10px] opacity-75 truncate">Desbloqueando emotes VIP</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="text-right">
+                                <div id="numbers-subs" class="goal-num-text text-sm tracking-tight leading-none">
+                                    <span id="current-subs">18</span>
+                                    <span class="opacity-50 mx-0.5">/</span>
+                                    <span id="target-subs" class="opacity-90">25</span>
+                                </div>
+                                <div id="range-info-subs" class="goal-sub-text text-[9px] opacity-65 mt-0.5">
+                                    Inicio: <span id="start-subs">0</span>
+                                </div>
+                            </div>
+                            <div id="percent-subs" class="percent-pill goal-num-text">72%</div>
+                        </div>
+                    </div>
+
+                    <div id="track-subs" class="goal-track bar-shape-pill">
+                        <div id="fill-subs" class="goal-fill fill-style-shimmer" style="width: 72%;">
+                            <div class="fill-leading-tip"></div>
+                        </div>
+                        <div class="fill-segments-overlay"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA 3: KICKS (MONEDAS DE KICK) -->
+            <div id="card-kicks" class="android-glass-card goal-item" data-type="kicks">
+                <div class="card-resize-handle handle-tl" data-card="kicks"></div>
+                <div class="card-resize-handle handle-tr" data-card="kicks"></div>
+                <div class="card-resize-handle handle-bl" data-card="kicks"></div>
+                <div class="card-resize-handle handle-br" data-card="kicks"></div>
+
+                <div class="ambient-orb ambient-orb-1" id="orb1-kicks"></div>
+                <div class="ambient-orb ambient-orb-2" id="orb2-kicks"></div>
+                <div class="glass-sheen"></div>
+
+                <div class="relative z-10 flex flex-col gap-1.5">
+                    <div class="flex items-center justify-between gap-2.5">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div id="badge-kicks" class="goal-icon-badge">
+                                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+                                </svg>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <h3 id="title-kicks" class="goal-title-text text-xs tracking-wide truncate">META DE KICKS</h3>
+                                    <span id="complete-tag-kicks" class="hidden px-1.5 py-0.5 text-[9px] font-black uppercase rounded-full bg-lime-400/25 text-lime-200 border border-lime-400/40">¡Logrado!</span>
+                                </div>
+                                <p id="subtitle-kicks" class="goal-sub-text text-[10px] opacity-75 truncate">Energía verde en el chat ⚡</p>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            <div class="text-right">
+                                <div id="numbers-kicks" class="goal-num-text text-sm tracking-tight leading-none">
+                                    <span id="current-kicks">3,200</span>
+                                    <span class="opacity-50 mx-0.5">/</span>
+                                    <span id="target-kicks" class="opacity-90">5,000</span>
+                                </div>
+                                <div id="range-info-kicks" class="goal-sub-text text-[9px] opacity-65 mt-0.5">
+                                    Inicio: <span id="start-kicks">0</span>
+                                </div>
+                            </div>
+                            <div id="percent-kicks" class="percent-pill goal-num-text">64%</div>
+                        </div>
+                    </div>
+
+                    <div id="track-kicks" class="goal-track bar-shape-pill">
+                        <div id="fill-kicks" class="goal-fill fill-style-shimmer" style="width: 64%;">
+                            <div class="fill-leading-tip"></div>
+                        </div>
+                        <div class="fill-segments-overlay"></div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- PANEL DE CONFIGURACIÓN COMPACTO Y TODO-A-LA-VISTA (SIN POPUPS NATIVOS) -->
+    <div id="settings-modal">
+        <!-- Cabecera Arrastrable -->
+        <div id="modal-header" class="flex items-center justify-between px-3.5 py-2.5 bg-white/5 border-b border-white/10 cursor-move">
+            <div class="flex items-center gap-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-teal-400 shadow-[0_0_8px_#00f5d4]"></span>
+                <span class="text-xs font-extrabold tracking-wide text-white uppercase">Metas Glass 17 • ✥ Mover</span>
+            </div>
+            <div class="flex items-center gap-1">
+                <button id="btn-toggle-grid" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-bold text-white/80" title="Alternar fondo guía oscuro/claro para probar contraste">🌓 Fondo Guía</button>
+                <button id="btn-panel-zoom-out" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold flex items-center justify-center">−</button>
+                <span id="panel-zoom-label" class="text-[10px] font-mono text-teal-300 w-8 text-center">100%</span>
+                <button id="btn-panel-zoom-in" class="w-5 h-5 rounded bg-white/10 hover:bg-white/20 text-xs font-bold flex items-center justify-center">+</button>
+                <button id="btn-close-modal" class="ml-1 px-2 py-0.5 rounded bg-rose-500/25 hover:bg-rose-500/45 border border-rose-400/40 text-rose-200 text-[10px] font-extrabold">✕</button>
+            </div>
+        </div>
+
+        <!-- Selector Superior Rápido: Modo de Visualización (1 Barra, 3 Juntas, 3 Desacopladas, Carrusel) -->
+        <div class="px-3.5 py-2 bg-black/30 border-b border-white/10 space-y-1.5">
+            <div class="grid grid-cols-4 gap-1">
+                <button data-view="single" class="view-mode-btn">🎯 Solo 1</button>
+                <button data-view="all" class="view-mode-btn">📊 3 Juntas</button>
+                <button data-view="decoupled" class="view-mode-btn">🔓 Separadas</button>
+                <button data-view="carousel" class="view-mode-btn">🔄 Rotar 1x1</button>
+            </div>
+
+            <!-- Sub-opciones según el modo elegido -->
+            <div id="single-bar-selector" class="flex gap-1 hidden">
+                <button data-single="followers" class="single-select-btn">👥 Seguidores</button>
+                <button data-single="subs" class="single-select-btn">👑 Suscriptores</button>
+                <button data-single="kicks" class="single-select-btn">⚡ Kicks</button>
+            </div>
+
+            <div id="multi-layout-selector" class="flex gap-1 hidden">
+                <button data-layout="vertical" class="layout-select-btn">⬇️ Pila Vertical</button>
+                <button data-layout="horizontal" class="layout-select-btn">➡️ Fila Horizontal</button>
+            </div>
+
+            <div id="decoupled-info-bar" class="flex items-center justify-between px-2 py-1 rounded bg-teal-500/10 border border-teal-400/30 hidden">
+                <span class="text-[9px] text-teal-200 font-semibold">Arrastra y estira cada una de las 3 barras por separado</span>
+                <button id="btn-align-decoupled" class="px-2 py-0.5 rounded bg-teal-400/25 hover:bg-teal-400/40 text-[9px] font-bold text-teal-100">Reordenar</button>
+            </div>
+
+            <div id="carousel-speed-selector" class="flex items-center justify-between gap-2 px-1 hidden">
+                <span class="text-[10px] text-white/70 font-semibold">Cambiar barra cada:</span>
+                <input id="input-carousel-sec" type="range" min="3" max="30" value="8" class="flex-1">
+                <span id="label-carousel-sec" class="text-[10px] font-mono text-teal-300 w-7 text-right">8s</span>
+            </div>
+        </div>
+
+        <!-- Barra de 5 Pestañas Compactas -->
+        <div class="grid grid-cols-5 px-2 pt-1.5 bg-white/5 border-b border-white/10 gap-1">
+            <button data-tab="tab-goals" class="tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase bg-white/10 text-teal-300 border-b-2 border-teal-400">🎯 Metas</button>
+            <button data-tab="tab-style" class="tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase text-white/60 hover:text-white">💎 Cristal</button>
+            <button data-tab="tab-font" class="tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase text-white/60 hover:text-white">🔤 Letras</button>
+            <button data-tab="tab-fx" class="tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase text-white/60 hover:text-white">🎉 Efectos</button>
+            <button data-tab="tab-live" class="tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase text-white/60 hover:text-white">🔌 Bot</button>
+        </div>
+
+        <!-- Cuerpo del Modal -->
+        <div class="p-3 space-y-2.5 text-xs">
+
+            <!-- PESTAÑA 1: CONFIGURACIÓN DE CADA META Y COLORES HEX -->
+            <div id="tab-goals" class="tab-content space-y-2">
+                <!-- Selector de cuál de las 3 metas estamos editando -->
+                <div class="flex gap-1 p-1 rounded-xl bg-black/40 border border-white/10">
+                    <button data-edit-goal="followers" class="edit-goal-tab flex-1 py-1.5 rounded-lg text-[10px] font-extrabold">👥 Seguidores</button>
+                    <button data-edit-goal="subs" class="edit-goal-tab flex-1 py-1.5 rounded-lg text-[10px] font-extrabold">👑 Suscriptores</button>
+                    <button data-edit-goal="kicks" class="edit-goal-tab flex-1 py-1.5 rounded-lg text-[10px] font-extrabold">⚡ Kicks</button>
+                </div>
+
+                <!-- Valores: Inicio, Actual, Meta Final + Botones Rápidos -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-[10px] font-bold text-white/90">
+                            <input id="goal-enabled" type="checkbox" checked class="accent-teal-400">
+                            <span>Mostrar esta barra</span>
+                        </label>
+                        <div class="flex items-center gap-1">
+                            <button data-delta="-1" class="quick-delta-btn px-1.5 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[10px] font-bold">-1</button>
+                            <button data-delta="1" class="quick-delta-btn px-1.5 py-0.5 rounded bg-teal-500/25 hover:bg-teal-500/40 text-teal-200 text-[10px] font-bold">+1</button>
+                            <button data-delta="5" class="quick-delta-btn px-1.5 py-0.5 rounded bg-teal-500/25 hover:bg-teal-500/40 text-teal-200 text-[10px] font-bold">+5</button>
+                            <button data-delta="100" class="quick-delta-btn px-1.5 py-0.5 rounded bg-teal-500/25 hover:bg-teal-500/40 text-teal-200 text-[10px] font-bold">+100</button>
+                            <button id="btn-fill-100" class="px-1.5 py-0.5 rounded bg-amber-500/25 hover:bg-amber-500/40 text-amber-200 text-[10px] font-bold">¡100%!</button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-1.5 items-end">
+                        <div>
+                            <label class="block text-[9px] text-white/60 uppercase font-bold mb-0.5">Empezar en</label>
+                            <input id="goal-start-input" type="number" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-white/15 text-xs font-mono font-bold text-white outline-none focus:border-teal-400">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-teal-300 uppercase font-bold mb-0.5">Valor Actual</label>
+                            <input id="goal-current-input" type="number" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-teal-400/50 text-xs font-mono font-bold text-teal-200 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-white/60 uppercase font-bold mb-0.5">Finalizar en</label>
+                            <input id="goal-target-input" type="number" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-white/15 text-xs font-mono font-bold text-white outline-none focus:border-teal-400">
+                        </div>
+                        <div class="text-center pb-1">
+                            <span class="block text-[8px] text-white/50 uppercase">Progreso</span>
+                            <span id="editor-progress-preview" class="text-xs font-mono font-extrabold text-teal-300">75%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Textos de la Meta -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 grid grid-cols-3 gap-1.5">
+                    <div>
+                        <label class="block text-[9px] text-white/60 font-bold mb-0.5">Título</label>
+                        <input id="goal-title-input" type="text" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-white/15 text-[11px] font-bold text-white outline-none focus:border-teal-400">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] text-white/60 font-bold mb-0.5">Subtítulo</label>
+                        <input id="goal-subtitle-input" type="text" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-white/15 text-[11px] text-white outline-none focus:border-teal-400">
+                    </div>
+                    <div>
+                        <label class="block text-[9px] text-white/60 font-bold mb-0.5">Etiqueta 100%</label>
+                        <input id="goal-complete-text-input" type="text" class="w-full px-2 py-1 rounded-lg bg-black/50 border border-white/15 text-[11px] font-bold text-emerald-300 outline-none focus:border-teal-400">
+                    </div>
+                </div>
+
+                <!-- Colores de la Barra por Código HEX + Colores Fundamentales (Sin Popups) -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase text-teal-300">Colores de Barra (Código #HEX y Selección Rápida)</span>
+                        <button id="btn-reset-goal-colors" class="text-[9px] text-white/60 hover:text-white underline">Restaurar color original</button>
+                    </div>
+
+                    <!-- Color Inicial (C1) -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-white/75 w-16 shrink-0">Color 1:</span>
+                        <div id="preview-c1" class="w-5 h-5 rounded-md border border-white/40 shrink-0"></div>
+                        <input id="goal-hex-1" type="text" maxlength="7" class="w-20 px-2 py-0.5 rounded bg-black/60 border border-white/20 text-[11px] font-mono font-bold text-white uppercase outline-none focus:border-teal-400">
+                        <div class="flex items-center gap-1 flex-wrap" data-swatch-target="c1">
+                            <button type="button" class="color-swatch-btn" style="background:#00F5D4" data-hex="#00F5D4" title="Aqua"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#00BBF9" data-hex="#00BBF9" title="Cian"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#53FC18" data-hex="#53FC18" title="Verde Kick"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#A855F7" data-hex="#A855F7" title="Púrpura"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#EC4899" data-hex="#EC4899" title="Rosa Neón"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#F43F5E" data-hex="#F43F5E" title="Rojo Rubí"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#F59E0B" data-hex="#F59E0B" title="Ámbar"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FDE047" data-hex="#FDE047" title="Amarillo"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#3B82F6" data-hex="#3B82F6" title="Azul Rey"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FFFFFF" data-hex="#FFFFFF" title="Blanco"></button>
+                        </div>
+                    </div>
+
+                    <!-- Color Final Degradado (C2) -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-[10px] text-white/75 w-16 shrink-0">Color 2:</span>
+                        <div id="preview-c2" class="w-5 h-5 rounded-md border border-white/40 shrink-0"></div>
+                        <input id="goal-hex-2" type="text" maxlength="7" class="w-20 px-2 py-0.5 rounded bg-black/60 border border-white/20 text-[11px] font-mono font-bold text-white uppercase outline-none focus:border-teal-400">
+                        <div class="flex items-center gap-1 flex-wrap" data-swatch-target="c2">
+                            <button type="button" class="color-swatch-btn" style="background:#00BBF9" data-hex="#00BBF9" title="Cian"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#00F5D4" data-hex="#00F5D4" title="Aqua"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#10B981" data-hex="#10B981" title="Esmeralda"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#EC4899" data-hex="#EC4899" title="Rosa"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#8B5CF6" data-hex="#8B5CF6" title="Violeta"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FB7185" data-hex="#FB7185" title="Coral"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#F97316" data-hex="#F97316" title="Naranja"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FACC15" data-hex="#FACC15" title="Dorado"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#6366F1" data-hex="#6366F1" title="Índigo"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FFFFFF" data-hex="#FFFFFF" title="Blanco"></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 2: ESTILO ANDROID 16/17 GLASS Y FORMA DE LA BARRA -->
+            <div id="tab-style" class="tab-content hidden space-y-2">
+                <!-- Tema de Cristal -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <span class="text-[10px] font-extrabold uppercase text-teal-300">Acabado Liquid Glass (Android 16/17)</span>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button data-theme="obsidian" class="glass-theme-btn p-1.5 rounded-lg bg-slate-900/80 border text-center">
+                            <div class="text-[10px] font-bold">🌑 Obsidiana</div>
+                        </button>
+                        <button data-theme="frost" class="glass-theme-btn p-1.5 rounded-lg bg-white/15 border text-center">
+                            <div class="text-[10px] font-bold">❄️ Escarcha</div>
+                        </button>
+                        <button data-theme="material" class="glass-theme-btn p-1.5 rounded-lg bg-teal-500/20 border text-center">
+                            <div class="text-[10px] font-bold">🎨 Material 17</div>
+                        </button>
+                        <button data-theme="frameless" class="glass-theme-btn p-1.5 rounded-lg bg-black/30 border text-center">
+                            <div class="text-[10px] font-bold">✨ Sin Fondo</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Forma y Efecto Interno de la Barra -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <span class="text-[10px] font-extrabold uppercase text-teal-300">Forma y Relleno de la Barra</span>
+                    <div class="grid grid-cols-5 gap-1">
+                        <button data-shape="pill" class="bar-shape-btn">Cápsula</button>
+                        <button data-shape="squircle" class="bar-shape-btn">Squircle</button>
+                        <button data-shape="slim" class="bar-shape-btn">Fina</button>
+                        <button data-shape="chunky" class="bar-shape-btn">Gruesa</button>
+                        <button data-shape="cyber" class="bar-shape-btn">Gamer</button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1">
+                        <button data-fill="shimmer" class="fill-style-btn">✨ Shimmer</button>
+                        <button data-fill="wave" class="fill-style-btn">🌊 Pulso</button>
+                        <button data-fill="stripes" class="fill-style-btn">⚡ Rayas</button>
+                        <button data-fill="solid" class="fill-style-btn">💎 Puro</button>
+                    </div>
+                    <div class="flex items-center justify-between pt-0.5">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-[10px] font-semibold">
+                            <input id="toggle-segments" type="checkbox" class="accent-teal-400">
+                            <span>Dividir en bloques/celdas</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-[10px] font-semibold">
+                            <input id="toggle-leading-tip" type="checkbox" checked class="accent-teal-400">
+                            <span>Punta de luz cometa</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Sliders Compactos de Dimensiones y Transparencia -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                        <div>
+                            <div class="flex justify-between text-[10px]"><span class="text-white/70">Opacidad Cristal</span><span id="val-glass-opacity" class="font-mono text-teal-300">58%</span></div>
+                            <input id="slider-glass-opacity" type="range" min="0" max="95" value="58" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px]"><span class="text-white/70">Desenfoque (Blur)</span><span id="val-glass-blur" class="font-mono text-teal-300">24px</span></div>
+                            <input id="slider-glass-blur" type="range" min="0" max="40" value="24" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px]"><span class="text-white/70">Curva Esquinas</span><span id="val-card-radius" class="font-mono text-teal-300">24px</span></div>
+                            <input id="slider-card-radius" type="range" min="4" max="40" value="24" class="w-full">
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-[10px]"><span class="text-white/70">Grosor Barra</span><span id="val-bar-height" class="font-mono text-teal-300">18px</span></div>
+                            <input id="slider-bar-height" type="range" min="6" max="34" value="18" class="w-full">
+                        </div>
+                    </div>
+                    <div class="pt-1">
+                        <div class="flex justify-between text-[10px]"><span class="text-white/70">Ancho de Tarjeta</span><span id="val-widget-width" class="font-mono text-teal-300">420px</span></div>
+                        <input id="slider-widget-width" type="range" min="280" max="700" value="420" class="w-full">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 3: TIPOGRAFÍA, GROSOR Y COLORES DE LETRA (SIN POPUPS) -->
+            <div id="tab-font" class="tab-content hidden space-y-2">
+                <!-- Familia de Fuente (Botones Directos) -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <span class="text-[10px] font-extrabold uppercase text-teal-300">Tipo de Letra y Grosor</span>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button data-font="'Plus Jakarta Sans', sans-serif" class="font-family-btn" style="font-family:'Plus Jakarta Sans',sans-serif;">Jakarta Sans (Android 17)</button>
+                        <button data-font="'Inter', sans-serif" class="font-family-btn" style="font-family:'Inter',sans-serif;">Inter Minimal Pro</button>
+                        <button data-font="'Orbitron', sans-serif" class="font-family-btn" style="font-family:'Orbitron',sans-serif;">Orbitron Sci-Fi Gamer</button>
+                        <button data-font="'JetBrains Mono', monospace" class="font-family-btn" style="font-family:'JetBrains Mono',monospace;">JetBrains Mono Tech</button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1 pt-1">
+                        <button data-weight="400" class="font-weight-btn">Delgada</button>
+                        <button data-weight="600" class="font-weight-btn">Normal</button>
+                        <button data-weight="800" class="font-weight-btn">Gruesa</button>
+                        <button data-weight="900" class="font-weight-btn">Extra Black</button>
+                    </div>
+                </div>
+
+                <!-- Color de Títulos y Subtítulos (#HEX + Colores Fundamentales) -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <span class="text-[10px] font-extrabold uppercase text-teal-300">Color de Títulos y Subtítulos</span>
+                    <div class="flex items-center gap-2">
+                        <div id="preview-title-color" class="w-5 h-5 rounded-md border border-white/40 shrink-0"></div>
+                        <input id="input-title-hex" type="text" maxlength="7" value="#FFFFFF" class="w-20 px-2 py-0.5 rounded bg-black/60 border border-white/20 text-[11px] font-mono font-bold text-white uppercase outline-none focus:border-teal-400">
+                        <div class="flex items-center gap-1 flex-wrap" data-swatch-target="titleColor">
+                            <button type="button" class="color-swatch-btn" style="background:#FFFFFF" data-hex="#FFFFFF" title="Blanco"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#0F172A" data-hex="#0F172A" title="Negro / Oscuro (Fondos Claros)"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#00F5D4" data-hex="#00F5D4" title="Aqua"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#38BDF8" data-hex="#38BDF8" title="Celeste"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#53FC18" data-hex="#53FC18" title="Verde Kick"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#E879F9" data-hex="#E879F9" title="Fucsia"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FDE047" data-hex="#FDE047" title="Dorado"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FB7185" data-hex="#FB7185" title="Coral"></button>
+                        </div>
+                    </div>
+
+                    <span class="block text-[10px] font-extrabold uppercase text-teal-300 pt-1">Color de Números y Porcentaje</span>
+                    <div class="flex items-center gap-2">
+                        <div id="preview-num-color" class="w-5 h-5 rounded-md border border-white/40 shrink-0"></div>
+                        <input id="input-num-hex" type="text" maxlength="7" value="#FFFFFF" class="w-20 px-2 py-0.5 rounded bg-black/60 border border-white/20 text-[11px] font-mono font-bold text-white uppercase outline-none focus:border-teal-400">
+                        <div class="flex items-center gap-1 flex-wrap" data-swatch-target="numColor">
+                            <button type="button" class="color-swatch-btn" style="background:#FFFFFF" data-hex="#FFFFFF" title="Blanco"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#0F172A" data-hex="#0F172A" title="Negro / Oscuro (Fondos Claros)"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#00F5D4" data-hex="#00F5D4" title="Aqua"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#38BDF8" data-hex="#38BDF8" title="Celeste"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#53FC18" data-hex="#53FC18" title="Verde Kick"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#E879F9" data-hex="#E879F9" title="Fucsia"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FDE047" data-hex="#FDE047" title="Dorado"></button>
+                            <button type="button" class="color-swatch-btn" style="background:#FB7185" data-hex="#FB7185" title="Coral"></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Elementos Visibles en la Tarjeta -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 grid grid-cols-2 gap-1.5 text-[10px] font-semibold">
+                    <label class="flex items-center gap-1.5 cursor-pointer"><input id="chk-show-icon" type="checkbox" checked class="accent-teal-400"><span>Mostrar Icono Lateral</span></label>
+                    <label class="flex items-center gap-1.5 cursor-pointer"><input id="chk-show-subtitle" type="checkbox" checked class="accent-teal-400"><span>Mostrar Subtítulo</span></label>
+                    <label class="flex items-center gap-1.5 cursor-pointer"><input id="chk-show-percent" type="checkbox" checked class="accent-teal-400"><span>Mostrar Píldora %</span></label>
+                    <label class="flex items-center gap-1.5 cursor-pointer"><input id="chk-show-start" type="checkbox" checked class="accent-teal-400"><span>Mostrar "Inicio: X"</span></label>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 4: EFECTOS AL AVANZAR Y AL COMPLETAR META + MOVIMIENTO -->
+            <div id="tab-fx" class="tab-content hidden space-y-2">
+                <!-- Efectos al Avanzar la Barra (Seguidor, Sub, Regalos, Kicks) -->
+                <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase text-teal-300">⚡ Efecto al Avanzar (Follow / Sub / Gift / Kicks)</span>
+                        <label class="flex items-center gap-1 cursor-pointer text-[9px] font-bold text-white/80">
+                            <input id="chk-show-delta-pill" type="checkbox" checked class="accent-teal-400">
+                            <span>Burbuja "+X"</span>
+                        </label>
+                    </div>
+                    <div class="grid grid-cols-5 gap-1">
+                        <button data-adv-fx="combo" class="advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center">🔥 Combo Pro</button>
+                        <button data-adv-fx="sparks" class="advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center">✨ Chispas</button>
+                        <button data-adv-fx="pulse" class="advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center">🌊 Halo Neón</button>
+                        <button data-adv-fx="emojis" class="advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center">🚀 Iconos</button>
+                        <button data-adv-fx="none" class="advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center">⏹️ Suave</button>
+                    </div>
+                    <!-- Botones de prueba en vivo de eventos -->
+                    <div class="grid grid-cols-4 gap-1 pt-0.5">
+                        <button data-sim-event="follow" class="sim-event-btn py-1 rounded-md bg-cyan-500/20 hover:bg-cyan-500/35 border border-cyan-400/35 text-cyan-200 text-[9px] font-extrabold">👥 +1 Follow</button>
+                        <button data-sim-event="sub" class="sim-event-btn py-1 rounded-md bg-purple-500/20 hover:bg-purple-500/35 border border-purple-400/35 text-purple-200 text-[9px] font-extrabold">👑 +1 Sub</button>
+                        <button data-sim-event="giftsub" class="sim-event-btn py-1 rounded-md bg-pink-500/20 hover:bg-pink-500/35 border border-pink-400/35 text-pink-200 text-[9px] font-extrabold">🎁 +5 Gift Subs</button>
+                        <button data-sim-event="kicks" class="sim-event-btn py-1 rounded-md bg-lime-500/20 hover:bg-lime-500/35 border border-lime-400/35 text-lime-200 text-[9px] font-extrabold">⚡ +500 Kicks</button>
+                    </div>
+                </div>
+
+                <!-- Efecto al Llegar al 100% (Meta Completada) -->
+                <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase text-teal-300">🏆 Efecto al Completar 100%</span>
+                        <button id="btn-test-celebration" class="px-2 py-0.5 rounded-md bg-teal-400/25 hover:bg-teal-400/40 border border-teal-300/40 text-[9px] font-extrabold text-teal-100">
+                            🎉 Probar 100%
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-4 gap-1">
+                        <button data-complete-fx="confetti" class="complete-fx-btn py-1.5 px-1 rounded-lg bg-white/10 border border-white/15 text-center">
+                            <div class="text-[10px] font-bold">🎊 Confeti</div>
+                        </button>
+                        <button data-complete-fx="shockwave" class="complete-fx-btn py-1.5 px-1 rounded-lg bg-white/5 border border-white/10 text-center">
+                            <div class="text-[10px] font-bold">💫 Onda</div>
+                        </button>
+                        <button data-complete-fx="fireworks" class="complete-fx-btn py-1.5 px-1 rounded-lg bg-white/5 border border-white/10 text-center">
+                            <div class="text-[10px] font-bold">🎆 Estelar</div>
+                        </button>
+                        <button data-complete-fx="rainbow" class="complete-fx-btn py-1.5 px-1 rounded-lg bg-white/5 border border-white/10 text-center">
+                            <div class="text-[10px] font-bold">🌈 Chroma</div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Qué hacer al llegar al 100% + Movimiento Ambiental -->
+                <div class="p-2 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button data-behavior="stay" class="behavior-btn py-1 px-2 rounded-lg border text-[10px] font-bold">🏆 Quedarse en 100%</button>
+                        <button data-behavior="autostep" class="behavior-btn py-1 px-2 rounded-lg border text-[10px] font-bold">🚀 Subir Meta (+Paso)</button>
+                    </div>
+                    <div id="autostep-config" class="flex items-center justify-between pt-0.5 hidden">
+                        <span class="text-[9px] text-white/75">Sumar automáticamente a la meta:</span>
+                        <input id="input-autostep-amount" type="number" value="50" class="w-20 px-2 py-0.5 rounded bg-black/50 border border-white/20 text-xs font-mono font-bold text-center text-white">
+                    </div>
+                    <div class="grid grid-cols-3 gap-1 pt-1 border-t border-white/10">
+                        <button data-motion="none" class="motion-btn py-1 rounded-lg border text-[9px] font-bold">⏹️ Fijo</button>
+                        <button data-motion="float" class="motion-btn py-1 rounded-lg border text-[9px] font-bold">☁️ Flotar</button>
+                        <button data-motion="breathe" class="motion-btn py-1 rounded-lg border text-[9px] font-bold">💓 Latido</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PESTAÑA 5: CONECTIVIDAD STREAMER.BOT COMPLETA (EVENTOS + VARIABLES GLOBALES) -->
+            <div id="tab-live" class="tab-content hidden space-y-2.5">
+                <!-- Estado y URL de Streamer.bot WebSocket -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="text-[10px] font-extrabold uppercase text-teal-300">Streamer.bot WebSocket Server</span>
+                            <p id="ws-last-event" class="text-[9px] text-white/55 truncate max-w-[280px]">Esperando eventos o variables...</p>
+                        </div>
+                        <span id="ws-status-dot" class="px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-white/70">Desconectado</span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <input id="input-ws-url" type="text" value="ws://127.0.0.1:8080/" class="flex-1 px-2.5 py-1 rounded-lg bg-black/50 border border-white/15 text-[11px] font-mono text-white outline-none focus:border-teal-400">
+                        <button id="btn-connect-ws" class="px-2.5 py-1 rounded-lg bg-teal-500/25 hover:bg-teal-500/40 border border-teal-400/40 text-teal-200 text-[10px] font-bold">Reconectar</button>
+                        <button id="btn-sync-globals" class="px-2.5 py-1 rounded-lg bg-indigo-500/25 hover:bg-indigo-500/40 border border-indigo-400/40 text-indigo-200 text-[10px] font-bold" title="Pedir variables globales a Streamer.bot ahora">Leer Vars</button>
+                    </div>
+                </div>
+
+                <!-- Nombres de Variables Globales en Streamer.bot -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase text-teal-300">Variables Globales de Streamer.bot</span>
+                        <span class="text-[9px] text-white/50">Sincroniza con GetGlobals</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5">
+                        <div>
+                            <label class="block text-[9px] text-white/60 mb-0.5">Var. Seguidores</label>
+                            <input id="sb-var-followers" type="text" class="w-full px-2 py-1 rounded bg-black/50 border border-white/15 text-[10px] font-mono text-white" value="goal_followers">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-white/60 mb-0.5">Var. Suscriptores</label>
+                            <input id="sb-var-subs" type="text" class="w-full px-2 py-1 rounded bg-black/50 border border-white/15 text-[10px] font-mono text-white" value="goal_subs">
+                        </div>
+                        <div>
+                            <label class="block text-[9px] text-white/60 mb-0.5">Var. Kicks</label>
+                            <input id="sb-var-kicks" type="text" class="w-full px-2 py-1 rounded bg-black/50 border border-white/15 text-[10px] font-mono text-white" value="goal_kicks">
+                        </div>
+                    </div>
+                    <p class="text-[9px] text-white/50 leading-tight pt-0.5">
+                        ✅ Detecta automáticamente eventos de <b>Kick</b> y <b>Twitch</b> (<code class="text-teal-300">Follow</code>, <code class="text-teal-300">Subscription</code>, <code class="text-teal-300">GiftSub</code>, <code class="text-teal-300">GiftBomb</code>, <code class="text-teal-300">KicksGifted</code>, <code class="text-teal-300">Cheer</code>), lee tus variables globales cada 6s, o recibe Broadcast JSON: <code class="text-teal-300">{"type":"kicks","add":500}</code>.
+                    </p>
+                </div>
+
+                <!-- Escala y Posición General -->
+                <div class="p-2.5 rounded-xl bg-white/5 border border-white/10 space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[10px] font-extrabold uppercase text-teal-300">Escala y Posición en Lienzo (1920x1080)</span>
+                        <button id="btn-reset-transform" class="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[9px] font-bold">Reset Posición / 100%</button>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <input id="slider-widget-scale" type="range" min="50" max="220" value="100" class="flex-1">
+                        <span id="val-widget-scale" class="font-mono text-[10px] text-teal-300 w-10 text-right">100%</span>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            var STORAGE_KEY = 'obs_android17_goals_v2';
+
+            var DEFAULT_COLORS = {
+                followers: { c1: '#00F5D4', c2: '#00BBF9', glow: '#00F5D4' },
+                subs:      { c1: '#A855F7', c2: '#EC4899', glow: '#C084FC' },
+                kicks:     { c1: '#53FC18', c2: '#00F5D4', glow: '#53FC18' }
+            };
+
+            var defaultState = {
+                posX: 90,
+                posY: 90,
+                scale: 1,
+                widgetWidth: 420,
+                viewMode: 'all',          // 'single', 'all', 'decoupled', 'carousel'
+                activeSingle: 'followers',
+                multiLayout: 'vertical',
+                carouselSeconds: 8,
+                glassTheme: 'obsidian',
+                glassOpacity: 58,
+                glassBlur: 24,
+                cardRadius: 24,
+                barShape: 'pill',
+                barHeight: 18,
+                fillStyle: 'shimmer',
+                segmented: false,
+                leadingTip: true,
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontWeight: '800',
+                titleColor: '#FFFFFF',
+                numColor: '#FFFFFF',
+                showIcon: true,
+                showSubtitle: true,
+                showPercent: true,
+                showStart: true,
+                advanceFx: 'combo',       // 'combo', 'sparks', 'pulse', 'emojis', 'none'
+                showDeltaPill: true,
+                completeFx: 'confetti',
+                onCompleteBehavior: 'stay',
+                autoStepAmount: 50,
+                idleMotion: 'none',
+                wsUrl: 'ws://127.0.0.1:8080/',
+                sbVars: {
+                    followers: 'goal_followers',
+                    subs: 'goal_subs',
+                    kicks: 'goal_kicks'
+                },
+                goals: {
+                    followers: {
+                        enabled: true,
+                        title: 'META DE SEGUIDORES',
+                        subtitle: '¡Gracias por apoyar el stream!',
+                        completeText: '¡LOGRADO!',
+                        start: 0,
+                        current: 75,
+                        target: 100,
+                        c1: '#00F5D4',
+                        c2: '#00BBF9',
+                        glow: '#00F5D4',
+                        indX: 90,
+                        indY: 80,
+                        indScale: 1
+                    },
+                    subs: {
+                        enabled: true,
+                        title: 'META DE SUSCRIPTORES',
+                        subtitle: 'Desbloqueando emotes VIP',
+                        completeText: '¡LOGRADO!',
+                        start: 0,
+                        current: 18,
+                        target: 25,
+                        c1: '#A855F7',
+                        c2: '#EC4899',
+                        glow: '#C084FC',
+                        indX: 90,
+                        indY: 210,
+                        indScale: 1
+                    },
+                    kicks: {
+                        enabled: true,
+                        title: 'META DE KICKS',
+                        subtitle: 'Energía verde en el chat ⚡',
+                        completeText: '¡LOGRADO!',
+                        start: 0,
+                        current: 3200,
+                        target: 5000,
+                        c1: '#53FC18',
+                        c2: '#00F5D4',
+                        glow: '#53FC18',
+                        indX: 90,
+                        indY: 340,
+                        indScale: 1
+                    }
+                }
+            };
+
+            // Lectura de parámetros URL (para OBS Studio o previsualizaciones en línea)
+            var urlParams = new URLSearchParams(window.location.search);
+            var isPreviewParam = urlParams.get('preview') === 'true';
+            var queryWs = urlParams.get('ws') || urlParams.get('url');
+            var queryHost = urlParams.get('host') || '127.0.0.1';
+            var queryPort = urlParams.get('port');
+            var queryVarFollowers = urlParams.get('var_followers');
+            var queryVarSubs = urlParams.get('var_subs');
+            var queryVarKicks = urlParams.get('var_kicks');
+
+            var state = loadState();
+
+            // Overrides dinámicos de URL si se pasan parámetros
+            if (queryWs) {
+                state.wsUrl = queryWs;
+            } else if (queryPort) {
+                state.wsUrl = 'ws://' + queryHost + ':' + queryPort + '/';
+            }
+            if (queryVarFollowers) state.sbVars.followers = queryVarFollowers;
+            if (queryVarSubs) state.sbVars.subs = queryVarSubs;
+            if (queryVarKicks) state.sbVars.kicks = queryVarKicks;
+
+            var currentlyEditingGoal = 'followers';
+            var carouselTimer = null;
+            var carouselIndex = 0;
+            var panelScale = 1;
+            var previewBgStep = isPreviewParam ? 1 : 0; // Si es preview, iniciar con contraste visual de guía
+
+            function loadState() {
+                try {
+                    var raw = localStorage.getItem(STORAGE_KEY);
+                    if (!raw) return JSON.parse(JSON.stringify(defaultState));
+                    var parsed = JSON.parse(raw);
+                    var merged = Object.assign({}, defaultState, parsed);
+                    merged.sbVars = Object.assign({}, defaultState.sbVars, parsed.sbVars || {});
+                    merged.goals = {
+                        followers: Object.assign({}, defaultState.goals.followers, parsed.goals && parsed.goals.followers),
+                        subs: Object.assign({}, defaultState.goals.subs, parsed.goals && parsed.goals.subs),
+                        kicks: Object.assign({}, defaultState.goals.kicks, parsed.goals && parsed.goals.kicks)
+                    };
+                    return merged;
+                } catch (e) {
+                    return JSON.parse(JSON.stringify(defaultState));
+                }
+            }
+
+            function saveState() {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+                } catch (e) {}
+            }
+
+            var stageEl = document.getElementById('widget-stage');
+            var wrapperEl = document.getElementById('goals-wrapper');
+            var modalEl = document.getElementById('settings-modal');
+
+            function calculatePercentage(start, current, target) {
+                var s = Number(start) || 0;
+                var c = Number(current) || 0;
+                var t = Number(target) || 100;
+                if (t <= s) return c >= t ? 100 : 0;
+                var pct = ((c - s) / (t - s)) * 100;
+                if (pct < 0) pct = 0;
+                if (pct > 100) pct = 100;
+                return Math.round(pct);
+            }
+
+            function renderAll() {
+                document.documentElement.style.setProperty('--card-radius', state.cardRadius + 'px');
+                document.documentElement.style.setProperty('--bar-height', state.barHeight + 'px');
+                document.documentElement.style.setProperty('--glass-blur', state.glassBlur + 'px');
+                document.body.style.fontFamily = state.fontFamily;
+
+                wrapperEl.classList.remove('motion-float', 'motion-breathe');
+                if (state.idleMotion === 'float') wrapperEl.classList.add('motion-float');
+                if (state.idleMotion === 'breathe') wrapperEl.classList.add('motion-breathe');
+
+                // Modo Desacoplado vs Modos Acoplados
+                if (state.viewMode === 'decoupled') {
+                    stageEl.className = 'decoupled-mode';
+                } else {
+                    stageEl.className = 'coupled-mode';
+                    stageEl.style.left = state.posX + 'px';
+                    stageEl.style.top = state.posY + 'px';
+                    stageEl.style.transform = 'scale(' + state.scale + ')';
+
+                    if (state.viewMode === 'all' && state.multiLayout === 'horizontal') {
+                        wrapperEl.className = 'flex flex-row gap-3 transition-all duration-300';
+                        wrapperEl.style.width = (state.widgetWidth * 2.55) + 'px';
+                    } else {
+                        wrapperEl.className = 'flex flex-col gap-2.5 transition-all duration-300';
+                        wrapperEl.style.width = state.widgetWidth + 'px';
+                    }
+                }
+
+                var types = ['followers', 'subs', 'kicks'];
+                for (var i = 0; i < types.length; i++) {
+                    renderSingleGoalCard(types[i]);
+                }
+
+                applyVisibilityAndCarousel();
+                syncModalControls();
+            }
+
+            function renderSingleGoalCard(type) {
+                var g = state.goals[type];
+                var card = document.getElementById('card-' + type);
+                var badge = document.getElementById('badge-' + type);
+                var titleEl = document.getElementById('title-' + type);
+                var subEl = document.getElementById('subtitle-' + type);
+                var numWrap = document.getElementById('numbers-' + type);
+                var curEl = document.getElementById('current-' + type);
+                var tarEl = document.getElementById('target-' + type);
+                var startEl = document.getElementById('start-' + type);
+                var rangeWrap = document.getElementById('range-info-' + type);
+                var pctEl = document.getElementById('percent-' + type);
+                var trackEl = document.getElementById('track-' + type);
+                var fillEl = document.getElementById('fill-' + type);
+                var completeTag = document.getElementById('complete-tag-' + type);
+                var orb1 = document.getElementById('orb1-' + type);
+                var orb2 = document.getElementById('orb2-' + type);
+
+                // Posición individual si está en modo Desacoplado
+                if (state.viewMode === 'decoupled') {
+                    card.style.left = (g.indX || 90) + 'px';
+                    card.style.top = (g.indY || 90) + 'px';
+                    card.style.width = state.widgetWidth + 'px';
+                    card.style.transform = 'scale(' + (g.indScale || 1) + ')';
+                } else {
+                    card.style.left = '';
+                    card.style.top = '';
+                    card.style.width = '';
+                    card.style.transform = '';
+                    card.style.flex = '1 1 0%';
+                }
+
+                // Aplicar fuente, grosor y colores independientes de Títulos y Números
+                var titleShadow = isDarkColor(state.titleColor) ? '0 1px 2px rgba(255,255,255,0.5)' : '0 2px 6px rgba(0,0,0,0.45)';
+                var numShadow = isDarkColor(state.numColor) ? '0 1px 2px rgba(255,255,255,0.5)' : '0 2px 6px rgba(0,0,0,0.45)';
+
+                titleEl.style.color = state.titleColor;
+                titleEl.style.fontWeight = state.fontWeight;
+                titleEl.style.textShadow = titleShadow;
+
+                subEl.style.color = state.titleColor;
+                subEl.style.fontWeight = Math.max(400, Number(state.fontWeight) - 200);
+                subEl.style.textShadow = titleShadow;
+
+                rangeWrap.style.color = state.titleColor;
+                rangeWrap.style.textShadow = titleShadow;
+
+                numWrap.style.color = state.numColor;
+                numWrap.style.fontWeight = state.fontWeight;
+                numWrap.style.textShadow = numShadow;
+
+                // Tema Glass Android 16/17
+                var alpha = (state.glassOpacity / 100).toFixed(2);
+                card.classList.remove('frameless-mode');
+                if (state.glassTheme === 'frameless' || state.glassOpacity === 0) {
+                    card.classList.add('frameless-mode');
+                    orb1.style.opacity = '0';
+                    orb2.style.opacity = '0';
+                } else if (state.glassTheme === 'frost') {
+                    card.style.background = 'rgba(240, 246, 255, ' + (alpha * 0.45) + ')';
+                    card.style.borderColor = 'rgba(255, 255, 255, 0.38)';
+                    orb1.style.opacity = '0.20';
+                    orb2.style.opacity = '0.20';
+                } else if (state.glassTheme === 'material') {
+                    card.style.background = hexToRgba(g.c1, alpha * 0.30);
+                    card.style.borderColor = hexToRgba(g.c1, 0.45);
+                    orb1.style.opacity = '0.30';
+                    orb2.style.opacity = '0.26';
+                } else {
+                    card.style.background = 'rgba(14, 18, 28, ' + alpha + ')';
+                    card.style.borderColor = 'rgba(255, 255, 255, 0.16)';
+                    orb1.style.opacity = '0.24';
+                    orb2.style.opacity = '0.22';
+                }
+
+                orb1.style.background = g.c1;
+                orb2.style.background = g.c2;
+
+                // Badge del icono
+                badge.style.display = state.showIcon ? 'flex' : 'none';
+                badge.style.color = g.c1;
+                badge.style.background = hexToRgba(g.c1, 0.16);
+                badge.style.borderColor = hexToRgba(g.c1, 0.4);
+                badge.style.boxShadow = '0 4px 14px ' + hexToRgba(g.glow, 0.25) + ', inset 0 1px 1px rgba(255,255,255,0.35)';
+
+                titleEl.textContent = g.title;
+                subEl.textContent = g.subtitle;
+                subEl.style.display = (state.showSubtitle && g.subtitle.trim() !== '') ? 'block' : 'none';
+
+                curEl.textContent = formatNumber(g.current);
+                tarEl.textContent = formatNumber(g.target);
+                startEl.textContent = formatNumber(g.start);
+                rangeWrap.style.display = state.showStart ? 'block' : 'none';
+
+                var pct = calculatePercentage(g.start, g.current, g.target);
+                pctEl.textContent = pct + '%';
+                pctEl.style.display = state.showPercent ? 'inline-block' : 'none';
+                pctEl.style.color = state.numColor;
+                pctEl.style.fontWeight = state.fontWeight;
+                pctEl.style.borderColor = hexToRgba(g.c1, 0.4);
+                pctEl.style.background = hexToRgba(g.c1, 0.18);
+
+                trackEl.className = 'goal-track bar-shape-' + state.barShape + (state.segmented ? ' segmented-active' : '');
+
+                fillEl.className = 'goal-fill fill-style-' + state.fillStyle;
+                fillEl.style.width = pct + '%';
+                fillEl.style.background = 'linear-gradient(90deg, ' + g.c1 + ' 0%, ' + g.c2 + ' 100%)';
+                fillEl.style.boxShadow = '0 0 16px ' + hexToRgba(g.glow, 0.65);
+
+                var tip = fillEl.querySelector('.fill-leading-tip');
+                if (tip) {
+                    tip.style.display = (state.leadingTip && pct > 2) ? 'block' : 'none';
+                }
+
+                completeTag.textContent = g.completeText || '¡LOGRADO!';
+                if (pct >= 100) {
+                    completeTag.classList.remove('hidden');
+                    if (state.completeFx === 'rainbow') {
+                        fillEl.classList.add('completed-rainbow-aura');
+                    } else {
+                        fillEl.classList.remove('completed-rainbow-aura');
+                    }
+                } else {
+                    completeTag.classList.add('hidden');
+                    fillEl.classList.remove('completed-rainbow-aura');
+                }
+            }
+
+            function applyVisibilityAndCarousel() {
+                if (carouselTimer) {
+                    clearInterval(carouselTimer);
+                    carouselTimer = null;
+                }
+
+                var types = ['followers', 'subs', 'kicks'];
+                var enabledTypes = [];
+                for (var i = 0; i < types.length; i++) {
+                    if (state.goals[types[i]].enabled) enabledTypes.push(types[i]);
+                }
+                if (enabledTypes.length === 0) enabledTypes.push('followers');
+
+                if (state.viewMode === 'single') {
+                    for (var j = 0; j < types.length; j++) {
+                        var t = types[j];
+                        var el = document.getElementById('card-' + t);
+                        el.classList.remove('carousel-enter');
+                        if (t === state.activeSingle) {
+                            el.classList.remove('carousel-hidden');
+                        } else {
+                            el.classList.add('carousel-hidden');
+                        }
+                    }
+                } else if (state.viewMode === 'all' || state.viewMode === 'decoupled') {
+                    for (var k = 0; k < types.length; k++) {
+                        var tk = types[k];
+                        var elk = document.getElementById('card-' + tk);
+                        elk.classList.remove('carousel-enter');
+                        if (state.goals[tk].enabled) {
+                            elk.classList.remove('carousel-hidden');
+                        } else {
+                            elk.classList.add('carousel-hidden');
+                        }
+                    }
+                } else if (state.viewMode === 'carousel') {
+                    if (carouselIndex >= enabledTypes.length) carouselIndex = 0;
+                    var showCurrentCarousel = function() {
+                        var activeType = enabledTypes[carouselIndex % enabledTypes.length];
+                        for (var m = 0; m < types.length; m++) {
+                            var tm = types[m];
+                            var elm = document.getElementById('card-' + tm);
+                            if (tm === activeType) {
+                                elm.classList.remove('carousel-hidden');
+                                elm.classList.remove('carousel-enter');
+                                void elm.offsetWidth;
+                                elm.classList.add('carousel-enter');
+                            } else {
+                                elm.classList.add('carousel-hidden');
+                            }
+                        }
+                    };
+                    showCurrentCarousel();
+                    carouselTimer = setInterval(function() {
+                        carouselIndex = (carouselIndex + 1) % enabledTypes.length;
+                        showCurrentCarousel();
+                    }, (state.carouselSeconds || 8) * 1000);
+                }
+            }
+
+            var fxCanvas = document.getElementById('fx-canvas');
+            var fxCtx = fxCanvas.getContext('2d');
+            var particles = [];
+            var animFrameId = null;
+
+            function triggerGoalCelebration(type) {
+                var card = document.getElementById('card-' + type);
+                var g = state.goals[type] || state.goals.followers;
+                if (!card) return;
+
+                card.classList.remove('completed-bounce');
+                void card.offsetWidth;
+                card.classList.add('completed-bounce');
+
+                var rect = card.getBoundingClientRect();
+                if (state.completeFx === 'shockwave' || state.completeFx === 'rainbow') {
+                    var ring = document.createElement('div');
+                    ring.className = 'shockwave-effect';
+                    ring.style.setProperty('--goal-accent', g.c1);
+                    card.appendChild(ring);
+                    setTimeout(function() {
+                        if (ring.parentNode) ring.parentNode.removeChild(ring);
+                    }, 1000);
+                }
+
+                var cx = rect.left + rect.width / 2;
+                var cy = rect.top + rect.height / 2;
+                var palette = [g.c1, g.c2, '#ffffff', '#fde047', '#38bdf8'];
+
+                var count = state.completeFx === 'confetti' ? 70 : 45;
+                for (var i = 0; i < count; i++) {
+                    var angle = Math.random() * Math.PI * 2;
+                    var speed = (Math.random() * 7.5 + 3) * (state.completeFx === 'fireworks' ? 1.25 : 1);
+                    particles.push({
+                        x: cx + (Math.random() - 0.5) * (rect.width * 0.7),
+                        y: cy + (Math.random() - 0.5) * (rect.height * 0.4),
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed - (state.completeFx === 'confetti' ? 4 : 1.5),
+                        size: Math.random() * 6.5 + 4,
+                        color: palette[Math.floor(Math.random() * palette.length)],
+                        alpha: 1,
+                        rot: Math.random() * 360,
+                        vRot: (Math.random() - 0.5) * 14,
+                        shape: state.completeFx === 'confetti' ? 'rect' : 'circle',
+                        gravity: state.completeFx === 'confetti' ? 0.21 : 0.08
+                    });
+                }
+
+                if (!animFrameId) {
+                    animateParticles();
+                }
+            }
+
+            function animateParticles() {
+                fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+                for (var i = particles.length - 1; i >= 0; i--) {
+                    var p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.vy += p.gravity;
+                    p.vx *= 0.985;
+                    p.rot += p.vRot;
+                    p.alpha -= 0.015;
+
+                    if (p.alpha <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    fxCtx.save();
+                    fxCtx.globalAlpha = Math.max(0, p.alpha);
+                    fxCtx.translate(p.x, p.y);
+                    if (p.shape === 'text' && p.text) {
+                        fxCtx.font = 'bold ' + Math.round(p.size) + 'px sans-serif';
+                        fxCtx.textAlign = 'center';
+                        fxCtx.textBaseline = 'middle';
+                        fxCtx.shadowColor = p.color;
+                        fxCtx.shadowBlur = 10;
+                        fxCtx.fillText(p.text, 0, 0);
+                    } else {
+                        fxCtx.rotate((p.rot * Math.PI) / 180);
+                        fxCtx.fillStyle = p.color;
+                        fxCtx.shadowColor = p.color;
+                        fxCtx.shadowBlur = 8;
+
+                        if (p.shape === 'rect') {
+                            fxCtx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.65);
+                        } else {
+                            fxCtx.beginPath();
+                            fxCtx.arc(0, 0, p.size * 0.45, 0, Math.PI * 2);
+                            fxCtx.fill();
+                        }
+                    }
+                    fxCtx.restore();
+                }
+
+                if (particles.length > 0) {
+                    animFrameId = requestAnimationFrame(animateParticles);
+                } else {
+                    animFrameId = null;
+                    fxCtx.clearRect(0, 0, fxCanvas.width, fxCanvas.height);
+                }
+            }
+
+            function triggerGoalAdvanceEffect(type, deltaAmount, customLabel) {
+                var card = document.getElementById('card-' + type);
+                var fillEl = document.getElementById('fill-' + type);
+                var badgeEl = document.getElementById('badge-' + type);
+                var curEl = document.getElementById('current-' + type);
+                var g = state.goals[type] || state.goals.followers;
+                if (!card) return;
+
+                // Si la tarjeta está oculta porque está en modo "Solo 1" en otra meta, no lanzar partículas fuera de lugar
+                if (card.classList.contains('carousel-hidden')) return;
+
+                var fxMode = state.advanceFx || 'combo';
+
+                // 1. Rebote de números e insignia del icono siempre que avance
+                if (curEl) {
+                    curEl.classList.remove('advance-num-bump');
+                    void curEl.offsetWidth;
+                    curEl.classList.add('advance-num-bump');
+                }
+                if (badgeEl) {
+                    badgeEl.classList.remove('advance-badge-pop');
+                    void badgeEl.offsetWidth;
+                    badgeEl.classList.add('advance-badge-pop');
+                }
+                if (fillEl) {
+                    fillEl.classList.remove('advance-fill-surge');
+                    void fillEl.offsetWidth;
+                    fillEl.classList.add('advance-fill-surge');
+                }
+
+                // 2. Burbuja flotante "+X" (Ej: "+1 Follow", "+5 Subs 🎁", "+500 Kicks ⚡")
+                if (state.showDeltaPill && deltaAmount > 0) {
+                    var pill = document.createElement('div');
+                    pill.className = 'floating-delta-pill';
+                    pill.style.setProperty('--adv-color', g.c1);
+                    var suffix = '';
+                    if (customLabel) {
+                        suffix = ' ' + customLabel;
+                    } else if (type === 'followers') {
+                        suffix = ' Seguidor' + (deltaAmount > 1 ? 'es' : '');
+                    } else if (type === 'subs') {
+                        suffix = deltaAmount > 1 ? ' Subs 🎁' : ' Sub 👑';
+                    } else if (type === 'kicks') {
+                        suffix = ' Kicks ⚡';
+                    }
+                    pill.textContent = '+' + formatNumber(deltaAmount) + suffix;
+                    card.appendChild(pill);
+                    setTimeout(function() {
+                        if (pill.parentNode) pill.parentNode.removeChild(pill);
+                    }, 1350);
+                }
+
+                if (fxMode === 'none') return;
+
+                // 3. Rebote elástico de tarjeta y destello de borde neón (en modos combo y pulse)
+                if (fxMode === 'combo' || fxMode === 'pulse') {
+                    card.classList.remove('advance-card-pop');
+                    void card.offsetWidth;
+                    card.classList.add('advance-card-pop');
+
+                    var flash = document.createElement('div');
+                    flash.className = 'advance-border-flash';
+                    flash.style.setProperty('--adv-color', g.c1);
+                    card.appendChild(flash);
+                    setTimeout(function() {
+                        if (flash.parentNode) flash.parentNode.removeChild(flash);
+                    }, 780);
+                }
+
+                // Coordenadas exactas de la punta de la barra que acaba de avanzar
+                var fillRect = fillEl ? fillEl.getBoundingClientRect() : card.getBoundingClientRect();
+                var tipX = fillRect.right;
+                var tipY = fillRect.top + fillRect.height / 2;
+                var cardRect = card.getBoundingClientRect();
+                if (tipX < cardRect.left + 24) tipX = cardRect.left + 24;
+
+                var palette = [g.c1, g.c2, '#ffffff', '#fde047'];
+
+                // 4. Chispas luminosas saliendo de la punta de la barra (en modos combo y sparks)
+                if (fxMode === 'combo' || fxMode === 'sparks') {
+                    var sparkCount = deltaAmount > 1 ? 26 : 18;
+                    for (var i = 0; i < sparkCount; i++) {
+                        var angle = (Math.random() - 0.5) * Math.PI * 1.6;
+                        var spd = Math.random() * 5.2 + 1.8;
+                        particles.push({
+                            x: tipX + (Math.random() - 0.5) * 8,
+                            y: tipY + (Math.random() - 0.5) * 8,
+                            vx: Math.cos(angle) * spd,
+                            vy: Math.sin(angle) * spd - 1.8,
+                            size: Math.random() * 5.5 + 3.5,
+                            color: palette[Math.floor(Math.random() * palette.length)],
+                            alpha: 1,
+                            rot: Math.random() * 360,
+                            vRot: (Math.random() - 0.5) * 12,
+                            shape: i % 3 === 0 ? 'rect' : 'circle',
+                            gravity: 0.14
+                        });
+                    }
+                }
+
+                // 5. Emojis / Iconos temáticos flotantes según el tipo de evento (en modos combo y emojis)
+                if (fxMode === 'combo' || fxMode === 'emojis') {
+                    var icons = ['✨', '❤️'];
+                    if (type === 'followers') icons = ['❤️', '✨', '👤'];
+                    if (type === 'subs') icons = deltaAmount > 1 ? ['🎁', '👑', '💎', '✨'] : ['👑', '💎', '⭐'];
+                    if (type === 'kicks') icons = ['⚡', '💚', '🔥', '✨'];
+
+                    var iconCount = fxMode === 'emojis' ? 8 : 4;
+                    for (var k = 0; k < iconCount; k++) {
+                        particles.push({
+                            x: cardRect.left + cardRect.width * (0.25 + Math.random() * 0.65),
+                            y: tipY,
+                            vx: (Math.random() - 0.5) * 2.4,
+                            vy: -(Math.random() * 3.2 + 2.0),
+                            size: Math.random() * 5 + 14,
+                            color: g.c1,
+                            alpha: 1,
+                            rot: 0,
+                            vRot: 0,
+                            shape: 'text',
+                            text: icons[k % icons.length],
+                            gravity: 0.04
+                        });
+                    }
+                }
+
+                if (!animFrameId) {
+                    animateParticles();
+                }
+            }
+
+            function updateGoalValue(type, newValue, isDelta, customEventLabel) {
+                var g = state.goals[type];
+                if (!g) return;
+
+                var prevVal = Number(g.current) || 0;
+                var oldPct = calculatePercentage(g.start, g.current, g.target);
+                if (isDelta) {
+                    g.current = prevVal + Number(newValue);
+                } else {
+                    g.current = Number(newValue);
+                }
+
+                var diff = g.current - prevVal;
+                var newPct = calculatePercentage(g.start, g.current, g.target);
+                renderAll();
+
+                // Si la barra avanzó positivamente, disparar el efecto de avance
+                if (diff > 0) {
+                    triggerGoalAdvanceEffect(type, diff, customEventLabel);
+                }
+
+                if (oldPct < 100 && newPct >= 100) {
+                    triggerGoalCelebration(type);
+
+                    if (state.onCompleteBehavior === 'autostep') {
+                        setTimeout(function() {
+                            var step = Number(state.autoStepAmount) || 50;
+                            g.start = g.target;
+                            g.target = Number(g.target) + step;
+                            saveState();
+                            renderAll();
+                        }, 2400);
+                    }
+                }
+                saveState();
+            }
+
+            function syncModalControls() {
+                var viewBtns = document.querySelectorAll('.view-mode-btn');
+                for (var i = 0; i < viewBtns.length; i++) {
+                    var b = viewBtns[i];
+                    var active = b.getAttribute('data-view') === state.viewMode;
+                    b.className = 'view-mode-btn py-1.5 px-1.5 rounded-lg text-[10px] font-bold border transition flex items-center justify-center gap-1 ' +
+                        (active ? 'bg-teal-400/20 border-teal-400 text-teal-200 shadow-[0_0_12px_rgba(0,245,212,0.2)]' : 'border-white/10 bg-white/5 text-white/70 hover:bg-white/10');
+                }
+
+                document.getElementById('single-bar-selector').classList.toggle('hidden', state.viewMode !== 'single');
+                document.getElementById('multi-layout-selector').classList.toggle('hidden', state.viewMode !== 'all');
+                document.getElementById('decoupled-info-bar').classList.toggle('hidden', state.viewMode !== 'decoupled');
+                document.getElementById('carousel-speed-selector').classList.toggle('hidden', state.viewMode !== 'carousel');
+
+                var singleBtns = document.querySelectorAll('.single-select-btn');
+                for (var s = 0; s < singleBtns.length; s++) {
+                    var sb = singleBtns[s];
+                    var isAct = sb.getAttribute('data-single') === state.activeSingle;
+                    sb.className = 'single-select-btn flex-1 py-1 rounded-md text-[10px] font-bold border transition ' +
+                        (isAct ? 'bg-teal-400/25 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/65');
+                }
+
+                var layoutBtns = document.querySelectorAll('.layout-select-btn');
+                for (var l = 0; l < layoutBtns.length; l++) {
+                    var lb = layoutBtns[l];
+                    var isLay = lb.getAttribute('data-layout') === state.multiLayout;
+                    lb.className = 'layout-select-btn flex-1 py-1 rounded-md text-[10px] font-bold border transition ' +
+                        (isLay ? 'bg-teal-400/25 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/65');
+                }
+
+                document.getElementById('input-carousel-sec').value = state.carouselSeconds;
+                document.getElementById('label-carousel-sec').textContent = state.carouselSeconds + 's';
+
+                // Meta editada actualmente
+                var g = state.goals[currentlyEditingGoal];
+                var editTabs = document.querySelectorAll('.edit-goal-tab');
+                for (var e = 0; e < editTabs.length; e++) {
+                    var et = editTabs[e];
+                    var isEd = et.getAttribute('data-edit-goal') === currentlyEditingGoal;
+                    et.className = 'edit-goal-tab flex-1 py-1.5 rounded-lg text-[10px] font-extrabold transition ' +
+                        (isEd ? 'bg-teal-400/25 text-teal-200 border border-teal-400/40' : 'text-white/60 hover:text-white');
+                }
+
+                document.getElementById('goal-enabled').checked = !!g.enabled;
+                document.getElementById('goal-start-input').value = g.start;
+                document.getElementById('goal-current-input').value = g.current;
+                document.getElementById('goal-target-input').value = g.target;
+                document.getElementById('editor-progress-preview').textContent = calculatePercentage(g.start, g.current, g.target) + '%';
+
+                document.getElementById('goal-title-input').value = g.title;
+                document.getElementById('goal-subtitle-input').value = g.subtitle;
+                document.getElementById('goal-complete-text-input').value = g.completeText;
+
+                // HEX inputs y cuadritos de vista previa
+                document.getElementById('goal-hex-1').value = g.c1.toUpperCase();
+                document.getElementById('preview-c1').style.background = g.c1;
+                document.getElementById('goal-hex-2').value = g.c2.toUpperCase();
+                document.getElementById('preview-c2').style.background = g.c2;
+
+                // Estilo Glass y Barra
+                var themeBtns = document.querySelectorAll('.glass-theme-btn');
+                for (var th = 0; th < themeBtns.length; th++) {
+                    var tb = themeBtns[th];
+                    var isTh = tb.getAttribute('data-theme') === state.glassTheme;
+                    tb.style.borderColor = isTh ? '#00f5d4' : 'rgba(255,255,255,0.15)';
+                }
+
+                var shapeBtns = document.querySelectorAll('.bar-shape-btn');
+                for (var sh = 0; sh < shapeBtns.length; sh++) {
+                    var shb = shapeBtns[sh];
+                    var isSh = shb.getAttribute('data-shape') === state.barShape;
+                    shb.className = 'bar-shape-btn py-1.5 rounded-lg text-[10px] font-bold border transition ' +
+                        (isSh ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+
+                var fillBtns = document.querySelectorAll('.fill-style-btn');
+                for (var fl = 0; fl < fillBtns.length; fl++) {
+                    var flb = fillBtns[fl];
+                    var isFl = flb.getAttribute('data-fill') === state.fillStyle;
+                    flb.className = 'fill-style-btn py-1.5 rounded-lg text-[10px] font-bold border transition ' +
+                        (isFl ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+
+                document.getElementById('toggle-segments').checked = !!state.segmented;
+                document.getElementById('toggle-leading-tip').checked = !!state.leadingTip;
+
+                document.getElementById('slider-glass-opacity').value = state.glassOpacity;
+                document.getElementById('val-glass-opacity').textContent = state.glassOpacity + '%';
+                document.getElementById('slider-glass-blur').value = state.glassBlur;
+                document.getElementById('val-glass-blur').textContent = state.glassBlur + 'px';
+                document.getElementById('slider-card-radius').value = state.cardRadius;
+                document.getElementById('val-card-radius').textContent = state.cardRadius + 'px';
+                document.getElementById('slider-bar-height').value = state.barHeight;
+                document.getElementById('val-bar-height').textContent = state.barHeight + 'px';
+                document.getElementById('slider-widget-width').value = state.widgetWidth;
+                document.getElementById('val-widget-width').textContent = state.widgetWidth + 'px';
+
+                // Pestaña Letras (Fuentes, Grosor y Colores HEX)
+                var fontBtns = document.querySelectorAll('.font-family-btn');
+                for (var fn = 0; fn < fontBtns.length; fn++) {
+                    var fnb = fontBtns[fn];
+                    var isFn = fnb.getAttribute('data-font') === state.fontFamily;
+                    fnb.className = 'font-family-btn py-1.5 px-2 rounded-lg border text-[10px] font-bold text-left transition ' +
+                        (isFn ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+
+                var weightBtns = document.querySelectorAll('.font-weight-btn');
+                for (var wg = 0; wg < weightBtns.length; wg++) {
+                    var wgb = weightBtns[wg];
+                    var isWg = wgb.getAttribute('data-weight') === String(state.fontWeight);
+                    wgb.className = 'font-weight-btn py-1.5 rounded-lg border text-[10px] transition ' +
+                        (isWg ? 'bg-teal-400/20 border-teal-400 text-teal-200 font-bold' : 'bg-white/5 border-white/10 text-white/70');
+                }
+
+                document.getElementById('input-title-hex').value = state.titleColor.toUpperCase();
+                document.getElementById('preview-title-color').style.background = state.titleColor;
+                document.getElementById('input-num-hex').value = state.numColor.toUpperCase();
+                document.getElementById('preview-num-color').style.background = state.numColor;
+
+                document.getElementById('chk-show-icon').checked = !!state.showIcon;
+                document.getElementById('chk-show-subtitle').checked = !!state.showSubtitle;
+                document.getElementById('chk-show-percent').checked = !!state.showPercent;
+                document.getElementById('chk-show-start').checked = !!state.showStart;
+
+                // Pestaña Efectos (Avance + Completado)
+                var advBtns = document.querySelectorAll('.advance-fx-btn');
+                for (var av = 0; av < advBtns.length; av++) {
+                    var avb = advBtns[av];
+                    var isAdv = avb.getAttribute('data-adv-fx') === (state.advanceFx || 'combo');
+                    avb.className = 'advance-fx-btn py-1.5 px-1 rounded-lg border text-[9px] font-bold text-center transition ' +
+                        (isAdv ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+                document.getElementById('chk-show-delta-pill').checked = state.showDeltaPill !== false;
+
+                var fxBtns = document.querySelectorAll('.complete-fx-btn');
+                for (var fx = 0; fx < fxBtns.length; fx++) {
+                    var fxb = fxBtns[fx];
+                    var isFx = fxb.getAttribute('data-complete-fx') === state.completeFx;
+                    fxb.className = 'complete-fx-btn py-1.5 px-1 rounded-lg text-center border transition ' +
+                        (isFx ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/75');
+                }
+
+                var behBtns = document.querySelectorAll('.behavior-btn');
+                for (var bh = 0; bh < behBtns.length; bh++) {
+                    var bhb = behBtns[bh];
+                    var isBh = bhb.getAttribute('data-behavior') === state.onCompleteBehavior;
+                    bhb.className = 'behavior-btn py-1.5 px-2 rounded-lg border text-[10px] font-bold transition ' +
+                        (isBh ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+                document.getElementById('autostep-config').classList.toggle('hidden', state.onCompleteBehavior !== 'autostep');
+                document.getElementById('input-autostep-amount').value = state.autoStepAmount;
+
+                var motionBtns = document.querySelectorAll('.motion-btn');
+                for (var mo = 0; mo < motionBtns.length; mo++) {
+                    var mob = motionBtns[mo];
+                    var isMo = mob.getAttribute('data-motion') === state.idleMotion;
+                    mob.className = 'motion-btn py-1.5 rounded-lg text-[10px] font-bold border transition ' +
+                        (isMo ? 'bg-teal-400/20 border-teal-400 text-teal-200' : 'bg-white/5 border-white/10 text-white/70');
+                }
+
+                // Pestaña Streamer.bot y Posición
+                document.getElementById('slider-widget-scale').value = Math.round(state.scale * 100);
+                document.getElementById('val-widget-scale').textContent = Math.round(state.scale * 100) + '%';
+                document.getElementById('input-ws-url').value = state.wsUrl;
+                document.getElementById('sb-var-followers').value = state.sbVars.followers;
+                document.getElementById('sb-var-subs').value = state.sbVars.subs;
+                document.getElementById('sb-var-kicks').value = state.sbVars.kicks;
+            }
+
+            function normalizeHex(val, fallback) {
+                var clean = String(val || '').trim();
+                if (clean.charAt(0) !== '#') clean = '#' + clean;
+                if (/^#[0-9A-Fa-f]{6}$/.test(clean) || /^#[0-9A-Fa-f]{3}$/.test(clean)) {
+                    return clean.toUpperCase();
+                }
+                return fallback;
+            }
+
+            function bindEvents() {
+                // Pestañas del modal
+                var tabBtns = document.querySelectorAll('.tab-btn');
+                for (var i = 0; i < tabBtns.length; i++) {
+                    tabBtns[i].addEventListener('click', function() {
+                        var targetId = this.getAttribute('data-tab');
+                        var contents = document.querySelectorAll('.tab-content');
+                        for (var c = 0; c < contents.length; c++) {
+                            contents[c].classList.add('hidden');
+                        }
+                        document.getElementById(targetId).classList.remove('hidden');
+
+                        for (var b = 0; b < tabBtns.length; b++) {
+                            tabBtns[b].className = 'tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase text-white/60 hover:text-white';
+                        }
+                        this.className = 'tab-btn py-1.5 rounded-t-lg text-[10px] font-extrabold uppercase bg-white/10 text-teal-300 border-b-2 border-teal-400';
+                    });
+                }
+
+                // Selector de Modo de Vista (Solo 1, 3 Juntas, Separadas, Rotar)
+                var viewBtns = document.querySelectorAll('.view-mode-btn');
+                for (var v = 0; v < viewBtns.length; v++) {
+                    viewBtns[v].addEventListener('click', function() {
+                        state.viewMode = this.getAttribute('data-view');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                document.getElementById('btn-align-decoupled').addEventListener('click', function() {
+                    state.goals.followers.indX = 90; state.goals.followers.indY = 80; state.goals.followers.indScale = 1;
+                    state.goals.subs.indX = 90;      state.goals.subs.indY = 210;     state.goals.subs.indScale = 1;
+                    state.goals.kicks.indX = 90;     state.goals.kicks.indY = 340;    state.goals.kicks.indScale = 1;
+                    saveState();
+                    renderAll();
+                });
+
+                var singleBtns = document.querySelectorAll('.single-select-btn');
+                for (var s = 0; s < singleBtns.length; s++) {
+                    singleBtns[s].addEventListener('click', function() {
+                        var chosen = this.getAttribute('data-single');
+                        state.activeSingle = chosen;
+                        currentlyEditingGoal = chosen;
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                var layoutBtns = document.querySelectorAll('.layout-select-btn');
+                for (var l = 0; l < layoutBtns.length; l++) {
+                    layoutBtns[l].addEventListener('click', function() {
+                        state.multiLayout = this.getAttribute('data-layout');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                document.getElementById('input-carousel-sec').addEventListener('input', function() {
+                    state.carouselSeconds = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+
+                // Selector de meta a editar
+                var editTabs = document.querySelectorAll('.edit-goal-tab');
+                for (var e = 0; e < editTabs.length; e++) {
+                    editTabs[e].addEventListener('click', function() {
+                        currentlyEditingGoal = this.getAttribute('data-edit-goal');
+                        if (state.viewMode === 'single') {
+                            state.activeSingle = currentlyEditingGoal;
+                        }
+                        renderAll();
+                    });
+                }
+
+                document.getElementById('goal-enabled').addEventListener('change', function() {
+                    state.goals[currentlyEditingGoal].enabled = this.checked;
+                    saveState();
+                    renderAll();
+                });
+
+                document.getElementById('goal-start-input').addEventListener('input', function() {
+                    state.goals[currentlyEditingGoal].start = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+
+                document.getElementById('goal-current-input').addEventListener('input', function() {
+                    updateGoalValue(currentlyEditingGoal, Number(this.value), false);
+                });
+
+                document.getElementById('goal-target-input').addEventListener('input', function() {
+                    state.goals[currentlyEditingGoal].target = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+
+                var deltaBtns = document.querySelectorAll('.quick-delta-btn');
+                for (var d = 0; d < deltaBtns.length; d++) {
+                    deltaBtns[d].addEventListener('click', function() {
+                        var delta = Number(this.getAttribute('data-delta'));
+                        updateGoalValue(currentlyEditingGoal, delta, true);
+                    });
+                }
+
+                document.getElementById('btn-fill-100').addEventListener('click', function() {
+                    var g = state.goals[currentlyEditingGoal];
+                    g.current = g.target;
+                    saveState();
+                    renderAll();
+                    triggerGoalCelebration(currentlyEditingGoal);
+                });
+
+                document.getElementById('goal-title-input').addEventListener('input', function() {
+                    state.goals[currentlyEditingGoal].title = this.value;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('goal-subtitle-input').addEventListener('input', function() {
+                    state.goals[currentlyEditingGoal].subtitle = this.value;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('goal-complete-text-input').addEventListener('input', function() {
+                    state.goals[currentlyEditingGoal].completeText = this.value;
+                    saveState();
+                    renderAll();
+                });
+
+                // Inputs de Código HEX para Barra
+                document.getElementById('goal-hex-1').addEventListener('input', function() {
+                    var valid = normalizeHex(this.value, null);
+                    if (valid) {
+                        state.goals[currentlyEditingGoal].c1 = valid;
+                        state.goals[currentlyEditingGoal].glow = valid;
+                        saveState();
+                        renderAll();
+                    }
+                });
+                document.getElementById('goal-hex-2').addEventListener('input', function() {
+                    var valid = normalizeHex(this.value, null);
+                    if (valid) {
+                        state.goals[currentlyEditingGoal].c2 = valid;
+                        saveState();
+                        renderAll();
+                    }
+                });
+
+                // Inputs de Código HEX para Títulos y Números
+                document.getElementById('input-title-hex').addEventListener('input', function() {
+                    var valid = normalizeHex(this.value, null);
+                    if (valid) {
+                        state.titleColor = valid;
+                        saveState();
+                        renderAll();
+                    }
+                });
+                document.getElementById('input-num-hex').addEventListener('input', function() {
+                    var valid = normalizeHex(this.value, null);
+                    if (valid) {
+                        state.numColor = valid;
+                        saveState();
+                        renderAll();
+                    }
+                });
+
+                // Todos los botones de Colores Fundamentales (Swatches Rápidos)
+                var swatchContainers = document.querySelectorAll('[data-swatch-target]');
+                for (var sc = 0; sc < swatchContainers.length; sc++) {
+                    (function(container) {
+                        var targetProp = container.getAttribute('data-swatch-target');
+                        var btns = container.querySelectorAll('.color-swatch-btn');
+                        for (var b = 0; b < btns.length; b++) {
+                            btns[b].addEventListener('click', function() {
+                                var hex = this.getAttribute('data-hex');
+                                if (targetProp === 'c1') {
+                                    state.goals[currentlyEditingGoal].c1 = hex;
+                                    state.goals[currentlyEditingGoal].glow = hex;
+                                } else if (targetProp === 'c2') {
+                                    state.goals[currentlyEditingGoal].c2 = hex;
+                                } else if (targetProp === 'titleColor') {
+                                    state.titleColor = hex;
+                                } else if (targetProp === 'numColor') {
+                                    state.numColor = hex;
+                                }
+                                saveState();
+                                renderAll();
+                            });
+                        }
+                    })(swatchContainers[sc]);
+                }
+
+                document.getElementById('btn-reset-goal-colors').addEventListener('click', function() {
+                    var def = DEFAULT_COLORS[currentlyEditingGoal];
+                    state.goals[currentlyEditingGoal].c1 = def.c1;
+                    state.goals[currentlyEditingGoal].c2 = def.c2;
+                    state.goals[currentlyEditingGoal].glow = def.glow;
+                    saveState();
+                    renderAll();
+                });
+
+                // Temas Glass, Formas y Estilos de Barra
+                var themeBtns = document.querySelectorAll('.glass-theme-btn');
+                for (var t = 0; t < themeBtns.length; t++) {
+                    themeBtns[t].addEventListener('click', function() {
+                        state.glassTheme = this.getAttribute('data-theme');
+                        if (state.glassTheme !== 'frameless' && state.glassOpacity === 0) {
+                            state.glassOpacity = 58;
+                        }
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                var shapeBtns = document.querySelectorAll('.bar-shape-btn');
+                for (var sh = 0; sh < shapeBtns.length; sh++) {
+                    shapeBtns[sh].addEventListener('click', function() {
+                        state.barShape = this.getAttribute('data-shape');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                var fillBtns = document.querySelectorAll('.fill-style-btn');
+                for (var fl = 0; fl < fillBtns.length; fl++) {
+                    fillBtns[fl].addEventListener('click', function() {
+                        state.fillStyle = this.getAttribute('data-fill');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                document.getElementById('toggle-segments').addEventListener('change', function() {
+                    state.segmented = this.checked;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('toggle-leading-tip').addEventListener('change', function() {
+                    state.leadingTip = this.checked;
+                    saveState();
+                    renderAll();
+                });
+
+                document.getElementById('slider-glass-opacity').addEventListener('input', function() {
+                    state.glassOpacity = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('slider-glass-blur').addEventListener('input', function() {
+                    state.glassBlur = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('slider-card-radius').addEventListener('input', function() {
+                    state.cardRadius = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('slider-bar-height').addEventListener('input', function() {
+                    state.barHeight = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('slider-widget-width').addEventListener('input', function() {
+                    state.widgetWidth = Number(this.value);
+                    saveState();
+                    renderAll();
+                });
+
+                // Botones de Tipo y Grosor de Letra (Sin <select>)
+                var fontBtns = document.querySelectorAll('.font-family-btn');
+                for (var fn = 0; fn < fontBtns.length; fn++) {
+                    fontBtns[fn].addEventListener('click', function() {
+                        state.fontFamily = this.getAttribute('data-font');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                var weightBtns = document.querySelectorAll('.font-weight-btn');
+                for (var wg = 0; wg < weightBtns.length; wg++) {
+                    weightBtns[wg].addEventListener('click', function() {
+                        state.fontWeight = this.getAttribute('data-weight');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                document.getElementById('chk-show-icon').addEventListener('change', function() {
+                    state.showIcon = this.checked;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('chk-show-subtitle').addEventListener('change', function() {
+                    state.showSubtitle = this.checked;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('chk-show-percent').addEventListener('change', function() {
+                    state.showPercent = this.checked;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('chk-show-start').addEventListener('change', function() {
+                    state.showStart = this.checked;
+                    saveState();
+                    renderAll();
+                });
+
+                // Efectos al Avanzar la Barra + Simuladores Rápidos
+                var advBtns = document.querySelectorAll('.advance-fx-btn');
+                for (var av = 0; av < advBtns.length; av++) {
+                    advBtns[av].addEventListener('click', function() {
+                        state.advanceFx = this.getAttribute('data-adv-fx');
+                        saveState();
+                        renderAll();
+                        var testTarget = state.viewMode === 'single' ? state.activeSingle : currentlyEditingGoal;
+                        triggerGoalAdvanceEffect(testTarget, 1, 'Prueba');
+                    });
+                }
+
+                document.getElementById('chk-show-delta-pill').addEventListener('change', function() {
+                    state.showDeltaPill = this.checked;
+                    saveState();
+                });
+
+                var simBtns = document.querySelectorAll('.sim-event-btn');
+                for (var sm = 0; sm < simBtns.length; sm++) {
+                    simBtns[sm].addEventListener('click', function() {
+                        var ev = this.getAttribute('data-sim-event');
+                        handleSimulatedEvent(ev);
+                    });
+                }
+
+                // Efectos y Comportamiento al Completar
+                var fxBtns = document.querySelectorAll('.complete-fx-btn');
+                for (var fx = 0; fx < fxBtns.length; fx++) {
+                    fxBtns[fx].addEventListener('click', function() {
+                        state.completeFx = this.getAttribute('data-complete-fx');
+                        saveState();
+                        renderAll();
+                        triggerGoalCelebration(currentlyEditingGoal);
+                    });
+                }
+
+                document.getElementById('btn-test-celebration').addEventListener('click', function() {
+                    var targetCard = state.viewMode === 'single' ? state.activeSingle : currentlyEditingGoal;
+                    triggerGoalCelebration(targetCard);
+                });
+
+                var behBtns = document.querySelectorAll('.behavior-btn');
+                for (var bh = 0; bh < behBtns.length; bh++) {
+                    behBtns[bh].addEventListener('click', function() {
+                        state.onCompleteBehavior = this.getAttribute('data-behavior');
+                        saveState();
+                        renderAll();
+                    });
+                }
+                document.getElementById('input-autostep-amount').addEventListener('input', function() {
+                    state.autoStepAmount = Number(this.value);
+                    saveState();
+                });
+
+                var motionBtns = document.querySelectorAll('.motion-btn');
+                for (var mo = 0; mo < motionBtns.length; mo++) {
+                    motionBtns[mo].addEventListener('click', function() {
+                        state.idleMotion = this.getAttribute('data-motion');
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                // Escala, Posición y Streamer.bot
+                document.getElementById('slider-widget-scale').addEventListener('input', function() {
+                    state.scale = Number(this.value) / 100;
+                    saveState();
+                    renderAll();
+                });
+                document.getElementById('btn-reset-transform').addEventListener('click', function() {
+                    state.posX = 90;
+                    state.posY = 90;
+                    state.scale = 1;
+                    state.goals.followers.indX = 90; state.goals.followers.indY = 80; state.goals.followers.indScale = 1;
+                    state.goals.subs.indX = 90;      state.goals.subs.indY = 210;     state.goals.subs.indScale = 1;
+                    state.goals.kicks.indX = 90;     state.goals.kicks.indY = 340;    state.goals.kicks.indScale = 1;
+                    saveState();
+                    renderAll();
+                });
+
+                document.getElementById('sb-var-followers').addEventListener('input', function() {
+                    state.sbVars.followers = this.value.trim();
+                    saveState();
+                });
+                document.getElementById('sb-var-subs').addEventListener('input', function() {
+                    state.sbVars.subs = this.value.trim();
+                    saveState();
+                });
+                document.getElementById('sb-var-kicks').addEventListener('input', function() {
+                    state.sbVars.kicks = this.value.trim();
+                    saveState();
+                });
+
+                document.getElementById('btn-connect-ws').addEventListener('click', function() {
+                    state.wsUrl = document.getElementById('input-ws-url').value.trim();
+                    saveState();
+                    connectStreamerBot();
+                });
+
+                document.getElementById('btn-sync-globals').addEventListener('click', function() {
+                    requestStreamerBotGlobals();
+                });
+
+                // Botones de cabecera del modal
+                document.getElementById('btn-close-modal').addEventListener('click', function() {
+                    modalEl.classList.remove('open');
+                    document.body.classList.remove('menu-open', 'preview-grid', 'preview-light');
+                    previewBgStep = 0;
+                });
+                document.getElementById('btn-toggle-grid').addEventListener('click', function() {
+                    previewBgStep = (previewBgStep + 1) % 3;
+                    document.body.classList.remove('preview-grid', 'preview-light');
+                    if (previewBgStep === 1) document.body.classList.add('preview-grid');
+                    if (previewBgStep === 2) document.body.classList.add('preview-light');
+                });
+                document.getElementById('btn-panel-zoom-in').addEventListener('click', function() {
+                    panelScale = Math.min(1.35, panelScale + 0.08);
+                    modalEl.style.transform = 'scale(' + panelScale + ')';
+                    document.getElementById('panel-zoom-label').textContent = Math.round(panelScale * 100) + '%';
+                });
+                document.getElementById('btn-panel-zoom-out').addEventListener('click', function() {
+                    panelScale = Math.max(0.7, panelScale - 0.08);
+                    modalEl.style.transform = 'scale(' + panelScale + ')';
+                    document.getElementById('panel-zoom-label').textContent = Math.round(panelScale * 100) + '%';
+                });
+            }
+
+            function handleSimulatedEvent(ev) {
+                if (ev === 'follow') {
+                    if (state.viewMode === 'single') state.activeSingle = 'followers';
+                    currentlyEditingGoal = 'followers';
+                    updateGoalValue('followers', 1, true, 'Seguidor ❤️');
+                } else if (ev === 'sub') {
+                    if (state.viewMode === 'single') state.activeSingle = 'subs';
+                    currentlyEditingGoal = 'subs';
+                    updateGoalValue('subs', 1, true, 'Nuevo Sub 👑');
+                } else if (ev === 'giftsub') {
+                    if (state.viewMode === 'single') state.activeSingle = 'subs';
+                    currentlyEditingGoal = 'subs';
+                    updateGoalValue('subs', 5, true, 'Subs Regalados 🎁');
+                } else if (ev === 'kicks') {
+                    if (state.viewMode === 'single') state.activeSingle = 'kicks';
+                    currentlyEditingGoal = 'kicks';
+                    updateGoalValue('kicks', 500, true, 'Kicks ⚡');
+                }
+            }
+
+            function setupStageInteractions() {
+                var isDraggingStage = false;
+                var isResizingStage = false;
+                var activeDecoupledCard = null;
+                var isResizingDecoupledCard = null;
+                var startX = 0, startY = 0;
+                var initialPosX = 0, initialPosY = 0;
+                var initialScale = 1;
+                var movedDistance = 0;
+
+                // Arrastrar escenario acoplado o tarjeta individual desacoplada
+                stageEl.addEventListener('mousedown', function(e) {
+                    if (e.target.classList.contains('resize-handle') || e.target.classList.contains('card-resize-handle')) return;
+
+                    var cardEl = e.target.closest('.goal-item');
+                    movedDistance = 0;
+                    startX = e.clientX;
+                    startY = e.clientY;
+
+                    if (state.viewMode === 'decoupled' && cardEl) {
+                        var type = cardEl.getAttribute('data-type');
+                        activeDecoupledCard = type;
+                        currentlyEditingGoal = type;
+                        initialPosX = state.goals[type].indX || 90;
+                        initialPosY = state.goals[type].indY || 90;
+                    } else if (state.viewMode !== 'decoupled') {
+                        isDraggingStage = true;
+                        initialPosX = state.posX;
+                        initialPosY = state.posY;
+                        if (cardEl) {
+                            currentlyEditingGoal = cardEl.getAttribute('data-type');
+                        }
+                    }
+                });
+
+                // Esquinas invisibles globales (modo acoplado)
+                var handles = document.querySelectorAll('.resize-handle');
+                for (var i = 0; i < handles.length; i++) {
+                    handles[i].addEventListener('mousedown', function(e) {
+                        e.stopPropagation();
+                        isResizingStage = true;
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        initialScale = state.scale;
+                    });
+                    handles[i].addEventListener('dblclick', function(e) {
+                        e.stopPropagation();
+                        state.scale = 1;
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                // Esquinas invisibles individuales por cada una de las 3 barras (modo desacoplado)
+                var cardHandles = document.querySelectorAll('.card-resize-handle');
+                for (var ch = 0; ch < cardHandles.length; ch++) {
+                    cardHandles[ch].addEventListener('mousedown', function(e) {
+                        e.stopPropagation();
+                        var cType = this.getAttribute('data-card');
+                        isResizingDecoupledCard = cType;
+                        startX = e.clientX;
+                        startY = e.clientY;
+                        initialScale = state.goals[cType].indScale || 1;
+                    });
+                    cardHandles[ch].addEventListener('dblclick', function(e) {
+                        e.stopPropagation();
+                        var cType = this.getAttribute('data-card');
+                        state.goals[cType].indScale = 1;
+                        saveState();
+                        renderAll();
+                    });
+                }
+
+                window.addEventListener('mousemove', function(e) {
+                    if (isDraggingStage) {
+                        var dx = e.clientX - startX;
+                        var dy = e.clientY - startY;
+                        movedDistance = Math.hypot(dx, dy);
+                        state.posX = Math.max(0, Math.min(1820, initialPosX + dx));
+                        state.posY = Math.max(0, Math.min(1020, initialPosY + dy));
+                        stageEl.style.left = state.posX + 'px';
+                        stageEl.style.top = state.posY + 'px';
+                    } else if (activeDecoupledCard) {
+                        var dx2 = e.clientX - startX;
+                        var dy2 = e.clientY - startY;
+                        movedDistance = Math.hypot(dx2, dy2);
+                        var g = state.goals[activeDecoupledCard];
+                        g.indX = Math.max(0, Math.min(1820, initialPosX + dx2));
+                        g.indY = Math.max(0, Math.min(1020, initialPosY + dy2));
+                        var cEl = document.getElementById('card-' + activeDecoupledCard);
+                        cEl.style.left = g.indX + 'px';
+                        cEl.style.top = g.indY + 'px';
+                    } else if (isResizingStage) {
+                        var delta = (e.clientX - startX + (e.clientY - startY)) / 300;
+                        state.scale = Math.max(0.45, Math.min(2.4, Number((initialScale + delta).toFixed(2))));
+                        stageEl.style.transform = 'scale(' + state.scale + ')';
+                        document.getElementById('slider-widget-scale').value = Math.round(state.scale * 100);
+                        document.getElementById('val-widget-scale').textContent = Math.round(state.scale * 100) + '%';
+                    } else if (isResizingDecoupledCard) {
+                        var deltaC = (e.clientX - startX + (e.clientY - startY)) / 280;
+                        var gc = state.goals[isResizingDecoupledCard];
+                        gc.indScale = Math.max(0.45, Math.min(2.4, Number((initialScale + deltaC).toFixed(2))));
+                        var cardDom = document.getElementById('card-' + isResizingDecoupledCard);
+                        cardDom.style.transform = 'scale(' + gc.indScale + ')';
+                    }
+                });
+
+                window.addEventListener('mouseup', function() {
+                    if (isDraggingStage || activeDecoupledCard) {
+                        isDraggingStage = false;
+                        activeDecoupledCard = null;
+                        saveState();
+                        if (movedDistance < 6) {
+                            var isOpen = modalEl.classList.toggle('open');
+                            document.body.classList.toggle('menu-open', isOpen);
+                            syncModalControls();
+                        }
+                    }
+                    if (isResizingStage || isResizingDecoupledCard) {
+                        isResizingStage = false;
+                        isResizingDecoupledCard = null;
+                        saveState();
+                    }
+                });
+
+                // Tecla C como atajo rápido para abrir o cerrar menú
+                window.addEventListener('keydown', function(e) {
+                    if (e.key === 'c' || e.key === 'C') {
+                        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+                            var isOpen = modalEl.classList.toggle('open');
+                            document.body.classList.toggle('menu-open', isOpen);
+                            syncModalControls();
+                        }
+                    }
+                });
+
+                // Rueda del mouse sobre cualquier barra para escalar rápido
+                stageEl.addEventListener('wheel', function(e) {
+                    e.preventDefault();
+                    var dir = e.deltaY < 0 ? 0.05 : -0.05;
+                    var cardEl = e.target.closest('.goal-item');
+                    if (state.viewMode === 'decoupled' && cardEl) {
+                        var cType = cardEl.getAttribute('data-type');
+                        var curS = state.goals[cType].indScale || 1;
+                        state.goals[cType].indScale = Math.max(0.45, Math.min(2.4, Number((curS + dir).toFixed(2))));
+                    } else {
+                        state.scale = Math.max(0.45, Math.min(2.4, Number((state.scale + dir).toFixed(2))));
+                    }
+                    saveState();
+                    renderAll();
+                }, { passive: false });
+
+                // Arrastrar el panel de configuración desde su cabecera
+                var headerEl = document.getElementById('modal-header');
+                var isDraggingModal = false;
+                var modalStartX = 0, modalStartY = 0;
+                var modalLeft = 1400, modalTop = 30;
+
+                headerEl.addEventListener('mousedown', function(e) {
+                    if (e.target.tagName === 'BUTTON') return;
+                    isDraggingModal = true;
+                    var rect = modalEl.getBoundingClientRect();
+                    modalLeft = rect.left;
+                    modalTop = rect.top;
+                    modalStartX = e.clientX;
+                    modalStartY = e.clientY;
+                    modalEl.style.right = 'auto';
+                    modalEl.style.left = modalLeft + 'px';
+                    modalEl.style.top = modalTop + 'px';
+                });
+
+                window.addEventListener('mousemove', function(e) {
+                    if (!isDraggingModal) return;
+                    var nx = modalLeft + (e.clientX - modalStartX);
+                    var ny = modalTop + (e.clientY - modalStartY);
+                    modalEl.style.left = Math.max(10, Math.min(1440, nx)) + 'px';
+                    modalEl.style.top = Math.max(10, Math.min(960, ny)) + 'px';
+                });
+
+                window.addEventListener('mouseup', function() {
+                    isDraggingModal = false;
+                });
+            }
+
+            var ws = null;
+            var globalsPollInterval = null;
+            var reconnectTimeout = null;
+            var connectionAttempts = 0;
+            var fallbackPorts = [8080, 4445];
+
+            function logLastBotEvent(txt) {
+                var el = document.getElementById('ws-last-event');
+                if (el) el.textContent = txt;
+            }
+
+            function extractVarValue(v) {
+                if (v === undefined || v === null) return undefined;
+                if (typeof v === 'object') {
+                    if (v.value !== undefined) return v.value;
+                    if (v.val !== undefined) return v.val;
+                }
+                return v;
+            }
+
+            function requestStreamerBotGlobals() {
+                if (!ws || ws.readyState !== 1) return;
+                try {
+                    ws.send(JSON.stringify({
+                        request: 'GetGlobals',
+                        id: 'obs-goals-get-globals'
+                    }));
+                } catch (e) {}
+            }
+
+            function connectStreamerBot() {
+                var statusDot = document.getElementById('ws-status-dot');
+                if (ws) {
+                    try { ws.close(); } catch (e) {}
+                }
+                if (globalsPollInterval) clearInterval(globalsPollInterval);
+                if (reconnectTimeout) clearTimeout(reconnectTimeout);
+
+                var targetUrl = state.wsUrl || 'ws://127.0.0.1:8080/';
+
+                // En caso de que se haya guardado una URL sin barra o protocolo
+                if (!targetUrl.startsWith('ws://') && !targetUrl.startsWith('wss://')) {
+                    targetUrl = 'ws://' + targetUrl;
+                }
+                if (!targetUrl.endsWith('/')) {
+                    targetUrl += '/';
+                }
+
+                try {
+                    ws = new WebSocket(targetUrl);
+                    statusDot.textContent = 'Conectando...';
+                    statusDot.className = 'px-2 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/20 text-amber-300';
+
+                    ws.onopen = function() {
+                        connectionAttempts = 0;
+                        statusDot.textContent = 'Conectado ●';
+                        statusDot.className = 'px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/20 text-emerald-300';
+                        logLastBotEvent('Suscrito a Kick, Twitch y Variables Globales');
+
+                        // 1. Suscribirse a todos los eventos relevantes de Kick, Twitch y Custom Broadcasts en Streamer.bot
+                        ws.send(JSON.stringify({
+                            request: 'Subscribe',
+                            id: 'obs-goals-sub-all',
+                            events: {
+                                General: ['Custom'],
+                                StreamerBot: ['Custom'],
+                                Kick: [
+                                    'Follow',
+                                    'Subscription',
+                                    'Resubscription',
+                                    'GiftedSubscriptions',
+                                    'MassGiftedSubscriptions',
+                                    'KicksGifted',
+                                    'RewardRedemption',
+                                    'ChatMessage'
+                                ],
+                                Twitch: [
+                                    'Follow',
+                                    'Sub',
+                                    'ReSub',
+                                    'GiftSub',
+                                    'GiftBomb',
+                                    'Cheer'
+                                ]
+                            }
+                        }));
+
+                        // 2. Consultar variables globales inmediatamente y luego cada 6 segundos
+                        requestStreamerBotGlobals();
+                        globalsPollInterval = setInterval(requestStreamerBotGlobals, 6000);
+                    };
+
+                    ws.onmessage = function(event) {
+                        try {
+                            var msg = JSON.parse(event.data);
+
+                            // A) Respuesta a GetGlobals (Variables Globales de Streamer.bot)
+                            if (msg.id === 'obs-goals-get-globals' && msg.variables) {
+                                var vars = msg.variables;
+                                var fVar = state.sbVars.followers;
+                                var sVar = state.sbVars.subs;
+                                var kVar = state.sbVars.kicks;
+
+                                if (fVar && vars[fVar] !== undefined) {
+                                    var fRaw = extractVarValue(vars[fVar]);
+                                    var fVal = Number(fRaw);
+                                    if (!isNaN(fVal) && fVal !== state.goals.followers.current) {
+                                        updateGoalValue('followers', fVal, false);
+                                        logLastBotEvent('Variable ' + fVar + ' = ' + fVal);
+                                    }
+                                }
+                                if (sVar && vars[sVar] !== undefined) {
+                                    var sRaw = extractVarValue(vars[sVar]);
+                                    var sVal = Number(sRaw);
+                                    if (!isNaN(sVal) && sVal !== state.goals.subs.current) {
+                                        updateGoalValue('subs', sVal, false);
+                                        logLastBotEvent('Variable ' + sVar + ' = ' + sVal);
+                                    }
+                                }
+                                if (kVar && vars[kVar] !== undefined) {
+                                    var kRaw = extractVarValue(vars[kVar]);
+                                    var kVal = Number(kRaw);
+                                    if (!isNaN(kVal) && kVal !== state.goals.kicks.current) {
+                                        updateGoalValue('kicks', kVal, false);
+                                        logLastBotEvent('Variable ' + kVar + ' = ' + kVal);
+                                    }
+                                }
+                                return;
+                            }
+
+                            // B) Eventos en Tiempo Real de Streamer.bot (Kick, Twitch o Custom WebSocket Broadcast)
+                            if (!msg.event) return;
+                            var source = (msg.event.source || '').toLowerCase();
+                            var evType = (msg.event.type || '').toLowerCase();
+                            var payload = msg.data || {};
+
+                            // B.1) Evento General/StreamerBot -> Custom (Acción WebSocket Broadcast en Streamer.bot)
+                            if ((source === 'general' || source === 'streamerbot') && evType === 'custom') {
+                                var customData = payload.data || payload;
+                                if (typeof customData === 'string') {
+                                    try { customData = JSON.parse(customData); } catch (e) {}
+                                }
+                                if (customData && customData.type) {
+                                    var goalKey = String(customData.type).toLowerCase();
+                                    if (goalKey === 'follow') goalKey = 'followers';
+                                    if (goalKey === 'sub') goalKey = 'subs';
+                                    if (state.goals[goalKey]) {
+                                        if (customData.target !== undefined) state.goals[goalKey].target = Number(customData.target);
+                                        if (customData.start !== undefined) state.goals[goalKey].start = Number(customData.start);
+                                        if (customData.value !== undefined) {
+                                            updateGoalValue(goalKey, Number(customData.value), false);
+                                        } else if (customData.add !== undefined) {
+                                            updateGoalValue(goalKey, Number(customData.add), true);
+                                        }
+                                        logLastBotEvent('Custom Broadcast -> ' + goalKey);
+                                    }
+                                }
+                                return;
+                            }
+
+                            // B.2) Eventos de Seguidores (Kick Follow / Twitch Follow)
+                            if (evType === 'follow') {
+                                var followerName = payload.user_name || payload.userName || (payload.user && payload.user.name) || '';
+                                var fLabel = followerName ? ('Follow • ' + followerName) : 'Seguidor ❤️';
+                                updateGoalValue('followers', 1, true, fLabel);
+                                logLastBotEvent('Follow: ' + (followerName || 'Nuevo') + ' (+1)');
+                                return;
+                            }
+
+                            // B.3) Eventos de Suscriptores (Sub, ReSub, GiftSub, GiftBomb, GiftedSubscriptions)
+                            if (evType.indexOf('sub') !== -1 || evType.indexOf('gift') !== -1) {
+                                var subCount = Number(
+                                    payload.gifted_count ||
+                                    payload.giftedCount ||
+                                    payload.total ||
+                                    payload.sub_count ||
+                                    payload.count ||
+                                    (Array.isArray(payload.recipients) ? payload.recipients.length : 0) ||
+                                    1
+                                );
+                                var isGift = evType.indexOf('gift') !== -1 || subCount > 1;
+                                var subLabel = isGift ? ('Subs Gift 🎁') : ('Sub 👑');
+                                updateGoalValue('subs', subCount, true, subLabel);
+                                logLastBotEvent('Suscripción (+' + subCount + ')');
+                                return;
+                            }
+
+                            // B.4) Eventos de Kicks (Monedas de Kick) o Bits/Cheers
+                            if (evType.indexOf('kick') !== -1 || evType === 'cheer' || evType === 'rewardredemption') {
+                                var kicksAmount = Number(
+                                    payload.amount ||
+                                    payload.kicks ||
+                                    payload.bits ||
+                                    payload.cost ||
+                                    (payload.gift && payload.gift.amount) ||
+                                    100
+                                );
+                                updateGoalValue('kicks', kicksAmount, true, 'Kicks ⚡');
+                                logLastBotEvent('Kicks recibidos (+' + kicksAmount + ')');
+                            }
+                        } catch (err) {}
+                    };
+
+                    ws.onclose = function() {
+                        statusDot.textContent = 'Manual / Offline';
+                        statusDot.className = 'px-2 py-0.5 rounded-full text-[9px] font-bold bg-white/10 text-white/60';
+                        if (globalsPollInterval) clearInterval(globalsPollInterval);
+                        
+                        // Si falla la conexión inicial y está en el puerto por defecto, intentar puerto alternativo
+                        connectionAttempts++;
+                        if (connectionAttempts === 1 && !queryPort && !queryWs) {
+                            var currentPort = targetUrl.includes('8080') ? 8080 : 4445;
+                            var altPort = currentPort === 8080 ? 4445 : 8080;
+                            var altUrl = targetUrl.replace(':' + currentPort, ':' + altPort);
+                            console.log('[Streamer.bot] Reintentando en puerto alternativo ' + altPort + '...');
+                            reconnectTimeout = setTimeout(function() {
+                                state.wsUrl = altUrl;
+                                connectStreamerBot();
+                            }, 2000);
+                            return;
+                        }
+
+                        // Reintento silencioso cada 10s por si abre Streamer.bot después de OBS
+                        reconnectTimeout = setTimeout(connectStreamerBot, 10000);
+                    };
+
+                    ws.onerror = function() {
+                        statusDot.textContent = 'Offline';
+                    };
+                } catch (e) {
+                    statusDot.textContent = 'Manual / Offline';
+                }
+            }
+
+            // Integración para OBS Studio (cuando la fuente se oculta o vuelve a ser visible)
+            if (window.obsstudio) {
+                window.addEventListener('obsSourceVisibleChanged', function(e) {
+                    if (e && e.detail && e.detail.visible) {
+                        requestStreamerBotGlobals();
+                    }
+                });
+                window.addEventListener('obsSceneChanged', function() {
+                    requestStreamerBotGlobals();
+                });
+            }
+
+            // Canal de comunicación por postMessage (Para control desde la Galería de Widgets de Multi Ideas o herramientas externas)
+            window.addEventListener('message', function(ev) {
+                if (!ev || !ev.data) return;
+                var d = ev.data;
+                if (d.type === 'SIM_EVENT' && d.event) {
+                    handleSimulatedEvent(d.event);
+                } else if (d.type === 'TRIGGER_CELEBRATION') {
+                    var goalType = d.goal || state.activeSingle || currentlyEditingGoal;
+                    triggerGoalCelebration(goalType);
+                } else if (d.type === 'SET_PREVIEW_BG') {
+                    document.body.classList.remove('preview-grid', 'preview-light');
+                    if (d.step === 1) document.body.classList.add('preview-grid');
+                    if (d.step === 2) document.body.classList.add('preview-light');
+                } else if (d.type === 'RECONNECT_WS' && d.url) {
+                    state.wsUrl = d.url;
+                    saveState();
+                    connectStreamerBot();
+                } else if (d.type === 'UPDATE_GOAL' && d.goal) {
+                    if (d.value !== undefined) {
+                        updateGoalValue(d.goal, Number(d.value), false, d.label);
+                    } else if (d.delta !== undefined) {
+                        updateGoalValue(d.goal, Number(d.delta), true, d.label);
+                    }
+                }
+            });
+
+            /* Helpers de formato y color */
+            function formatNumber(n) {
+                return Number(n || 0).toLocaleString('es-ES');
+            }
+
+            function isDarkColor(hex) {
+                var c = String(hex || '#FFFFFF').replace('#', '');
+                if (c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+                var num = parseInt(c, 16);
+                if (isNaN(num)) return false;
+                var r = (num >> 16) & 255;
+                var g = (num >> 8) & 255;
+                var b = num & 255;
+                var luma = 0.299 * r + 0.587 * g + 0.114 * b;
+                return luma < 110;
+            }
+
+            function hexToRgba(hex, alpha) {
+                var c = (hex || '#00F5D4').replace('#', '');
+                if (c.length === 3) {
+                    c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+                }
+                var num = parseInt(c, 16);
+                if (isNaN(num)) return 'rgba(0, 245, 212, ' + alpha + ')';
+                var r = (num >> 16) & 255;
+                var g = (num >> 8) & 255;
+                var b = num & 255;
+                return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
+            }
+
+            window.onload = function() {
+                bindEvents();
+                setupStageInteractions();
+                renderAll();
+                connectStreamerBot();
+            };
+        })();
+    </script>
+</body>
+</html>
