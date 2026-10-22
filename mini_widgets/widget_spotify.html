@@ -1098,21 +1098,106 @@
     }
 
     /* ==========================================================================
-       EJECUCIÓN DE COMANDOS DE CHAT DE KICK / TWITCH
+       EJECUCIÓN DE COMANDOS DE CHAT DE KICK / TWITCH Y MUTEX MULTI-INSTANCIA
        ========================================================================== */
+    const WIDGET_INSTANCE_ID = 'sp_' + Math.random().toString(36).substring(2, 9);
+    const GLOBAL_CMD_LOCK_KEY = 'jiko_spotify_cmd_lock';
+    const GLOBAL_QUEUE_LOCK_KEY = 'jiko_spotify_queue_lock';
+    const GLOBAL_ALERT_KEY = 'jiko_spotify_shared_alert';
+
     let lastHandledCommand = { text: '', time: 0 };
+    const recentMsgIds = new Set();
+    let isCurrentlyEnqueuing = false;
+
+    // Canal de sincronización cruzada entre fuentes de OBS y pestañas de navegador
+    let syncChannel = null;
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        syncChannel = new BroadcastChannel('jiko_spotify_sync');
+        syncChannel.onmessage = (e) => {
+          if (!e.data) return;
+          if (e.data.type === 'SHOW_ALERT' && e.data.instance !== WIDGET_INSTANCE_ID) {
+            showFloatingAlert(e.data.msg, e.data.alertType, e.data.user);
+          }
+        };
+      }
+    } catch(e) {}
+
+    // Escuchar alertas disparadas por otras instancias vía localStorage
+    window.addEventListener('storage', (e) => {
+      if (e.key === GLOBAL_ALERT_KEY && e.newValue) {
+        try {
+          const alertData = JSON.parse(e.newValue);
+          if (alertData.instance !== WIDGET_INSTANCE_ID && (Date.now() - alertData.time) < 3000) {
+            showFloatingAlert(alertData.msg, alertData.alertType, alertData.user);
+          }
+        } catch(err) {}
+      }
+    });
+
+    // Candado global para evitar que múltiples fuentes OBS o eventos duplicados ejecuten el comando
+    function acquireGlobalCmdLock(cmdText, user) {
+      const now = Date.now();
+      const normText = (cmdText || '').toLowerCase().trim().replace(/\s+/g, ' ');
+
+      // 1. Candado en memoria local de la instancia
+      if (lastHandledCommand.text === normText && (now - lastHandledCommand.time) < 3500) {
+        console.log(`[Spotify Widget] 🛡️ Ignorando comando duplicado en memoria (<3.5s): "${cmdText}"`);
+        return false;
+      }
+      lastHandledCommand = { text: normText, time: now };
+
+      // 2. Candado compartido entre todas las fuentes de OBS / ventanas (localStorage)
+      try {
+        const raw = localStorage.getItem(GLOBAL_CMD_LOCK_KEY);
+        if (raw) {
+          const lock = JSON.parse(raw);
+          if (lock.text === normText && (now - lock.time) < 3500) {
+            console.log(`[Spotify Widget] 🛡️ [MUTEX GLOBAL] Comando ya ejecutado por otra fuente OBS (<3.5s): "${cmdText}"`);
+            return false;
+          }
+        }
+        localStorage.setItem(GLOBAL_CMD_LOCK_KEY, JSON.stringify({
+          text: normText,
+          user: user,
+          time: now,
+          instance: WIDGET_INSTANCE_ID
+        }));
+      } catch (e) {}
+
+      return true;
+    }
+
+    // Candado atómico antes de enviar a la cola de Spotify API
+    function acquireGlobalQueueLock(trackUri) {
+      const now = Date.now();
+      try {
+        const raw = localStorage.getItem(GLOBAL_QUEUE_LOCK_KEY);
+        if (raw) {
+          const lock = JSON.parse(raw);
+          // Si la misma canción (URI) se mandó a encolar en los últimos 7 segundos por cualquier fuente, bloquear
+          if (lock.uri === trackUri && (now - lock.time) < 7000) {
+            console.log(`[Spotify Widget] 🛡️ [MUTEX GLOBAL] Canción URI ya encolada recientemente (<7s): ${trackUri}`);
+            return false;
+          }
+        }
+        localStorage.setItem(GLOBAL_QUEUE_LOCK_KEY, JSON.stringify({
+          uri: trackUri,
+          time: now,
+          instance: WIDGET_INSTANCE_ID
+        }));
+      } catch (e) {}
+      return true;
+    }
 
     async function handleKickChatCommand(cmdText, user = 'Viewer', badges = []) {
       const raw = cmdText.trim();
       const lower = raw.toLowerCase();
 
-      // Control anti-duplicados: Si el mismo comando se recibe en menos de 2s (duplicado de Streamer.bot), ignorar
-      const now = Date.now();
-      if (lastHandledCommand.text === lower && (now - lastHandledCommand.time) < 2000) {
-        console.log(`[Spotify Widget] 🛡️ Ignorando comando duplicado de chat (<2s): "${raw}"`);
+      // Control anti-duplicados (local y entre todas las instancias de OBS)
+      if (!acquireGlobalCmdLock(raw, user)) {
         return;
       }
-      lastHandledCommand = { text: lower, time: now };
 
       // 1. COMANDO !skipsong (Solo para Moderadores)
       if (lower === '!skipsong' || lower === '!skip' || lower === '!saltar') {
@@ -1169,38 +1254,78 @@
 
     // Búsqueda inteligente y añadido a la cola de Spotify priorizando la canción más conocida
     async function executeAddSongSearch(queryText, user) {
-      showFloatingAlert(`Buscando "${queryText}" en Spotify...`, 'info', user);
-
-      // Normalizar formato "Song by Artist" o "Song de Artist"
-      let cleanQuery = queryText;
-      const byMatch = queryText.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
-      if (byMatch) {
-        cleanQuery = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
+      if (isCurrentlyEnqueuing) {
+        console.log(`[Spotify Widget] ⏳ Ya hay una búsqueda/encolado en proceso, descartando concurrencia.`);
+        return;
       }
 
-      // Buscar hasta 10 candidatos para ordenar por popularidad
-      let data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=10`);
-      // Fallback a búsqueda simple si la estructurada no devolvió resultados
-      if (!data || !data.tracks || data.tracks.items.length === 0) {
-        data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=10`);
-      }
+      isCurrentlyEnqueuing = true;
+      try {
+        showFloatingAlert(`Buscando "${queryText}" en Spotify...`, 'info', user);
 
-      if (data && data.tracks && data.tracks.items.length > 0) {
-        // Ordenar candidatos por popularidad oficial de Spotify (0 a 100) para elegir la más conocida
-        const items = data.tracks.items;
-        items.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
-
-        const track = items[0];
-        const artist = track.artists ? track.artists[0].name : '';
-        const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(track.uri)}`, 'POST');
-
-        if (res) {
-          showFloatingAlert(`Añadida a la cola: "${track.name}" (${artist})`, 'add', user);
-        } else {
-          showFloatingAlert(`No se pudo encolar. Ten Spotify sonando en algún dispositivo.`, 'warning', user);
+        // Normalizar formato "Song by Artist" o "Song de Artist"
+        let cleanQuery = queryText;
+        const byMatch = queryText.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
+        if (byMatch) {
+          cleanQuery = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
         }
-      } else {
-        showFloatingAlert(`No se encontró "${queryText}" en Spotify`, 'warning', user);
+
+        // Buscar hasta 20 candidatos para ordenar por popularidad
+        let data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=20`);
+        // Fallback a búsqueda simple si la estructurada no devolvió resultados
+        if (!data || !data.tracks || data.tracks.items.length === 0) {
+          data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=20`);
+        }
+
+        if (data && data.tracks && data.tracks.items.length > 0) {
+          const items = data.tracks.items;
+          const queryLower = queryText.toLowerCase();
+
+          // Priorizar la versión oficial más popular y penalizar covers/karaoke si no fueron pedidos
+          items.sort((a, b) => {
+            let popA = a.popularity || 0;
+            let popB = b.popularity || 0;
+
+            const nameA = (a.name || '').toLowerCase();
+            const nameB = (b.name || '').toLowerCase();
+
+            const isJunkA = !queryLower.includes('karaoke') && (nameA.includes('karaoke') || nameA.includes('tribute') || nameA.includes('cover') || nameA.includes('instrumental'));
+            const isJunkB = !queryLower.includes('karaoke') && (nameB.includes('karaoke') || nameB.includes('tribute') || nameB.includes('cover') || nameB.includes('instrumental'));
+
+            if (isJunkA) popA -= 50;
+            if (isJunkB) popB -= 50;
+
+            return popB - popA;
+          });
+
+          const track = items[0];
+          const artist = track.artists ? track.artists[0].name : '';
+
+          // 🛡️ Candado atómico antes de encolar en Spotify
+          if (!acquireGlobalQueueLock(track.uri)) {
+            console.log(`[Spotify Widget] 🛡️ Canción "${track.name}" omitida porque ya fue encolada por otra fuente.`);
+            return;
+          }
+
+          const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(track.uri)}`, 'POST');
+
+          if (res) {
+            const successMsg = `Añadida a la cola: "${track.name}" (${artist})`;
+            showFloatingAlert(successMsg, 'add', user);
+
+            // Sincronizar alerta visual con otras fuentes OBS si existen
+            try {
+              if (syncChannel) syncChannel.postMessage({ type: 'SHOW_ALERT', msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID });
+              localStorage.setItem(GLOBAL_ALERT_KEY, JSON.stringify({ msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID, time: Date.now() }));
+            } catch(e) {}
+          } else {
+            showFloatingAlert(`No se pudo encolar. Ten Spotify sonando en algún dispositivo.`, 'warning', user);
+          }
+        } else {
+          showFloatingAlert(`No se encontró "${queryText}" en Spotify`, 'warning', user);
+        }
+      } finally {
+        isCurrentlyEnqueuing = false;
       }
     }
 
@@ -1247,7 +1372,7 @@
               id: 'spotify-widget-kick',
               events: {
                 General: ['Custom'],
-                Kick: ['ChatMessage', 'Message'],
+                Kick: ['ChatMessage'],
                 Twitch: ['ChatMessage']
               }
             }));
@@ -1258,8 +1383,20 @@
               const msg = JSON.parse(event.data);
               const data = msg.data || msg.body || msg;
 
+              // Filtrar evento redundante Kick 'Message' si Streamer.bot lo envía
+              const evType = (msg.event && (msg.event.type || msg.event.name)) || msg.type || '';
+              if (evType === 'Message') return;
+
+              // Descartar si el ID único del mensaje ya fue procesado
+              const msgId = (data.message && data.message.id) || data.id || data.messageId || '';
+              if (msgId) {
+                if (recentMsgIds.has(msgId)) return;
+                recentMsgIds.add(msgId);
+                setTimeout(() => recentMsgIds.delete(msgId), 15000);
+              }
+
               // Mensajes de Chat de Kick / Twitch
-              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Message')) || 
+              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Custom')) || 
                              msg.type === 'ChatMessage' || data.message || data.messageText;
 
               if (isChat) {
