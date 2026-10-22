@@ -652,8 +652,8 @@
 
     // Configuración de Integración Multi Ideas & Streamer.bot
     const SPOTIFY_USER = urlParams.get('spotify_user') || urlParams.get('mrboost_user') || urlParams.get('user') || 'jikokun2';
-    // Modos de control: 'hybrid' (intenta API + Multi Ideas fallback), 'streamerbot' (visualizer only, Streamer.bot ejecuta fetch para evitar doble salto), 'direct' (control 100% Fetch nativo)
-    const CONTROL_MODE = urlParams.get('control_mode') || urlParams.get('skip_mode') || 'hybrid';
+    // Streamer.bot ejecuta los comandos vía HTTP Fetch. Este widget actúa 100% como Visualizador OBS.
+    const CONTROL_MODE = 'streamerbot';
 
     // Configuración de Moderadores de Kick (Whitelist autorizada)
     let kickModerators = [];
@@ -1135,13 +1135,11 @@
        ========================================================================== */
     const WIDGET_INSTANCE_ID = 'sp_' + Math.random().toString(36).substring(2, 9);
     const GLOBAL_CMD_LOCK_KEY = 'jiko_spotify_cmd_lock';
-    const GLOBAL_QUEUE_LOCK_KEY = 'jiko_spotify_queue_lock';
     const GLOBAL_SKIP_LOCK_KEY = 'jiko_spotify_skip_lock';
     const GLOBAL_ALERT_KEY = 'jiko_spotify_shared_alert';
 
     let lastHandledCommand = { text: '', time: 0 };
     const recentMsgIds = new Set();
-    let isCurrentlyEnqueuing = false;
     let isCurrentlySkipping = false;
     let lastLocalSkipTime = 0;
     let lastSkippedTrackId = '';
@@ -1239,29 +1237,7 @@
       return true;
     }
 
-    // Candado atómico antes de enviar a la cola de Spotify API
-    function acquireGlobalQueueLock(trackUri) {
-      const now = Date.now();
-      try {
-        const raw = localStorage.getItem(GLOBAL_QUEUE_LOCK_KEY);
-        if (raw) {
-          const lock = JSON.parse(raw);
-          // Si la misma canción (URI) se mandó a encolar en los últimos 7 segundos por cualquier fuente, bloquear
-          if (lock.uri === trackUri && (now - lock.time) < 7000) {
-            console.log(`[Spotify Widget] 🛡️ [MUTEX GLOBAL] Canción URI ya encolada recientemente (<7s): ${trackUri}`);
-            return false;
-          }
-        }
-        localStorage.setItem(GLOBAL_QUEUE_LOCK_KEY, JSON.stringify({
-          uri: trackUri,
-          time: now,
-          instance: WIDGET_INSTANCE_ID
-        }));
-      } catch (e) {}
-      return true;
-    }
-
-    // Ejecución segura y atómica del salto de canción (cooldown de 10 segundos global)
+    // Ejecución segura del salto de canción (Mod check + Cooldown visual en OBS)
     async function executeSkipSong(user, badges) {
       const isMod = checkIsModerator(user, badges);
       if (!isMod) {
@@ -1270,65 +1246,22 @@
       }
 
       const now = Date.now();
-
-      // 1. Candado local en memoria
-      if (isCurrentlySkipping) {
-        console.log(`[Spotify Widget] 🛡️ Skip descartado: Ya hay un salto en proceso.`);
-        return;
-      }
-
       const localDiff = now - lastLocalSkipTime;
       if (localDiff < SKIP_COOLDOWN_MS) {
         const remSecs = Math.ceil((SKIP_COOLDOWN_MS - localDiff) / 1000);
-        console.log(`[Spotify Widget] 🛡️ Skip en cooldown local: faltan ${remSecs}s.`);
         showFloatingAlert(`Espera ${remSecs}s para volver a saltar canción`, 'warning', user);
         return;
       }
 
-      // 2. Candado global compartido en localStorage (10 segundos entre todas las fuentes y usuarios)
-      try {
-        const raw = localStorage.getItem(GLOBAL_SKIP_LOCK_KEY);
-        if (raw) {
-          const lock = JSON.parse(raw);
-          const globalDiff = now - lock.time;
-          if (globalDiff < SKIP_COOLDOWN_MS) {
-            const remSecs = Math.ceil((SKIP_COOLDOWN_MS - globalDiff) / 1000);
-            console.log(`[Spotify Widget] 🛡️ [MUTEX SKIP] Cooldown global activo: faltan ${remSecs}s.`);
-            showFloatingAlert(`Espera ${remSecs}s para volver a saltar canción`, 'warning', user);
-            return;
-          }
-          if (currentTrackId && lock.trackId && lock.trackId === currentTrackId && globalDiff < 15000) {
-            console.log(`[Spotify Widget] 🛡️ [MUTEX SKIP] La pista ${currentTrackId} ya fue saltada recientemente.`);
-            return;
-          }
-        }
-        localStorage.setItem(GLOBAL_SKIP_LOCK_KEY, JSON.stringify({
-          time: now,
-          trackId: currentTrackId || '',
-          user: user,
-          instance: WIDGET_INSTANCE_ID
-        }));
-      } catch (e) {}
-
-      // 3. Protección por ID de pista: no saltar 2 veces la misma pista en 15 segundos
-      if (currentTrackId && lastSkippedTrackId === currentTrackId && (now - lastLocalSkipTime) < 15000) {
-        console.log(`[Spotify Widget] 🛡️ La pista actual (${currentTrackId}) ya fue saltada en esta instancia.`);
-        return;
-      }
-
-      isCurrentlySkipping = true;
       lastLocalSkipTime = now;
-      if (currentTrackId) lastSkippedTrackId = currentTrackId;
-
       const skipMsg = 'Saltando a la siguiente canción en Spotify...';
       showFloatingAlert(skipMsg, 'skip', user);
 
-      // Sincronizar inmediatamente con otras fuentes OBS para que no llamen a la API
+      // Sincronizar alerta visual con otras fuentes OBS si existen
       try {
         if (syncChannel) {
           syncChannel.postMessage({
             type: 'SKIP_EXECUTED',
-            trackId: currentTrackId || '',
             user: user,
             msg: skipMsg,
             time: now,
@@ -1337,38 +1270,9 @@
         }
       } catch (e) {}
 
-      // 🛡️ REGLA DE ORO ANTI-DOBLE SALTO:
-      // Si CONTROL_MODE es 'streamerbot', significa que Streamer.bot ya está configurado con una Sub-Action Fetch a skip.php.
-      // Por ende, el widget SOLO muestra la animación y actualiza el estado SIN ejecutar otra llamada a la API.
-      if (CONTROL_MODE === 'streamerbot') {
-        console.log('[Spotify Widget] ⏭️ Modo Streamer.bot activo: Salto gestionado por Fetch externo. Omitiendo llamada duplicada.');
-        setTimeout(fetchPlaybackState, 1500);
-        setTimeout(() => { isCurrentlySkipping = false; }, SKIP_COOLDOWN_MS);
-        return;
-      }
-
-      try {
-        let skipped = false;
-        // Intentar primero vía endpoint directo nativo Multi Ideas SV
-        try {
-          const nativeRes = await fetch(`https://sensunshopweb.web.app/spotify/skip?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' });
-          if (nativeRes.ok) {
-            skipped = true;
-            console.log('[Spotify Widget] ⏭️ Salto ejecutado con éxito vía Multi Ideas SV skip');
-          }
-        } catch(errMb) {}
-
-        if (!skipped) {
-          await spotifyApi('/me/player/next', 'POST');
-        }
-      } catch(e) {
-        console.error('[Spotify Widget] Error al saltar canción:', e);
-      } finally {
-        setTimeout(fetchPlaybackState, 1200);
-        setTimeout(() => {
-          isCurrentlySkipping = false;
-        }, SKIP_COOLDOWN_MS);
-      }
+      // 🛡️ STREAMER.BOT MASTER: El salto real en Spotify lo ejecuta Streamer.bot vía Fetch a skip.php.
+      // El widget solo refresca la carátula y el título tras el salto, sin duplicar llamadas.
+      setTimeout(fetchPlaybackState, 1500);
     }
 
     async function handleKickChatCommand(cmdText, user = 'Viewer', badges = []) {
@@ -1380,14 +1284,14 @@
         return;
       }
 
-      // 1. COMANDO !skipsong (Solo para Moderadores, con 10s de cooldown global)
+      // 1. COMANDO !skipsong (Solo para Moderadores, visualizer only - Fetch en Streamer.bot)
       if (lower === '!skipsong' || lower === '!skip' || lower === '!saltar' ||
           lower.startsWith('!skipsong ') || lower.startsWith('!skip ') || lower.startsWith('!saltar ')) {
         await executeSkipSong(user, badges);
         return;
       }
 
-      // 2. COMANDO !addsong [nombre de la cancion (by nombre del artista)]
+      // 2. COMANDO !addsong (Visualizer only - Fetch en Streamer.bot añade a la cola)
       if (lower.startsWith('!addsong ') || lower.startsWith('!cancion ') || lower.startsWith('!pedir ')) {
         const queryRaw = raw.replace(/^!addsong\s+|^!cancion\s+|^!pedir\s+/i, '').trim();
         if (!queryRaw) {
@@ -1395,33 +1299,35 @@
           return;
         }
 
-        await executeAddSongSearch(queryRaw, user);
+        // El fetch real lo ejecuta Streamer.bot hacia add_to_queue.php.
+        // El widget únicamente muestra el aviso visual flotante y sonido chime en pantalla.
+        const successMsg = `Canción solicitada: "${queryRaw}"`;
+        showFloatingAlert(successMsg, 'add', user);
+
+        try {
+          if (syncChannel) syncChannel.postMessage({ type: 'SHOW_ALERT', msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID });
+          localStorage.setItem(GLOBAL_ALERT_KEY, JSON.stringify({ msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID, time: Date.now() }));
+        } catch(e) {}
         return;
       }
 
-      // 3. COMANDO !play (Reanudar música)
+      // 3. COMANDO !play (Reanudar música - Visualizer only - Fetch en Streamer.bot)
       if (lower === '!play' || lower === '!reanudar') {
-        let ok = await spotifyApi('/me/player/play', 'PUT');
-        if (!ok) {
-          try { await fetch(`https://sensunshopweb.web.app/spotify/play?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
-        }
         isPlaying = true;
-        document.getElementById('compactPlayerCard').classList.add('is-playing');
+        const card = document.getElementById('compactPlayerCard');
+        if (card) card.classList.add('is-playing');
         showFloatingAlert('Música reanudada', 'play', user);
-        setTimeout(fetchPlaybackState, 800);
+        setTimeout(fetchPlaybackState, 1000);
         return;
       }
 
-      // 4. COMANDO !pausa / !pause (Pausar música)
+      // 4. COMANDO !pausa / !pause (Pausar música - Visualizer only - Fetch en Streamer.bot)
       if (lower === '!pausa' || lower === '!pause') {
-        let ok = await spotifyApi('/me/player/pause', 'PUT');
-        if (!ok) {
-          try { await fetch(`https://sensunshopweb.web.app/spotify/pause?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
-        }
         isPlaying = false;
-        document.getElementById('compactPlayerCard').classList.remove('is-playing');
+        const card = document.getElementById('compactPlayerCard');
+        if (card) card.classList.remove('is-playing');
         showFloatingAlert('Música pausada', 'pause', user);
-        setTimeout(fetchPlaybackState, 800);
+        setTimeout(fetchPlaybackState, 1000);
         return;
       }
 
@@ -1429,105 +1335,6 @@
       if (lower === '!cancion' || lower === '!song' || lower === '!currentsong') {
         triggerSongInfoBanner(user);
         return;
-      }
-    }
-
-    // Búsqueda inteligente y añadido a la cola con fallback garantizado a MrBoost
-    async function executeAddSongSearch(queryText, user) {
-      if (isCurrentlyEnqueuing) {
-        console.log(`[Spotify Widget] ⏳ Ya hay una búsqueda/encolado en proceso, descartando concurrencia.`);
-        return;
-      }
-
-      isCurrentlyEnqueuing = true;
-      try {
-        showFloatingAlert(`Buscando "${queryText}" en Spotify...`, 'info', user);
-
-        // Normalizar formato "Song by Artist" o "Song de Artist"
-        let cleanQuery = queryText;
-        const byMatch = queryText.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
-        if (byMatch) {
-          cleanQuery = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
-        }
-
-        let enqueued = false;
-        let songTitle = queryText;
-        let songArtist = '';
-
-        // 1. Intento por Spotify Web API
-        let data = null;
-        try {
-          data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=20`);
-          if (!data || !data.tracks || data.tracks.items.length === 0) {
-            data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=20`);
-          }
-        } catch(e) {}
-
-        if (data && data.tracks && data.tracks.items.length > 0) {
-          const items = data.tracks.items;
-          const queryLower = queryText.toLowerCase();
-
-          // Priorizar la versión oficial más popular y penalizar covers/karaoke si no fueron pedidos
-          items.sort((a, b) => {
-            let popA = a.popularity || 0;
-            let popB = b.popularity || 0;
-            const nameA = (a.name || '').toLowerCase();
-            const nameB = (b.name || '').toLowerCase();
-            const isJunkA = !queryLower.includes('karaoke') && (nameA.includes('karaoke') || nameA.includes('tribute') || nameA.includes('cover') || nameA.includes('instrumental'));
-            const isJunkB = !queryLower.includes('karaoke') && (nameB.includes('karaoke') || nameB.includes('tribute') || nameB.includes('cover') || nameB.includes('instrumental'));
-            if (isJunkA) popA -= 50;
-            if (isJunkB) popB -= 50;
-            return popB - popA;
-          });
-
-          const track = items[0];
-          songTitle = track.name;
-          songArtist = track.artists ? track.artists[0].name : '';
-
-          // 🛡️ Candado atómico antes de encolar en Spotify
-          if (!acquireGlobalQueueLock(track.uri)) {
-            console.log(`[Spotify Widget] 🛡️ Canción "${track.name}" omitida porque ya fue encolada por otra fuente.`);
-            return;
-          }
-
-          const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(track.uri)}`, 'POST');
-          if (res) {
-            enqueued = true;
-          }
-        }
-
-        // 2. Si falló la API directa (dispositivo en reposo, token vencido o sin premium), Fallback inmediato a Multi Ideas Backend
-        if (!enqueued) {
-          console.log(`[Spotify Widget] 🔄 Activando fallback de encolado vía Multi Ideas add_to_queue para: "${songTitle}"`);
-          try {
-            const mbSearchTerm = songArtist ? `${songTitle} ${songArtist}` : queryText;
-            const nativeUrl = `https://sensunshopweb.web.app/spotify/add_to_queue?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(mbSearchTerm)}`;
-            const nativeRes = await fetch(nativeUrl, { cache: 'no-store' });
-            if (nativeRes.ok) {
-              enqueued = true;
-            }
-          } catch(errMb) {
-            console.error('[Spotify Widget] Fallback nativo falló:', errMb);
-          }
-        }
-
-        if (enqueued) {
-          const successMsg = `Añadida a la cola: "${songTitle}" ${songArtist ? `(${songArtist})` : ''}`;
-          showFloatingAlert(successMsg, 'add', user);
-
-          // Sincronizar alerta visual con otras fuentes OBS si existen
-          try {
-            if (syncChannel) syncChannel.postMessage({ type: 'SHOW_ALERT', msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID });
-            localStorage.setItem(GLOBAL_ALERT_KEY, JSON.stringify({ msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID, time: Date.now() }));
-          } catch(e) {}
-        } else {
-          showFloatingAlert(`No se pudo encolar "${queryText}". Ten Spotify sonando en algún dispositivo.`, 'warning', user);
-        }
-      } catch(errGlobal) {
-        console.error('[Spotify Widget] Error en búsqueda de canción:', errGlobal);
-        showFloatingAlert(`Error al buscar "${queryText}"`, 'warning', user);
-      } finally {
-        isCurrentlyEnqueuing = false;
       }
     }
 
