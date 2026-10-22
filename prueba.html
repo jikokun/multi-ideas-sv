@@ -663,7 +663,7 @@
                 </div>
 
                 <!-- Configuración de Ajustes de Apariencia del Widget (1920x1080) -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
                     <div>
                         <label for="spotifyWidgetPosSelect" style="display: block; font-size: 0.82rem; font-weight: 700; color: #a0aec0; margin-bottom: 5px;">
                             📍 Posición Inicial en Lienzo 1920x1080:
@@ -689,11 +689,118 @@
                         </select>
                     </div>
                     <div>
+                        <label for="spotifyControlModeSelect" style="display: block; font-size: 0.82rem; font-weight: 700; color: #00f5d4; margin-bottom: 5px;">
+                            🛡️ Modo de Control (Anti-Doble Salto):
+                        </label>
+                        <select id="spotifyControlModeSelect" class="gate-input" style="padding: 9px 12px; font-size: 0.85rem; text-align: left;">
+                            <option value="hybrid" selected>⚡ Híbrido (API + Fallback MrBoost)</option>
+                            <option value="streamerbot">🤖 Streamer.bot Master (Solo visualizador, 0 doble salto)</option>
+                            <option value="mrboost">🚀 MrBoost Directo (100% Fetch)</option>
+                        </select>
+                    </div>
+                    <div>
                         <label for="streamerbotPortInput" style="display: block; font-size: 0.82rem; font-weight: 700; color: #a0aec0; margin-bottom: 5px;">
                             🔌 Puerto WebSocket Streamer.bot:
                         </label>
                         <input type="text" id="streamerbotPortInput" value="8080" class="gate-input" style="padding: 9px 12px; font-size: 0.85rem; font-family: monospace; text-align: left;" placeholder="8080 o 4445">
                     </div>
+                </div>
+            </div>
+
+            <!-- 4.1 GENERADOR DE ENLACES FETCH DIRECTOS PARA STREAMER.BOT & BOTRIX -->
+            <div style="background: linear-gradient(145deg, rgba(3, 14, 24, 0.96) 0%, rgba(6, 24, 40, 0.94) 100%); border: 1.5px solid rgba(0, 245, 212, 0.4); border-radius: 16px; padding: 22px; margin-bottom: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                    <div>
+                        <div style="font-size: 1.05rem; font-weight: 800; color: #00f5d4; display: flex; align-items: center; gap: 8px;">
+                            <i class="fa-solid fa-bolt-lightning"></i> Enlaces de Activación Directa: Streamer.bot (Fetch URL) & Botrix
+                        </div>
+                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">
+                            Usa estos enlaces para ejecutar comandos sin depender del widget de OBS ni sufrir tokens expirados. En Streamer.bot usa la Sub-Acción <strong>Network ➔ Fetch URL</strong>.
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.4); padding: 6px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
+                        <label for="mrboostUserLabInput" style="font-size: 0.8rem; font-weight: 700; color: #53fc18;">Usuario MrBoost:</label>
+                        <input type="text" id="mrboostUserLabInput" value="jikokun2" class="gate-input" style="width: 110px; padding: 5px 8px; font-size: 0.82rem; font-weight: 700; text-align: center; font-family: monospace;" oninput="updateMrboostLinksLab()">
+                    </div>
+                </div>
+
+                <!-- Rejilla de Enlaces Directos -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px;">
+                    <!-- 1. !addsong -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(0, 245, 212, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #00f5d4;"><i class="fa-solid fa-plus"></i> 1. Añadir Canción (!addsong)</span>
+                            <span class="badge" style="background: rgba(0, 245, 212, 0.15); color: #00f5d4; font-size: 0.72rem;">Cola de espera</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">Streamer.bot (Fetch URL):</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 8px;">
+                            <input type="text" id="linkAddSb" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkAddSb').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #00f5d4; border-color: rgba(0,245,212,0.4);">📋 Copiar</button>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">Botrix ($(variable)):</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+                            <input type="text" id="linkAddBx" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkAddBx').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #38bdf8; border-color: rgba(56,189,248,0.4);">📋 Copiar</button>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="testAddSongInput" value="Bohemian Rhapsody Queen" placeholder="Canción de prueba" class="gate-input" style="flex: 1; font-size: 0.76rem; padding: 6px 10px; text-align: left;">
+                            <button type="button" class="test-btn" onclick="testMrboostFetch('add')" style="padding: 6px 12px; font-size: 0.76rem; font-weight: 700; color: #53fc18; border-color: #53fc18; background: rgba(83,252,24,0.1);">⚡ Probar Fetch</button>
+                        </div>
+                    </div>
+
+                    <!-- 2. !skipsong -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(83, 252, 24, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #53fc18;"><i class="fa-solid fa-forward-step"></i> 2. Saltar Canción (!skipsong)</span>
+                            <span class="badge" style="background: rgba(83, 252, 24, 0.15); color: #53fc18; font-size: 0.72rem;">0 doble salto</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">Enlace Directo (Streamer.bot / Botrix):</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                            <input type="text" id="linkSkipDirect" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkSkipDirect').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #53fc18; border-color: rgba(83,252,24,0.4);">📋 Copiar</button>
+                        </div>
+                        <button type="button" class="test-btn" onclick="testMrboostFetch('skip')" style="width: 100%; padding: 8px; font-size: 0.8rem; font-weight: 800; color: #53fc18; border-color: #53fc18; background: rgba(83,252,24,0.12);">
+                            ⚡ Probar Fetch Saltar Pista Ahora
+                        </button>
+                    </div>
+
+                    <!-- 3. !play -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(29, 185, 84, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #1DB954;"><i class="fa-solid fa-play"></i> 3. Reanudar Música (!play)</span>
+                            <span class="badge" style="background: rgba(29, 185, 84, 0.15); color: #1DB954; font-size: 0.72rem;">Play</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">Enlace Directo (Streamer.bot / Botrix):</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                            <input type="text" id="linkPlayDirect" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkPlayDirect').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #1DB954; border-color: rgba(29,185,84,0.4);">📋 Copiar</button>
+                        </div>
+                        <button type="button" class="test-btn" onclick="testMrboostFetch('play')" style="width: 100%; padding: 8px; font-size: 0.8rem; font-weight: 800; color: #1DB954; border-color: #1DB954; background: rgba(29,185,84,0.12);">
+                            ⚡ Probar Fetch Reanudar Pista
+                        </button>
+                    </div>
+
+                    <!-- 4. !pausa -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 12px; padding: 14px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #38bdf8;"><i class="fa-solid fa-pause"></i> 4. Pausar Música (!pausa)</span>
+                            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-size: 0.72rem;">Pausa</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px;">Enlace Directo (Streamer.bot / Botrix):</div>
+                        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                            <input type="text" id="linkPauseDirect" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkPauseDirect').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #38bdf8; border-color: rgba(56,189,248,0.4);">📋 Copiar</button>
+                        </div>
+                        <button type="button" class="test-btn" onclick="testMrboostFetch('pause')" style="width: 100%; padding: 8px; font-size: 0.8rem; font-weight: 800; color: #38bdf8; border-color: #38bdf8; background: rgba(56,189,248,0.12);">
+                            ⚡ Probar Fetch Pausar Pista
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Consola de Respuesta del Fetch en Vivo -->
+                <div style="background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 10px 14px; font-family: monospace; font-size: 0.78rem; color: #94a3b8; display: flex; align-items: center; justify-content: space-between;">
+                    <div id="fetchConsoleOutput">💡 Haz clic en cualquier botón "Probar Fetch" para probar la respuesta del servidor en tiempo real.</div>
+                    <button type="button" class="test-btn" onclick="document.getElementById('fetchConsoleOutput').textContent='Listo para probar.'" style="padding: 3px 8px; font-size: 0.72rem; color: #64748b; border-color: rgba(255,255,255,0.1);">Limpiar</button>
                 </div>
             </div>
 
@@ -3226,10 +3333,14 @@
             const posSelect = document.getElementById('spotifyWidgetPosSelect');
             const themeSelect = document.getElementById('spotifyWidgetThemeSelect');
             const portInput = document.getElementById('streamerbotPortInput');
+            const modeSelect = document.getElementById('spotifyControlModeSelect');
+            const userInput = document.getElementById('mrboostUserLabInput');
 
             const pos = posSelect ? posSelect.value : 'bottom-left';
             const theme = themeSelect ? themeSelect.value : 'aqua';
             const wsPort = portInput && portInput.value ? portInput.value.trim() : '8080';
+            const controlMode = modeSelect ? modeSelect.value : 'hybrid';
+            const mrboostUser = userInput && userInput.value ? userInput.value.trim() : 'jikokun2';
 
             const params = new URLSearchParams();
             if (token) params.set('token', token);
@@ -3237,6 +3348,8 @@
             if (expires) params.set('expires', expires);
             if (pos) params.set('pos', pos);
             if (theme) params.set('theme', theme);
+            if (controlMode) params.set('control_mode', controlMode);
+            if (mrboostUser) params.set('user', mrboostUser);
             if (wsPort && wsPort !== '8080') params.set('ws_port', wsPort);
             if (kickModeratorsList.length > 0) params.set('mods', kickModeratorsList.join(','));
 
@@ -3262,6 +3375,97 @@
                 log(`Error al copiar enlace: ${err.message}`, "error");
             });
         };
+
+        window.copyTextDirect = function(text, btn) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                const orig = btn.innerHTML;
+                btn.innerHTML = '✅ Copiado';
+                btn.style.color = '#53fc18';
+                btn.style.borderColor = '#53fc18';
+                setTimeout(() => {
+                    btn.innerHTML = orig;
+                    btn.style.color = '';
+                    btn.style.borderColor = '';
+                }, 2000);
+            });
+        };
+
+        window.updateMrboostLinksLab = function() {
+            const input = document.getElementById('mrboostUserLabInput');
+            const user = input && input.value ? input.value.trim() : 'jikokun2';
+
+            const addSb = document.getElementById('linkAddSb');
+            const addBx = document.getElementById('linkAddBx');
+            const skipDir = document.getElementById('linkSkipDirect');
+            const playDir = document.getElementById('linkPlayDirect');
+            const pauseDir = document.getElementById('linkPauseDirect');
+
+            if (addSb) addSb.value = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(user)}&song_name=%rawInputUrlEncoded%`;
+            if (addBx) addBx.value = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(user)}&song_name=$(variable)`;
+            if (skipDir) skipDir.value = `https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(user)}`;
+            if (playDir) playDir.value = `https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(user)}`;
+            if (pauseDir) pauseDir.value = `https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(user)}`;
+        };
+
+        window.testMrboostFetch = async function(action) {
+            const userInput = document.getElementById('mrboostUserLabInput');
+            const user = userInput && userInput.value ? userInput.value.trim() : 'jikokun2';
+            const consoleEl = document.getElementById('fetchConsoleOutput');
+
+            let url = '';
+            let label = '';
+            if (action === 'skip') {
+                url = `https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(user)}`;
+                label = 'Saltando canción (!skipsong)';
+            } else if (action === 'play') {
+                url = `https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(user)}`;
+                label = 'Reanudando música (!play)';
+            } else if (action === 'pause') {
+                url = `https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(user)}`;
+                label = 'Pausando música (!pausa)';
+            } else if (action === 'add') {
+                const songInput = document.getElementById('testAddSongInput');
+                const song = songInput && songInput.value ? songInput.value.trim() : 'Bohemian Rhapsody Queen';
+                url = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(user)}&song_name=${encodeURIComponent(song)}`;
+                label = `Añadiendo a la cola: "${song}"`;
+            }
+
+            if (consoleEl) {
+                consoleEl.innerHTML = `<span style="color:#00f5d4;">⏳ Ejecutando Fetch:</span> ${label}...`;
+            }
+            log(`[MrBoost Fetch] Enviando solicitud a: ${url}`, "info");
+
+            try {
+                const res = await fetch(url, { cache: 'no-store' });
+                const text = await res.text();
+                const cleanText = text.replace(/<[^>]*>?/gm, '').trim().substring(0, 100);
+                if (consoleEl) {
+                    consoleEl.innerHTML = `<span style="color:#53fc18;">✅ HTTP ${res.status}:</span> ${cleanText || 'Comando recibido con éxito'}`;
+                }
+                log(`[MrBoost Fetch] ✅ Respuesta (${res.status}): ${cleanText}`, "success");
+
+                // Notificar al iframe del widget para refrescar estado visual
+                const iframe = document.getElementById('preview-spotify-test');
+                if (iframe && iframe.contentWindow) {
+                    setTimeout(() => {
+                        iframe.contentWindow.postMessage({ type: 'REFRESH_PLAYBACK' }, '*');
+                    }, 1200);
+                }
+            } catch (err) {
+                if (consoleEl) {
+                    consoleEl.innerHTML = `<span style="color:#ef4444;">❌ Error:</span> ${err.message}`;
+                }
+                log(`[MrBoost Fetch] Error en solicitud: ${err.message}`, "error");
+            }
+        };
+
+        // Inicializar enlaces al cargar
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof updateMrboostLinksLab === 'function') {
+                updateMrboostLinksLab();
+            }
+        });
 
         // Escuchar autenticación de Spotify desde popup o BroadcastChannel
         window.addEventListener('message', (e) => {

@@ -545,6 +545,9 @@
           <button type="button" class="dock-btn" onclick="setTheme('spotify')" title="Tema Spotify">🟢 Spotify</button>
           <button type="button" class="dock-btn" onclick="setTheme('kick')" title="Tema Kick">🐺 Kick</button>
           <button type="button" class="dock-btn" onclick="setTheme('cyberpunk')" title="Tema Cyberpunk">🟣 Cyber</button>
+          <button type="button" class="dock-btn" onclick="triggerFetchCommand('skip')" title="Saltar canción (MrBoost direct)">⏭️ Skip</button>
+          <button type="button" class="dock-btn" onclick="triggerFetchCommand('play')" title="Reanudar">▶️ Play</button>
+          <button type="button" class="dock-btn" onclick="triggerFetchCommand('pause')" title="Pausar">⏸️ Pausa</button>
           <button type="button" class="dock-btn" id="lockPosBtn" onclick="toggleLockPosition()" title="Bloquear / Desbloquear Arrastre">🔓</button>
         </div>
       </div>
@@ -646,6 +649,11 @@
     let localProgressInterval = null;
     let pollInterval = null;
     let currentTrackData = null;
+
+    // Configuración de Integración MrBoost & Streamer.bot
+    const SPOTIFY_USER = urlParams.get('mrboost_user') || urlParams.get('user') || 'jikokun2';
+    // Modos de control: 'hybrid' (intenta API + MrBoost fallback), 'streamerbot' (visualizer only, Streamer.bot ejecuta fetch para evitar doble salto), 'mrboost' (control 100% MrBoost)
+    const CONTROL_MODE = urlParams.get('control_mode') || urlParams.get('skip_mode') || 'hybrid';
 
     // Configuración de Moderadores de Kick (Whitelist autorizada)
     let kickModerators = [];
@@ -866,6 +874,31 @@
         return false;
       }
 
+      // 1. PRIMER INTENTO: Proxy Backend de MrBoost (CORS habilitado con Access-Control-Allow-Origin: *)
+      try {
+        const refreshUrl = 'https://mrboostlive.com/spotify/refresh_token.php';
+        const mrRes = await fetch(refreshUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: `user_id=${encodeURIComponent(SPOTIFY_USER)}&refresh_token=${encodeURIComponent(refreshToken)}`
+        });
+        if (mrRes.ok) {
+          const newToken = (await mrRes.text()).trim();
+          if (newToken && !newToken.includes('<') && newToken.length > 20) {
+            accessToken = newToken;
+            tokenExpires = Date.now() + (3600 * 1000);
+            localStorage.setItem('spotify_access_token', accessToken);
+            localStorage.setItem('spotify_token_expires', tokenExpires.toString());
+            console.log('[Spotify Widget] ✅ Token renovado exitosamente vía MrBoost Backend Proxy');
+            setDisconnectedUI(false);
+            return true;
+          }
+        }
+      } catch (errMr) {
+        console.warn('[Spotify Widget] Fallo proxy MrBoost, intentando PKCE directo...', errMr);
+      }
+
+      // 2. SEGUNDO INTENTO: Spotify accounts PKCE directo (sin Authorization Basic para no ser bloqueado por CORS)
       try {
         const bodyParams = new URLSearchParams({
           grant_type: 'refresh_token',
@@ -873,34 +906,32 @@
           client_id: CLIENT_ID
         });
 
-        const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-        if (CLIENT_SECRET) {
-          headers['Authorization'] = 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET);
-        }
-
         const res = await fetch('https://accounts.spotify.com/api/token', {
           method: 'POST',
-          headers: headers,
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
           body: bodyParams
         });
 
-        const data = await res.json();
-        if (data.access_token) {
-          accessToken = data.access_token;
-          tokenExpires = Date.now() + (data.expires_in * 1000);
-          localStorage.setItem('spotify_access_token', accessToken);
-          localStorage.setItem('spotify_token_expires', tokenExpires.toString());
-          if (data.refresh_token) {
-            refreshToken = data.refresh_token;
-            localStorage.setItem('spotify_refresh_token', refreshToken);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.access_token) {
+            accessToken = data.access_token;
+            tokenExpires = Date.now() + (data.expires_in * 1000);
+            localStorage.setItem('spotify_access_token', accessToken);
+            localStorage.setItem('spotify_token_expires', tokenExpires.toString());
+            if (data.refresh_token) {
+              refreshToken = data.refresh_token;
+              localStorage.setItem('spotify_refresh_token', refreshToken);
+            }
+            console.log('[Spotify Widget] ✅ Token renovado con éxito vía Spotify PKCE');
+            setDisconnectedUI(false);
+            return true;
           }
-          console.log('[Spotify Widget] Token renovado con éxito');
-          setDisconnectedUI(false);
-          return true;
         }
       } catch (e) {
-        console.error('Error al renovar token:', e);
+        console.error('[Spotify Widget] Error al renovar token vía Spotify accounts:', e);
       }
+
       return false;
     }
 
@@ -1310,8 +1341,30 @@
         }
       } catch (e) {}
 
+      // 🛡️ REGLA DE ORO ANTI-DOBLE SALTO:
+      // Si CONTROL_MODE es 'streamerbot', significa que Streamer.bot ya está configurado con una Sub-Action Fetch a skip.php.
+      // Por ende, el widget SOLO muestra la animación y actualiza el estado SIN ejecutar otra llamada a la API.
+      if (CONTROL_MODE === 'streamerbot') {
+        console.log('[Spotify Widget] ⏭️ Modo Streamer.bot activo: Salto gestionado por Fetch externo. Omitiendo llamada duplicada.');
+        setTimeout(fetchPlaybackState, 1500);
+        setTimeout(() => { isCurrentlySkipping = false; }, SKIP_COOLDOWN_MS);
+        return;
+      }
+
       try {
-        await spotifyApi('/me/player/next', 'POST');
+        let skipped = false;
+        // Intentar primero vía endpoint directo de MrBoost
+        try {
+          const mbRes = await fetch(`https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' });
+          if (mbRes.ok) {
+            skipped = true;
+            console.log('[Spotify Widget] ⏭️ Salto ejecutado con éxito vía MrBoost skip.php');
+          }
+        } catch(errMb) {}
+
+        if (!skipped) {
+          await spotifyApi('/me/player/next', 'POST');
+        }
       } catch(e) {
         console.error('[Spotify Widget] Error al saltar canción:', e);
       } finally {
@@ -1352,21 +1405,27 @@
 
       // 3. COMANDO !play (Reanudar música)
       if (lower === '!play' || lower === '!reanudar') {
-        await spotifyApi('/me/player/play', 'PUT');
+        let ok = await spotifyApi('/me/player/play', 'PUT');
+        if (!ok) {
+          try { await fetch(`https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
+        }
         isPlaying = true;
         document.getElementById('compactPlayerCard').classList.add('is-playing');
         showFloatingAlert('Música reanudada', 'play', user);
-        setTimeout(fetchPlaybackState, 600);
+        setTimeout(fetchPlaybackState, 800);
         return;
       }
 
       // 4. COMANDO !pausa / !pause (Pausar música)
       if (lower === '!pausa' || lower === '!pause') {
-        await spotifyApi('/me/player/pause', 'PUT');
+        let ok = await spotifyApi('/me/player/pause', 'PUT');
+        if (!ok) {
+          try { await fetch(`https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
+        }
         isPlaying = false;
         document.getElementById('compactPlayerCard').classList.remove('is-playing');
         showFloatingAlert('Música pausada', 'pause', user);
-        setTimeout(fetchPlaybackState, 600);
+        setTimeout(fetchPlaybackState, 800);
         return;
       }
 
@@ -1377,7 +1436,7 @@
       }
     }
 
-    // Búsqueda inteligente y añadido a la cola de Spotify priorizando la canción más conocida
+    // Búsqueda inteligente y añadido a la cola con fallback garantizado a MrBoost
     async function executeAddSongSearch(queryText, user) {
       if (isCurrentlyEnqueuing) {
         console.log(`[Spotify Widget] ⏳ Ya hay una búsqueda/encolado en proceso, descartando concurrencia.`);
@@ -1395,12 +1454,18 @@
           cleanQuery = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
         }
 
-        // Buscar hasta 20 candidatos para ordenar por popularidad
-        let data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=20`);
-        // Fallback a búsqueda simple si la estructurada no devolvió resultados
-        if (!data || !data.tracks || data.tracks.items.length === 0) {
-          data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=20`);
-        }
+        let enqueued = false;
+        let songTitle = queryText;
+        let songArtist = '';
+
+        // 1. Intento por Spotify Web API
+        let data = null;
+        try {
+          data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=20`);
+          if (!data || !data.tracks || data.tracks.items.length === 0) {
+            data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=20`);
+          }
+        } catch(e) {}
 
         if (data && data.tracks && data.tracks.items.length > 0) {
           const items = data.tracks.items;
@@ -1410,21 +1475,18 @@
           items.sort((a, b) => {
             let popA = a.popularity || 0;
             let popB = b.popularity || 0;
-
             const nameA = (a.name || '').toLowerCase();
             const nameB = (b.name || '').toLowerCase();
-
             const isJunkA = !queryLower.includes('karaoke') && (nameA.includes('karaoke') || nameA.includes('tribute') || nameA.includes('cover') || nameA.includes('instrumental'));
             const isJunkB = !queryLower.includes('karaoke') && (nameB.includes('karaoke') || nameB.includes('tribute') || nameB.includes('cover') || nameB.includes('instrumental'));
-
             if (isJunkA) popA -= 50;
             if (isJunkB) popB -= 50;
-
             return popB - popA;
           });
 
           const track = items[0];
-          const artist = track.artists ? track.artists[0].name : '';
+          songTitle = track.name;
+          songArtist = track.artists ? track.artists[0].name : '';
 
           // 🛡️ Candado atómico antes de encolar en Spotify
           if (!acquireGlobalQueueLock(track.uri)) {
@@ -1433,26 +1495,82 @@
           }
 
           const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(track.uri)}`, 'POST');
-
           if (res) {
-            const successMsg = `Añadida a la cola: "${track.name}" (${artist})`;
-            showFloatingAlert(successMsg, 'add', user);
-
-            // Sincronizar alerta visual con otras fuentes OBS si existen
-            try {
-              if (syncChannel) syncChannel.postMessage({ type: 'SHOW_ALERT', msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID });
-              localStorage.setItem(GLOBAL_ALERT_KEY, JSON.stringify({ msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID, time: Date.now() }));
-            } catch(e) {}
-          } else {
-            showFloatingAlert(`No se pudo encolar. Ten Spotify sonando en algún dispositivo.`, 'warning', user);
+            enqueued = true;
           }
-        } else {
-          showFloatingAlert(`No se encontró "${queryText}" en Spotify`, 'warning', user);
         }
+
+        // 2. Si falló la API directa (dispositivo en reposo, token vencido o sin premium), Fallback inmediato a MrBoost
+        if (!enqueued) {
+          console.log(`[Spotify Widget] 🔄 Activando fallback de encolado vía MrBoost add_to_queue.php para: "${songTitle}"`);
+          try {
+            const mbSearchTerm = songArtist ? `${songTitle} ${songArtist}` : queryText;
+            const mbUrl = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(mbSearchTerm)}`;
+            const mbRes = await fetch(mbUrl, { cache: 'no-store' });
+            if (mbRes.ok) {
+              enqueued = true;
+            }
+          } catch(errMb) {
+            console.error('[Spotify Widget] Fallback MrBoost falló:', errMb);
+          }
+        }
+
+        if (enqueued) {
+          const successMsg = `Añadida a la cola: "${songTitle}" ${songArtist ? `(${songArtist})` : ''}`;
+          showFloatingAlert(successMsg, 'add', user);
+
+          // Sincronizar alerta visual con otras fuentes OBS si existen
+          try {
+            if (syncChannel) syncChannel.postMessage({ type: 'SHOW_ALERT', msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID });
+            localStorage.setItem(GLOBAL_ALERT_KEY, JSON.stringify({ msg: successMsg, alertType: 'add', user, instance: WIDGET_INSTANCE_ID, time: Date.now() }));
+          } catch(e) {}
+        } else {
+          showFloatingAlert(`No se pudo encolar "${queryText}". Ten Spotify sonando en algún dispositivo.`, 'warning', user);
+        }
+      } catch(errGlobal) {
+        console.error('[Spotify Widget] Error en búsqueda de canción:', errGlobal);
+        showFloatingAlert(`Error al buscar "${queryText}"`, 'warning', user);
       } finally {
         isCurrentlyEnqueuing = false;
       }
     }
+
+    // Activador global de comandos directos vía Fetch a MrBoost (para botones interactivos)
+    window.triggerFetchCommand = async function(action, param = '') {
+      let url = '';
+      let label = '';
+      switch(action) {
+        case 'skip':
+        case 'next':
+          url = `https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+          label = 'Saltando canción...';
+          break;
+        case 'play':
+          url = `https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+          label = 'Reanudando música...';
+          break;
+        case 'pause':
+          url = `https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+          label = 'Pausando música...';
+          break;
+        case 'add':
+          if (!param) param = 'Bohemian Rhapsody Queen';
+          url = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(param)}`;
+          label = `Añadiendo a cola: "${param}"...`;
+          break;
+      }
+
+      showFloatingAlert(label, action === 'pause' ? 'pause' : (action === 'play' ? 'play' : (action === 'add' ? 'add' : 'skip')), 'DirectFetch');
+      try {
+        const res = await fetch(url, { cache: 'no-store' });
+        console.log(`[Spotify Widget] Direct Fetch [${action}] respuesta:`, res.status);
+        setTimeout(fetchPlaybackState, 1500);
+        return true;
+      } catch(e) {
+        console.error(`[Spotify Widget] Error Direct Fetch [${action}]:`, e);
+        return false;
+      }
+    };
 
     // Verificación estricta de Moderadores de Kick
     function checkIsModerator(username, badges = []) {
@@ -1497,7 +1615,7 @@
               id: 'spotify-widget-kick',
               events: {
                 General: ['Custom'],
-                Kick: ['ChatMessage', 'Message'],
+                Kick: ['ChatMessage'], // ⚠️ Solo ChatMessage para evitar doble disparo en Streamer.bot
                 Twitch: ['ChatMessage']
               }
             }));
@@ -1508,17 +1626,9 @@
               const msg = JSON.parse(event.data);
               const data = msg.data || msg.body || msg;
 
-              // Descartar si el ID único del mensaje ya fue procesado recientemente
-              const msgId = (data.message && data.message.id) || data.id || data.messageId || '';
-              if (msgId) {
-                if (recentMsgIds.has(msgId)) return;
-                recentMsgIds.add(msgId);
-                setTimeout(() => recentMsgIds.delete(msgId), 15000);
-              }
-
               // Mensajes de Chat de Kick / Twitch
-              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Message' || msg.event.type === 'Custom')) || 
-                             msg.type === 'ChatMessage' || msg.type === 'Message' || data.message || data.messageText;
+              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Custom')) || 
+                             msg.type === 'ChatMessage' || data.message || data.messageText;
 
               if (isChat) {
                 const messageObj = data.message || data;
@@ -1526,6 +1636,18 @@
                 const username = typeof userObj === 'string' ? userObj : (userObj.username || userObj.name || data.userName || 'Usuario');
                 const badges = userObj.badges || data.badges || [];
                 const content = typeof messageObj === 'string' ? messageObj : (messageObj.message || data.messageText || data.text || '');
+
+                // Huella digital infalible para deduplicar eventos gemelos de Kick o Streamer.bot
+                const rawMsgId = (data.message && data.message.id) || data.id || data.messageId || data.message_id || '';
+                const timeBucket = Math.floor(Date.now() / 3000);
+                const dedupeKey = rawMsgId ? `id_${rawMsgId}` : `msg_${username}_${(content || '').toLowerCase().trim()}_${timeBucket}`;
+
+                if (recentMsgIds.has(dedupeKey)) {
+                  console.log(`[Spotify Widget] 🛡️ Mensaje de chat duplicado descartado por WebSocket: ${dedupeKey}`);
+                  return;
+                }
+                recentMsgIds.add(dedupeKey);
+                setTimeout(() => recentMsgIds.delete(dedupeKey), 15000);
 
                 if (content && content.startsWith('!')) {
                   handleKickChatCommand(content, username, badges);
