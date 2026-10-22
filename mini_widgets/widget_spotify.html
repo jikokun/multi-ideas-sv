@@ -545,7 +545,7 @@
           <button type="button" class="dock-btn" onclick="setTheme('spotify')" title="Tema Spotify">🟢 Spotify</button>
           <button type="button" class="dock-btn" onclick="setTheme('kick')" title="Tema Kick">🐺 Kick</button>
           <button type="button" class="dock-btn" onclick="setTheme('cyberpunk')" title="Tema Cyberpunk">🟣 Cyber</button>
-          <button type="button" class="dock-btn" onclick="triggerFetchCommand('skip')" title="Saltar canción (MrBoost direct)">⏭️ Skip</button>
+          <button type="button" class="dock-btn" onclick="triggerFetchCommand('skip')" title="Saltar canción (Multi Ideas direct)">⏭️ Skip</button>
           <button type="button" class="dock-btn" onclick="triggerFetchCommand('play')" title="Reanudar">▶️ Play</button>
           <button type="button" class="dock-btn" onclick="triggerFetchCommand('pause')" title="Pausar">⏸️ Pausa</button>
           <button type="button" class="dock-btn" id="lockPosBtn" onclick="toggleLockPosition()" title="Bloquear / Desbloquear Arrastre">🔓</button>
@@ -650,9 +650,9 @@
     let pollInterval = null;
     let currentTrackData = null;
 
-    // Configuración de Integración MrBoost & Streamer.bot
-    const SPOTIFY_USER = urlParams.get('mrboost_user') || urlParams.get('user') || 'jikokun2';
-    // Modos de control: 'hybrid' (intenta API + MrBoost fallback), 'streamerbot' (visualizer only, Streamer.bot ejecuta fetch para evitar doble salto), 'mrboost' (control 100% MrBoost)
+    // Configuración de Integración Multi Ideas & Streamer.bot
+    const SPOTIFY_USER = urlParams.get('spotify_user') || urlParams.get('mrboost_user') || urlParams.get('user') || 'jikokun2';
+    // Modos de control: 'hybrid' (intenta API + Multi Ideas fallback), 'streamerbot' (visualizer only, Streamer.bot ejecuta fetch para evitar doble salto), 'direct' (control 100% Fetch nativo)
     const CONTROL_MODE = urlParams.get('control_mode') || urlParams.get('skip_mode') || 'hybrid';
 
     // Configuración de Moderadores de Kick (Whitelist autorizada)
@@ -874,28 +874,24 @@
         return false;
       }
 
-      // 1. PRIMER INTENTO: Proxy Backend de MrBoost (CORS habilitado con Access-Control-Allow-Origin: *)
+      // 1. PRIMER INTENTO: Backend Nativo Multi Ideas SV (CORS habilitado con Access-Control-Allow-Origin: *)
       try {
-        const refreshUrl = 'https://mrboostlive.com/spotify/refresh_token.php';
-        const mrRes = await fetch(refreshUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: `user_id=${encodeURIComponent(SPOTIFY_USER)}&refresh_token=${encodeURIComponent(refreshToken)}`
-        });
-        if (mrRes.ok) {
-          const newToken = (await mrRes.text()).trim();
+        const refreshUrl = `https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(SPOTIFY_USER)}&refresh_token=${encodeURIComponent(refreshToken)}`;
+        const nativeRes = await fetch(refreshUrl, { cache: 'no-store' });
+        if (nativeRes.ok) {
+          const newToken = (await nativeRes.text()).trim();
           if (newToken && !newToken.includes('<') && newToken.length > 20) {
             accessToken = newToken;
             tokenExpires = Date.now() + (3600 * 1000);
             localStorage.setItem('spotify_access_token', accessToken);
             localStorage.setItem('spotify_token_expires', tokenExpires.toString());
-            console.log('[Spotify Widget] ✅ Token renovado exitosamente vía MrBoost Backend Proxy');
+            console.log('[Spotify Widget] ✅ Token renovado exitosamente vía Multi Ideas Backend');
             setDisconnectedUI(false);
             return true;
           }
         }
-      } catch (errMr) {
-        console.warn('[Spotify Widget] Fallo proxy MrBoost, intentando PKCE directo...', errMr);
+      } catch (errNative) {
+        console.warn('[Spotify Widget] Fallo proxy nativo, intentando PKCE directo...', errNative);
       }
 
       // 2. SEGUNDO INTENTO: Spotify accounts PKCE directo (sin Authorization Basic para no ser bloqueado por CORS)
@@ -1353,12 +1349,12 @@
 
       try {
         let skipped = false;
-        // Intentar primero vía endpoint directo de MrBoost
+        // Intentar primero vía endpoint directo nativo Multi Ideas SV
         try {
-          const mbRes = await fetch(`https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' });
-          if (mbRes.ok) {
+          const nativeRes = await fetch(`https://sensunshopweb.web.app/spotify/skip?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' });
+          if (nativeRes.ok) {
             skipped = true;
-            console.log('[Spotify Widget] ⏭️ Salto ejecutado con éxito vía MrBoost skip.php');
+            console.log('[Spotify Widget] ⏭️ Salto ejecutado con éxito vía Multi Ideas SV skip');
           }
         } catch(errMb) {}
 
@@ -1407,7 +1403,7 @@
       if (lower === '!play' || lower === '!reanudar') {
         let ok = await spotifyApi('/me/player/play', 'PUT');
         if (!ok) {
-          try { await fetch(`https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
+          try { await fetch(`https://sensunshopweb.web.app/spotify/play?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
         }
         isPlaying = true;
         document.getElementById('compactPlayerCard').classList.add('is-playing');
@@ -1420,7 +1416,7 @@
       if (lower === '!pausa' || lower === '!pause') {
         let ok = await spotifyApi('/me/player/pause', 'PUT');
         if (!ok) {
-          try { await fetch(`https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
+          try { await fetch(`https://sensunshopweb.web.app/spotify/pause?user=${encodeURIComponent(SPOTIFY_USER)}`, { cache: 'no-store' }); ok = true; } catch(e) {}
         }
         isPlaying = false;
         document.getElementById('compactPlayerCard').classList.remove('is-playing');
@@ -1500,18 +1496,18 @@
           }
         }
 
-        // 2. Si falló la API directa (dispositivo en reposo, token vencido o sin premium), Fallback inmediato a MrBoost
+        // 2. Si falló la API directa (dispositivo en reposo, token vencido o sin premium), Fallback inmediato a Multi Ideas Backend
         if (!enqueued) {
-          console.log(`[Spotify Widget] 🔄 Activando fallback de encolado vía MrBoost add_to_queue.php para: "${songTitle}"`);
+          console.log(`[Spotify Widget] 🔄 Activando fallback de encolado vía Multi Ideas add_to_queue para: "${songTitle}"`);
           try {
             const mbSearchTerm = songArtist ? `${songTitle} ${songArtist}` : queryText;
-            const mbUrl = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(mbSearchTerm)}`;
-            const mbRes = await fetch(mbUrl, { cache: 'no-store' });
-            if (mbRes.ok) {
+            const nativeUrl = `https://sensunshopweb.web.app/spotify/add_to_queue?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(mbSearchTerm)}`;
+            const nativeRes = await fetch(nativeUrl, { cache: 'no-store' });
+            if (nativeRes.ok) {
               enqueued = true;
             }
           } catch(errMb) {
-            console.error('[Spotify Widget] Fallback MrBoost falló:', errMb);
+            console.error('[Spotify Widget] Fallback nativo falló:', errMb);
           }
         }
 
@@ -1535,27 +1531,28 @@
       }
     }
 
-    // Activador global de comandos directos vía Fetch a MrBoost (para botones interactivos)
+    // Activador global de comandos directos vía Fetch nativo Multi Ideas (para botones interactivos)
     window.triggerFetchCommand = async function(action, param = '') {
       let url = '';
       let label = '';
       switch(action) {
         case 'skip':
         case 'next':
-          url = `https://mrboostlive.com/spotify/skip.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+          url = `https://sensunshopweb.web.app/spotify/skip?user=${encodeURIComponent(SPOTIFY_USER)}`;
           label = 'Saltando canción...';
           break;
         case 'play':
-          url = `https://mrboostlive.com/spotify/pause.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+        case 'resume':
+          url = `https://sensunshopweb.web.app/spotify/play?user=${encodeURIComponent(SPOTIFY_USER)}`;
           label = 'Reanudando música...';
           break;
         case 'pause':
-          url = `https://mrboostlive.com/spotify/play.php?user=${encodeURIComponent(SPOTIFY_USER)}`;
+          url = `https://sensunshopweb.web.app/spotify/pause?user=${encodeURIComponent(SPOTIFY_USER)}`;
           label = 'Pausando música...';
           break;
         case 'add':
           if (!param) param = 'Bohemian Rhapsody Queen';
-          url = `https://mrboostlive.com/spotify/add_to_queue.php?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(param)}`;
+          url = `https://sensunshopweb.web.app/spotify/add_to_queue?user=${encodeURIComponent(SPOTIFY_USER)}&song_name=${encodeURIComponent(param)}`;
           label = `Añadiendo a cola: "${param}"...`;
           break;
       }

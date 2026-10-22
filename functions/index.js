@@ -344,14 +344,302 @@ exports.onUserCreated = functions.auth.user().onCreate(async (userRecord) => {
  * ------------------------------------------------------------------------------
  */
 exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
+});
+
+/**
+ * ══════════════════════════════════════════════════════════════════════════════
+ * 8. MULTI IDEAS SV - SPOTIFY DEVELOPER API & DIRECT ACTIVATION ENDPOINTS
+ * ══════════════════════════════════════════════════════════════════════════════
+ * Reemplazo 100% nativo de MrBoost usando nuestra propia App de Spotify Developer.
+ * Compatible con llamadas GET simples (Fetch URL) desde Streamer.bot, Botrix, etc.
+ * 
+ * Endpoints:
+ *  - /api/spotify/add_to_queue?user=jikokun2&song_name=...
+ *  - /api/spotify/skip?user=jikokun2
+ *  - /api/spotify/play?user=jikokun2
+ *  - /api/spotify/pause?user=jikokun2
+ *  - /api/spotify/status?user=jikokun2
+ *  - /api/spotify/refresh_token?user=jikokun2
+ *  - /api/spotify/save_token?user=jikokun2&refresh_token=...
+ * ══════════════════════════════════════════════════════════════════════════════
+ */
+
+const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || "86895cd4fce24473b50586a16122bd22";
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || "98f13b050abb432482d9c3b80c6babff";
+
+async function getValidSpotifyToken(userId) {
+    const db = admin.database();
+    const user = (userId || "jikokun2").toLowerCase().trim();
+    const snap = await db.ref(`stream/spotify_auth/${user}`).once("value");
+    let authData = snap.val() || {};
+
+    let accessToken = authData.access_token;
+    let refreshToken = authData.refresh_token;
+    const expiresAt = Number(authData.token_expires) || 0;
+
+    // Si aún no hay refresh_token en RTDB, intentar semilla conocida de jikokun2
+    if (!refreshToken && user === "jikokun2") {
+        refreshToken = "AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM";
+    }
+
+    // Si el token aún es válido por más de 90 segundos, reutilizar
+    if (accessToken && Date.now() < (expiresAt - 90000)) {
+        return { accessToken, refreshToken, user };
+    }
+
+    if (!refreshToken) {
+        throw new Error(`No se encontró refresh_token para el usuario '${user}'. Inicia sesión desde el Laboratorio.`);
+    }
+
+    // Renovar token server-side con Basic Auth (Client Secret seguro sin bloqueo de CORS)
+    const bodyParams = new URLSearchParams({
+        grant_type: "refresh_token",
+        refresh_token: refreshToken
+    });
+
+    const basicAuth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
+    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Authorization": `Basic ${basicAuth}`
+        },
+        body: bodyParams.toString()
+    });
+
+    const tokenData = await tokenRes.json();
+    if (!tokenRes.ok || !tokenData.access_token) {
+        throw new Error(tokenData.error_description || tokenData.error || "Fallo al renovar token de Spotify");
+    }
+
+    accessToken = tokenData.access_token;
+    const newExpires = Date.now() + (tokenData.expires_in * 1000);
+    if (tokenData.refresh_token) {
+        refreshToken = tokenData.refresh_token;
+    }
+
+    // Guardar token renovado en Firebase Realtime Database
+    await db.ref(`stream/spotify_auth/${user}`).update({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        token_expires: newExpires,
+        last_refreshed: Date.now()
+    });
+
+    return { accessToken, refreshToken, user };
+}
+
+exports.spotifyControl = functions.https.onRequest(async (req, res) => {
+    // Cabeceras CORS universales para Fetch silencioso desde cualquier bot o cliente
+    res.set("Access-Control-Allow-Origin", "*");
+    res.set("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+    if (req.method === "OPTIONS") {
+        return res.status(204).send("");
+    }
+
+    // Extraer usuario y acción ya sea de la ruta (URL path) o de la query string
+    const user = (req.query.user || req.query.user_id || req.query.username || req.body.user || "jikokun2").toLowerCase().trim();
+    const pathParts = req.path.split("/").filter(Boolean);
+    const lastPart = pathParts.length > 0 ? pathParts[pathParts.length - 1].toLowerCase() : "";
+
+    let action = (req.query.action || req.query.cmd || (lastPart && !["spotify", "spotifycontrol", "api"].includes(lastPart) ? lastPart : "") || "").toLowerCase();
+    if (action.endsWith(".php")) action = action.replace(".php", "");
+
+    const songQuery = req.query.song_name || req.query.song || req.query.q || req.query.songname || req.body.song_name || req.body.song || "";
+
+    const db = admin.database();
+    const cooldownRef = db.ref(`stream/spotify_live/cooldowns/${user}`);
+
     try {
-        const db = admin.database();
-        await db.ref(`sensunshop/users/${userRecord.uid}`).remove();
-        console.log(`[onUserDeleted] 🗑️ Usuario ${userRecord.uid} eliminado de sensunshop/users`);
-        return null;
-    } catch (error) {
-        console.error("[onUserDeleted] ❌ Error al eliminar:", error);
-        return null;
+        // ── 0. Guardar o vincular tokens directamente ──────────────────────────
+        if (action === "save_token" || action === "set_token") {
+            const rToken = req.query.refresh_token || req.body.refresh_token;
+            const aToken = req.query.access_token || req.body.access_token;
+            if (!rToken && !aToken) {
+                return res.status(400).send("Faltan parámetros refresh_token o access_token");
+            }
+            const updateObj = { last_updated: Date.now() };
+            if (rToken) updateObj.refresh_token = rToken;
+            if (aToken) {
+                updateObj.access_token = aToken;
+                updateObj.token_expires = Date.now() + 3600000;
+            }
+            await db.ref(`stream/spotify_auth/${user}`).update(updateObj);
+            return res.status(200).send(`Tokens actualizados exitosamente para el usuario ${user}`);
+        }
+
+        // Obtener datos de cooldown atómico para prevenir duplicados rápidos de Streamer.bot / Botrix
+        const cooldownSnap = await cooldownRef.once("value");
+        const cooldowns = cooldownSnap.val() || {};
+
+        // Obtener token de acceso activo y válido (renovado en servidor si expiró)
+        const { accessToken } = await getValidSpotifyToken(user);
+
+        // ── 1. Acción: SALTAR CANCIÓN (Skip / Next) ─────────────────────────────
+        if (action === "skip" || action === "next" || action === "skipsong") {
+            const now = Date.now();
+            const lastSkip = Number(cooldowns.last_skip_time) || 0;
+            // 🛡️ REGLA ANTI-DOBLE SALTO EN SERVIDOR: Bloquear ejecuciones duplicadas en menos de 2.5 segundos
+            if (now - lastSkip < 2500) {
+                console.log(`[spotifyControl] 🛡️ Anti-doble salto activado para '${user}' (${now - lastSkip}ms transcurridos). Omitiendo petición repetida.`);
+                return res.status(200).send("Song Skipped! (Anti-duplicate suppressed)");
+            }
+
+            await cooldownRef.update({ last_skip_time: now });
+
+            const apiRes = await fetch("https://api.spotify.com/v1/me/player/next", {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (apiRes.status === 204 || apiRes.status === 200) {
+                db.ref("stream/spotify_live/last_action").set({
+                    action: "skip",
+                    user: user,
+                    timestamp: now
+                }).catch(() => {});
+
+                return res.status(200).send("Song Skipped!");
+            }
+
+            const errText = await apiRes.text();
+            return res.status(apiRes.status).send(`Spotify API Error: ${errText || "No active device"}`);
+        }
+
+        // ── 2. Acción: REANUDAR MÚSICA (Play / Resume) ─────────────────────────
+        if (action === "play" || action === "resume" || action === "reanudar") {
+            const apiRes = await fetch("https://api.spotify.com/v1/me/player/play", {
+                method: "PUT",
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (apiRes.status === 204 || apiRes.status === 200) {
+                return res.status(200).send("Spotify playback resumed.");
+            }
+            return res.status(apiRes.status).send("Failed to resume Spotify playback.");
+        }
+
+        // ── 3. Acción: PAUSAR MÚSICA (Pause) ───────────────────────────────────
+        if (action === "pause" || action === "pausa") {
+            const apiRes = await fetch("https://api.spotify.com/v1/me/player/pause", {
+                method: "PUT",
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (apiRes.status === 204 || apiRes.status === 200) {
+                return res.status(200).send("Spotify playback paused.");
+            }
+            return res.status(apiRes.status).send("Failed to pause Spotify playback.");
+        }
+
+        // ── 4. Acción: AÑADIR A LA COLA (Add to Queue) ─────────────────────────
+        if (action === "add" || action === "add_to_queue" || action === "addsong" || action === "pedir") {
+            if (!songQuery || songQuery.trim() === "") {
+                return res.status(400).send("Song name is missing");
+            }
+
+            // Normalizar formato "Song by Artist"
+            let searchQ = songQuery.trim();
+            const byMatch = searchQ.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
+            if (byMatch) {
+                searchQ = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
+            }
+
+            // Buscar en Spotify API
+            let searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQ)}&type=track&limit=10`, {
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+            let searchData = await searchRes.json();
+
+            // Fallback a búsqueda simple si la estructurada no dio resultados
+            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
+                searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(songQuery)}&type=track&limit=10`, {
+                    headers: { "Authorization": `Bearer ${accessToken}` }
+                });
+                searchData = await searchRes.json();
+            }
+
+            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
+                return res.status(404).send(`No song found for "${songQuery}"`);
+            }
+
+            // Priorizar por popularidad
+            const tracks = searchData.tracks.items;
+            tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+            const selectedTrack = tracks[0];
+            const artistName = selectedTrack.artists ? selectedTrack.artists[0].name : "Artista";
+
+            // 🛡️ REGLA ANTI-DUPLICADO DE COLA: Evitar encolar 2 veces la misma canción si Streamer.bot envía doble disparo
+            const now = Date.now();
+            if (cooldowns.last_added_uri === selectedTrack.uri && (now - Number(cooldowns.last_added_time || 0) < 4000)) {
+                console.log(`[spotifyControl] 🛡️ Canción duplicada encolada ignorada por anti-spam: ${selectedTrack.name}`);
+                return res.status(200).send(`Added to queue: "${selectedTrack.name}" (${artistName})`);
+            }
+            await cooldownRef.update({
+                last_added_uri: selectedTrack.uri,
+                last_added_time: now
+            });
+
+            // Encolar canción en Spotify
+            const queueRes = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(selectedTrack.uri)}`, {
+                method: "POST",
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (queueRes.status === 204 || queueRes.status === 200) {
+                db.ref("stream/spotify_live/last_action").set({
+                    action: "add",
+                    song: selectedTrack.name,
+                    artist: artistName,
+                    user: user,
+                    timestamp: now
+                }).catch(() => {});
+
+                return res.status(200).send(`Added to queue: "${selectedTrack.name}" (${artistName})`);
+            }
+
+            const queueErr = await queueRes.text();
+            return res.status(queueRes.status).send(`Failed to add song to queue: ${queueErr || "Device inactive"}`);
+        }
+
+        // ── 5. Acción: PROXY DE RENOVACIÓN DE TOKEN (Para Widgets en OBS) ──────
+        if (action === "refresh_token") {
+            const passedRefreshToken = req.query.refresh_token || req.body.refresh_token;
+            if (passedRefreshToken) {
+                await db.ref(`stream/spotify_auth/${user}`).update({
+                    refresh_token: passedRefreshToken,
+                    last_updated: Date.now()
+                });
+            }
+            return res.status(200).send(accessToken);
+        }
+
+        // ── 6. Acción: ESTADO EN VIVO Y COLA ──────────────────────────────────
+        if (action === "status" || action === "display_queue" || action === "displayqueue") {
+            const playerRes = await fetch("https://api.spotify.com/v1/me/player", {
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            if (playerRes.status === 204) {
+                return res.status(200).json({ is_playing: false, tracks: [] });
+            }
+
+            if (playerRes.ok) {
+                const playerData = await playerRes.json();
+                return res.status(200).json(playerData);
+            }
+
+            return res.status(playerRes.status).json({ error: "Could not fetch playback state" });
+        }
+
+        // Si la acción no coincide con ninguna
+        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: add_to_queue, skip, play, pause, status, refresh_token.`);
+
+    } catch (err) {
+        console.error(`[spotifyControl] ❌ Error ejecutando acción '${action}':`, err);
+        return res.status(500).send(`Error en servidor: ${err.message}`);
     }
 });
 
