@@ -1098,11 +1098,21 @@
     }
 
     /* ==========================================================================
-       EJECUCIÓN DE COMANDOS DE CHAT DE KICK
+       EJECUCIÓN DE COMANDOS DE CHAT DE KICK / TWITCH
        ========================================================================== */
+    let lastHandledCommand = { text: '', time: 0 };
+
     async function handleKickChatCommand(cmdText, user = 'Viewer', badges = []) {
       const raw = cmdText.trim();
       const lower = raw.toLowerCase();
+
+      // Control anti-duplicados: Si el mismo comando se recibe en menos de 2s (duplicado de Streamer.bot), ignorar
+      const now = Date.now();
+      if (lastHandledCommand.text === lower && (now - lastHandledCommand.time) < 2000) {
+        console.log(`[Spotify Widget] 🛡️ Ignorando comando duplicado de chat (<2s): "${raw}"`);
+        return;
+      }
+      lastHandledCommand = { text: lower, time: now };
 
       // 1. COMANDO !skipsong (Solo para Moderadores)
       if (lower === '!skipsong' || lower === '!skip' || lower === '!saltar') {
@@ -1157,186 +1167,40 @@
       }
     }
 
-    /* ==========================================================================
-       CONTROL ANTI-DUPLICADOS & BÚSQUEDA INTELIGENTE DE CANCIÓN MÁS CONOCIDA
-       ========================================================================== */
-    const recentSongRequests = new Map();
-
-    function yaFueEncoladaRecientemente(trackUri) {
-      try {
-        const raw = localStorage.getItem('jiko_spotify_last_queued');
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed.uri === trackUri && (Date.now() - parsed.timestamp) < 4500) {
-            return true;
-          }
-        }
-      } catch(e) {}
-      return false;
-    }
-
-    function registrarPistaEncolada(trackUri, trackName) {
-      try {
-        localStorage.setItem('jiko_spotify_last_queued', JSON.stringify({
-          uri: trackUri,
-          name: trackName,
-          timestamp: Date.now()
-        }));
-      } catch(e) {}
-    }
-
-    function normalizarTituloCancion(title) {
-      if (!title) return '';
-      return title
-        .toLowerCase()
-        // Remover sufijos comunes como (Remastered 2011), [Official Video], etc.
-        .replace(/\s*[\(\[][^\)\]]*(?:remaster|remix|version|mix|audio|video|edit|live|deluxe|bonus|feat|ft\.)[^\)\]]*[\)\]]/gi, '')
-        .replace(/[^\w\s\u00C0-\u017F]/gi, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-    }
-
-    // Calcula un puntaje de relevancia que prioriza SIEMPRE la canción más conocida y original
-    function calcularPuntajePopularidad(track, queryText, reqTrack, reqArtist) {
-      if (!track) return -999;
-
-      // 1. Puntaje base: Popularidad oficial de Spotify (0 a 100)
-      let score = Number(track.popularity) || 0;
-
-      const trackNameLower = (track.name || '').toLowerCase();
-      const normTrackName = normalizarTituloCancion(track.name);
-      const queryLower = queryText.toLowerCase().trim();
-      const normQuery = normalizarTituloCancion(reqTrack || queryText);
-
-      // 2. Penalización estricta para versiones no deseadas (Karaoke, Covers, Tributos, 8D, etc.)
-      const terminosNoDeseados = [
-        'karaoke', 'tribute', 'tributo', 'cover', 'instrumental',
-        'backing track', '8d audio', 'slowed', 'reverb', 'parodia',
-        'ringtone', 'soundtrack version', 'in the style of', 'made famous by'
-      ];
-
-      for (const termino of terminosNoDeseados) {
-        if (!queryLower.includes(termino) && trackNameLower.includes(termino)) {
-          score -= 50; // Penalización severa para relegar karaokes y covers
-        }
-      }
-
-      // 3. Bonificación por coincidencia exacta o cercana del nombre
-      if (normQuery && normTrackName) {
-        if (normTrackName === normQuery) {
-          score += 35; // Coincidencia exacta de título
-        } else if (normTrackName.startsWith(normQuery) || normQuery.startsWith(normTrackName)) {
-          score += 20; // Coincidencia de prefijo
-        } else if (normTrackName.includes(normQuery)) {
-          score += 10;
-        }
-      }
-
-      // 4. Si el usuario especificó artista ("Cancion by Artista"), bonificar coincidencia
-      if (reqArtist && Array.isArray(track.artists)) {
-        const reqArtistLower = reqArtist.toLowerCase().trim();
-        const coincideArtista = track.artists.some(a => (a.name || '').toLowerCase().includes(reqArtistLower));
-        if (coincideArtista) {
-          score += 40;
-        } else {
-          score -= 25; // Si se pidió un artista específico y no es, penalizar
-        }
-      }
-
-      return score;
-    }
-
     // Búsqueda inteligente y añadido a la cola de Spotify priorizando la canción más conocida
     async function executeAddSongSearch(queryText, user) {
-      const cleanUser = String(user || 'Viewer').replace(/^@/, '').trim();
-      const cleanQuery = String(queryText || '').trim();
+      showFloatingAlert(`Buscando "${queryText}" en Spotify...`, 'info', user);
 
-      if (!cleanQuery) return;
-
-      // Anti-duplicados por usuario + consulta en ventana de 5 segundos
-      const dedupeKey = `${cleanUser.toLowerCase()}_${cleanQuery.toLowerCase()}`;
-      const now = Date.now();
-      if (recentSongRequests.has(dedupeKey) && (now - recentSongRequests.get(dedupeKey)) < 5000) {
-        console.log(`[Spotify Widget] 🛡️ Solicitud duplicada ignorada para "${cleanQuery}" de @${cleanUser}`);
-        return;
-      }
-      recentSongRequests.set(dedupeKey, now);
-
-      if (recentSongRequests.size > 100) {
-        const oldestKey = recentSongRequests.keys().next().value;
-        recentSongRequests.delete(oldestKey);
-      }
-
-      showFloatingAlert(`Buscando "${cleanQuery}" en Spotify...`, 'info', cleanUser);
-
-      // Desglosar formato "Canción by Artista" o "Canción de Artista"
-      let reqTrack = '';
-      let reqArtist = '';
-      const byMatch = cleanQuery.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
+      // Normalizar formato "Song by Artist" o "Song de Artist"
+      let cleanQuery = queryText;
+      const byMatch = queryText.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
       if (byMatch) {
-        reqTrack = byMatch[1].trim();
-        reqArtist = byMatch[2].trim();
-      } else {
-        reqTrack = cleanQuery;
+        cleanQuery = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
       }
 
-      let candidateTracks = [];
-
-      // 1. Si especificó artista, buscar estructurado primero con límite amplio (15 resultados)
-      if (reqArtist) {
-        const structuredQuery = `track:${reqTrack} artist:${reqArtist}`;
-        const dataStruct = await spotifyApi(`/search?q=${encodeURIComponent(structuredQuery)}&type=track&limit=15`);
-        if (dataStruct && dataStruct.tracks && dataStruct.tracks.items && dataStruct.tracks.items.length > 0) {
-          candidateTracks = dataStruct.tracks.items;
-        }
+      // Buscar hasta 10 candidatos para ordenar por popularidad
+      let data = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=10`);
+      // Fallback a búsqueda simple si la estructurada no devolvió resultados
+      if (!data || !data.tracks || data.tracks.items.length === 0) {
+        data = await spotifyApi(`/search?q=${encodeURIComponent(queryText)}&type=track&limit=10`);
       }
 
-      // 2. Si no especificó artista o la búsqueda estructurada no devolvió resultados, buscar con texto directo
-      if (candidateTracks.length === 0) {
-        const dataGeneral = await spotifyApi(`/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=15`);
-        if (dataGeneral && dataGeneral.tracks && dataGeneral.tracks.items && dataGeneral.tracks.items.length > 0) {
-          candidateTracks = dataGeneral.tracks.items;
-        }
-      }
+      if (data && data.tracks && data.tracks.items.length > 0) {
+        // Ordenar candidatos por popularidad oficial de Spotify (0 a 100) para elegir la más conocida
+        const items = data.tracks.items;
+        items.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
 
-      // 3. Fallback adicional si solo puso el nombre
-      if (candidateTracks.length === 0 && reqTrack && reqTrack !== cleanQuery) {
-        const dataTrackOnly = await spotifyApi(`/search?q=${encodeURIComponent(reqTrack)}&type=track&limit=15`);
-        if (dataTrackOnly && dataTrackOnly.tracks && dataTrackOnly.tracks.items && dataTrackOnly.tracks.items.length > 0) {
-          candidateTracks = dataTrackOnly.tracks.items;
-        }
-      }
-
-      if (candidateTracks.length > 0) {
-        // Ordenar candidatos por el puntaje que combina popularidad oficial de Spotify y relevancia del título
-        candidateTracks.sort((a, b) => {
-          const scoreA = calcularPuntajePopularidad(a, cleanQuery, reqTrack, reqArtist);
-          const scoreB = calcularPuntajePopularidad(b, cleanQuery, reqTrack, reqArtist);
-          return scoreB - scoreA;
-        });
-
-        const bestTrack = candidateTracks[0];
-        const primaryArtist = bestTrack.artists && bestTrack.artists.length > 0 ? bestTrack.artists[0].name : 'Desconocido';
-
-        // Protección anti-duplicados entre múltiples fuentes/pestañas de OBS
-        if (yaFueEncoladaRecientemente(bestTrack.uri)) {
-          console.log(`[Spotify Widget] 🛡️ La canción "${bestTrack.name}" ya fue añadida hace unos instantes por otra instancia.`);
-          showFloatingAlert(`"${bestTrack.name}" (${primaryArtist}) ya está en la cola`, 'add', cleanUser);
-          return;
-        }
-
-        registrarPistaEncolada(bestTrack.uri, bestTrack.name);
-
-        const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(bestTrack.uri)}`, 'POST');
+        const track = items[0];
+        const artist = track.artists ? track.artists[0].name : '';
+        const res = await spotifyApi(`/me/player/queue?uri=${encodeURIComponent(track.uri)}`, 'POST');
 
         if (res) {
-          console.log(`[Spotify Widget] 🎵 Canción más conocida seleccionada: "${bestTrack.name}" de ${primaryArtist} (Popularidad: ${bestTrack.popularity || 0}%)`);
-          showFloatingAlert(`Añadida a la cola: "${bestTrack.name}" (${primaryArtist})`, 'add', cleanUser);
+          showFloatingAlert(`Añadida a la cola: "${track.name}" (${artist})`, 'add', user);
         } else {
-          showFloatingAlert(`No se pudo encolar. Ten Spotify sonando en algún dispositivo.`, 'warning', cleanUser);
+          showFloatingAlert(`No se pudo encolar. Ten Spotify sonando en algún dispositivo.`, 'warning', user);
         }
       } else {
-        showFloatingAlert(`No se encontró "${cleanQuery}" en Spotify`, 'warning', cleanUser);
+        showFloatingAlert(`No se encontró "${queryText}" en Spotify`, 'warning', user);
       }
     }
 
@@ -1360,11 +1224,10 @@
     }
 
     /* ==========================================================================
-       CONEXIÓN WEBSOCKET CON STREAMER.BOT (KICK CHAT)
+       CONEXIÓN WEBSOCKET CON STREAMER.BOT (KICK / TWITCH CHAT)
        ========================================================================== */
     let streamerbotWs = null;
     let wsPort = urlParams.get('ws_port') || urlParams.get('port') || '8080';
-    const processedMessageIds = new Set();
 
     function initStreamerbotConnection() {
       const ports = [wsPort, '8080', '4445'];
@@ -1379,13 +1242,13 @@
 
           streamerbotWs.onopen = () => {
             console.log(`[Spotify Widget] ✅ Conectado a Streamer.bot (puerto ${p})`);
-            // Se suscribe únicamente a 'ChatMessage' para evitar que Streamer.bot envíe duplicados con 'Message'
             streamerbotWs.send(JSON.stringify({
               request: 'Subscribe',
               id: 'spotify-widget-kick',
               events: {
                 General: ['Custom'],
-                Kick: ['ChatMessage']
+                Kick: ['ChatMessage', 'Message'],
+                Twitch: ['ChatMessage']
               }
             }));
           };
@@ -1395,25 +1258,9 @@
               const msg = JSON.parse(event.data);
               const data = msg.data || msg.body || msg;
 
-              // Deduplicar mensajes por ID de mensaje de Streamer.bot
-              const msgId = data.message_id || data.id || data.msgId || (data.message && data.message.id);
-              if (msgId) {
-                if (processedMessageIds.has(msgId)) return;
-                processedMessageIds.add(msgId);
-                if (processedMessageIds.size > 200) {
-                  const first = processedMessageIds.values().next().value;
-                  processedMessageIds.delete(first);
-                }
-              }
-
-              // Omitir eventos duplicados de tipo genérico 'Message' si Streamer.bot los envía
-              const eventType = msg.event ? (msg.event.type || msg.event.name || '') : (msg.type || '');
-              if (eventType === 'Message') {
-                return;
-              }
-
-              // Mensajes de Chat de Kick
-              const isChat = eventType === 'ChatMessage' || (!eventType && (data.message || data.messageText));
+              // Mensajes de Chat de Kick / Twitch
+              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Message')) || 
+                             msg.type === 'ChatMessage' || data.message || data.messageText;
 
               if (isChat) {
                 const messageObj = data.message || data;
