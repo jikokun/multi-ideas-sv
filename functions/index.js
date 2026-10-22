@@ -619,6 +619,23 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                     timestamp: now
                 }).catch(() => {});
 
+                const format = (req.query.format || "").toLowerCase();
+                if (format === "name" || format === "title" || format === "clean") {
+                    return res.status(200).send(`${selectedTrack.name} de ${artistName}`);
+                }
+                if (format === "song") {
+                    return res.status(200).send(selectedTrack.name);
+                }
+                if (format === "json") {
+                    return res.status(200).json({
+                        success: true,
+                        song: selectedTrack.name,
+                        artist: artistName,
+                        title: `${selectedTrack.name} de ${artistName}`,
+                        url: selectedTrack.external_urls && selectedTrack.external_urls.spotify ? selectedTrack.external_urls.spotify : ""
+                    });
+                }
+
                 return res.status(200).send(`Added to queue: "${selectedTrack.name}" (${artistName})`);
             }
 
