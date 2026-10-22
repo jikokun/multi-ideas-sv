@@ -841,10 +841,16 @@
           }
         }
 
-        if (res.status === 204) return true; // Operaciones exitosas sin contenido
+        if (res.status === 204 || res.status === 202) return true; // Operaciones exitosas sin contenido
         if (res.ok) {
           setDisconnectedUI(false);
-          return await res.json();
+          const text = await res.text();
+          if (!text || text.trim() === '') return true;
+          try {
+            return JSON.parse(text);
+          } catch(e) {
+            return true;
+          }
         }
         return null;
       } catch (err) {
@@ -1491,7 +1497,7 @@
               id: 'spotify-widget-kick',
               events: {
                 General: ['Custom'],
-                Kick: ['ChatMessage'],
+                Kick: ['ChatMessage', 'Message'],
                 Twitch: ['ChatMessage']
               }
             }));
@@ -1502,11 +1508,7 @@
               const msg = JSON.parse(event.data);
               const data = msg.data || msg.body || msg;
 
-              // Filtrar evento redundante Kick 'Message' si Streamer.bot lo envía
-              const evType = (msg.event && (msg.event.type || msg.event.name)) || msg.type || '';
-              if (evType === 'Message') return;
-
-              // Descartar si el ID único del mensaje ya fue procesado
+              // Descartar si el ID único del mensaje ya fue procesado recientemente
               const msgId = (data.message && data.message.id) || data.id || data.messageId || '';
               if (msgId) {
                 if (recentMsgIds.has(msgId)) return;
@@ -1515,8 +1517,8 @@
               }
 
               // Mensajes de Chat de Kick / Twitch
-              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Custom')) || 
-                             msg.type === 'ChatMessage' || data.message || data.messageText;
+              const isChat = (msg.event && (msg.event.type === 'ChatMessage' || msg.event.type === 'Message' || msg.event.type === 'Custom')) || 
+                             msg.type === 'ChatMessage' || msg.type === 'Message' || data.message || data.messageText;
 
               if (isChat) {
                 const messageObj = data.message || data;
