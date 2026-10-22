@@ -377,18 +377,16 @@ async function getValidSpotifyToken(userId) {
     let refreshToken = authData.refresh_token;
     const expiresAt = Number(authData.token_expires) || 0;
 
-    // Si aún no hay refresh_token en RTDB, intentar semilla conocida de jikokun2
-    if (!refreshToken && user === "jikokun2") {
-        refreshToken = "AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM";
-    }
-
-    // Si el token aún es válido por más de 90 segundos, reutilizar
-    if (accessToken && Date.now() < (expiresAt - 90000)) {
+    // Si el token de acceso aún es válido por más de 60 segundos, reutilizarlo directamente
+    if (accessToken && Date.now() < (expiresAt - 60000)) {
         return { accessToken, refreshToken, user };
     }
 
     if (!refreshToken) {
-        throw new Error(`No se encontró refresh_token para el usuario '${user}'. Inicia sesión desde el Laboratorio.`);
+        if (accessToken) {
+            return { accessToken, refreshToken, user };
+        }
+        throw new Error(`No se encontró sesión activa de Spotify para '${user}'. Abre prueba.html y haz clic en 'Iniciar Sesión con Spotify' para vincular tu cuenta a tu App propia.`);
     }
 
     let tokenData = null;
@@ -432,7 +430,7 @@ async function getValidSpotifyToken(userId) {
                 throw new Error(data.error_description || data.error || "Fallo al renovar token de Spotify");
             }
         } catch(errPkce) {
-            throw new Error(`Fallo al renovar token de Spotify: ${errPkce.message}`);
+            throw new Error(`El token de Spotify expiró o no pertenece a tu App (${SPOTIFY_CLIENT_ID}). Por favor abre prueba.html y haz clic en 'Iniciar Sesión con Spotify' para vincular tu cuenta.`);
         }
     }
 

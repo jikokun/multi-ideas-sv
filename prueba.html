@@ -734,6 +734,16 @@
                     </div>
                 </div>
 
+                <!-- Barra de Sincronización de Token hacia Servidor -->
+                <div style="background: rgba(29, 185, 84, 0.08); border: 1px solid rgba(29, 185, 84, 0.25); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-size: 0.82rem; color: #cbd5e1; display: flex; align-items: center; gap: 8px;">
+                        <span id="spotifyServerSyncStatus">🟢 Estado Backend: Pulsa sincronizar si aún no lo has vinculado.</span>
+                    </div>
+                    <button type="button" class="test-btn" onclick="syncSpotifyTokenWithServerDirect()" style="padding: 7px 16px; font-size: 0.82rem; font-weight: 700; color: #1DB954; border-color: #1DB954; background: rgba(29,185,84,0.12); display: flex; align-items: center; gap: 6px;">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Sincronizar Token con Servidor
+                    </button>
+                </div>
+
                 <!-- Rejilla de Enlaces Directos -->
                 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; margin-bottom: 16px;">
                     <!-- 1. !addsong -->
@@ -3500,6 +3510,35 @@
                     consoleEl.innerHTML = `<span style="color:#ef4444;">❌ Error Fetch:</span> ${err.message}`;
                 }
                 log(`[Spotify Native Fetch] Error en solicitud: ${err.message}`, "error");
+            }
+        };
+
+        window.syncSpotifyTokenWithServerDirect = async function() {
+            const statusEl = document.getElementById('spotifyServerSyncStatus');
+            const token = localStorage.getItem('spotify_access_token');
+            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            const userInput = document.getElementById('mrboostUserLabInput');
+            const user = userInput && userInput.value ? userInput.value.trim() : 'jikokun2';
+
+            if (!token && !refreshToken) {
+                alert("⚠️ Primero debes hacer clic en 'Iniciar Sesión con Spotify' en la sección de arriba para autorizar tu cuenta.");
+                if (statusEl) statusEl.innerHTML = "<span style='color:#ef4444;'>❌ Sin sesión local: Inicia sesión arriba primero.</span>";
+                return;
+            }
+
+            if (statusEl) statusEl.innerHTML = "<span style='color:#00f5d4;'>⏳ Sincronizando token con el backend...</span>";
+
+            try {
+                const res = await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(refreshToken || '')}&access_token=${encodeURIComponent(token || '')}`);
+                const text = await res.text();
+                if (res.ok) {
+                    if (statusEl) statusEl.innerHTML = "<span style='color:#53fc18;'>✅ ¡Token propio sincronizado exitosamente en el servidor! Ya puedes usar tus enlaces de Fetch.</span>";
+                    log(`[Sync Token] ✅ ${text}`, "success");
+                } else {
+                    if (statusEl) statusEl.innerHTML = `<span style='color:#ef4444;'>❌ Error al sincronizar: ${text}</span>`;
+                }
+            } catch(e) {
+                if (statusEl) statusEl.innerHTML = `<span style='color:#ef4444;'>❌ Error de red: ${e.message}</span>`;
             }
         };
 
