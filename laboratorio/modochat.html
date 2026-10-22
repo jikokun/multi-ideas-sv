@@ -783,12 +783,11 @@
       flex-direction: column;
       justify-content: flex-end;
       gap: 12px;
-      overflow-y: auto;
-      scroll-behavior: smooth;
+      overflow: hidden;
       pointer-events: auto;
       z-index: 10;
       padding: 6px 4px;
-      /* Desvanecimiento superior suave para mensajes antiguos */
+      /* Desvanecimiento superior suave para mensajes que se acercan al tope */
       mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 6%, rgba(0,0,0,1) 14%, rgba(0,0,0,1) 100%);
       -webkit-mask-image: linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.6) 6%, rgba(0,0,0,1) 14%, rgba(0,0,0,1) 100%);
     }
@@ -811,6 +810,9 @@
       position: relative;
       align-self: flex-start;
       width: 100%;
+      flex-shrink: 0;
+      min-height: min-content;
+      box-sizing: border-box;
       background: linear-gradient(
         135deg,
         rgba(14, 42, 66, 0.72) 0%,
@@ -1769,14 +1771,8 @@
           '<div class="content" style="word-break: break-word;">' + safeContent + '</div>';
 
         chatContainer.appendChild(msgElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-
-        setTimeout(function() {
-          msgElement.classList.add('evaporating');
-          setTimeout(function() {
-            if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
-          }, 700);
-        }, 30000);
+        limpiarMensajesDesbordados();
+        requestAnimationFrame(limpiarMensajesDesbordados);
       }
 
       function showFollowAlert(data) {
@@ -1791,15 +1787,27 @@
           '<div class="content" style="word-break: break-word; color: #fff8d2; text-align: center; font-weight: 700;">¡Gracias por seguir el canal!</div>';
 
         chatContainer.appendChild(msgElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-
-        setTimeout(function() {
-          msgElement.classList.add('evaporating');
-          setTimeout(function() {
-            if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
-          }, 700);
-        }, 8000);
+        limpiarMensajesDesbordados();
+        requestAnimationFrame(limpiarMensajesDesbordados);
       }
+
+      function limpiarMensajesDesbordados() {
+        if (!chatContainer) return;
+        const containerRect = chatContainer.getBoundingClientRect();
+
+        // Eliminar del DOM los mensajes antiguos cuando ya hayan rebasado por completo el límite superior
+        while (chatContainer.firstElementChild) {
+          const firstMsg = chatContainer.firstElementChild;
+          const msgRect = firstMsg.getBoundingClientRect();
+          if (msgRect.bottom <= containerRect.top) {
+            firstMsg.remove();
+          } else {
+            break;
+          }
+        }
+      }
+
+      window.addEventListener('resize', limpiarMensajesDesbordados);
 
       function generarColorElegante(str) {
         let hash = 0;
@@ -1838,6 +1846,17 @@
           window.simularMensajeKick();
         }
       });
+
+      // Soporte para pruebas de spam mediante URL (ej: ?testSpam=20)
+      const urlParams = new URLSearchParams(window.location.search);
+      const testSpamCount = parseInt(urlParams.get('testSpam') || '0', 10);
+      if (testSpamCount > 0) {
+        setTimeout(function() {
+          for (let i = 0; i < testSpamCount; i++) {
+            window.simularMensajeKick("Mensaje spam #" + (i + 1) + " para validar que no se comprima", i % 2 === 0 ? "Jikokun" : "AquaViewer");
+          }
+        }, 500);
+      }
 
       conectarConStreamerBot();
     }

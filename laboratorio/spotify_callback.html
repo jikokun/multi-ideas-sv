@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spotify Auth Callback ✦ Multi Ideas Sv</title>
+  <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Rajdhani:wght@600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <style>
+    :root {
+      --spotify-green: #1DB954;
+      --spotify-dark: #121212;
+      --spotify-black: #080808;
+      --neon-aqua: #00f5d4;
+      --neon-cyan: #00e5ff;
+      --bg-dark: #030a14;
+      --text-white: #f8fafc;
+      --text-dim: #94a3b8;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: radial-gradient(circle at 50% 20%, #061c2e 0%, #030a14 60%, #010408 100%);
+      color: var(--text-white);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      overflow-x: hidden;
+    }
+
+    .callback-card {
+      background: linear-gradient(145deg, rgba(10, 30, 48, 0.85) 0%, rgba(4, 15, 26, 0.95) 100%);
+      border: 1px solid rgba(0, 245, 212, 0.35);
+      border-radius: 24px;
+      padding: 38px 32px;
+      max-width: 540px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(0, 245, 212, 0.15);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      position: relative;
+    }
+
+    .status-icon {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      margin: 0 auto 22px auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2.6rem;
+      position: relative;
+    }
+
+    .status-icon.loading {
+      background: rgba(0, 245, 212, 0.12);
+      border: 2px solid rgba(0, 245, 212, 0.4);
+      color: var(--neon-aqua);
+    }
+
+    .status-icon.loading i {
+      animation: spin 1.4s linear infinite;
+    }
+
+    .status-icon.success {
+      background: rgba(29, 185, 84, 0.15);
+      border: 2px solid var(--spotify-green);
+      color: var(--spotify-green);
+      box-shadow: 0 0 30px rgba(29, 185, 84, 0.4);
+      animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .status-icon.error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 2px solid #ef4444;
+      color: #ef4444;
+      box-shadow: 0 0 30px rgba(239, 68, 68, 0.35);
+    }
+
+    @keyframes spin {
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes popIn {
+      0% { transform: scale(0.6); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    h1 {
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #ffffff 0%, var(--neon-aqua) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-desc {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .user-pill {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      padding: 10px 18px;
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+
+    .user-pill img {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 2px solid var(--spotify-green);
+      object-fit: cover;
+    }
+
+    .btn-action {
+      background: linear-gradient(135deg, var(--spotify-green) 0%, #15883e 100%);
+      color: #ffffff;
+      font-family: 'Outfit', sans-serif;
+      font-weight: 800;
+      font-size: 1rem;
+      padding: 14px 28px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(29, 185, 84, 0.35);
+      width: 100%;
+    }
+
+    .btn-action:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(29, 185, 84, 0.5);
+      filter: brightness(1.1);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-white);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin-top: 12px;
+      box-shadow: none;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.15);
+      box-shadow: none;
+    }
+
+    .debug-log {
+      margin-top: 20px;
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 10px;
+      font-family: monospace;
+      font-size: 0.8rem;
+      color: #64748b;
+      text-align: left;
+      max-height: 120px;
+      overflow-y: auto;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="callback-card">
+    <div id="statusIcon" class="status-icon loading">
+      <i class="fa-solid fa-spinner"></i>
+    </div>
+
+    <h1 id="statusTitle">Autenticando con Spotify...</h1>
+    <p id="statusDesc" class="status-desc">Procesando código de autorización e intercambiando credenciales de acceso seguro.</p>
+
+    <div id="userPillContainer" style="display: none;">
+      <div class="user-pill">
+        <img id="userAvatar" src="" alt="Avatar">
+        <div style="text-align: left;">
+          <div id="userName" style="font-weight: 800; font-size: 0.95rem; color: #fff;">Usuario Spotify</div>
+          <div id="userEmail" style="font-size: 0.8rem; color: #1DB954;">Conectado y Listo</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="actionsContainer" style="display: none;">
+      <a id="btnReturnLab" href="../prueba.html#card-spotify-widget" class="btn-action">
+        <i class="fa-solid fa-arrow-left"></i> Volver al Laboratorio de Pruebas
+      </a>
+      <button id="btnCloseWindow" type="button" class="btn-action btn-secondary" onclick="window.close()">
+        <i class="fa-solid fa-xmark"></i> Cerrar esta Ventana
+      </button>
+    </div>
+
+    <div id="debugLog" class="debug-log">Iniciando verificación de parámetros OAuth...</div>
+  </div>
+
+  <script>
+    const CLIENT_ID = '86895cd4fce24473b50586a16122bd22';
+    const CLIENT_SECRET = '98f13b050abb432482d9c3b80c6babff';
+
+    const logEl = document.getElementById('debugLog');
+    function log(msg) {
+      if (logEl) {
+        logEl.textContent += '\n' + msg;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      console.log('[Spotify Callback]', msg);
+    }
+
+    async function handleSpotifyCallback() {
+      const icon = document.getElementById('statusIcon');
+      const title = document.getElementById('statusTitle');
+      const desc = document.getElementById('statusDesc');
+      const userContainer = document.getElementById('userPillContainer');
+      const actions = document.getElementById('actionsContainer');
+      const avatar = document.getElementById('userAvatar');
+      const name = document.getElementById('userName');
+      const email = document.getElementById('userEmail');
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+
+      const code = urlParams.get('code');
+      const error = urlParams.get('error') || hashParams.get('error');
+      const implicitToken = hashParams.get('access_token');
+
+      if (error) {
+        icon.className = 'status-icon error';
+        icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i>';
+        title.textContent = 'Acceso Denegado o Cancelado';
+        desc.textContent = 'Spotify reportó el siguiente error: ' + error + '. Puedes volver a intentarlo cuando lo desees.';
+        actions.style.display = 'block';
+        log('Error recibido de Spotify: ' + error);
+        return;
+      }
+
+      // Si se recibió token implícito en el hash
+      if (implicitToken) {
+        log('Token de acceso recibido vía Implicit Flow');
+        const expiresIn = parseInt(hashParams.get('expires_in') || '3600', 10);
+        saveTokens(implicitToken, null, expiresIn);
+        await finishAuth(implicitToken);
+        return;
+      }
+
+      if (!code) {
+        icon.className = 'status-icon error';
+        icon.innerHTML = '<i class="fa-solid fa-circle-question"></i>';
+        title.textContent = 'No se detectó código de retorno';
+        desc.textContent = 'Esta página es el punto de retorno de Spotify. Debes iniciar la autorización desde el botón en el Laboratorio de Pruebas.';
+        actions.style.display = 'block';
+        log('Ningún parámetro code o access_token fue encontrado.');
+        return;
+      }
+
+      log('Código de autorización recibido: ' + code.substring(0, 10) + '...');
+
+      // Recuperar code_verifier y redirect_uri guardados
+      const codeVerifier = localStorage.getItem('spotify_code_verifier') || '';
+      let redirectUri = localStorage.getItem('spotify_auth_redirect_uri');
+
+      if (!redirectUri) {
+        // Autodetectar URL actual limpia (sin query string)
+        redirectUri = window.location.origin + window.location.pathname;
+      }
+
+      log('Intercambiando código con Spotify usando Redirect URI: ' + redirectUri);
+
+      try {
+        const bodyParams = new URLSearchParams({
+          client_id: CLIENT_ID,
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: redirectUri
+        });
+
+        if (codeVerifier) {
+          bodyParams.append('code_verifier', codeVerifier);
+        }
+
+        const headers = {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        };
+
+        // Si tenemos el Client Secret, agregar Basic Auth para máxima compatibilidad
+        if (CLIENT_SECRET) {
+          headers['Authorization'] = 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET);
+        }
+
+        const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+          method: 'POST',
+          headers: headers,
+          body: bodyParams
+        });
+
+        const tokenData = await tokenRes.json();
+
+        if (tokenData.error) {
+          throw new Error(tokenData.error_description || tokenData.error || 'Error al obtener tokens de Spotify');
+        }
+
+        log('Tokens obtenidos exitosamente');
+        saveTokens(tokenData.access_token, tokenData.refresh_token, tokenData.expires_in);
+        await finishAuth(tokenData.access_token);
+
+      } catch (err) {
+        icon.className = 'status-icon error';
+        icon.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        title.textContent = 'Fallo en el Intercambio de Token';
+        desc.textContent = 'Ocurrió un error al canjear el código por un token de acceso: ' + err.message;
+        actions.style.display = 'block';
+        log('Excepción en token exchange: ' + err.message);
+      }
+    }
+
+    function saveTokens(accessToken, refreshToken, expiresInSec = 3600) {
+      const expiresAt = Date.now() + (expiresInSec * 1000);
+      localStorage.setItem('spotify_access_token', accessToken);
+      if (refreshToken) {
+        localStorage.setItem('spotify_refresh_token', refreshToken);
+      }
+      localStorage.setItem('spotify_token_expires', expiresAt.toString());
+      localStorage.setItem('spotify_auth_timestamp', Date.now().toString());
+
+      // Notificar a otras ventanas vía BroadcastChannel
+      try {
+        const bc = new BroadcastChannel('spotify_auth_channel');
+        bc.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS', token: accessToken });
+      } catch (e) {}
+
+      // Notificar a ventana padre si fue abierta en popup
+      if (window.opener && !window.opener.closed) {
+        try {
+          window.opener.postMessage({
+            type: 'SPOTIFY_AUTH_SUCCESS',
+            token: accessToken,
+            refreshToken: refreshToken
+          }, '*');
+        } catch (e) {}
+      }
+    }
+
+    async function finishAuth(accessToken) {
+      const icon = document.getElementById('statusIcon');
+      const title = document.getElementById('statusTitle');
+      const desc = document.getElementById('statusDesc');
+      const userContainer = document.getElementById('userPillContainer');
+      const actions = document.getElementById('actionsContainer');
+      const avatar = document.getElementById('userAvatar');
+      const name = document.getElementById('userName');
+      const email = document.getElementById('userEmail');
+
+      try {
+        const profileRes = await fetch('https://api.spotify.com/v1/me', {
+          headers: { 'Authorization': 'Bearer ' + accessToken }
+        });
+
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          localStorage.setItem('spotify_user_profile', JSON.stringify(profile));
+
+          if (profile.images && profile.images.length > 0) {
+            avatar.src = profile.images[0].url;
+          } else {
+            avatar.src = 'https://assets.stickpng.com/images/5ece5046123d6d0004ce5f8a.png';
+          }
+
+          name.textContent = profile.display_name || profile.id || 'Usuario Spotify';
+          email.textContent = (profile.product === 'premium' ? '👑 Premium' : '🎵 Spotify') + ' • ' + (profile.country || 'Global');
+          userContainer.style.display = 'inline-block';
+          log('Perfil verificado: ' + (profile.display_name || profile.id));
+        }
+      } catch (e) {
+        log('No se pudo cargar el perfil detallado: ' + e.message);
+      }
+
+      icon.className = 'status-icon success';
+      icon.innerHTML = '<i class="fa-solid fa-check"></i>';
+      title.textContent = '¡Conexión Exitosa con Spotify!';
+      desc.textContent = 'Tu cuenta ha sido vinculada correctamente. Ya puedes controlar tu música, añadir pistas a la cola, pausar y skipear.';
+      actions.style.display = 'block';
+
+      // Si fue abierto en popup, intentar cerrar tras 2.5s
+      if (window.opener && !window.opener.closed) {
+        desc.textContent += ' Cerrando esta ventana automáticamente...';
+        setTimeout(() => {
+          try { window.close(); } catch(e) {}
+        }, 2200);
+      } else {
+        // Redirigir de regreso al laboratorio de pruebas tras 3s si no es popup
+        desc.textContent += ' Redirigiendo al Laboratorio de Pruebas en 3 segundos...';
+        setTimeout(() => {
+          window.location.href = '../prueba.html#card-spotify-widget';
+        }, 3000);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', handleSpotifyCallback);
+  </script>
+</body>
+</html>
