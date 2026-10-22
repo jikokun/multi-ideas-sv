@@ -535,7 +535,7 @@
                 <!-- Tarjeta de Canción Actual -->
                 <div style="display: flex; align-items: center; gap: 18px; flex-wrap: wrap; margin-bottom: 16px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 14px;">
                     <div style="position: relative; width: 75px; height: 75px; flex-shrink: 0;">
-                        <img id="spotifyLabCover" src="https://assets.stickpng.com/images/5ece5046123d6d0004ce5f8a.png" alt="Cover" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
+                        <img id="spotifyLabCover" src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'><rect width='120' height='120' rx='20' fill='%23061522'/><circle cx='60' cy='60' r='42' fill='%2302060c' stroke='%2300f5d4' stroke-width='3'/><circle cx='60' cy='60' r='26' fill='%230a1c12' stroke='%231DB954' stroke-width='2'/><circle cx='60' cy='60' r='10' fill='%2300f5d4'/><path d='M44 48c10-3 22-3 32 3M47 60c8-2 18-2 26 3M50 72c5-2 13-2 20 2' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' fill='none'/></svg>" alt="Cover" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 15px rgba(0,0,0,0.5);">
                     </div>
                     <div style="flex: 1; min-width: 200px;">
                         <div id="spotifyLabTitle" style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; font-weight: 800; color: #ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
@@ -599,10 +599,108 @@
                 </div>
             </div>
 
-            <!-- 4. IFRAME VISTA PREVIA WIDGET OBS -->
-            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+            <!-- 4. PANEL ADMINISTRATIVO: MODERACIÓN DE KICK & COMANDOS EN VIVO -->
+            <div style="background: rgba(6, 18, 28, 0.95); border: 1.5px solid rgba(83, 252, 24, 0.35); border-radius: 16px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 14px;">
+                    <div style="font-size: 1rem; font-weight: 800; color: #53fc18; display: flex; align-items: center; gap: 8px;">
+                        <i class="fa-solid fa-user-shield"></i> Panel Administrativo: Moderación de Kick & Chat Streamer.bot
+                    </div>
+                    <span class="badge" style="background: rgba(83, 252, 24, 0.15); color: #53fc18; border: 1px solid rgba(83, 252, 24, 0.4); font-size: 0.75rem;">
+                        Comandos: !skipsong, !addsong, !play, !pausa, !cancion
+                    </span>
+                </div>
+
+                <!-- Gestor de Moderadores de Kick (Whitelist) -->
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #ffffff; margin-bottom: 6px;">
+                        🛡️ Moderadores Autorizados para <code>!skipsong</code> (Whitelist de Kick):
+                    </label>
+                    <div style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 10px;">
+                        Los usuarios con insignia de Moderador en Kick pueden saltar canciones con <code>!skipsong</code>. También puedes registrar nombres de usuario de Kick aquí para darles permiso de moderador:
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 10px;">
+                        <input type="text" id="kickNewModInput" placeholder="Ej: isaisv o nombre_moderador" class="gate-input" style="flex: 1; padding: 9px 14px; font-size: 0.88rem; text-align: left;" onkeydown="if(event.key==='Enter') addKickModeratorLab()">
+                        <button type="button" class="test-btn" onclick="addKickModeratorLab()" style="padding: 9px 18px; font-size: 0.85rem; border-color: #53fc18; color: #53fc18; background: rgba(83, 252, 24, 0.15); font-weight: 700;">
+                            <i class="fa-solid fa-plus"></i> Añadir Mod
+                        </button>
+                    </div>
+                    <!-- Contenedor de Tags de Moderadores -->
+                    <div id="kickModsTagsList" style="display: flex; flex-wrap: wrap; gap: 8px; min-height: 28px;">
+                        <!-- Renderizado dinámicamente -->
+                    </div>
+                </div>
+
+                <!-- Simulador de Comandos de Kick en Vivo -->
+                <div style="background: rgba(0,0,0,0.3); border: 1px solid rgba(0, 245, 212, 0.2); border-radius: 12px; padding: 14px; margin-bottom: 16px;">
+                    <label style="display: block; font-size: 0.85rem; font-weight: 700; color: #00f5d4; margin-bottom: 6px;">
+                        ⚡ Simulador de Comandos de Kick (Prueba en tiempo real sobre el widget):
+                    </label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px;">
+                        <button type="button" class="test-btn" onclick="simulateKickCommandFromLab('!skipsong', 'ModeradorKick', true)" style="border-color: #53fc18; color: #53fc18; padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                            ⏭️ !skipsong (Mod)
+                        </button>
+                        <button type="button" class="test-btn" onclick="simulateKickCommandFromLab('!skipsong', 'Viewer123', false)" style="border-color: #f59e0b; color: #f59e0b; padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                            🚫 !skipsong (Viewer)
+                        </button>
+                        <button type="button" class="test-btn" onclick="simulateKickCommandFromLab('!pausa', 'Streamer', true)" style="border-color: #38bdf8; color: #38bdf8; padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                            ⏸️ !pausa
+                        </button>
+                        <button type="button" class="test-btn" onclick="simulateKickCommandFromLab('!play', 'Streamer', true)" style="border-color: #1DB954; color: #1DB954; padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                            ▶️ !play
+                        </button>
+                        <button type="button" class="test-btn" onclick="simulateKickCommandFromLab('!cancion', 'FanKick', false)" style="border-color: #00f5d4; color: #00f5d4; padding: 8px 14px; font-size: 0.82rem; font-weight: 700;">
+                            🎵 !cancion (Banner Esquina Der.)
+                        </button>
+                    </div>
+
+                    <!-- Prueba personalizada de !addsong -->
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <input type="text" id="kickSimCustomCommand" value="!addsong Bohemian Rhapsody by Queen" placeholder="Escribe comando ej: !addsong Bohemian Rhapsody by Queen" class="gate-input" style="flex: 1; padding: 9px 14px; font-size: 0.85rem; text-align: left;" onkeydown="if(event.key==='Enter') sendCustomKickSimCommand()">
+                        <button type="button" class="test-btn" onclick="sendCustomKickSimCommand()" style="padding: 9px 18px; font-size: 0.85rem; border-color: #00f5d4; color: #00f5d4; font-weight: 700;">
+                            🚀 Enviar al Widget
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Configuración de Ajustes de Apariencia del Widget (1920x1080) -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px;">
+                    <div>
+                        <label for="spotifyWidgetPosSelect" style="display: block; font-size: 0.82rem; font-weight: 700; color: #a0aec0; margin-bottom: 5px;">
+                            📍 Posición Inicial en Lienzo 1920x1080:
+                        </label>
+                        <select id="spotifyWidgetPosSelect" class="gate-input" style="padding: 9px 12px; font-size: 0.85rem; text-align: left;" onchange="changeWidgetPosFromLab(this.value)">
+                            <option value="bottom-left" selected>↙️ Abajo a la Izquierda (Recomendado)</option>
+                            <option value="bottom-right">↘️ Abajo a la Derecha</option>
+                            <option value="top-left">↖️ Arriba a la Izquierda</option>
+                            <option value="top-right">↗️ Arriba a la Derecha</option>
+                            <option value="center">🎯 Centro de Pantalla</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="spotifyWidgetThemeSelect" style="display: block; font-size: 0.82rem; font-weight: 700; color: #a0aec0; margin-bottom: 5px;">
+                            🎨 Tema Visual del Reproductor:
+                        </label>
+                        <select id="spotifyWidgetThemeSelect" class="gate-input" style="padding: 9px 12px; font-size: 0.85rem; text-align: left;" onchange="changeWidgetThemeFromLab(this.value)">
+                            <option value="aqua" selected>🌊 Aqua Neón (Cyber Glow)</option>
+                            <option value="spotify">🟢 Spotify Official Green</option>
+                            <option value="kick">🐺 Kick Neon Green</option>
+                            <option value="cyberpunk">🟣 Cyberpunk Magenta</option>
+                            <option value="obsidian">🌌 Obsidian Minimal</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="streamerbotPortInput" style="display: block; font-size: 0.82rem; font-weight: 700; color: #a0aec0; margin-bottom: 5px;">
+                            🔌 Puerto WebSocket Streamer.bot:
+                        </label>
+                        <input type="text" id="streamerbotPortInput" value="8080" class="gate-input" style="padding: 9px 12px; font-size: 0.85rem; font-family: monospace; text-align: left;" placeholder="8080 o 4445">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. IFRAME VISTA PREVIA WIDGET OBS (LIENZO NATIVO 1920x1080 CON AUTO-ESCALADO) -->
+            <div style="margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
                 <label style="font-size: 0.9rem; font-weight: 800; color: #1DB954; display: flex; align-items: center; gap: 6px;">
-                    <i class="fa-solid fa-tv"></i> Vista Previa del Widget para OBS Studio (500x320):
+                    <i class="fa-solid fa-tv"></i> Vista Previa del Lienzo OBS 1920x1080 (Arrastra el widget para acomodarlo):
                 </label>
                 <div style="display: flex; gap: 8px;">
                     <button type="button" class="test-btn" onclick="activateLazyIframe('preview-spotify-test')" style="padding: 6px 12px; font-size: 0.8rem; border-color: rgba(29, 185, 84, 0.4); color: #1DB954;">
@@ -611,17 +709,17 @@
                 </div>
             </div>
 
-            <div style="border-radius: 16px; overflow: hidden; height: 380px; border: 1.5px solid rgba(29, 185, 84, 0.4); background: radial-gradient(circle at center, #061a10 0%, #010804 100%); margin-bottom: 16px; position: relative; box-shadow: inset 0 0 45px rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;">
+            <div style="border-radius: 16px; overflow: hidden; height: 420px; border: 1.5px solid rgba(29, 185, 84, 0.4); background: radial-gradient(circle at center, #061a10 0%, #010804 100%); margin-bottom: 16px; position: relative; box-shadow: inset 0 0 45px rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center;">
                 <iframe id="preview-spotify-test" data-src="mini_widgets/widget_spotify.html" src="mini_widgets/widget_spotify.html" style="width: 100%; height: 100%; border: none; background: transparent;"></iframe>
             </div>
 
             <!-- Botones de Enlace para OBS Studio -->
             <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-                <a href="mini_widgets/widget_spotify.html" target="_blank" rel="noopener noreferrer" class="test-btn" style="flex: 1; min-width: 180px; padding: 14px; font-size: 0.95rem; border-color: rgba(29, 185, 84, 0.5); color: #1DB954; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                    <span>🚀</span> Abrir Widget en Pestaña Completa
+                <a href="mini_widgets/widget_spotify.html" id="linkSpotifyFullTab" target="_blank" rel="noopener noreferrer" class="test-btn" style="flex: 1; min-width: 180px; padding: 14px; font-size: 0.95rem; border-color: rgba(29, 185, 84, 0.5); color: #1DB954; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span>🚀</span> Abrir Widget en Pantalla Completa (1920x1080)
                 </a>
                 <button type="button" class="test-btn" style="flex: 1; min-width: 180px; padding: 14px; font-size: 0.95rem; border-color: rgba(0, 245, 212, 0.5); color: #00f5d4; background: rgba(0, 245, 212, 0.1); display: flex; align-items: center; justify-content: center; gap: 8px;" onclick="copySpotifyObsUrl(this)">
-                    <span>📋</span> Copiar Enlace para OBS Studio
+                    <span>📋</span> Copiar Enlace con Tokens y Ajustes para OBS
                 </button>
             </div>
         </div>
@@ -3010,6 +3108,107 @@
             setTimeout(fetchSpotifyPlaybackForLab, 800);
         };
 
+        // =========================================================================
+        // GESTIÓN DE MODERADORES DE KICK & SIMULADOR DE COMANDOS
+        // =========================================================================
+        let kickModeratorsList = ['isaisv'];
+        try {
+            const savedMods = localStorage.getItem('kick_moderators_whitelist');
+            if (savedMods) kickModeratorsList = JSON.parse(savedMods);
+        } catch(e) {}
+
+        window.renderKickModeratorsList = function() {
+            const container = document.getElementById('kickModsTagsList');
+            if (!container) return;
+            if (kickModeratorsList.length === 0) {
+                container.innerHTML = '<span style="font-size: 0.8rem; color: #64748b; font-style: italic;">No hay moderadores registrados (los mods de Kick se detectan por su insignia en el chat).</span>';
+                return;
+            }
+            container.innerHTML = kickModeratorsList.map((mod, idx) => `
+                <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(83, 252, 24, 0.15); border: 1px solid rgba(83, 252, 24, 0.4); color: #53fc18; font-size: 0.82rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;">
+                    <i class="fa-solid fa-shield"></i> @${mod}
+                    <button type="button" onclick="removeKickModeratorLab(${idx})" style="background: none; border: none; color: #f87171; cursor: pointer; padding: 0 3px; font-size: 0.95rem; line-height: 1; font-weight: bold;" title="Eliminar">&times;</button>
+                </span>
+            `).join('');
+        };
+
+        window.addKickModeratorLab = function() {
+            const input = document.getElementById('kickNewModInput');
+            if (!input) return;
+            const val = input.value.trim().toLowerCase().replace('@', '');
+            if (!val) return;
+            if (!kickModeratorsList.includes(val)) {
+                kickModeratorsList.push(val);
+                localStorage.setItem('kick_moderators_whitelist', JSON.stringify(kickModeratorsList));
+                renderKickModeratorsList();
+                syncModsWithIframe();
+                log(`[Kick Moderación] Moderador @${val} añadido a la whitelist autorizada`, "success");
+            }
+            input.value = '';
+        };
+
+        window.removeKickModeratorLab = function(idx) {
+            if (idx >= 0 && idx < kickModeratorsList.length) {
+                const removed = kickModeratorsList.splice(idx, 1)[0];
+                localStorage.setItem('kick_moderators_whitelist', JSON.stringify(kickModeratorsList));
+                renderKickModeratorsList();
+                syncModsWithIframe();
+                log(`[Kick Moderación] Moderador @${removed} removido de la lista`, "info");
+            }
+        };
+
+        function syncModsWithIframe() {
+            const iframe = document.getElementById('preview-spotify-test');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'UPDATE_MODS_WHITELIST',
+                    moderators: kickModeratorsList
+                }, '*');
+            }
+        }
+
+        window.simulateKickCommandFromLab = function(cmd, user = 'ModeradorKick', isMod = true) {
+            const iframe = document.getElementById('preview-spotify-test');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({
+                    type: 'SIMULATE_KICK_COMMAND',
+                    command: cmd,
+                    user: user,
+                    isMod: isMod,
+                    badges: isMod ? [{ type: 'moderator' }] : []
+                }, '*');
+                log(`[Kick Chat Sim] Enviando "${cmd}" como @${user} (${isMod ? 'Moderador' : 'Viewer'})...`, "info");
+            } else {
+                log("[Kick Chat Sim] La vista previa no está lista", "error");
+            }
+        };
+
+        window.sendCustomKickSimCommand = function() {
+            const input = document.getElementById('kickSimCustomCommand');
+            if (!input) return;
+            const cmd = input.value.trim();
+            if (!cmd) return;
+            simulateKickCommandFromLab(cmd, 'Streamer', true);
+        };
+
+        window.changeWidgetPosFromLab = function(pos) {
+            const iframe = document.getElementById('preview-spotify-test');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'SET_POSITION', position: pos }, '*');
+            }
+            localStorage.setItem('spotify_widget_pos', pos);
+            log(`[Spotify Widget] Posición cambiada a: ${pos}`, "info");
+        };
+
+        window.changeWidgetThemeFromLab = function(theme) {
+            const iframe = document.getElementById('preview-spotify-test');
+            if (iframe && iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'SET_THEME', theme: theme }, '*');
+            }
+            localStorage.setItem('spotify_widget_theme', theme);
+            log(`[Spotify Widget] Tema cambiado a: ${theme}`, "info");
+        };
+
         window.copySpotifyObsUrl = function(btn) {
             let baseUrl = window.location.href.split('?')[0].split('#')[0];
             const lastSlash = baseUrl.lastIndexOf('/');
@@ -3024,20 +3223,36 @@
             const refreshToken = localStorage.getItem('spotify_refresh_token') || '';
             const expires = localStorage.getItem('spotify_token_expires') || '';
 
+            const posSelect = document.getElementById('spotifyWidgetPosSelect');
+            const themeSelect = document.getElementById('spotifyWidgetThemeSelect');
+            const portInput = document.getElementById('streamerbotPortInput');
+
+            const pos = posSelect ? posSelect.value : 'bottom-left';
+            const theme = themeSelect ? themeSelect.value : 'aqua';
+            const wsPort = portInput && portInput.value ? portInput.value.trim() : '8080';
+
             const params = new URLSearchParams();
             if (token) params.set('token', token);
             if (refreshToken) params.set('refresh', refreshToken);
             if (expires) params.set('expires', expires);
+            if (pos) params.set('pos', pos);
+            if (theme) params.set('theme', theme);
+            if (wsPort && wsPort !== '8080') params.set('ws_port', wsPort);
+            if (kickModeratorsList.length > 0) params.set('mods', kickModeratorsList.join(','));
 
             const queryString = params.toString() ? ('?' + params.toString()) : '';
             const obsUrl = `${dirUrl}mini_widgets/widget_spotify.html${queryString}`;
 
+            // Actualizar enlace de pestaña completa también
+            const fullLink = document.getElementById('linkSpotifyFullTab');
+            if (fullLink) fullLink.href = `mini_widgets/widget_spotify.html${queryString}`;
+
             navigator.clipboard.writeText(obsUrl).then(() => {
                 const orig = btn.textContent;
-                btn.textContent = '✅ ¡Enlace con Tokens Copiado para OBS!';
+                btn.textContent = '✅ ¡Enlace Completo Copiado para OBS!';
                 btn.style.background = 'linear-gradient(135deg, #1DB954 0%, #00f5d4 100%)';
                 btn.style.color = '#02090f';
-                log(`[Spotify OBS] URL con autenticación lista para OBS copiada al portapapeles: ${obsUrl}`, "success");
+                log(`[Spotify OBS] Enlace listo copiado al portapapeles: ${obsUrl}`, "success");
                 setTimeout(() => {
                     btn.textContent = orig;
                     btn.style.background = 'rgba(0, 245, 212, 0.1)';
@@ -3054,7 +3269,9 @@
                 log("[Spotify OAuth] ✅ Autenticación recibida en el Laboratorio", "success");
                 checkCurrentSpotifyUserStatus();
                 const spotifyIframe = document.getElementById('preview-spotify-test');
-                if (spotifyIframe) spotifyIframe.src = spotifyIframe.src;
+                if (spotifyIframe) {
+                    spotifyIframe.src = spotifyIframe.src;
+                }
             }
         });
 
@@ -3065,7 +3282,9 @@
                     log("[Spotify OAuth] ✅ Señal de token recibida vía BroadcastChannel", "success");
                     checkCurrentSpotifyUserStatus();
                     const spotifyIframe = document.getElementById('preview-spotify-test');
-                    if (spotifyIframe) spotifyIframe.src = spotifyIframe.src;
+                    if (spotifyIframe) {
+                        spotifyIframe.src = spotifyIframe.src;
+                    }
                 }
             };
         } catch(e) {}
@@ -3074,6 +3293,7 @@
         checkAccess();
         checkCurrentSpotifyUserStatus();
         updateSelectedRedirectUri();
+        renderKickModeratorsList();
     </script>
 </body>
 </html>
