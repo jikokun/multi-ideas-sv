@@ -391,25 +391,49 @@ async function getValidSpotifyToken(userId) {
         throw new Error(`No se encontró refresh_token para el usuario '${user}'. Inicia sesión desde el Laboratorio.`);
     }
 
-    // Renovar token server-side con Basic Auth (Client Secret seguro sin bloqueo de CORS)
-    const bodyParams = new URLSearchParams({
-        grant_type: "refresh_token",
-        refresh_token: refreshToken
-    });
+    let tokenData = null;
 
-    const basicAuth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
-    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-            "Authorization": `Basic ${basicAuth}`
-        },
-        body: bodyParams.toString()
-    });
+    // 1. PRIMER INTENTO: Renovar con Basic Auth (Apps confidenciales con Client Secret)
+    try {
+        const basicAuth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
+        const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Authorization": `Basic ${basicAuth}`
+            },
+            body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: refreshToken
+            }).toString()
+        });
+        const data = await tokenRes.json();
+        if (tokenRes.ok && data.access_token) {
+            tokenData = data;
+        }
+    } catch(e) {}
 
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-        throw new Error(tokenData.error_description || tokenData.error || "Fallo al renovar token de Spotify");
+    // 2. SEGUNDO INTENTO: Renovar con PKCE puro (Apps públicas con Client ID en body)
+    if (!tokenData) {
+        try {
+            const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: new URLSearchParams({
+                    grant_type: "refresh_token",
+                    refresh_token: refreshToken,
+                    client_id: SPOTIFY_CLIENT_ID
+                }).toString()
+            });
+            const data = await tokenRes.json();
+            if (tokenRes.ok && data.access_token) {
+                tokenData = data;
+            } else {
+                throw new Error(data.error_description || data.error || "Fallo al renovar token de Spotify");
+            }
+        } catch(errPkce) {
+            throw new Error(`Fallo al renovar token de Spotify: ${errPkce.message}`);
+        }
     }
 
     accessToken = tokenData.access_token;

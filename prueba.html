@@ -722,9 +722,9 @@
                         <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
                             <label for="spotifyDomainLabSelect" style="font-size: 0.78rem; font-weight: 700; color: #00f5d4;">Dominio Base:</label>
                             <select id="spotifyDomainLabSelect" class="gate-input" style="padding: 4px 8px; font-size: 0.8rem; font-weight: 700;" onchange="updateMrboostLinksLab()">
-                                <option value="https://multiideassv.com" selected>🌐 multiideassv.com (Tu Dominio)</option>
-                                <option value="https://sensunshopweb.web.app">🔥 sensunshopweb.web.app (Firebase Hosting)</option>
+                                <option value="https://sensunshopweb.web.app" selected>🔥 sensunshopweb.web.app (Firebase Hosting - Opción A)</option>
                                 <option value="https://us-central1-sensunshopweb.cloudfunctions.net/spotifyControl">⚡ cloudfunctions.net (Directo)</option>
+                                <option value="https://multiideassv.com">🌐 multiideassv.com (Subdominio futuro)</option>
                             </select>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.4); padding: 5px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);">
@@ -2878,6 +2878,12 @@
                 if (res.ok) {
                     const profile = await res.json();
                     localStorage.setItem('spotify_user_profile', JSON.stringify(profile));
+
+                    // Sincronizar automáticamente tokens con el backend de Firebase
+                    const activeRefreshToken = localStorage.getItem('spotify_refresh_token');
+                    if (activeRefreshToken || token) {
+                        fetch(`https://sensunshopweb.web.app/spotify/save_token?user=jikokun2&refresh_token=${encodeURIComponent(activeRefreshToken || '')}&access_token=${encodeURIComponent(token)}`).catch(() => {});
+                    }
                     if (badge) {
                         badge.style.background = 'rgba(29, 185, 84, 0.18)';
                         badge.style.borderColor = 'rgba(29, 185, 84, 0.45)';
@@ -3403,7 +3409,7 @@
 
         window.updateMrboostLinksLab = function() {
             const domainSelect = document.getElementById('spotifyDomainLabSelect');
-            const baseUrl = domainSelect ? domainSelect.value : 'https://multiideassv.com';
+            const baseUrl = domainSelect ? domainSelect.value : 'https://sensunshopweb.web.app';
             const input = document.getElementById('mrboostUserLabInput');
             const user = input && input.value ? input.value.trim() : 'jikokun2';
 
@@ -3461,6 +3467,16 @@
             if (consoleEl) {
                 consoleEl.innerHTML = `<span style="color:#00f5d4;">⏳ Ejecutando Fetch silencioso:</span> ${label}...`;
             }
+
+            // Sincronizar token local activo si existe en localStorage antes de llamar
+            const localRefresh = localStorage.getItem('spotify_refresh_token');
+            const localAccess = localStorage.getItem('spotify_access_token');
+            if (localRefresh || localAccess) {
+                try {
+                    await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(localRefresh || '')}&access_token=${encodeURIComponent(localAccess || '')}`);
+                } catch(e) {}
+            }
+
             log(`[Spotify Native Fetch] Enviando solicitud a: ${url}`, "info");
 
             try {
