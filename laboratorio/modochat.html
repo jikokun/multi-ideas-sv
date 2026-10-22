@@ -1261,9 +1261,9 @@
       // 4. SPOTIFY CREDENCIALES & ENDPOINT DE RENOVACIÓN DE TOKEN
       spotify: {
         userId: "jikokun2",
-        refreshTokenUrl: "https://mrboostlive.com/spotify/refresh_token.php",
-        initialAccessToken: "BQDCLNPIlR4NDtuVtW3AdZYkM2w8KYFShiZOIo3VnywT2ZSBDXfHRuuShd2jLbifdAsVK9AIG8CKilQvJI8MJFFAJS9pW-Lpd34Ew5_uHCW4qmDtl9T_n3mE6Bnwd3uFWFDZrKEBf-aAXu0F2JIq75IhyYfnnclU6izn77lnwGUyzHOlygFaXvbEEo6z4GBoqq-fmhQspIqMAeVlen7zOwxDAtYk7-34B081SPs5KV6Xx0-qoFPi_iea1SM2upx9DPfGovz-9H9wUgsCxAeh5qTyFUKFcm9cAqoEU2QHuPs",
-        refreshToken: "AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM"
+        refreshTokenUrl: "https://sensunshopweb.web.app/spotify/refresh_token",
+        initialAccessToken: "",
+        refreshToken: ""
       }
     };
 
@@ -2051,20 +2051,20 @@
 
       async function refreshSpotifyToken() {
         try {
-          const res = await fetch(CONFIG.spotify.refreshTokenUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: 'user_id=' + encodeURIComponent(usuario) + '&refresh_token=' + encodeURIComponent(refresh_token)
-          });
+          const res = await fetch(`https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(usuario)}`, { cache: 'no-store' });
           const newToken = await res.text();
-          if (newToken && !newToken.includes("<")) {
-            access_token = newToken;
+          if (newToken && !newToken.includes("<") && res.ok) {
+            access_token = newToken.trim();
             checkSpotifyPlayer();
           }
         } catch (error) {}
       }
 
-      checkSpotifyPlayer();
+      if (!access_token) {
+        refreshSpotifyToken();
+      } else {
+        checkSpotifyPlayer();
+      }
       setInterval(checkSpotifyPlayer, 3000);
     }
   </script>

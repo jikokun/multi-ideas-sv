@@ -350,7 +350,7 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
  * ══════════════════════════════════════════════════════════════════════════════
  * 8. MULTI IDEAS SV - SPOTIFY DEVELOPER API & DIRECT ACTIVATION ENDPOINTS
  * ══════════════════════════════════════════════════════════════════════════════
- * Reemplazo 100% nativo de MrBoost usando nuestra propia App de Spotify Developer.
+ * Integración 100% nativa con Spotify Developer API.
  * Compatible con llamadas GET simples (Fetch URL) desde Streamer.bot, Botrix, etc.
  * 
  * Endpoints:

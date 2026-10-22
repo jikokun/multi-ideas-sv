@@ -2489,7 +2489,7 @@ body.clean-mode * {
    RADIOSHOW - STUDIO EDITION JAVASCRIPT LOGIC (JIKOKUN)
    - Auto-escalado 1920x1080 proporcional (16:9)
    - Mascota 3-Estados WebM reactiva a música y cambios de pista
-   - Conexión Spotify Live (Currently Playing + Auto-Refresh Token MrBoost)
+   - Conexión Spotify Live (Currently Playing + Auto-Refresh Token Nativo)
    - Cola de Canciones en Vivo (Spotify Display Queue API)
    - Chat en Vivo Streamer.bot (Kick WebSocket + Filtro de Bots/Comandos + Emotes)
    - Visualizador Canvas Waveform reactivo
@@ -2503,11 +2503,11 @@ const config = {
   channel: urlParams.get('channel') || urlParams.get('canal') || 'jikokun',
   sbPort: urlParams.get('port') || urlParams.get('sbport') || '4445',
   sbHost: urlParams.get('host') || urlParams.get('sbhost') || '127.0.0.1',
-  // Spotify / MrBoost
+  // Spotify Developer API Nativo
   spotifyUser: urlParams.get('spotify') || urlParams.get('spotify_user') || urlParams.get('user') || 'jikokun2',
-  spotifyRefreshToken: urlParams.get('spotify_refresh') || urlParams.get('refresh_token') || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM',
-  spotifyQueueUrl: urlParams.get('spotify_queue') || urlParams.get('queue_url') || '',
-  spotifyRefreshUrl: urlParams.get('spotify_refresh_url') || urlParams.get('refresh_url') || '',
+  spotifyRefreshToken: urlParams.get('spotify_refresh') || urlParams.get('refresh_token') || '',
+  spotifyQueueUrl: urlParams.get('spotify_queue') || urlParams.get('queue_url') || 'https://sensunshopweb.web.app/spotify/display_queue.php',
+  spotifyRefreshUrl: urlParams.get('spotify_refresh_url') || urlParams.get('refresh_url') || 'https://sensunshopweb.web.app/spotify/refresh_token',
   // Botrix
   botrixId: urlParams.get('bid') || urlParams.get('botrix_id') || urlParams.get('botrix') || '',
   botrixSub: urlParams.get('b_sub') || urlParams.get('botrix_sub') || '',
@@ -2767,11 +2767,11 @@ function updateMascotSongPhase() {
 }
 
 /* ==========================================================================
-   2. REPRODUCTOR SPOTIFY LIVE (API SPOTIFY + MRBOOST REFRESH TOKEN)
+   2. REPRODUCTOR SPOTIFY LIVE (API SPOTIFY + MULTI IDEAS REFRESH TOKEN)
    ========================================================================== */
 let SPOTIFY_USER = config.spotifyUser || 'jikokun2';
 let spotifyAccessToken = '';
-let SPOTIFY_REFRESH_TOKEN = config.spotifyRefreshToken || 'AQBnM-Gd69K9yF7n7Ba5yZ-eSHYY2P_g6sxuMwnjpqVkPnzJqsF5BtrgdK4cSda-09WEFMJErc86DTZ2Q4v5XL3-Yxqyaf2Vu9L-HWcVFrwgQ6kX1aRY--KLX7OwZTO7TlM';
+let SPOTIFY_REFRESH_TOKEN = config.spotifyRefreshToken || '';
 
 let lastTrackId = '';
 let currentTrackProgress = 0;
@@ -2809,7 +2809,7 @@ async function checkSpotifyPlayer() {
     });
 
     if (res.status === 401) {
-      console.warn('[Spotify] Token expirado. Solicitando nuevo token a MrBoost...');
+      console.warn('[Spotify] Token expirado. Solicitando nuevo token nativo a Multi Ideas...');
       await refreshSpotifyToken();
       return;
     }
@@ -2871,14 +2871,11 @@ async function checkSpotifyPlayer() {
 
 async function refreshSpotifyToken() {
   try {
-    const refreshUrl = config.spotifyRefreshUrl || 'https://mrboostlive.com/spotify/refresh_token.php';
-    const res = await fetch(refreshUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: `user_id=${encodeURIComponent(SPOTIFY_USER)}&refresh_token=${encodeURIComponent(SPOTIFY_REFRESH_TOKEN)}`
-    });
+    const refreshUrl = config.spotifyRefreshUrl || 'https://sensunshopweb.web.app/spotify/refresh_token';
+    const endpoint = `${refreshUrl}?user=${encodeURIComponent(SPOTIFY_USER)}`;
+    const res = await fetch(endpoint, { cache: 'no-store' });
     const newToken = await res.text();
-    if (newToken && !newToken.includes('<')) {
+    if (newToken && !newToken.includes('<') && res.ok) {
       spotifyAccessToken = newToken.trim();
       console.log('[Spotify] ✅ Token renovado exitosamente');
       checkSpotifyPlayer();
@@ -2947,7 +2944,7 @@ function initSpotifyQueue() {
 
 async function fetchSpotifyQueue() {
   const timestamp = Date.now();
-  const queueUrl = config.spotifyQueueUrl || 'https://mrboostlive.com/spotify/displayQueue.php';
+  const queueUrl = config.spotifyQueueUrl || 'https://sensunshopweb.web.app/spotify/display_queue.php';
   const endpoint = queueUrl.includes('?')
     ? `${queueUrl}&user=${encodeURIComponent(SPOTIFY_USER)}&t=${timestamp}`
     : `${queueUrl}?user=${encodeURIComponent(SPOTIFY_USER)}&t=${timestamp}`;
