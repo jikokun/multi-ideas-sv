@@ -365,7 +365,7 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
  */
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || "86895cd4fce24473b50586a16122bd22";
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || "98f13b050abb432482d9c3b80c6babff";
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || "";
 
 async function getValidSpotifyToken(userId) {
     const db = admin.database();
