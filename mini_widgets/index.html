@@ -3995,11 +3995,16 @@
       getRedirectResult(auth).then(async (result) => {
         if (result && result.user && isVerifiedUser(result.user)) {
           console.log("[Auth Gate] Sesión completada tras redirección exitosa:", result.user.uid);
+          const p = (result.user.providerData && result.user.providerData.find(prov => prov && (prov.providerId === 'google.com' || prov.photoURL || prov.displayName))) || (result.user.providerData && result.user.providerData[0]);
+          const name = result.user.displayName || (p && p.displayName) || (result.user.email ? result.user.email.split('@')[0] : 'Usuario');
+          const photo = result.user.photoURL || (p && p.photoURL) || '';
+          const email = result.user.email || (p && p.email) || '';
+
           localStorage.setItem('multiideas_user_authed', 'true');
           localStorage.setItem('multiideas_user_uid', result.user.uid);
-          if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
-          if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
-          if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+          if (email) localStorage.setItem('multiideas_user_email', email);
+          if (name && name !== 'Usuario') localStorage.setItem('multiideas_user_name', name);
+          if (photo) localStorage.setItem('multiideas_user_photo', photo);
           window.dispatchEvent(new Event('multiideas_auth_changed'));
           syncAuthGateVisibility(result.user);
           registerWidgetUserInFirebase(result.user).catch(e => console.warn(e));
@@ -4017,11 +4022,16 @@
 
       if (validUser) {
         try {
+          const p = (validUser.providerData && validUser.providerData.find(prov => prov && (prov.providerId === 'google.com' || prov.photoURL || prov.displayName))) || (validUser.providerData && validUser.providerData[0]);
+          const name = validUser.displayName || (p && p.displayName) || (validUser.email ? validUser.email.split('@')[0] : 'Usuario');
+          const photo = validUser.photoURL || (p && p.photoURL) || '';
+          const email = validUser.email || (p && p.email) || '';
+
           localStorage.setItem('multiideas_user_authed', 'true');
           localStorage.setItem('multiideas_user_uid', validUser.uid);
-          if (validUser.email) localStorage.setItem('multiideas_user_email', validUser.email);
-          if (validUser.displayName) localStorage.setItem('multiideas_user_name', validUser.displayName);
-          if (validUser.photoURL) localStorage.setItem('multiideas_user_photo', validUser.photoURL);
+          if (email) localStorage.setItem('multiideas_user_email', email);
+          if (name && name !== 'Usuario') localStorage.setItem('multiideas_user_name', name);
+          if (photo) localStorage.setItem('multiideas_user_photo', photo);
         } catch(e) {}
         syncAuthGateVisibility(validUser);
         updateSyncBannerUI(validUser);
@@ -4163,11 +4173,16 @@
           if (text) text.textContent = '¡Bienvenido! Accediendo...';
           currentUser = user;
           try {
+            const p = (user.providerData && user.providerData.find(prov => prov && (prov.providerId === 'google.com' || prov.photoURL || prov.displayName))) || (user.providerData && user.providerData[0]);
+            const name = user.displayName || (p && p.displayName) || (user.email ? user.email.split('@')[0] : 'Usuario');
+            const photo = user.photoURL || (p && p.photoURL) || '';
+            const email = user.email || (p && p.email) || '';
+
             localStorage.setItem('multiideas_user_authed', 'true');
             localStorage.setItem('multiideas_user_uid', user.uid);
-            if (user.email) localStorage.setItem('multiideas_user_email', user.email);
-            if (user.displayName) localStorage.setItem('multiideas_user_name', user.displayName);
-            if (user.photoURL) localStorage.setItem('multiideas_user_photo', user.photoURL);
+            if (email) localStorage.setItem('multiideas_user_email', email);
+            if (name && name !== 'Usuario') localStorage.setItem('multiideas_user_name', name);
+            if (photo) localStorage.setItem('multiideas_user_photo', photo);
           } catch(e) {}
           window.dispatchEvent(new Event('multiideas_auth_changed'));
           updateAuthGateUI(user);

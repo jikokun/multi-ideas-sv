@@ -2020,11 +2020,21 @@ async function connectFirebaseToAuth(authUI, fb) {
                         
                         if (result && result.user) {
                             try {
+                                const userData = typeof extractUserProfileData === 'function' 
+                                    ? extractUserProfileData(result.user)
+                                    : {
+                                        displayName: result.user.displayName || (result.user.email ? result.user.email.split('@')[0] : 'Usuario'),
+                                        email: result.user.email || '',
+                                        photoURL: result.user.photoURL || '',
+                                        uid: result.user.uid
+                                    };
                                 localStorage.setItem('multiideas_user_authed', 'true');
-                                localStorage.setItem('multiideas_user_uid', result.user.uid);
-                                if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
-                                if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
-                                if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+                                localStorage.setItem('multiideas_user_uid', userData.uid);
+                                if (userData.email) localStorage.setItem('multiideas_user_email', userData.email);
+                                if (userData.displayName && userData.displayName !== 'Usuario') {
+                                    localStorage.setItem('multiideas_user_name', userData.displayName);
+                                }
+                                if (userData.photoURL) localStorage.setItem('multiideas_user_photo', userData.photoURL);
                             } catch(e) {}
                         }
                         window.dispatchEvent(new Event('multiideas_auth_changed'));
@@ -2048,11 +2058,21 @@ async function connectFirebaseToAuth(authUI, fb) {
                     
                     if (result && result.user) {
                         try {
+                            const userData = typeof extractUserProfileData === 'function' 
+                                ? extractUserProfileData(result.user)
+                                : {
+                                    displayName: result.user.displayName || (result.user.email ? result.user.email.split('@')[0] : 'Usuario'),
+                                    email: result.user.email || '',
+                                    photoURL: result.user.photoURL || '',
+                                    uid: result.user.uid
+                                };
                             localStorage.setItem('multiideas_user_authed', 'true');
-                            localStorage.setItem('multiideas_user_uid', result.user.uid);
-                            if (result.user.email) localStorage.setItem('multiideas_user_email', result.user.email);
-                            if (result.user.displayName) localStorage.setItem('multiideas_user_name', result.user.displayName);
-                            if (result.user.photoURL) localStorage.setItem('multiideas_user_photo', result.user.photoURL);
+                            localStorage.setItem('multiideas_user_uid', userData.uid);
+                            if (userData.email) localStorage.setItem('multiideas_user_email', userData.email);
+                            if (userData.displayName && userData.displayName !== 'Usuario') {
+                                localStorage.setItem('multiideas_user_name', userData.displayName);
+                            }
+                            if (userData.photoURL) localStorage.setItem('multiideas_user_photo', userData.photoURL);
                         } catch(e) {}
                     }
                     window.dispatchEvent(new Event('multiideas_auth_changed'));
@@ -2115,21 +2135,75 @@ async function connectFirebaseToAuth(authUI, fb) {
             getRedirectResult(auth).then(async (result) => {
                 if (result && result.user) {
                     console.log("[Auth Global] Sesión por redirección completada:", result.user.uid);
+                    const userData = extractUserProfileData(result.user);
                     localStorage.setItem('multiideas_user_authed', 'true');
-                    localStorage.setItem('multiideas_user_uid', result.user.uid);
+                    localStorage.setItem('multiideas_user_uid', userData.uid);
+                    if (userData.email) localStorage.setItem('multiideas_user_email', userData.email);
+                    if (userData.displayName && userData.displayName !== 'Usuario') {
+                        localStorage.setItem('multiideas_user_name', userData.displayName);
+                    }
+                    if (userData.photoURL) localStorage.setItem('multiideas_user_photo', userData.photoURL);
                     showNotification('Sesión Iniciada', `¡Bienvenido de nuevo a ${getAppName()} con Google!`, 'success');
+                    updateHeaderUI(result.user, window.openAuthModal, signOut, auth);
                 }
             }).catch(e => console.warn("[Auth Global] Aviso al consultar getRedirectResult:", e));
         }
     } catch(e) {}
 
+    // Extrae de manera robusta los datos reales de perfil del usuario (especialmente con Google)
+    function extractUserProfileData(user) {
+        if (!user) {
+            const savedEmail = localStorage.getItem('multiideas_user_email') || '';
+            let savedName = localStorage.getItem('multiideas_user_name') || '';
+            if (!savedName || savedName === 'Usuario') {
+                savedName = savedEmail ? savedEmail.split('@')[0] : 'Usuario';
+            }
+            return {
+                displayName: savedName,
+                email: savedEmail,
+                photoURL: localStorage.getItem('multiideas_user_photo') || '',
+                uid: localStorage.getItem('multiideas_user_uid') || ''
+            };
+        }
+
+        // En Firebase Auth, la cuenta de Google suele colocar photoURL y displayName dentro de providerData
+        let prov = null;
+        if (user.providerData && user.providerData.length > 0) {
+            prov = user.providerData.find(p => p && (p.providerId === 'google.com' || p.photoURL || p.displayName)) || user.providerData[0];
+        }
+
+        const email = user.email || (prov && prov.email) || localStorage.getItem('multiideas_user_email') || '';
+
+        // Obtener el nombre de usuario más exacto
+        let displayName = user.displayName || (prov && prov.displayName) || localStorage.getItem('multiideas_user_name') || '';
+        if (!displayName || displayName === 'Usuario') {
+            if (email && email.includes('@')) {
+                displayName = email.split('@')[0];
+            } else {
+                displayName = 'Usuario';
+            }
+        }
+
+        // Obtener la foto de perfil real (Google Avatar o personalizada)
+        let photoURL = user.photoURL || (prov && prov.photoURL) || localStorage.getItem('multiideas_user_photo') || '';
+
+        return {
+            displayName,
+            email,
+            photoURL,
+            uid: user.uid || localStorage.getItem('multiideas_user_uid') || ''
+        };
+    }
+    window.extractMultiIdeasUserProfile = extractUserProfileData;
+
     async function syncUserProfile(user) {
         if (!user || !user.uid || !rtdb || !dbHelpers) return;
         try {
             const { ref, update } = dbHelpers;
+            const userData = extractUserProfileData(user);
             const isGoogle = Boolean(
                 (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) || 
-                (user.email && user.email.toLowerCase().endsWith('@gmail.com'))
+                (userData.email && userData.email.toLowerCase().endsWith('@gmail.com'))
             );
             const providerId = (user.providerData && user.providerData[0]) ? user.providerData[0].providerId : (isGoogle ? 'google.com' : 'password');
             const ua = navigator.userAgent || '';
@@ -2139,9 +2213,9 @@ async function connectFirebaseToAuth(authUI, fb) {
 
             const profile = {
                 uid: user.uid,
-                displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Usuario"),
-                email: user.email || "",
-                photoURL: user.photoURL || "",
+                displayName: userData.displayName,
+                email: userData.email,
+                photoURL: userData.photoURL,
                 provider: providerId,
                 isGoogle: isGoogle,
                 createdAt: createdAt,
@@ -2180,9 +2254,10 @@ async function connectFirebaseToAuth(authUI, fb) {
                 const platform = isAndroid ? "android" : (isIOS ? "ios" : "web");
 
                 const isRegistered = Boolean(activeUser && activeUser.uid && !activeUser.isAnonymous);
+                const userData = isRegistered ? extractUserProfileData(activeUser) : null;
                 const isGoogle = isRegistered ? Boolean(
                     (activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')) || 
-                    (activeUser.email && activeUser.email.toLowerCase().endsWith('@gmail.com'))
+                    (userData.email && userData.email.toLowerCase().endsWith('@gmail.com'))
                 ) : false;
 
                 const pageTitle = document.title ? document.title.split('—')[0].split('·')[0].trim() : "Multi Ideas SV";
@@ -2192,10 +2267,10 @@ async function connectFirebaseToAuth(authUI, fb) {
                     sessionId: scriptPresenceSessionId,
                     uid: isRegistered ? activeUser.uid : null,
                     displayName: isRegistered 
-                        ? (activeUser.displayName || (activeUser.email ? activeUser.email.split('@')[0] : "Usuario"))
+                        ? userData.displayName
                         : (isAndroid ? "Visitante en App/Móvil Android" : (isIOS ? "Visitante en iPhone" : "Visitante Web")),
-                    email: isRegistered ? (activeUser.email || "") : "",
-                    photoURL: isRegistered ? (activeUser.photoURL || "") : "",
+                    email: isRegistered ? userData.email : "",
+                    photoURL: isRegistered ? userData.photoURL : "",
                     isGoogle: isGoogle,
                     isRegistered: isRegistered,
                     platform: platform,
@@ -2247,11 +2322,38 @@ async function connectFirebaseToAuth(authUI, fb) {
         const isRegistered = Boolean(user && !user.isAnonymous);
         if (isRegistered) {
             try {
+                const userData = extractUserProfileData(user);
                 localStorage.setItem('multiideas_user_authed', 'true');
-                localStorage.setItem('multiideas_user_uid', user.uid);
-                if (user.email) localStorage.setItem('multiideas_user_email', user.email);
-                if (user.displayName) localStorage.setItem('multiideas_user_name', user.displayName);
-                if (user.photoURL) localStorage.setItem('multiideas_user_photo', user.photoURL);
+                localStorage.setItem('multiideas_user_uid', userData.uid);
+                if (userData.email) localStorage.setItem('multiideas_user_email', userData.email);
+                if (userData.displayName && userData.displayName !== 'Usuario') {
+                    localStorage.setItem('multiideas_user_name', userData.displayName);
+                }
+                if (userData.photoURL) localStorage.setItem('multiideas_user_photo', userData.photoURL);
+
+                // Recuperar datos de perfil adicionales si existen en Firebase RTDB
+                if (rtdb && dbHelpers && user.uid) {
+                    const { ref, get } = dbHelpers;
+                    get(ref(rtdb, `sensunshop/users/${user.uid}`)).then(snap => {
+                        if (snap.exists()) {
+                            const val = snap.val();
+                            let updated = false;
+                            if (val.displayName && val.displayName !== 'Usuario' && (!userData.displayName || userData.displayName === 'Usuario')) {
+                                localStorage.setItem('multiideas_user_name', val.displayName);
+                                userData.displayName = val.displayName;
+                                updated = true;
+                            }
+                            if (val.photoURL && !userData.photoURL) {
+                                localStorage.setItem('multiideas_user_photo', val.photoURL);
+                                userData.photoURL = val.photoURL;
+                                updated = true;
+                            }
+                            if (updated) {
+                                updateHeaderUI(user, window.openAuthModal, signOut, auth);
+                            }
+                        }
+                    }).catch(() => {});
+                }
             } catch(e) {}
             syncUserProfile(user);
         } else {
@@ -2346,26 +2448,29 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
     containers.forEach(container => {
         const savedAuthed = localStorage.getItem('multiideas_user_authed') === 'true';
         const savedUid = localStorage.getItem('multiideas_user_uid');
-        const savedEmail = localStorage.getItem('multiideas_user_email') || '';
-        const savedName = localStorage.getItem('multiideas_user_name') || (savedEmail ? savedEmail.split('@')[0] : 'Usuario');
-        const savedPhoto = localStorage.getItem('multiideas_user_photo') || '';
+        
+        // Las sesiones anónimas NO se muestran como usuario registrado en el header
+        const isRegistered = Boolean(user && !user.isAnonymous);
+        const hasSavedSession = savedAuthed && savedUid && !window.__isExplicitLoggingOut;
 
-        const effectiveUser = user || (savedAuthed && savedUid && !window.__isExplicitLoggingOut ? {
-            displayName: savedName,
-            email: savedEmail,
-            photoURL: savedPhoto,
-            uid: savedUid
-        } : null);
+        if (isRegistered || hasSavedSession) {
+            const userData = typeof extractUserProfileData === 'function'
+                ? extractUserProfileData(isRegistered ? user : null)
+                : {
+                    displayName: localStorage.getItem('multiideas_user_name') || 'Usuario',
+                    email: localStorage.getItem('multiideas_user_email') || '',
+                    photoURL: localStorage.getItem('multiideas_user_photo') || '',
+                    uid: (user && user.uid) || savedUid
+                };
 
-        if (effectiveUser) {
-            const initials = (effectiveUser.displayName || effectiveUser.email || 'U').charAt(0).toUpperCase();
-            const displayName = effectiveUser.displayName || (effectiveUser.email ? effectiveUser.email.split('@')[0] : 'Usuario');
+            const displayName = userData.displayName || (userData.email ? userData.email.split('@')[0] : 'Usuario');
+            const initials = displayName.charAt(0).toUpperCase();
 
             container.innerHTML = `
                 <div class="user-profile-menu" style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 15px;">
                     <div class="user-profile-info" style="display: flex; align-items: center; gap: 10px; cursor: pointer;">
-                        <div class="user-profile-badge" title="${effectiveUser.email}">${initials}</div>
-                        <span class="user-profile-email" title="${effectiveUser.email}">${displayName}</span>
+                        <div class="user-profile-badge" title="${userData.email}">${initials}</div>
+                        <span class="user-profile-email" title="${userData.email}">${displayName}</span>
                     </div>
                     <button class="btn-logout-round" title="Cerrar Sesión">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
@@ -2373,10 +2478,10 @@ function updateHeaderUI(user, openModalFn, signOutFn, auth) {
                 </div>
             `;
             
-            // Aplicar avatar e iniciales si tiene un avatar guardado en Firebase photoURL
+            // Aplicar avatar e iniciales si tiene un avatar guardado en photoURL
             const badge = container.querySelector('.user-profile-badge');
             if (badge) {
-                applyAvatarToElement(badge, effectiveUser.photoURL, initials);
+                applyAvatarToElement(badge, userData.photoURL, initials);
             }
         } else {
             container.innerHTML = `<button class="btn-auth-trigger btn-login-trigger">${text}</button>`;
@@ -2414,7 +2519,7 @@ function applyAvatarToElement(element, photoURL, initials = 'U') {
         bgColor = parts[1];
     }
     
-    // Si photoURL es una URL de imagen directa (Google Drive, Cloudinary, etc.)
+    // Si photoURL es una URL de imagen directa (Google, Cloudinary, etc.)
     if (photoURL && (photoURL.startsWith('http://') || photoURL.startsWith('https://') || photoURL.startsWith('data:image/'))) {
         element.style.backgroundColor = 'transparent';
         element.style.color = '#ffffff';
@@ -2424,7 +2529,7 @@ function applyAvatarToElement(element, photoURL, initials = 'U') {
         element.style.display = 'flex';
         element.style.alignItems = 'center';
         element.style.justifyContent = 'center';
-        element.innerHTML = `<img src="${photoURL}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; margin: 0; padding: 0;">`;
+        element.innerHTML = `<img src="${photoURL}" alt="Avatar" referrerpolicy="no-referrer" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; margin: 0; padding: 0;" onerror="this.onerror=null; this.style.display='none'; this.parentElement.style.backgroundColor='var(--cyan)'; this.parentElement.textContent='${initials}';">`;
     } else if (avatarKey && bgColor) {
         element.style.backgroundColor = bgColor;
         element.style.color = '#ffffff';
