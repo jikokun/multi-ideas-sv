@@ -656,8 +656,78 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
             return res.status(playerRes.status).json({ error: "Could not fetch playback state" });
         }
 
+        // ── 7. Acción: CANCIÓN ACTUAL (Song / Current Song / Canción en Vivo) ──
+        if (action === "song" || action === "current_song" || action === "currentsong" || action === "cancion" || action === "current") {
+            let playerRes = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+                headers: { "Authorization": `Bearer ${accessToken}` }
+            });
+
+            // Si el token expiró (401), auto-renovar silenciosamente
+            if (playerRes.status === 401) {
+                try {
+                    const renewed = await getValidSpotifyToken(user, true);
+                    accessToken = renewed.accessToken;
+                    playerRes = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
+                        headers: { "Authorization": `Bearer ${accessToken}` }
+                    });
+                } catch(e) {}
+            }
+
+            if (playerRes.status === 204) {
+                if (req.query.format === "json") {
+                    return res.status(200).json({ is_playing: false, message: "No hay ninguna canción reproduciéndose actualmente en Spotify." });
+                }
+                return res.status(200).send("No hay ninguna canción reproduciéndose actualmente en Spotify.");
+            }
+
+            if (playerRes.ok) {
+                const data = await playerRes.json();
+                if (!data || !data.item) {
+                    if (req.query.format === "json") {
+                        return res.status(200).json({ is_playing: false, message: "No hay ninguna canción reproduciéndose actualmente en Spotify." });
+                    }
+                    return res.status(200).send("No hay ninguna canción reproduciéndose actualmente en Spotify.");
+                }
+
+                const track = data.item;
+                const title = track.name || "Canción";
+                const artists = track.artists ? track.artists.map(a => a.name).join(", ") : "Artista";
+                const trackUrl = track.external_urls && track.external_urls.spotify ? track.external_urls.spotify : "";
+
+                const format = (req.query.format || "").toLowerCase();
+
+                if (format === "json") {
+                    return res.status(200).json({
+                        is_playing: data.is_playing,
+                        song: title,
+                        artist: artists,
+                        title: `${title} - ${artists}`,
+                        url: trackUrl,
+                        formatted: `🎶 Sonando ahora: ${title} de ${artists} 🔗 ${trackUrl}`
+                    });
+                }
+
+                if (format === "url") {
+                    return res.status(200).send(trackUrl || `${title} - ${artists}`);
+                }
+
+                if (format === "name" || format === "title") {
+                    return res.status(200).send(`${title} - ${artists}`);
+                }
+
+                // Por defecto: Mensaje listo para enviar en Kick/Twitch desde Streamer.bot
+                const defaultMsg = trackUrl
+                    ? `🎶 Sonando ahora: ${title} de ${artists} 🔗 ${trackUrl}`
+                    : `🎶 Sonando ahora: ${title} de ${artists}`;
+
+                return res.status(200).send(defaultMsg);
+            }
+
+            return res.status(200).send("No hay ninguna canción reproduciéndose actualmente en Spotify.");
+        }
+
         // Si la acción no coincide con ninguna
-        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: add_to_queue, skip, play, pause, status, refresh_token.`);
+        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: add_to_queue, skip, play, pause, song, status, refresh_token.`);
 
     } catch (err) {
         console.error(`[spotifyControl] ❌ Error ejecutando acción '${action}':`, err);
