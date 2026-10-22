@@ -3013,15 +3013,31 @@
         window.copySpotifyObsUrl = function(btn) {
             let baseUrl = window.location.href.split('?')[0].split('#')[0];
             const lastSlash = baseUrl.lastIndexOf('/');
-            const dirUrl = lastSlash !== -1 ? baseUrl.substring(0, lastSlash + 1) : '';
-            const obsUrl = `${dirUrl}mini_widgets/widget_spotify.html`;
+            let dirUrl = lastSlash !== -1 ? baseUrl.substring(0, lastSlash + 1) : '';
+
+            // Si está abierto en local con file:, usar el dominio real accesible por OBS
+            if (window.location.protocol === 'file:') {
+                dirUrl = 'https://multiideassv.com/';
+            }
+
+            const token = localStorage.getItem('spotify_access_token') || '';
+            const refreshToken = localStorage.getItem('spotify_refresh_token') || '';
+            const expires = localStorage.getItem('spotify_token_expires') || '';
+
+            const params = new URLSearchParams();
+            if (token) params.set('token', token);
+            if (refreshToken) params.set('refresh', refreshToken);
+            if (expires) params.set('expires', expires);
+
+            const queryString = params.toString() ? ('?' + params.toString()) : '';
+            const obsUrl = `${dirUrl}mini_widgets/widget_spotify.html${queryString}`;
 
             navigator.clipboard.writeText(obsUrl).then(() => {
                 const orig = btn.textContent;
-                btn.textContent = '✅ ¡Enlace Widget Spotify Copiado para OBS!';
+                btn.textContent = '✅ ¡Enlace con Tokens Copiado para OBS!';
                 btn.style.background = 'linear-gradient(135deg, #1DB954 0%, #00f5d4 100%)';
                 btn.style.color = '#02090f';
-                log(`[Spotify OBS] URL copiada al portapapeles: ${obsUrl}`, "success");
+                log(`[Spotify OBS] URL con autenticación lista para OBS copiada al portapapeles: ${obsUrl}`, "success");
                 setTimeout(() => {
                     btn.textContent = orig;
                     btn.style.background = 'rgba(0, 245, 212, 0.1)';

@@ -2420,23 +2420,48 @@ document.addEventListener('click', (e) => {
                            e.target.closest('.user-profile-email');
     if (profileTrigger) {
         console.log("[Auth Debug] Click en badge o email del perfil.");
-        if (e.target.closest('#btn-logout-desktop') || e.target.closest('#btn-logout-mobile')) {
+        if (e.target.closest('#btn-logout-desktop') || 
+            e.target.closest('#btn-logout-mobile') || 
+            e.target.closest('.btn-logout-round') || 
+            e.target.closest('.btn-logout')) {
             return;
         }
+        e.preventDefault();
+
+        // Extraer los mejores datos de perfil para poblar la ventana emergente
+        const user = window.firebaseUserInstance;
+        const userData = typeof extractUserProfileData === 'function' 
+            ? extractUserProfileData(user) 
+            : {
+                displayName: localStorage.getItem('multiideas_user_name') || 'Usuario',
+                email: localStorage.getItem('multiideas_user_email') || '',
+                photoURL: localStorage.getItem('multiideas_user_photo') || '',
+                uid: (user && user.uid) || localStorage.getItem('multiideas_user_uid') || ''
+            };
+
+        const inputName = document.querySelector('#profile-name-input');
+        const labelEmail = document.querySelector('#profile-user-email');
+        const labelAvatar = document.querySelector('#profile-avatar-char');
+        
+        const displayName = userData.displayName || (userData.email ? userData.email.split('@')[0] : 'Usuario');
+        const initials = displayName.charAt(0).toUpperCase();
+
+        if (inputName) inputName.value = displayName;
+        if (labelEmail) labelEmail.textContent = userData.email || 'Sin correo asociado';
+        if (labelAvatar) applyAvatarToElement(labelAvatar, userData.photoURL, initials);
+        if (typeof window.setSelectedAvatarUI === 'function') {
+            window.setSelectedAvatarUI(userData.photoURL);
+        }
+
         if (typeof window.openProfileModal === 'function') {
-            e.preventDefault();
-            const user = window.firebaseUserInstance;
-            if (user) {
-                const inputName = document.querySelector('#profile-name-input');
-                const labelEmail = document.querySelector('#profile-user-email');
-                const labelAvatar = document.querySelector('#profile-avatar-char');
-                
-                const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-                if (inputName) inputName.value = user.displayName || user.email.split('@')[0];
-                if (labelEmail) labelEmail.textContent = user.email;
-                if (labelAvatar) applyAvatarToElement(labelAvatar, user.photoURL, initials);
-            }
             window.openProfileModal();
+        } else {
+            console.warn("[Auth Debug] window.openProfileModal no está disponible, abriendo modal directamente.");
+            const pModal = document.querySelector('#profile-modal');
+            if (pModal) {
+                pModal.classList.add('active');
+                if (typeof window.updateBodyScroll === 'function') window.updateBodyScroll();
+            }
         }
     }
 });
@@ -3023,14 +3048,26 @@ function setupProfileUI(profileModal, confirmDeleteModal, reauthModal, confirmLo
     function openProfile() {
         resetEditState();
         const user = window.firebaseUserInstance;
-        if (user) {
-            const initials = (user.displayName || user.email).charAt(0).toUpperCase();
-            if (inputName) inputName.value = user.displayName || user.email.split('@')[0];
-            if (labelEmail) labelEmail.textContent = user.email;
-            if (labelAvatar) applyAvatarToElement(labelAvatar, user.photoURL, initials);
-            setSelectedAvatarUI(user.photoURL);
+        const userData = typeof extractUserProfileData === 'function' 
+            ? extractUserProfileData(user) 
+            : {
+                displayName: (user && user.displayName) || localStorage.getItem('multiideas_user_name') || 'Usuario',
+                email: (user && user.email) || localStorage.getItem('multiideas_user_email') || '',
+                photoURL: (user && user.photoURL) || localStorage.getItem('multiideas_user_photo') || '',
+                uid: (user && user.uid) || localStorage.getItem('multiideas_user_uid') || ''
+            };
+
+        const displayName = userData.displayName || (userData.email ? userData.email.split('@')[0] : 'Usuario');
+        const initials = displayName.charAt(0).toUpperCase();
+
+        if (inputName) inputName.value = displayName;
+        if (labelEmail) labelEmail.textContent = userData.email || 'Sin correo asociado';
+        if (labelAvatar) applyAvatarToElement(labelAvatar, userData.photoURL, initials);
+        if (typeof setSelectedAvatarUI === 'function') setSelectedAvatarUI(userData.photoURL);
+
+        if (profileModal) {
+            profileModal.classList.add('active');
         }
-        profileModal.classList.add('active');
         window.updateBodyScroll();
     }
 

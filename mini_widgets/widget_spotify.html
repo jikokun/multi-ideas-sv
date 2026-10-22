@@ -813,29 +813,33 @@
     const CLIENT_ID = '86895cd4fce24473b50586a16122bd22';
     const CLIENT_SECRET = '98f13b050abb432482d9c3b80c6babff';
 
-    // Parámetros de URL
+    // Parámetros de URL y Hash
     const urlParams = new URLSearchParams(window.location.search);
-    const isCompact = urlParams.get('mode') === 'compact' || urlParams.get('compact') === 'true';
-    const hideControls = urlParams.get('hideControls') === 'true';
-    const isAqua = urlParams.get('theme') === 'aqua';
+    const rawHash = window.location.hash.startsWith('#') ? window.location.hash.substring(1) : window.location.hash;
+    const hashParams = new URLSearchParams(rawHash);
 
-    if (isCompact) {
-      document.getElementById('spotifyWidgetCard').classList.add('compact-mode');
+    const isCompact = urlParams.get('mode') === 'compact' || urlParams.get('compact') === 'true' || hashParams.get('mode') === 'compact';
+    const hideControls = urlParams.get('hideControls') === 'true' || hashParams.get('hideControls') === 'true';
+    const isAqua = urlParams.get('theme') === 'aqua' || hashParams.get('theme') === 'aqua';
+
+    // Extraer tokens que vienen incluidos en la URL para OBS Studio (evita login dentro de OBS)
+    const paramToken = urlParams.get('token') || urlParams.get('access_token') || hashParams.get('token') || hashParams.get('access_token');
+    const paramRefresh = urlParams.get('refresh') || urlParams.get('refresh_token') || hashParams.get('refresh') || hashParams.get('refresh_token');
+    const paramExpires = urlParams.get('expires') || hashParams.get('expires');
+
+    if (paramToken) {
+      try { localStorage.setItem('spotify_access_token', paramToken); } catch(e) {}
     }
-    if (hideControls) {
-      const controlsRow = document.getElementById('controlsRow');
-      if (controlsRow) controlsRow.style.display = 'none';
-      const searchBtn = document.getElementById('btnSearchToggle');
-      if (searchBtn) searchBtn.style.display = 'none';
+    if (paramRefresh) {
+      try { localStorage.setItem('spotify_refresh_token', paramRefresh); } catch(e) {}
     }
-    if (isAqua) {
-      document.documentElement.style.setProperty('--accent', '#00f5d4');
-      document.documentElement.style.setProperty('--accent-glow', 'rgba(0, 245, 212, 0.4)');
+    if (paramExpires) {
+      try { localStorage.setItem('spotify_token_expires', paramExpires); } catch(e) {}
     }
 
-    let accessToken = localStorage.getItem('spotify_access_token') || '';
-    let refreshToken = localStorage.getItem('spotify_refresh_token') || '';
-    let tokenExpires = parseInt(localStorage.getItem('spotify_token_expires') || '0', 10);
+    let accessToken = paramToken || localStorage.getItem('spotify_access_token') || '';
+    let refreshToken = paramRefresh || localStorage.getItem('spotify_refresh_token') || '';
+    let tokenExpires = parseInt(paramExpires || localStorage.getItem('spotify_token_expires') || '0', 10);
 
     let currentTrackId = '';
     let isPlaying = false;
