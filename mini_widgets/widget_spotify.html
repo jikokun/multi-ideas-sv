@@ -1103,11 +1103,15 @@
     const WIDGET_INSTANCE_ID = 'sp_' + Math.random().toString(36).substring(2, 9);
     const GLOBAL_CMD_LOCK_KEY = 'jiko_spotify_cmd_lock';
     const GLOBAL_QUEUE_LOCK_KEY = 'jiko_spotify_queue_lock';
+    const GLOBAL_SKIP_LOCK_KEY = 'jiko_spotify_skip_lock';
     const GLOBAL_ALERT_KEY = 'jiko_spotify_shared_alert';
 
     let lastHandledCommand = { text: '', time: 0 };
     const recentMsgIds = new Set();
     let isCurrentlyEnqueuing = false;
+    let isCurrentlySkipping = false;
+    let lastLocalSkipTime = 0;
+    let lastSkippedTrackId = '';
 
     // Canal de sincronización cruzada entre fuentes de OBS y pestañas de navegador
     let syncChannel = null;
@@ -1115,15 +1119,23 @@
       if (typeof BroadcastChannel !== 'undefined') {
         syncChannel = new BroadcastChannel('jiko_spotify_sync');
         syncChannel.onmessage = (e) => {
-          if (!e.data) return;
-          if (e.data.type === 'SHOW_ALERT' && e.data.instance !== WIDGET_INSTANCE_ID) {
+          if (!e.data || e.data.instance === WIDGET_INSTANCE_ID) return;
+
+          if (e.data.type === 'SHOW_ALERT') {
             showFloatingAlert(e.data.msg, e.data.alertType, e.data.user);
+          } else if (e.data.type === 'SKIP_EXECUTED') {
+            lastLocalSkipTime = Date.now();
+            isCurrentlySkipping = true;
+            if (e.data.trackId) lastSkippedTrackId = e.data.trackId;
+            showFloatingAlert(e.data.msg || 'Saltando a la siguiente canción en Spotify...', 'skip', e.data.user);
+            setTimeout(fetchPlaybackState, 900);
+            setTimeout(() => { isCurrentlySkipping = false; }, 3500);
           }
         };
       }
     } catch(e) {}
 
-    // Escuchar alertas disparadas por otras instancias vía localStorage
+    // Escuchar alertas y skips disparados por otras instancias vía localStorage
     window.addEventListener('storage', (e) => {
       if (e.key === GLOBAL_ALERT_KEY && e.newValue) {
         try {
@@ -1132,33 +1144,53 @@
             showFloatingAlert(alertData.msg, alertData.alertType, alertData.user);
           }
         } catch(err) {}
+      } else if (e.key === GLOBAL_SKIP_LOCK_KEY && e.newValue) {
+        try {
+          const skipData = JSON.parse(e.newValue);
+          if (skipData.instance !== WIDGET_INSTANCE_ID && (Date.now() - skipData.time) < 3500) {
+            lastLocalSkipTime = Date.now();
+            isCurrentlySkipping = true;
+            if (skipData.trackId) lastSkippedTrackId = skipData.trackId;
+            setTimeout(() => { isCurrentlySkipping = false; }, 3500);
+          }
+        } catch(err) {}
       }
     });
+
+    // Normalizar comandos con alias a su clave canónica para evitar duplicados entre alias
+    function getCanonicalCommandKey(rawText) {
+      const lower = (rawText || '').toLowerCase().trim().replace(/\s+/g, ' ');
+      if (lower === '!skip' || lower === '!skipsong' || lower === '!saltar') return '!skipsong';
+      if (lower === '!play' || lower === '!reanudar') return '!play';
+      if (lower === '!pausa' || lower === '!pause') return '!pause';
+      if (lower === '!cancion' || lower === '!song' || lower === '!currentsong') return '!cancion';
+      return lower;
+    }
 
     // Candado global para evitar que múltiples fuentes OBS o eventos duplicados ejecuten el comando
     function acquireGlobalCmdLock(cmdText, user) {
       const now = Date.now();
-      const normText = (cmdText || '').toLowerCase().trim().replace(/\s+/g, ' ');
+      const canonicalKey = getCanonicalCommandKey(cmdText);
 
       // 1. Candado en memoria local de la instancia
-      if (lastHandledCommand.text === normText && (now - lastHandledCommand.time) < 3500) {
+      if (lastHandledCommand.text === canonicalKey && (now - lastHandledCommand.time) < 3500) {
         console.log(`[Spotify Widget] 🛡️ Ignorando comando duplicado en memoria (<3.5s): "${cmdText}"`);
         return false;
       }
-      lastHandledCommand = { text: normText, time: now };
+      lastHandledCommand = { text: canonicalKey, time: now };
 
       // 2. Candado compartido entre todas las fuentes de OBS / ventanas (localStorage)
       try {
         const raw = localStorage.getItem(GLOBAL_CMD_LOCK_KEY);
         if (raw) {
           const lock = JSON.parse(raw);
-          if (lock.text === normText && (now - lock.time) < 3500) {
+          if (lock.text === canonicalKey && (now - lock.time) < 3500) {
             console.log(`[Spotify Widget] 🛡️ [MUTEX GLOBAL] Comando ya ejecutado por otra fuente OBS (<3.5s): "${cmdText}"`);
             return false;
           }
         }
         localStorage.setItem(GLOBAL_CMD_LOCK_KEY, JSON.stringify({
-          text: normText,
+          text: canonicalKey,
           user: user,
           time: now,
           instance: WIDGET_INSTANCE_ID
@@ -1190,6 +1222,83 @@
       return true;
     }
 
+    // Ejecución segura y atómica del salto de canción (evita dobles saltos en OBS)
+    async function executeSkipSong(user, badges) {
+      const isMod = checkIsModerator(user, badges);
+      if (!isMod) {
+        showFloatingAlert('Solo los moderadores de Kick pueden saltar canciones con !skipsong', 'warning', user);
+        return;
+      }
+
+      const now = Date.now();
+
+      // 1. Candado local en memoria (evita saltos dobles si hay eventos simultáneos)
+      if (isCurrentlySkipping || (now - lastLocalSkipTime) < 4000) {
+        console.log(`[Spotify Widget] 🛡️ Skip descartado por cooldown local (<4s)`);
+        return;
+      }
+
+      // 2. Candado global compartido en localStorage (entre todas las escenas de OBS y ventanas)
+      try {
+        const raw = localStorage.getItem(GLOBAL_SKIP_LOCK_KEY);
+        if (raw) {
+          const lock = JSON.parse(raw);
+          const diff = now - lock.time;
+          if (diff < 4000) {
+            console.log(`[Spotify Widget] 🛡️ [MUTEX SKIP] Skip ya ejecutado hace ${diff}ms por otra fuente/instancia.`);
+            return;
+          }
+          if (currentTrackId && lock.trackId && lock.trackId === currentTrackId && diff < 6000) {
+            console.log(`[Spotify Widget] 🛡️ [MUTEX SKIP] La pista ${currentTrackId} ya fue saltada recientemente.`);
+            return;
+          }
+        }
+        localStorage.setItem(GLOBAL_SKIP_LOCK_KEY, JSON.stringify({
+          time: now,
+          trackId: currentTrackId || '',
+          user: user,
+          instance: WIDGET_INSTANCE_ID
+        }));
+      } catch (e) {}
+
+      // 3. Protección por ID de pista: no saltar 2 veces la misma pista
+      if (currentTrackId && lastSkippedTrackId === currentTrackId && (now - lastLocalSkipTime) < 6000) {
+        console.log(`[Spotify Widget] 🛡️ La pista actual (${currentTrackId}) ya fue saltada en esta instancia.`);
+        return;
+      }
+
+      isCurrentlySkipping = true;
+      lastLocalSkipTime = now;
+      if (currentTrackId) lastSkippedTrackId = currentTrackId;
+
+      const skipMsg = 'Saltando a la siguiente canción en Spotify...';
+      showFloatingAlert(skipMsg, 'skip', user);
+
+      // Sincronizar inmediatamente con otras fuentes OBS para que no llamen a la API
+      try {
+        if (syncChannel) {
+          syncChannel.postMessage({
+            type: 'SKIP_EXECUTED',
+            trackId: currentTrackId || '',
+            user: user,
+            msg: skipMsg,
+            instance: WIDGET_INSTANCE_ID
+          });
+        }
+      } catch (e) {}
+
+      try {
+        await spotifyApi('/me/player/next', 'POST');
+      } catch(e) {
+        console.error('[Spotify Widget] Error al saltar canción:', e);
+      } finally {
+        setTimeout(fetchPlaybackState, 800);
+        setTimeout(() => {
+          isCurrentlySkipping = false;
+        }, 3500);
+      }
+    }
+
     async function handleKickChatCommand(cmdText, user = 'Viewer', badges = []) {
       const raw = cmdText.trim();
       const lower = raw.toLowerCase();
@@ -1201,15 +1310,7 @@
 
       // 1. COMANDO !skipsong (Solo para Moderadores)
       if (lower === '!skipsong' || lower === '!skip' || lower === '!saltar') {
-        const isMod = checkIsModerator(user, badges);
-        if (!isMod) {
-          showFloatingAlert('Solo los moderadores de Kick pueden saltar canciones con !skipsong', 'warning', user);
-          return;
-        }
-
-        showFloatingAlert('Saltando a la siguiente canción en Spotify...', 'skip', user);
-        await spotifyApi('/me/player/next', 'POST');
-        setTimeout(fetchPlaybackState, 800);
+        await executeSkipSong(user, badges);
         return;
       }
 
