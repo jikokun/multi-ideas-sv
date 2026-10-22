@@ -2528,7 +2528,7 @@
 
     const calcFunc = window.calcularNivelUsuario || ((a) => {
       const xp = (a && a.experiencia !== undefined) ? parseInt(a.experiencia, 10) : (asistencias * 200);
-      const n = Math.min(50, Math.max(1, Math.floor(xp / 1000) + 1));
+      const n = Math.min(200, Math.max(1, Math.floor(xp / 1000) + 1));
       return { nivel: n, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', porcentajeProgreso: 45, xpParaSubir: 1000 };
     });
 
@@ -2598,11 +2598,15 @@
         }
       } else {
         if (isJiko) consumerTitle = '👑 Dueño y Creador del Canal';
-        else if (nivel >= 43) consumerTitle = '👑 Leyenda de la Manada';
-        else if (nivel >= 34) consumerTitle = '🐺 Guerrero Alfa';
-        else if (nivel >= 26) consumerTitle = '🛡️ Guardián del Canal';
-        else if (nivel >= 16) consumerTitle = '🏹 Cazador Fiel';
-        else if (nivel >= 6) consumerTitle = '🌲 Explorador Nato';
+        else if (nivel >= 200) consumerTitle = '🏆 Señor de la Manada Suprema';
+        else if (nivel >= 186) consumerTitle = '🔮 Leyenda Mítica';
+        else if (nivel >= 166) consumerTitle = '🌌 Lobo Ancestral';
+        else if (nivel >= 136) consumerTitle = '👑 Manada VIP';
+        else if (nivel >= 101) consumerTitle = '🐺 Lobo Alfa';
+        else if (nivel >= 71) consumerTitle = '⚡ Lobo Beta';
+        else if (nivel >= 46) consumerTitle = '🛡️ Guardián de la Manada';
+        else if (nivel >= 26) consumerTitle = '🏹 Cazador Fiel';
+        else if (nivel >= 11) consumerTitle = '🧭 Explorador Nato';
         else consumerTitle = '🐾 Cachorro de la Manada';
       }
     }
@@ -2610,7 +2614,7 @@
     // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
     // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard:
     // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
-    // 3. Fallback jerárquico estándar: Manada VIP -> Subs -> Nivel 43-50 -> 34-42 -> 26-33 -> 16-25 -> 6-15 -> 1-5
+    // 3. Fallback jerárquico estándar hasta Nivel 200
     let themeClass = 'theme-silver';
     let themeLabel = '🐾 CACHORRO';
 
@@ -2647,21 +2651,30 @@
     } else if (isSub) {
       themeClass = 'theme-gold';
       themeLabel = '🪙 SUB GOLD';
-    } else if (nivel >= 43) {
+    } else if (nivel >= 200) {
+      themeClass = 'theme-gold';
+      themeLabel = '🏆 MÁXIMO RANGO (LVL 200)';
+    } else if (nivel >= 166) {
+      themeClass = 'theme-purple';
+      themeLabel = '🌌 LOBO ANCESTRAL';
+    } else if (nivel >= 136) {
+      themeClass = 'theme-gold';
+      themeLabel = '👑 MANADA VIP';
+    } else if (nivel >= 101) {
       themeClass = 'theme-red';
-      themeLabel = '👑 MÁXIMO RANGO';
-    } else if (nivel >= 34) {
+      themeLabel = '🐺 LOBO ALFA';
+    } else if (nivel >= 71) {
       themeClass = 'theme-orange';
-      themeLabel = '🐺 LOBO BETA';
-    } else if (nivel >= 26) {
+      themeLabel = '⚡ LOBO BETA';
+    } else if (nivel >= 46) {
       themeClass = 'theme-purple';
       themeLabel = '🛡️ GUARDIÁN';
-    } else if (nivel >= 16) {
+    } else if (nivel >= 26) {
       themeClass = 'theme-cyan';
       themeLabel = '🏹 CAZADOR FIEL';
-    } else if (nivel >= 6) {
+    } else if (nivel >= 11) {
       themeClass = 'theme-green';
-      themeLabel = '🌲 EXPLORADOR';
+      themeLabel = '🧭 EXPLORADOR';
     } else {
       themeClass = 'theme-silver';
       themeLabel = '🐾 SEGUIDOR';
@@ -2678,8 +2691,8 @@
       displayName: displayName,
       avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarCache[normUser] || (normUser === 'jikokun' ? avatarCache['jikokun'] : null),
       nivel: nivel,
-      rangoTitulo: (u._forceLevel && nivel >= 43) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 34) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro')),
-      insigniaEmoji: (u._forceLevel && nivel >= 43) ? '👑' : ((u._forceLevel && nivel >= 34) ? '🐺' : (nivelInfo.insigniaEmoji || '🐾')),
+      rangoTitulo: (u._forceLevel && nivel >= 200) ? 'Señor de la Manada Suprema' : ((u._forceLevel && nivel >= 101) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 71) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro'))),
+      insigniaEmoji: (u._forceLevel && nivel >= 200) ? '🏆' : ((u._forceLevel && nivel >= 101) ? '🐺' : ((u._forceLevel && nivel >= 71) ? '⚡' : (nivelInfo.insigniaEmoji || '🐾'))),
       pts: pts,
       asistencias: asistencias,
       xpTotal: xpTotal,
@@ -2983,14 +2996,19 @@
           botEmisor: 'Lobito_Mensajero'
         }).then((record) => {
           if (!record) return;
-          const ptsGanados = record.puntosOtorgados || 500;
-          const xpGanada = record.experienciaGanada || 200;
+          const ptsGanados = record.puntosOtorgados || 0;
+          const xpGanada = record.experienciaGanada || 0;
           const nuevoSaldo = record.nuevoSaldo;
           const nivel = record.nivelUsuario || 1;
           const insignia = record.insigniaEmoji || '🐾';
           const rango = record.rangoTitulo || 'Cachorro';
 
-          setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
+          if (!record.yaRegistrado && nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
+            setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
+          } else if (nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
+            // Solo sincronizar en caché local sin sobreescribir Firebase
+            try { localStorage.setItem('tiendita_pts_' + userNorm, nuevoSaldo); } catch(e){}
+          }
 
           asistenciaStream.push({
             user: cleanUser,
@@ -3004,7 +3022,7 @@
           });
           guardarAsistenciaStream();
 
-          if(norm(usuarioActual) === userNorm){
+          if(norm(usuarioActual) === userNorm && nuevoSaldo !== undefined && !isNaN(nuevoSaldo)){
             saldoActual = nuevoSaldo;
             animarPuntos(saldoActual);
           }
@@ -3215,11 +3233,14 @@
       const key = norm(user);
       if (window.StreamDB) {
         const cached = window.StreamDB.getCachedPoints(key);
-        if (cached !== null && cached !== undefined) return cached;
+        if (cached !== null && cached !== undefined && !isNaN(cached)) return cached;
       }
       const storageKey = 'tiendita_pts_' + key;
       const val = localStorage.getItem(storageKey);
-      if(val !== null) return parseInt(val, 10);
+      if(val !== null) {
+        const p = parseInt(val, 10);
+        if (!isNaN(p) && p >= 0) return p;
+      }
       localStorage.setItem(storageKey, USER_DEFAULT_POINTS);
       if (window.StreamDB) {
         window.StreamDB.getUser(key).catch(()=>{});
@@ -3230,7 +3251,11 @@
   function setUserPoints(user, pts, motivo = 'ajuste'){
     try {
       const key = norm(user);
-      const puntosNum = Math.max(0, parseInt(pts, 10) || 0);
+      if (pts === undefined || pts === null || isNaN(pts)) {
+        console.warn(`[Tiendita] ⚠️ Intento de asignar puntos inválidos (${pts}) a @${key}. Abortado para proteger el saldo.`);
+        return;
+      }
+      const puntosNum = Math.max(0, parseInt(pts, 10));
       localStorage.setItem('tiendita_pts_' + key, puntosNum);
       if (window.StreamDB) {
         window.StreamDB.setJikopuntos(key, puntosNum, motivo);
@@ -4172,18 +4197,20 @@
         return;
       }
 
-      // Comprobar si hay otro widget activo en pantalla (Tiendita abierta o Cajero JikoBank en uso)
-      if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
-        const lock = JikoWidgetSync.getActiveLock();
-        const enqueued = JikoWidgetSync.enqueue({
-          widget: 'perfil',
-          command: '!perfil',
-          sender: user,
-          target: targetUser,
-          raw: raw
-        });
-        if (enqueued) {
-          toast(JikoWidgetSync.getFriendlyQueuedToast(enqueued, lock), 'info');
+      // Comprobar si hay otro widget activo en pantalla (Tiendita abierta, perfil actual mostrándose o Cajero JikoBank en uso)
+      const cardLocalShowing = $cardPerfil && $cardPerfil.classList.contains('visible');
+      const tiendaEstaAbierta = $menu && $menu.classList.contains('visible');
+      if (cardLocalShowing || tiendaEstaAbierta || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', targetUser))) {
+        const lock = window.JikoWidgetSync ? JikoWidgetSync.getActiveLock() : { widget: tiendaEstaAbierta ? 'tienda' : 'perfil' };
+        console.log(`[Tiendita] ⏳ Pantalla ocupada. Tarjeta de !perfil para @${targetUser} encolada sin desplazar.`);
+        if (window.JikoWidgetSync) {
+          JikoWidgetSync.enqueue({
+            widget: 'perfil',
+            command: '!perfil',
+            sender: user,
+            target: targetUser,
+            raw: raw
+          });
         }
         return;
       }
@@ -4320,9 +4347,14 @@
         return;
       }
 
-      const parsed = parsearUsuarioYCantidad(partes[1], partes[2]);
-      const receptor = parsed.usuario;
-      const cantidad = parsed.cantidad;
+      let receptor = (partes[1] || '').trim().replace(/^@/, '');
+      let cantidad = parseInt(partes[2], 10) || 0;
+
+      // Soporte para formato inverso si el streamer escribe !darjikopuntos 500 @usuario
+      if (!isNaN(parseInt(partes[1], 10)) && isNaN(parseInt(partes[2], 10))) {
+        cantidad = parseInt(partes[1], 10) || 0;
+        receptor = (partes[2] || '').trim().replace(/^@/, '');
+      }
 
       if(!receptor || isNaN(cantidad) || cantidad <= 0){
         toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!darjikopuntos ${receptor || 'usuario'} 500</b>`,'err');
@@ -4330,29 +4362,52 @@
         return;
       }
 
-      const saldoPrevio = getUserPoints(receptor);
-      const nuevoSaldo = saldoPrevio + cantidad;
-      setUserPoints(receptor, nuevoSaldo, '!darjikopuntos');
-
-      if (window.StreamDB) {
-        window.StreamDB.registrarTransferencia({
-          admin: user,
-          receptor: receptor,
-          cantidad: cantidad,
-          nuevoSaldo: nuevoSaldo,
-          motivo: '!darjikopuntos'
-        }).catch(err => console.warn('[Tiendita] Error registrando transferencia en Firebase:', err));
-        if (typeof window.StreamDB.addJikopuntos === 'function') {
-          window.StreamDB.addJikopuntos(receptor, cantidad, '!darjikopuntos').catch(()=>{});
+      // Caso 1: Bono masivo a toda la comunidad (!darjikopuntos todos 1000)
+      if (receptor.toLowerCase() === 'todos' || receptor.toLowerCase() === 'all') {
+        if (window.StreamDB && typeof window.StreamDB.darJikopuntosTodos === 'function') {
+          window.StreamDB.darJikopuntosTodos({ admin: user, cantidad: cantidad }).then(res => {
+            if (res && !res.duplicadoIgnorado) {
+              toast(`🌟 ¡LLUVIA DE JIKOPUNTOS! <b>@Jikokun</b> regaló <b>+${cantidad} pts</b> a toda la manada presente.`);
+            }
+          }).catch(err => console.warn('[Tiendita] Error en darJikopuntosTodos:', err));
         }
+        playSfx('buy');
+        return;
       }
 
-      if(norm(usuarioActual) === norm(receptor)){
-        saldoActual = nuevoSaldo;
-        animarPuntos(saldoActual);
-        const bar = document.getElementById('user-bar');
-        if(bar){
-          bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
+      // Caso 2: Entrega individual a un usuario con deduplicación atómica en Firebase
+      let nuevoSaldoCalculado = getUserPoints(receptor) + cantidad;
+      if (window.StreamDB && typeof window.StreamDB.darJikopuntosUsuario === 'function') {
+        window.StreamDB.darJikopuntosUsuario({
+          admin: user,
+          targetUser: receptor,
+          cantidad: cantidad
+        }).then(res => {
+          if (res && res.nuevoSaldo !== undefined) {
+            nuevoSaldoCalculado = res.nuevoSaldo;
+            try {
+              localStorage.setItem('tiendita_pts_' + norm(receptor), nuevoSaldoCalculado);
+            } catch(e){}
+            if(norm(usuarioActual) === norm(receptor)){
+              saldoActual = nuevoSaldoCalculado;
+              animarPuntos(saldoActual);
+              const bar = document.getElementById('user-bar');
+              if(bar){
+                bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
+              }
+            }
+          }
+        }).catch(err => console.warn('[Tiendita] Error en darJikopuntosUsuario:', err));
+      } else {
+        // Fallback local únicamente cuando StreamDB no está disponible
+        setUserPoints(receptor, nuevoSaldoCalculado, '!darjikopuntos');
+        if(norm(usuarioActual) === norm(receptor)){
+          saldoActual = nuevoSaldoCalculado;
+          animarPuntos(saldoActual);
+          const bar = document.getElementById('user-bar');
+          if(bar){
+            bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
+          }
         }
       }
 
@@ -4422,17 +4477,18 @@
     // 1. Abrir tienda (o renovar tiempo si es el mismo usuario)
     if(esComandoAbrir){
       if(!tiendaAbierta){
-        // Si otro widget está activo (Cajero JikoBank o Tarjeta de Perfil), encolar para no sobreponer
-        if (window.JikoWidgetSync && JikoWidgetSync.isBusy('tienda')) {
-          const lock = JikoWidgetSync.getActiveLock();
-          const enqueued = JikoWidgetSync.enqueue({
-            widget: 'tienda',
-            command: '!tienda',
-            sender: user,
-            raw: raw
-          });
-          if (enqueued) {
-            toast(JikoWidgetSync.getFriendlyQueuedToast(enqueued, lock), 'info');
+        // Si otro widget está activo (Cajero JikoBank o Tarjeta de Perfil), o si la tarjeta local de perfil está visible:
+        const localPerfilActivo = $cardPerfil && $cardPerfil.classList.contains('visible');
+        if (localPerfilActivo || (window.JikoWidgetSync && JikoWidgetSync.isBusy('tienda', user))) {
+          const lock = window.JikoWidgetSync ? JikoWidgetSync.getActiveLock() : { widget: 'perfil' };
+          console.log(`[Tiendita] ⏳ Pantalla ocupada por perfil/cajero. Tienda de @${user} encolada sin desplazar.`);
+          if (window.JikoWidgetSync) {
+            JikoWidgetSync.enqueue({
+              widget: 'tienda',
+              command: '!tienda',
+              sender: user,
+              raw: raw
+            });
           }
           return;
         }
@@ -4758,7 +4814,6 @@
     if($cdNotice) $cdNotice.classList.remove('activo', 'sacudir');
     usuarioActual=user;
     saldoActual = puntos !== null ? parseInt(puntos) : getUserPoints(user);
-    setUserPoints(user, saldoActual);
 
     document.getElementById('user-name').textContent='@'+user;
     cargarAvatarUsuario(user);

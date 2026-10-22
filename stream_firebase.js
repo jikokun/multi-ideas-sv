@@ -114,35 +114,59 @@ export function extraerUsuarioDeBienvenidaGlobal(texto) {
 }
 
 // ==========================================================================
-// 🐺 ESCALAFÓN Y SISTEMA DE 50 NIVELES DE EXPERIENCIA (XP) Y RANGOS
+// 🐺 ESCALAFÓN Y SISTEMA DE 200 NIVELES DE EXPERIENCIA (XP) Y RANGOS
 // ==========================================================================
 export const RANGOS_BASE_TITULOS = [
-  { minNivel: 1,  maxNivel: 5,  titulo: 'Cachorro',              emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada (Niveles 1 a 5)' },
-  { minNivel: 6,  maxNivel: 11, titulo: 'Explorador del Stream', emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia (Niveles 6 a 11)' },
-  { minNivel: 12, maxNivel: 18, titulo: 'Cazador Fiel',          emoji: '🏹', bonoExtra: 100, descripcion: 'Casi nunca falta a un stream (Niveles 12 a 18)' },
-  { minNivel: 19, maxNivel: 25, titulo: 'Guardián de la Manada', emoji: '🛡️', bonoExtra: 150, descripcion: 'Pilar veterano de la comunidad (Niveles 19 a 25)' },
-  { minNivel: 26, maxNivel: 33, titulo: 'Lobo Beta (VIP)',       emoji: '⚡', bonoExtra: 200, descripcion: 'Rango élite con presencia constante (Niveles 26 a 33)' },
-  { minNivel: 34, maxNivel: 42, titulo: 'Lobo Alfa',             emoji: '🐺', bonoExtra: 250, descripcion: 'Lobo Alfa dominante en la manada (Niveles 34 a 42)' },
-  { minNivel: 43, maxNivel: 50, titulo: 'Manada VIP',            emoji: '👑', bonoExtra: 300, descripcion: 'Máximo rango legendario alcanzado (Niveles 43 a 50)' }
+  { minNivel: 1,   maxNivel: 10,  titulo: 'Cachorro',                   emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada (Niveles 1 a 10)' },
+  { minNivel: 11,  maxNivel: 25,  titulo: 'Explorador del Stream',      emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia (Niveles 11 a 25)' },
+  { minNivel: 26,  maxNivel: 45,  titulo: 'Cazador Fiel',               emoji: '🏹', bonoExtra: 100, descripcion: 'Casi nunca falta a un stream (Niveles 26 a 45)' },
+  { minNivel: 46,  maxNivel: 70,  titulo: 'Guardián de la Manada',      emoji: '🛡️', bonoExtra: 150, descripcion: 'Pilar veterano de la comunidad (Niveles 46 a 70)' },
+  { minNivel: 71,  maxNivel: 100, titulo: 'Lobo Beta (VIP)',            emoji: '⚡', bonoExtra: 200, descripcion: 'Rango élite con presencia constante (Niveles 71 a 100)' },
+  { minNivel: 101, maxNivel: 135, titulo: 'Lobo Alfa',                  emoji: '🐺', bonoExtra: 250, descripcion: 'Lobo Alfa dominante en la manada (Niveles 101 a 135)' },
+  { minNivel: 136, maxNivel: 165, titulo: 'Manada VIP',                 emoji: '👑', bonoExtra: 300, descripcion: 'Líder respetado de la comunidad (Niveles 136 a 165)' },
+  { minNivel: 166, maxNivel: 185, titulo: 'Lobo Ancestral',             emoji: '🌌', bonoExtra: 350, descripcion: 'Veterano legendario con alma cósmica (Niveles 166 a 185)' },
+  { minNivel: 186, maxNivel: 199, titulo: 'Leyenda Mítica',             emoji: '🔮', bonoExtra: 400, descripcion: 'Fuerza casi insuperable del stream (Niveles 186 a 199)' },
+  { minNivel: 200, maxNivel: 200, titulo: 'Señor de la Manada Suprema', emoji: '🏆', bonoExtra: 500, descripcion: 'Máximo Rango Absoluto alcanzado (Nivel 200)' }
 ];
 
+// Curva progresiva de XP requerida para subir de nivel hasta 200
 export function getXpParaSubirNivel(nivel) {
-  if (nivel >= 50) return 0;
-  if (nivel <= 5) return 1000;
-  return 1000 + (nivel - 5) * 150;
+  if (nivel >= 200) return 0;
+  if (nivel <= 10) return 1000 + (nivel - 1) * 60;
+  if (nivel <= 30) return 1600 + (nivel - 10) * 110;
+  if (nivel <= 60) return 3800 + (nivel - 30) * 170;
+  if (nivel <= 100) return 8900 + (nivel - 60) * 260;
+  if (nivel <= 150) return 19300 + (nivel - 100) * 380;
+  return 38300 + (nivel - 150) * 550;
 }
 
-export const TABLA_50_NIVELES = [];
+// Multiplicador de obtención de XP: entre más arriba el nivel, menos puntos se obtienen para dificultar la subida
+export function calcularFactorXpNivel(nivel = 1) {
+  const n = Math.max(1, Math.min(200, parseInt(nivel, 10) || 1));
+  if (n >= 200) return 0;       // Nivel 200 máximo ya no requiere XP
+  if (n <= 10) return 1.0;      // 100% de XP
+  if (n <= 25) return 0.90;     // 90%
+  if (n <= 50) return 0.80;     // 80%
+  if (n <= 80) return 0.65;     // 65%
+  if (n <= 120) return 0.50;    // 50%
+  if (n <= 165) return 0.35;    // 35%
+  return 0.20;                  // 20% en niveles de élite (166 a 199)
+}
+
+export const TABLA_200_NIVELES = [];
 let _acumuladoXp = 0;
-for (let n = 1; n <= 50; n++) {
+for (let n = 1; n <= 200; n++) {
   const req = getXpParaSubirNivel(n);
-  TABLA_50_NIVELES.push({
+  TABLA_200_NIVELES.push({
     nivel: n,
     xpMinima: _acumuladoXp,
     xpParaSubir: req
   });
   _acumuladoXp += req;
 }
+
+// Compatibilidad con código previo que usaba TABLA_50_NIVELES
+export const TABLA_50_NIVELES = TABLA_200_NIVELES;
 
 // Compatibilidad con código previo que usaba NIVELES_ASISTENCIA
 export const NIVELES_ASISTENCIA = RANGOS_BASE_TITULOS.map((r, idx) => ({
@@ -200,17 +224,17 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
     }
   }
 
-  let nivelInfo = TABLA_50_NIVELES[0];
-  for (let i = 0; i < TABLA_50_NIVELES.length; i++) {
-    if (xp >= TABLA_50_NIVELES[i].xpMinima) {
-      nivelInfo = TABLA_50_NIVELES[i];
+  let nivelInfo = TABLA_200_NIVELES[0];
+  for (let i = 0; i < TABLA_200_NIVELES.length; i++) {
+    if (xp >= TABLA_200_NIVELES[i].xpMinima) {
+      nivelInfo = TABLA_200_NIVELES[i];
     } else {
       break;
     }
   }
 
   const nivel = nivelInfo.nivel;
-  const esMaximo = nivel >= 50;
+  const esMaximo = nivel >= 200;
   const xpEnNivel = xp - nivelInfo.xpMinima;
   const xpParaSubir = nivelInfo.xpParaSubir;
   const faltantes = esMaximo ? 0 : Math.max(0, xpParaSubir - xpEnNivel);
@@ -240,8 +264,8 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
   }
 
   const tituloFinal = esPersonalizado ? String(tituloPersonalizado).trim() : rango.titulo;
-  const siguienteNivel = (nivel < 50) ? (nivel + 1) : 50;
-  const siguienteInfo = (nivel < 50) ? (TABLA_50_NIVELES[siguienteNivel - 1] || null) : null;
+  const siguienteNivel = (nivel < 200) ? (nivel + 1) : 200;
+  const siguienteInfo = (nivel < 200) ? (TABLA_200_NIVELES[siguienteNivel - 1] || null) : null;
   const siguienteRango = siguienteInfo ? siguienteInfo.rangoTitulo : '¡Rango Máximo!';
 
   return {
@@ -818,7 +842,11 @@ class StreamFirebaseService {
   async setJikopuntos(username, points, motivo = 'ajuste') {
     const key = norm(username);
     if (!key) return false;
-    const pts = Math.max(0, parseInt(points, 10) || 0);
+    if (points === undefined || points === null || isNaN(points)) {
+      console.warn(`[StreamDB] ⚠️ Intento de setJikopuntos con valor inválido (${points}) para @${key}. Operación abortada.`);
+      return false;
+    }
+    const pts = Math.max(0, parseInt(points, 10));
 
     this._updateLocalCache(key, pts);
     if (this.usersCache.has(key)) {
@@ -1707,9 +1735,13 @@ class StreamFirebaseService {
       const streamInfo = this.getStreamDuracionActual();
       const factor = this.calcularMultiplicadorDuracionStream(streamInfo.duracionMinutos);
 
-      // 10 XP base por minuto activo * factor multiplicador de la duración del directo
+      // 10 XP base por minuto activo * factor duración del directo * factor nivel (menos XP en niveles altos)
+      const userCached = this.usersCache.get(key);
+      const userNvl = userCached?.nivel || (await this.getUser(key))?.nivel || 1;
+      const factorNivel = calcularFactorXpNivel(userNvl);
+
       const xpBase = 10 * minutosDelta;
-      const xpGanada = Math.round(xpBase * factor);
+      const xpGanada = Math.max(1, Math.round(xpBase * factor * factorNivel));
 
       // Persistir XP y tiempo visto en Firebase
       await this.addExperiencia(key, xpGanada, 'interaccion_tiempo_stream');
@@ -1924,13 +1956,27 @@ class StreamFirebaseService {
         } catch(e) {}
       }
 
-      // Si ya está registrado en este stream activo específico, no duplicar puntos
+      // Si ya está registrado en este stream activo específico, no duplicar puntos pero devolver saldo real
       if (streamActivoId) {
         try {
           const streamUserSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`));
           if (streamUserSnap.exists()) {
             console.log(`[StreamDB] ℹ️ @${usuario} ya tiene asistencia registrada en stream activo ${streamActivoId}`);
-            return streamUserSnap.val();
+            const currentUser = await this.getUser(usuario);
+            const dataSnap = streamUserSnap.val() || {};
+            const saldoSeguro = (currentUser && currentUser.jikopuntos !== undefined && currentUser.jikopuntos !== null)
+              ? currentUser.jikopuntos
+              : (this._getLocalCache(key) || USER_DEFAULT_POINTS);
+            return {
+              ...dataSnap,
+              yaRegistrado: true,
+              nuevoSaldo: saldoSeguro,
+              puntosOtorgados: 0,
+              experienciaGanada: 0,
+              nivelUsuario: currentUser?.nivel || dataSnap.nivel || 1,
+              insigniaEmoji: currentUser?.insigniaEmoji || dataSnap.insigniaEmoji || '🐾',
+              rangoTitulo: currentUser?.rangoTitulo || dataSnap.rangoTitulo || 'Cachorro'
+            };
           }
         } catch(e) {}
       }
@@ -1940,13 +1986,17 @@ class StreamFirebaseService {
       const prevAsistencias = user ? (user.asistenciasCount || 0) : 0;
       const nuevoTotalAsistencias = prevAsistencias + 1;
 
-      // Calcular XP: +200 XP por cada transmisión
+      // Calcular XP según nivel: curva progresiva donde niveles altos reciben menos puntos de XP
+      const nvlPrev = user?.nivel || 1;
+      const factorNvl = calcularFactorXpNivel(nvlPrev);
+      const xpGanadaAsistencia = Math.max(20, Math.round(200 * factorNvl));
+
       const prevXp = (user && user.experiencia !== undefined && user.experiencia !== null)
         ? user.experiencia
         : (prevAsistencias * 200);
-      const nuevoTotalXp = prevXp + 200;
+      const nuevoTotalXp = prevXp + xpGanadaAsistencia;
 
-      // Calcular nuevo nivel del usuario tras ganar 200 XP en esta transmisión
+      // Calcular nuevo nivel del usuario tras ganar XP en esta transmisión
       const nivelInfo = calcularNivelUsuario({
         experiencia: nuevoTotalXp,
         asistenciasCount: nuevoTotalAsistencias,
@@ -1954,7 +2004,7 @@ class StreamFirebaseService {
       });
 
       const puntosOtorgados = nivelInfo.puntosPorAsistencia; // 500 base + bono de lealtad
-      const nuevoSaldo = (user ? user.jikopuntos : USER_DEFAULT_POINTS) + puntosOtorgados;
+      const nuevoSaldo = (user && user.jikopuntos !== undefined ? user.jikopuntos : USER_DEFAULT_POINTS) + puntosOtorgados;
 
       // 3. Guardar registro inmutable en stream/tienda/asistencias
       const asisRef = push(ref(this.rtdb, NODE_ATTENDANCE));
@@ -1964,7 +2014,7 @@ class StreamFirebaseService {
         usuarioNorm: key,
         puntosOtorgados: puntosOtorgados,
         bonoExtraNivel: nivelInfo.bonoExtra,
-        experienciaGanada: 200,
+        experienciaGanada: xpGanadaAsistencia,
         experienciaTotal: nuevoTotalXp,
         nivelUsuario: nivelInfo.nivel,
         rangoTitulo: nivelInfo.rangoTitulo,
@@ -4037,14 +4087,26 @@ class StreamFirebaseService {
   async darJikopuntosTodos({ admin, cantidad }) {
     await this.init();
     const admNorm = norm(admin);
-    if (admNorm !== 'jikokun') {
+    if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') {
       throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
     }
 
     const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
     if (cantNum <= 0) throw new Error('La cantidad de puntos debe ser mayor a 0');
 
+    // Deduplicación atómica para bonificación masiva
     const ahora = Date.now();
+    if (this._darPuntosTodosLock && (ahora - this._darPuntosTodosLock < 5000)) {
+      console.log(`[StreamDB] ℹ️ darJikopuntosTodos duplicado ignorado (${cantNum} pts ya repartidos hace <5s)`);
+      return {
+        success: true,
+        cantidad: cantNum,
+        usuariosBeneficiados: 0,
+        duplicadoIgnorado: true
+      };
+    }
+    this._darPuntosTodosLock = ahora;
+
     let usuariosBeneficiados = 0;
     const listaUsuarios = [];
 
@@ -4108,7 +4170,7 @@ class StreamFirebaseService {
   async darJikopuntosUsuario({ admin, targetUser, cantidad }) {
     await this.init();
     const admNorm = norm(admin);
-    if (admNorm !== 'jikokun') {
+    if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') {
       throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
     }
 
@@ -4118,8 +4180,27 @@ class StreamFirebaseService {
     if (!targetNorm) throw new Error('Usuario destino no válido');
     if (cantNum <= 0) throw new Error('La cantidad debe ser mayor a 0');
 
-    await this.getUser(targetNorm); // asegurar que existe
+    // Deduplicación atómica para evitar que múltiples widgets en OBS dupliquen los puntos
+    if (!this._darPuntosLocks) {
+      this._darPuntosLocks = new Map();
+    }
     const ahora = Date.now();
+    const dedupeKey = `${targetNorm}_${cantNum}`;
+    const lastExec = this._darPuntosLocks.get(dedupeKey) || 0;
+    if (ahora - lastExec < 4000) {
+      console.log(`[StreamDB] ℹ️ darJikopuntosUsuario duplicado ignorado para @${targetNorm} (+${cantNum} pts ya procesados en los últimos 4s)`);
+      const existingUser = await this.getUser(targetNorm);
+      return {
+        success: true,
+        targetUser: targetNorm,
+        cantidad: cantNum,
+        nuevoSaldo: existingUser?.jikopuntos || 0,
+        duplicadoIgnorado: true
+      };
+    }
+    this._darPuntosLocks.set(dedupeKey, ahora);
+
+    await this.getUser(targetNorm); // asegurar que existe
 
     await runTransaction(ref(this.rtdb, `${NODE_USERS}/${targetNorm}`), (u) => {
       if (!u) return u;
@@ -4350,11 +4431,13 @@ export const StreamDB = new StreamFirebaseService();
 if (typeof window !== 'undefined') {
   window.StreamDB = StreamDB;
   window.RANGOS_BASE_TITULOS = RANGOS_BASE_TITULOS;
+  window.TABLA_200_NIVELES = TABLA_200_NIVELES;
   window.TABLA_50_NIVELES = TABLA_50_NIVELES;
   window.NIVELES_ASISTENCIA = NIVELES_ASISTENCIA;
   window.formatearTiempoVisto = formatearTiempoVisto;
   window.formatearHorasDecimal = formatearHorasDecimal;
   window.calcularNivelUsuario = calcularNivelUsuario;
+  window.calcularFactorXpNivel = calcularFactorXpNivel;
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
 }
 

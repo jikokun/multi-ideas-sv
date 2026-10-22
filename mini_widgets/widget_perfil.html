@@ -1827,7 +1827,7 @@ body {
 
     const calcFunc = window.calcularNivelUsuario || ((a) => {
       const xp = (a && a.experiencia !== undefined && a.experiencia !== null) ? (parseInt(a.experiencia, 10) || 0) : ((parseInt(a?.asistenciasCount, 10) || 0) * 200);
-      const n = (a && a.nivel) ? (parseInt(a.nivel, 10) || 1) : Math.min(50, Math.max(1, Math.floor(xp / 1000) + 1));
+      const n = (a && a.nivel) ? (parseInt(a.nivel, 10) || 1) : Math.min(200, Math.max(1, Math.floor(xp / 1000) + 1));
       return { nivel: n, rangoTitulo: a?.rangoTitulo || 'Cachorro', insigniaEmoji: a?.insigniaEmoji || '🐾', porcentajeProgreso: 45, xpEnNivel: xp % 1000, xpParaSubir: 1000 };
     });
 
@@ -1899,19 +1899,22 @@ body {
         }
       } else {
         if (isJiko) consumerTitle = '👑 Dueño y Creador del Canal';
-        else if (nivel >= 43) consumerTitle = '👑 Leyenda de la Manada';
-        else if (nivel >= 34) consumerTitle = '🐺 Guerrero Alfa';
-        else if (nivel >= 26) consumerTitle = '🛡️ Guardián del Canal';
-        else if (nivel >= 16) consumerTitle = '🏹 Cazador Fiel';
-        else if (nivel >= 6) consumerTitle = '🌲 Explorador Nato';
+        else if (nivel >= 200) consumerTitle = '🏆 Supremo de la Manada';
+        else if (nivel >= 166) consumerTitle = '🌌 Lobo Ancestral Mítico';
+        else if (nivel >= 136) consumerTitle = '👑 Leyenda de la Manada';
+        else if (nivel >= 101) consumerTitle = '🐺 Guerrero Alfa';
+        else if (nivel >= 71) consumerTitle = '⚡ Lobo Beta Élite';
+        else if (nivel >= 46) consumerTitle = '🛡️ Guardián del Canal';
+        else if (nivel >= 26) consumerTitle = '🏹 Cazador Fiel';
+        else if (nivel >= 11) consumerTitle = '🌲 Explorador Nato';
         else consumerTitle = '🐾 Cachorro de la Manada';
       }
     }
 
     // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
-    // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard:
+    // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard
     // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
-    // 3. Fallback jerárquico estándar: Manada VIP -> Subs -> Nivel 43-50 -> 34-42 -> 26-33 -> 16-25 -> 6-15 -> 1-5
+    // 3. Fallback jerárquico estándar hasta Nivel 200
     let themeClass = 'theme-silver';
     let themeLabel = '🐾 CACHORRO';
 
@@ -1948,24 +1951,33 @@ body {
     } else if (isSub) {
       themeClass = 'theme-gold';
       themeLabel = '🪙 SUB GOLD';
-    } else if (nivel >= 43) {
+    } else if (nivel >= 200) {
+      themeClass = 'theme-gold';
+      themeLabel = '🏆 SEÑOR SUPREMO (LVL 200)';
+    } else if (nivel >= 166) {
+      themeClass = 'theme-purple';
+      themeLabel = '🌌 LOBO ANCESTRAL';
+    } else if (nivel >= 136) {
+      themeClass = 'theme-gold';
+      themeLabel = '👑 MANADA VIP';
+    } else if (nivel >= 101) {
       themeClass = 'theme-red';
-      themeLabel = '👑 MÁXIMO RANGO';
-    } else if (nivel >= 34) {
+      themeLabel = '🐺 LOBO ALFA';
+    } else if (nivel >= 71) {
       themeClass = 'theme-orange';
-      themeLabel = '🐺 LOBO BETA';
-    } else if (nivel >= 26) {
+      themeLabel = '⚡ LOBO BETA';
+    } else if (nivel >= 46) {
       themeClass = 'theme-purple';
       themeLabel = '🛡️ GUARDIÁN';
-    } else if (nivel >= 16) {
+    } else if (nivel >= 26) {
       themeClass = 'theme-cyan';
       themeLabel = '🏹 CAZADOR FIEL';
-    } else if (nivel >= 6) {
+    } else if (nivel >= 11) {
       themeClass = 'theme-green';
       themeLabel = '🌲 EXPLORADOR';
     } else {
       themeClass = 'theme-silver';
-      themeLabel = '🐾 SEGUIDOR';
+      themeLabel = '🐾 CACHORRO';
     }
 
     // Slots de Habilidades / Medallas
@@ -1980,8 +1992,8 @@ body {
       displayName: displayName,
       avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarMemCache[normUser] || (normUser === 'jikokun' ? avatarMemCache['jikokun'] : null),
       nivel: nivel,
-      rangoTitulo: u.rangoTitulo || nivelInfo.rangoTitulo || ((nivel >= 43) ? 'Lobo Alfa' : ((nivel >= 34) ? 'Lobo Beta' : 'Cachorro')),
-      insigniaEmoji: u.insigniaEmoji || nivelInfo.insigniaEmoji || ((nivel >= 43) ? '👑' : ((nivel >= 34) ? '🐺' : '🐾')),
+      rangoTitulo: u.rangoTitulo || nivelInfo.rangoTitulo || ((nivel >= 200) ? 'Señor de la Manada Suprema' : ((nivel >= 101) ? 'Lobo Alfa' : ((nivel >= 71) ? 'Lobo Beta' : 'Cachorro'))),
+      insigniaEmoji: u.insigniaEmoji || nivelInfo.insigniaEmoji || ((nivel >= 200) ? '🏆' : ((nivel >= 101) ? '🐺' : ((nivel >= 71) ? '⚡' : '🐾'))),
       pts: pts,
       asistencias: asistencias,
       xpTotal: xpTotal,
@@ -2006,11 +2018,21 @@ body {
 
   async function mostrarTarjetaPerfil(usernameOObjeto) {
     let uData = null;
+    let clean = 'usuario';
 
     if (typeof usernameOObjeto === 'object' && usernameOObjeto !== null) {
       uData = usernameOObjeto;
+      clean = String(usernameOObjeto.username || usernameOObjeto.displayName || 'usuario').replace(/^@/, '').trim().toLowerCase();
     } else {
-      const clean = String(usernameOObjeto || 'usuario').replace(/^@/, '').trim().toLowerCase();
+      clean = String(usernameOObjeto || 'usuario').replace(/^@/, '').trim().toLowerCase();
+    }
+
+    // Proteger pantalla adquiriendo lock de exclusión mutua inmediatamente antes de cualquier llamada asíncrona
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.acquire('perfil', clean, (DURATION_SEC + 1) * 1000);
+    }
+
+    if (!uData) {
       if (window.StreamDB) {
         try { uData = await StreamDB.getUser(clean); } catch(e){}
       }
@@ -2196,15 +2218,20 @@ body {
             return;
           }
 
-          if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
-            const lock = JikoWidgetSync.getActiveLock();
-            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada por [${lock?.widget}]. Perfil de @${u} encolado.`);
-            JikoWidgetSync.enqueue({
-              widget: 'perfil',
-              command: '!perfil',
-              sender: u,
-              target: u
-            });
+          const cardEl = document.getElementById('card-root');
+          const isCardCurrentlyShowing = cardEl && cardEl.classList.contains('visible');
+          const isBusyScreen = isCardCurrentlyShowing || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', u));
+
+          if (isBusyScreen) {
+            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada. Perfil de @${u} encolado.`);
+            if (window.JikoWidgetSync) {
+              JikoWidgetSync.enqueue({
+                widget: 'perfil',
+                command: '!perfil',
+                sender: u,
+                target: u
+              });
+            }
             return;
           }
 
@@ -2256,16 +2283,21 @@ body {
             target = partes[1].replace(/^@/, '').trim();
           }
 
-          // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla (Tiendita o Cajero JikoBank), encolar y no sobreponer
-          if (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil')) {
-            const lock = JikoWidgetSync.getActiveLock();
-            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada por [${lock?.widget}]. !perfil para @${target} puesto en cola.`);
-            JikoWidgetSync.enqueue({
-              widget: 'perfil',
-              command: '!perfil',
-              sender: sender,
-              target: target
-            });
+          // REGLA DE COLA INTELIGENTE: Si la tarjeta actual está visible O la pantalla está ocupada por otro widget, encolar
+          const cardElChat = document.getElementById('card-root');
+          const isCardCurrentlyShowingChat = cardElChat && cardElChat.classList.contains('visible');
+          const isBusyScreenChat = isCardCurrentlyShowingChat || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', target));
+
+          if (isBusyScreenChat) {
+            console.log(`[WidgetPerfil] ⏳ Pantalla ocupada. !perfil para @${target} puesto en cola acumulativa.`);
+            if (window.JikoWidgetSync) {
+              JikoWidgetSync.enqueue({
+                widget: 'perfil',
+                command: '!perfil',
+                sender: sender,
+                target: target
+              });
+            }
             return;
           }
 

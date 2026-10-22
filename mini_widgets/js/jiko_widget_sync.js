@@ -71,13 +71,21 @@
     }
   }
 
-  function isBusy(excludeWidget = null) {
+  function isBusy(widget = null, user = null) {
     const lock = getActiveLock();
     if (!lock) return false;
-    if (excludeWidget && lock.widget === excludeWidget) {
-      // El mismo widget que ya tiene el lock puede seguir operando
-      return false;
+
+    // Si se pasa usuario y widget, permitir únicamente si es el MISMO usuario interactuando con su propia sesión activa
+    // (ej: usuario navegando por el carrusel de la tienda ya abierta con !rotar, !comprar, etc.)
+    if (widget && user && lock.widget === widget) {
+      const cleanUser = String(user).replace(/^@/, '').trim().toLowerCase();
+      const lockUser = String(lock.user || '').trim().toLowerCase();
+      if (lockUser === cleanUser) {
+        return false;
+      }
     }
+
+    // Para cualquier otra solicitud (otro usuario, otro widget, o nuevo perfil), la pantalla está OCUPADA
     return true;
   }
 
@@ -197,6 +205,10 @@
     q.push(item);
     saveQueue(q);
     broadcast({ type: 'QUEUE_UPDATED', queue: q, itemAdded: item });
+
+    const friendlyMsg = getFriendlyQueuedToast(item, getActiveLock());
+    mostrarBannerPantallaOcupada(friendlyMsg);
+    broadcast({ type: 'PANTALLA_OCUPADA', item, lock: getActiveLock(), friendlyMsg });
 
     console.log(`[JikoWidgetSync] 📋 Solicitud encolada: [${widget}] "${cleanCmd}" de @${cleanSender} (Posición: ${q.length})`);
     return item;
@@ -329,6 +341,8 @@
       dispatchExecutionLocally(data.item);
     } else if (data.type === 'QUEUE_UPDATED') {
       notifyQueueChange(data.queue || []);
+    } else if (data.type === 'PANTALLA_OCUPADA') {
+      mostrarBannerPantallaOcupada(data.friendlyMsg || getFriendlyQueuedToast(data.item, data.lock));
     } else if (data.type === 'STANDALONE_PERFIL_HEARTBEAT') {
       try {
         if (data.active) localStorage.setItem(STORAGE_STANDALONE_PERFIL_KEY, String(Date.now()));
@@ -362,7 +376,7 @@
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // 6. HELPER DE MENSAJES AMIGABLES
+  // 6. HELPER DE MENSAJES AMIGABLES & BANNER VISUAL EN PANTALLA
   // ─────────────────────────────────────────────────────────────────────────────
 
   function getFriendlyQueuedToast(item, currentLock) {
@@ -370,7 +384,7 @@
     const targetWidget = item?.widget || 'solicitud';
     const busyWidget = currentLock?.widget || 'otro widget';
 
-    let busyName = 'El mostrador';
+    let busyName = 'El mostrador de la tienda';
     if (busyWidget === 'cajero') busyName = 'El cajero automático JikoBank';
     else if (busyWidget === 'perfil') busyName = 'La tarjeta de perfil';
     else if (busyWidget === 'tienda') busyName = 'La tiendita';
@@ -380,7 +394,138 @@
     else if (targetWidget === 'cajero') reqName = 'consulta en el cajero';
     else if (targetWidget === 'perfil') reqName = 'tarjeta de perfil';
 
-    return `⏳ <b>@${sender}</b>: ${busyName} está activo. Tu ${reqName} está en cola y se mostrará al terminar.`;
+    return `<b>@${sender}</b>: ${busyName} está ocupando la pantalla.<br>Tu ${reqName} está en cola y aparecerá automáticamente al desocuparse.`;
+  }
+
+  let busyBannerTimer = null;
+  function mostrarBannerPantallaOcupada(htmlContent) {
+    if (typeof document === 'undefined' || !document.body) return;
+    try {
+      let banner = document.getElementById('jiko-sync-busy-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'jiko-sync-busy-banner';
+        banner.innerHTML = `
+          <div class="jiko-busy-glow"></div>
+          <div class="jiko-busy-icon">⏳</div>
+          <div class="jiko-busy-content">
+            <div class="jiko-busy-header">
+              <span class="jiko-busy-badge">PANTALLA OCUPADA</span>
+              <span class="jiko-busy-status">EN COLA DE ESPERA</span>
+            </div>
+            <div class="jiko-busy-msg" id="jiko-sync-busy-text"></div>
+          </div>
+        `;
+        document.body.appendChild(banner);
+
+        if (!document.getElementById('jiko-sync-busy-style')) {
+          const style = document.createElement('style');
+          style.id = 'jiko-sync-busy-style';
+          style.textContent = `
+            #jiko-sync-busy-banner {
+              position: fixed;
+              top: 28px;
+              left: 50%;
+              transform: translateX(-50%) translateY(-35px) scale(0.95);
+              z-index: 9999999;
+              display: flex;
+              align-items: center;
+              gap: 16px;
+              padding: 14px 26px;
+              min-width: 320px;
+              max-width: 580px;
+              background: linear-gradient(135deg, rgba(8, 14, 26, 0.96) 0%, rgba(15, 23, 42, 0.94) 100%);
+              border: 1.5px solid rgba(0, 234, 255, 0.75);
+              border-radius: 14px;
+              box-shadow: 0 0 30px rgba(0, 234, 255, 0.35), 0 12px 40px rgba(0, 0, 0, 0.9);
+              backdrop-filter: blur(14px);
+              -webkit-backdrop-filter: blur(14px);
+              color: #f8fafc;
+              font-family: 'Rajdhani', 'Orbitron', 'Inter', -apple-system, sans-serif;
+              pointer-events: none;
+              opacity: 0;
+              transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
+            }
+            #jiko-sync-busy-banner.activo {
+              opacity: 1;
+              transform: translateX(-50%) translateY(0) scale(1);
+            }
+            .jiko-busy-glow {
+              position: absolute;
+              inset: -2px;
+              border-radius: 15px;
+              background: radial-gradient(circle at top center, rgba(0, 234, 255, 0.35), transparent 75%);
+              pointer-events: none;
+              z-index: -1;
+            }
+            .jiko-busy-icon {
+              font-size: 30px;
+              line-height: 1;
+              filter: drop-shadow(0 0 10px rgba(0, 234, 255, 0.8));
+              animation: jikoBusyPulse 1.6s infinite ease-in-out;
+            }
+            .jiko-busy-content {
+              display: flex;
+              flex-direction: column;
+              gap: 4px;
+            }
+            .jiko-busy-header {
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            }
+            .jiko-busy-badge {
+              font-size: 10px;
+              font-weight: 900;
+              letter-spacing: 2px;
+              color: #050b14;
+              background: #00eaff;
+              padding: 2px 7px;
+              border-radius: 4px;
+              text-transform: uppercase;
+              box-shadow: 0 0 10px rgba(0, 234, 255, 0.5);
+            }
+            .jiko-busy-status {
+              font-size: 11px;
+              font-weight: 700;
+              letter-spacing: 1.5px;
+              color: #38bdf8;
+              text-transform: uppercase;
+              text-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+            }
+            .jiko-busy-msg {
+              font-size: 14px;
+              font-weight: 600;
+              color: #e2e8f0;
+              line-height: 1.35;
+            }
+            .jiko-busy-msg b {
+              color: #00eaff;
+              font-weight: 800;
+            }
+            @keyframes jikoBusyPulse {
+              0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(0, 234, 255, 0.8)); }
+              50% { transform: scale(1.15); filter: drop-shadow(0 0 16px rgba(0, 234, 255, 1)); }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      }
+
+      const txt = document.getElementById('jiko-sync-busy-text');
+      if (txt) {
+        txt.innerHTML = htmlContent;
+      }
+
+      banner.classList.remove('activo');
+      void banner.offsetWidth;
+      banner.classList.add('activo');
+
+      if (busyBannerTimer) clearTimeout(busyBannerTimer);
+      busyBannerTimer = setTimeout(() => {
+        banner.classList.remove('activo');
+      }, 4200);
+    } catch(e) {}
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -403,6 +548,7 @@
     registerStandalonePerfil,
     hasStandalonePerfil,
     getFriendlyQueuedToast,
+    mostrarBannerPantallaOcupada,
     DEFAULT_TTLS
   };
 
