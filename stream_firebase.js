@@ -386,8 +386,44 @@ class StreamFirebaseService {
   // 1. GESTIÓN DE USUARIOS, JIKOPUNTOS Y NIVELES DE ASISTENCIA
   // ==========================================================================
 
+  resolverUsuarioReal(username) {
+    if (!username) return '';
+    const q = norm(username);
+    if (!q) return '';
+
+    if (this.usersCache && this.usersCache.has(q)) return q;
+
+    const ALIASES = {
+      'codigo': 'codigo_r',
+      'nessa': 'nessaxov',
+      'dailer': 'dailerrg',
+      'luna': 'lunagamer',
+      'jiko': 'jikokun',
+      'rejitas': 'elrejitasoficial',
+      'capo': 'xelcapo',
+      'riki': 'tioriki',
+      'villalta': 'villalta_20',
+      'camiii': 'camiii07_ok',
+      'emmy': 'emmy_aine',
+      'juancho': 'juanchofficial',
+      'ethan': 'xeth4n_k'
+    };
+    if (ALIASES[q]) return ALIASES[q];
+
+    if (this.usersCache) {
+      const keysCache = Array.from(this.usersCache.keys());
+      const matchPrefix = keysCache.filter(k => k.startsWith(q));
+      if (matchPrefix.length === 1) return matchPrefix[0];
+      const matchContains = keysCache.filter(k => k.includes(q));
+      if (matchContains.length === 1) return matchContains[0];
+    }
+
+    return q;
+  }
+
   async getUser(username) {
-    const key = norm(username);
+    const rawKey = norm(username);
+    const key = this.resolverUsuarioReal(rawKey);
     if (!key) return null;
 
     if (this.usersCache.has(key)) {
@@ -1148,6 +1184,15 @@ class StreamFirebaseService {
         });
       }
 
+      // Registrar interacción activa del chatter (acumulación de permanencia, XP y Jikopuntos)
+      if (!chatMsg.esBot && chatMsg.usuarioNorm) {
+        this.registrarInteraccionStream({
+          usuario: chatMsg.usuario,
+          tipo: 'chat',
+          mensaje: content
+        }).catch(err => console.warn('[StreamDB] Error en registrarInteraccionStream:', err));
+      }
+
       const usuarioDetectado = extraerUsuarioDeBienvenidaGlobal(content);
       if (usuarioDetectado) {
         console.log(`[StreamDB] 🐺 Saludo de Lobito detectado en Kick Chat para @${usuarioDetectado} (emisor: ${sender}): "${content}"`);
@@ -1743,6 +1788,10 @@ class StreamFirebaseService {
       const xpBase = 10 * minutosDelta;
       const xpGanada = Math.max(1, Math.round(xpBase * factor * factorNivel));
 
+      // Otorgar combustible de permanencia (+5 Jikopuntos por minuto activo de stream)
+      const ptsGanados = 5 * minutosDelta;
+      await this.addJikopuntos(key, ptsGanados, 'interaccion_tiempo_stream');
+
       // Persistir XP y tiempo visto en Firebase
       await this.addExperiencia(key, xpGanada, 'interaccion_tiempo_stream');
       await this.addTiempoVisto(key, minutosDelta);
@@ -1751,7 +1800,7 @@ class StreamFirebaseService {
       userTrack.minutosInteractuados += minutosDelta;
       userTrack.xpGanadaEnDirecto += xpGanada;
 
-      console.log(`[StreamXP] ⚡ @${key} ganó +${xpGanada} XP (+${minutosDelta}m activo | Directo: ${streamInfo.duracionMinutos}m | Factor: x${factor})`);
+      console.log(`[StreamXP] ⚡ @${key} ganó +${ptsGanados} JP y +${xpGanada} XP (+${minutosDelta}m activo | Directo: ${streamInfo.duracionMinutos}m | Factor: x${factor})`);
 
       return {
         usuario: key,
@@ -3348,13 +3397,14 @@ class StreamFirebaseService {
         const fbUser = firebaseUsers[uKey];
 
         if (fbUser) {
-          // El usuario ya existe en Firebase: sincronizar puntos locales prioritarios
+          // El usuario ya existe en Firebase: sincronizar puntos respetando el saldo mayor para no perder puntos de Firebase
           const asistencias = Math.max(fbUser.asistenciasCount || 0, localData.asistenciasCount || 0);
           const nivelInfo = calcularNivelUsuario(asistencias);
-          const totalGanado = Math.max(fbUser.totalGanado || 0, localPts + (fbUser.totalGastado || 0));
+          const safePts = Math.max(Number(fbUser.jikopuntos) || 0, localPts);
+          const totalGanado = Math.max(fbUser.totalGanado || 0, safePts + (fbUser.totalGastado || 0));
 
           const userUpdates = {
-            jikopuntos: localPts,
+            jikopuntos: safePts,
             totalGanado: totalGanado,
             asistenciasCount: asistencias,
             nivel: nivelInfo.nivel,
@@ -3371,7 +3421,7 @@ class StreamFirebaseService {
           await update(ref(this.rtdb, `${NODE_USERS}/${uKey}`), userUpdates);
 
           // Actualizar memoria y cache local
-          this._updateLocalCache(uKey, localPts);
+          this._updateLocalCache(uKey, safePts);
           const merged = { ...fbUser, ...userUpdates };
           this.usersCache.set(uKey, merged);
 
@@ -3379,7 +3429,7 @@ class StreamFirebaseService {
           statsResult.usuarios.push({
             username: uKey,
             displayName: merged.displayName,
-            puntos: localPts,
+            puntos: safePts,
             accion: 'actualizado',
             nivel: nivelInfo.rangoTitulo
           });
@@ -3529,7 +3579,8 @@ class StreamFirebaseService {
 
   // Obtener consolidado del cajero para visualización de tarjeta y HUD
   async obtenerDatosCajero(username) {
-    const key = norm(username);
+    const rawKey = norm(username);
+    const key = this.resolverUsuarioReal(rawKey);
     if (!key) return null;
     const user = await this.getUser(key);
     if (!user) return null;

@@ -1357,6 +1357,46 @@
       color: #020c0f;
       box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
     }
+
+    /* ==========================================================================
+       INDICADOR VISUAL DE COLA EN ESPERA (ANTI-SOBREPOSICIÓN ELEGANTE)
+       ========================================================================== */
+    .cajero-queue-pill {
+      position: absolute;
+      top: -48px;
+      right: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(4, 25, 32, 0.94);
+      border: 1.5px solid var(--jiko-cyan);
+      box-shadow: 0 0 16px rgba(0, 255, 204, 0.4), inset 0 0 8px rgba(0, 255, 204, 0.15);
+      border-radius: 20px;
+      padding: 6px 14px;
+      font-family: var(--jiko-font-display);
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #e2e8f0;
+      backdrop-filter: blur(10px);
+      z-index: 10005;
+      opacity: 0;
+      transform: translateY(10px) scale(0.95);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+    .cajero-queue-pill.visible {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+    .cajero-queue-pill .queue-icon {
+      font-size: 0.95rem;
+      animation: sensorPulse 1.8s infinite ease-in-out;
+    }
+    .cajero-queue-pill b {
+      color: var(--jiko-cyan);
+      text-shadow: 0 0 8px var(--jiko-cyan-glow);
+    }
   </style>
 </head>
 <body>
@@ -1365,6 +1405,12 @@
        STAGE MAESTRO: CAJERO AUTOMÁTICO JIKOBANK
        ======================================================================== -->
   <div class="jikobank-stage" id="jikobank-stage">
+
+    <!-- Indicador de Cola Flotante (Anti-sobreposición elegante) -->
+    <div id="cajero-queue-pill" class="cajero-queue-pill">
+      <span class="queue-icon">⏳</span>
+      <span class="queue-text" id="cajero-queue-text">En cola: @usuario</span>
+    </div>
 
     <!-- 1. CAJERO FÍSICO VERTICAL (Animación vertical desde abajo) -->
     <div class="jiko-atm" id="jiko-atm">
@@ -1971,6 +2017,8 @@
       }, 950);
 
       iniciarBarraTiempo(duracionMs);
+      atmVisible = true;
+      actualizarBadgeColaVisual();
 
       timerDismiss = setTimeout(() => {
         ocultarCajero();
@@ -1993,6 +2041,7 @@
     function ocultarCajero() {
       if (timerDismiss) clearTimeout(timerDismiss);
       if (timerBarInterval) clearInterval(timerBarInterval);
+      atmVisible = false;
       elTerminal.classList.remove('state-open');
       elAtm.classList.remove('state-screen-active');
       setTimeout(() => {
@@ -2000,12 +2049,14 @@
         if (window.JikoWidgetSync) {
           window.JikoWidgetSync.release('cajero');
         }
-      }, 400);
+        actualizarBadgeColaVisual();
+      }, 500);
     }
 
     function ocultarCajeroInmediato() {
       if (timerDismiss) clearTimeout(timerDismiss);
       if (timerBarInterval) clearInterval(timerBarInterval);
+      atmVisible = false;
       ocultarSobreEspera();
       elTerminal.classList.remove('state-open');
       elAtm.classList.remove('state-screen-active');
@@ -2015,6 +2066,7 @@
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('cajero');
       }
+      actualizarBadgeColaVisual();
     }
 
     // ==========================================================================
@@ -2392,10 +2444,10 @@
     // ==========================================================================
     // PROCESAMIENTO DE COMANDOS DEL STREAM (CON INTEGRACIÓN FIREBASE O FALLBACK)
     // ==========================================================================
-    async function procesarComando({ comando, sender, params = [], force = false }) {
+    async function procesarComando({ comando, sender, params = [], force = false, fromQueue = false }) {
       const c = comando.toLowerCase().trim();
       const sNorm = norm(sender);
-      console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender} (force: ${force})`);
+      console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender} (force: ${force}, fromQueue: ${fromQueue})`);
 
       const esComandoJikoBank = (c === '!saldo' || c === '!jikopuntos' || c === '!puntos' || c === '!points' ||
                                  c === '!misjikopuntos' || c === '!banco' || c === '!cajero' || c === '!prestamo' ||
@@ -2404,29 +2456,41 @@
                                  c === '!perdonardeudas' || c === '!darjikopuntos');
       if (!esComandoJikoBank) return;
 
-      // REGLA DE EXCLUSIÓN MUTUA: Si otro widget está en pantalla, encolar (a menos que se fuerce desde el simulador)
-      if (!force && window.JikoWidgetSync && JikoWidgetSync.isBusy('cajero') && !loanEnEspera) {
-        const lock = JikoWidgetSync.getActiveLock();
-        console.log(`[JikoBank] ⏳ Pantalla ocupada por [${lock?.widget}]. Comando "${c}" encolado para @${sender}.`);
-        JikoWidgetSync.enqueue({
-          widget: 'cajero',
-          command: c,
-          sender: sender,
-          params: params
-        });
+      // REGLA DE EXCLUSIÓN MUTUA & COLA SECUENCIAL (ANTI-SOBREPOSICIONES):
+      // Si el cajero ya está en pantalla mostrando a un usuario o hay otro widget en uso,
+      // encolar pacientemente para que espere su turno y NO quite ni sobreponga la visual de nadie.
+      const cajeroEnPantalla = atmVisible || elAtm.classList.contains('state-visible') || elTerminal.classList.contains('state-open');
+      const lockActual = window.JikoWidgetSync ? window.JikoWidgetSync.getActiveLock() : null;
+      const otroWidgetOcupado = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('cajero', sender) : false;
+      const debeEncolar = !force && !fromQueue && !loanEnEspera && (cajeroEnPantalla || otroWidgetOcupado);
+
+      if (debeEncolar) {
+        console.log(`[JikoBank] ⏳ Pantalla ocupada (cajero: ${cajeroEnPantalla}, lock: ${lockActual?.widget} de @${lockActual?.user}). Comando "${c}" encolado para @${sender}.`);
+        if (window.JikoWidgetSync) {
+          window.JikoWidgetSync.enqueue({
+            widget: 'cajero',
+            command: c,
+            sender: sender,
+            params: params
+          });
+        }
+        actualizarBadgeColaVisual();
         return;
       }
 
       // ── MODO 1: INTEGRACIÓN FIREBASE RTDB EN TIEMPO REAL ──
       if (window.StreamDB && typeof window.StreamDB.solicitarPrestamo === 'function') {
         try {
-          if (c === '!saldo' || c === '!jikopuntos' || c === '!banco' || c === '!cajero') {
+          if (c === '!saldo' || c === '!jikopuntos' || c === '!puntos' || c === '!points' || c === '!misjikopuntos' || c === '!banco' || c === '!cajero') {
             let target = sNorm;
             if (params.length > 0 && params[0].replace(/^@/, '').trim()) {
               target = norm(params[0]);
             }
+            if (window.StreamDB && typeof window.StreamDB.resolverUsuarioReal === 'function') {
+              target = window.StreamDB.resolverUsuarioReal(target) || target;
+            }
             const dataPromise = window.StreamDB.obtenerDatosCajero(target);
-            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 1200));
+            const timeoutPromise = new Promise(resolve => setTimeout(() => resolve(null), 3500));
             const data = await Promise.race([dataPromise, timeoutPromise]);
             if (data) {
               activarCajero({
@@ -2441,6 +2505,7 @@
                 duracionMs: DURACION_CONSULTA_MS,
                 efectoSfx: 'chirp'
               });
+              actualizarBadgeColaVisual();
               return;
             }
           }
@@ -2977,7 +3042,7 @@
                 const parts = cleanText.split(/\s+/);
                 const comando = parts[0];
                 const params = parts.slice(1);
-                procesarComando({ comando, sender, params });
+                procesarComando({ comando, sender, params, force: false, fromQueue: false });
               }
             }
           } catch(e) {}
@@ -2997,8 +3062,32 @@
         procesarComando({
           comando: item.command,
           sender: item.sender,
-          params: item.params || []
+          params: item.params || [],
+          force: false,
+          fromQueue: true
         });
+      });
+    }
+
+    // Actualizador del Pill de Cola Visual
+    function actualizarBadgeColaVisual() {
+      const pill = document.getElementById('cajero-queue-pill');
+      const txt = document.getElementById('cajero-queue-text');
+      if (!pill || !txt || !window.JikoWidgetSync) return;
+      const q = window.JikoWidgetSync.getQueue().filter(it => it.widget === 'cajero');
+      if (q.length > 0) {
+        const next = q[0];
+        const extraCount = q.length - 1;
+        txt.innerHTML = `Siguiente: <b>@${next.sender}</b>` + (extraCount > 0 ? ` (+${extraCount})` : '');
+        pill.classList.add('visible');
+      } else {
+        pill.classList.remove('visible');
+      }
+    }
+
+    if (window.JikoWidgetSync) {
+      window.JikoWidgetSync.onQueueChange(() => {
+        actualizarBadgeColaVisual();
       });
     }
 
@@ -3100,7 +3189,13 @@
                 const parts = clean.split(/\s+/);
                 const comando = parts[0];
                 const params = parts.slice(1);
-                window.simularComando(clean, msg.usuario || 'espectador');
+                procesarComando({
+                  comando,
+                  sender: msg.usuario || 'espectador',
+                  params,
+                  force: false,
+                  fromQueue: false
+                });
               }
             }
           });
