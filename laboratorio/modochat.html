@@ -1258,7 +1258,11 @@
       // 3. TIPO DE CHAT: 'streamerbot' (Burbujas Glass Aqua) o 'botrix' (iFrame oficial)
       chatMode: "streamerbot",
 
-      // 4. SPOTIFY CREDENCIALES & ENDPOINT DE RENOVACIÓN DE TOKEN
+      // 4. FILTRADO DE COMANDOS DEL CHAT (ej: !jikopuntos, !tienda, etc.)
+      // Evita saturar el overlay en pantalla cuando la comunidad ejecuta comandos
+      filterCommands: true,
+
+      // 5. SPOTIFY CREDENCIALES & ENDPOINT DE RENOVACIÓN DE TOKEN
       spotify: {
         userId: "jikokun2",
         refreshTokenUrl: "https://sensunshopweb.web.app/spotify/refresh_token",
@@ -1275,6 +1279,7 @@
       if (p.has('port')) CONFIG.streamerBotPort = p.get('port');
       if (p.has('channel')) CONFIG.kickChannel = p.get('channel');
       if (p.has('chat')) CONFIG.chatMode = p.get('chat');
+      if (p.has('filterCommands')) CONFIG.filterCommands = p.get('filterCommands') !== 'false';
     })();
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1731,6 +1736,15 @@
         if (!contentRaw && typeof data.content === 'string') contentRaw = data.content;
 
         if (!contentRaw || typeof contentRaw !== 'string') return;
+
+        const trimmedContent = contentRaw.trim();
+        if (!trimmedContent) return;
+
+        // Ocultar mensajes que comiencen con "!" (comandos como !jikopuntos, !tienda) o "/"
+        // para evitar la saturación visual en el overlay del chat
+        if (CONFIG.filterCommands && (trimmedContent.startsWith('!') || trimmedContent.startsWith('/'))) {
+          return;
+        }
 
         let safeContent = escapeHTML(contentRaw);
 
