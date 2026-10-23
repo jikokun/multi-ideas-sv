@@ -27,56 +27,265 @@
                 }
             } catch(e) {}
         })();
+
+        // Funciones Globales para Lightbox Interactivo con WhatsApp
+        window.openStoryModal = function(src, title, service) {
+            try {
+                const lightbox = document.getElementById('carousel-lightbox');
+                const lightboxImg = document.getElementById('lightbox-img');
+                const lightboxTitle = document.getElementById('lightbox-title');
+                const lightboxWaBtn = document.getElementById('lightbox-wa-btn');
+
+                if (lightbox && lightboxImg) {
+                    lightboxImg.src = src;
+                    lightboxImg.alt = title || 'Detalle del Servicio';
+                    if (lightboxTitle) lightboxTitle.textContent = title || 'Detalle del Servicio';
+                    if (lightboxWaBtn) {
+                        const message = `Hola Multi Ideas SV, vi en su página web el diseño de "${title}" (${service || 'Cotización'}) y me gustaría cotizarlo o recibir más información.`;
+                        lightboxWaBtn.href = `https://wa.me/50372359113?text=${encodeURIComponent(message)}`;
+                    }
+                    lightbox.classList.add('active');
+                    lightbox.style.display = 'flex';
+                    lightbox.style.opacity = '1';
+                    document.body.style.overflow = 'hidden';
+                }
+            } catch(err) {
+                console.error("Error al abrir lightbox:", err);
+            }
+        };
+
+        window.openStoryLightbox = function(el) {
+            try {
+                if (!el) return;
+                const img = el.querySelector ? (el.querySelector('img') || el) : el;
+                const src = (el.getAttribute && el.getAttribute('data-src')) || img.src || '';
+                const title = (el.getAttribute && el.getAttribute('data-title')) || img.alt || 'Detalle del Servicio';
+                const service = (el.getAttribute && el.getAttribute('data-service')) || title;
+                window.openStoryModal(src, title, service);
+            } catch(err) {
+                console.error("Error al preparar lightbox:", err);
+            }
+        };
+
+        window.closeStoryLightbox = function() {
+            try {
+                const lightbox = document.getElementById('carousel-lightbox');
+                if (lightbox) {
+                    lightbox.classList.remove('active');
+                    lightbox.style.display = 'none';
+                    lightbox.style.opacity = '0';
+                    document.body.style.overflow = '';
+                }
+            } catch(err) {
+                console.error("Error al cerrar lightbox:", err);
+            }
+        };
+
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                window.closeStoryLightbox();
+            }
+        });
     </script>
 </head>
 <body>
 
     <header id="global-header"></header>
 
-    <section id="inicio" class="hero">
+    <section id="inicio" class="hero hero-cyber-studio">
+        <!-- Resplandor de fondo ambiental -->
+        <div class="cyber-glow-bg"></div>
+
         <div class="hero-container">
+            <!-- Columna Izquierda: Información, Terminal Switcher y Acciones -->
             <div class="hero-content">
-                <span class="badge">PROYECTOS ORGÁNICOS A LA MEDIDA</span>
-                <h1>Llevamos tus <span class="gradient-text">Grandes Ideas</span> al mundo digital</h1>
-                <p>Webs funcionales, automatización con bots y servicios de imprenta. Soluciones tecnológicas adaptables a cualquier presupuesto en El Salvador.</p>
+                <!-- Badge de Estado en Vivo -->
+                <div class="cyber-status-badge">
+                    <span class="pulse-dot"></span>
+                    <span class="status-text">DISPONIBLE PARA PROYECTOS • EL SALVADOR & GLOBAL</span>
+                </div>
+
+                <h1 class="cyber-title">
+                    Transformamos Grandes Ideas en <span class="gradient-text">Software & Marca</span>
+                </h1>
+
+                <p class="cyber-description">
+                    Ecosistemas digitales completos para emprendedores y empresas: desarrollo de <strong>Apps Android nativas</strong>, plataformas <strong>Web a la medida</strong>, <strong>diseño publicitario</strong> y automatización con <strong>bots y herramientas interactivas</strong>.
+                </p>
+
+                <!-- Selector Interactivo de Especialidades (Cyber Terminal Switcher) -->
+                <div class="role-switcher-container">
+                    <span class="switcher-label">// SELECCIONA UNA ESPECIALIDAD:</span>
+                    <div class="role-switcher-tabs" role="tablist">
+                        <button class="role-tab active" data-role="android" type="button" aria-label="Especialidad Android">
+                            <span class="role-tab-icon">📱</span>
+                            <span class="role-tab-title">Apps Android</span>
+                        </button>
+                        <button class="role-tab" data-role="web" type="button" aria-label="Especialidad Web">
+                            <span class="role-tab-icon">💻</span>
+                            <span class="role-tab-title">Web Studio</span>
+                        </button>
+                        <button class="role-tab" data-role="design" type="button" aria-label="Especialidad Diseño">
+                            <span class="role-tab-icon">🎨</span>
+                            <span class="role-tab-title">Diseño & Marca</span>
+                        </button>
+                        <button class="role-tab" data-role="bots" type="button" aria-label="Especialidad Bots">
+                            <span class="role-tab-icon">⚡</span>
+                            <span class="role-tab-title">Bots & Streaming</span>
+                        </button>
+                    </div>
+
+                    <!-- Panel Dinámico de la Especialidad Seleccionada -->
+                    <div class="role-info-card" id="role-info-panel">
+                        <div class="role-info-header">
+                            <span class="role-info-tag" id="role-tag">DESARROLLO MÓVIL NATIVO</span>
+                            <span class="role-info-metric" id="role-metric">📱 100% Kotlin / SDK Nativo</span>
+                        </div>
+                        <h3 class="role-info-title" id="role-title">Tu Idea Convertida en Aplicación Android</h3>
+                        <p class="role-info-desc" id="role-desc">
+                            Diseño y programación de aplicaciones móviles de alto rendimiento, fluidas, con almacenamiento seguro, sincronización en tiempo real y preparadas para Google Play.
+                        </p>
+                        <div class="role-info-chips" id="role-chips">
+                            <span>Google Play Ready</span>
+                            <span>Arquitectura Limpia</span>
+                            <span>Bases de Datos Realtime</span>
+                            <span>Notificaciones Push</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones de Acción -->
                 <div class="hero-buttons">
-                    <a href="productos.html" class="btn-principal">Explorar Productos</a>
-                    <a href="contacto.html" class="btn-secundario">Contáctanos</a>
+                    <a href="https://wa.me/50372359113?text=Hola%20Multi%20Ideas%20SV,%20me%20interesa%20cotizar%20una%20Aplicaci%C3%B3n%20Android%20a%20la%20medida" class="btn-principal cyber-cta" id="hero-wa-btn" target="_blank" rel="noopener noreferrer">
+                        <span>Iniciar Proyecto</span>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </a>
+                    <a href="productos.html" class="btn-secundario">Explorar Catálogo</a>
                 </div>
             </div>
 
-            <div class="hero-carousel-container">
-                <div class="hero-carousel-track">
-                    <!-- Unique slides -->
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176804/ChatGPT_Image_25_may_2026_11_30_12_a_xaahne.webp" alt="Multi Ideas Proyecto 1" loading="lazy">
+            <!-- Columna Derecha: Showcase Dinámico Reactivo + Mini Tira -->
+            <div class="hero-visual-stage">
+                <!-- Visor Interactivo que cambia según la especialidad -->
+                <div class="cyber-device-frame" id="cyber-visual-display">
+                    <div class="device-header-bar">
+                        <div class="window-dots">
+                            <span class="dot red"></span>
+                            <span class="dot yellow"></span>
+                            <span class="dot green"></span>
+                        </div>
                     </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176801/ChatGPT_Image_8_may_2026_10_57_09_a_vfy5ij.webp" alt="Multi Ideas Proyecto 2" loading="lazy">
+                    <div class="device-screen-wrapper">
+                        <img src="imagenes/showcase/hero_android.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1n51DQFrf_u_SmG5TS3deOf3Ncr2-CuxX';" alt="Preview Especialidad Multi Ideas SV" id="role-preview-img" class="device-main-img" loading="eager" onclick="openStoryLightbox(this)" style="cursor: zoom-in;">
+                        <div class="screen-overlay-details">
+                            <span class="overlay-badge" id="overlay-badge">MODO: ANDROID NATIVO</span>
+                            <span class="overlay-caption" id="overlay-caption">De idea a aplicación Android funcional</span>
+                        </div>
                     </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176801/ChatGPT_Image_20_may_2026_02_10_13_p_u6jauz.webp" alt="Multi Ideas Proyecto 3" loading="lazy">
+                </div>
+
+                <!-- Tira de Miniaturas del Ecosistema Horizontal -->
+                <div class="hero-mini-reel-container">
+                    <div class="mini-reel-track">
+                        <div class="reel-item active" data-preview="imagenes/showcase/hero_android.png" data-fallback="https://lh3.googleusercontent.com/d/1n51DQFrf_u_SmG5TS3deOf3Ncr2-CuxX" data-role="android" title="App Android">
+                            <img src="imagenes/showcase/hero_android.png" alt="Android App">
+                        </div>
+                        <div class="reel-item" data-preview="imagenes/showcase/hero_web.png" data-fallback="https://lh3.googleusercontent.com/d/14vBpv0y1AdFtyzTBSLl_xr5XCUo404cF" data-role="web" title="Web Responsive">
+                            <img src="imagenes/showcase/hero_web.png" alt="Desarrollo Web">
+                        </div>
+                        <div class="reel-item" data-preview="imagenes/showcase/hero_design.png" data-fallback="https://lh3.googleusercontent.com/d/1ntOfWtBbRBIbsQhPLNIfYMTtPJ8UWUxO" data-role="design" title="Afiches y Publicidad">
+                            <img src="imagenes/showcase/hero_design.png" alt="Diseño Publicitario">
+                        </div>
+                        <div class="reel-item" data-preview="imagenes/showcase/reel_tarjetas.png" data-fallback="https://lh3.googleusercontent.com/d/15IyiNLlCIA1JOe940u0GFB5ApuVT8Pz9" data-role="design" title="Tarjetas con Estilo">
+                            <img src="imagenes/showcase/reel_tarjetas.png" alt="Tarjetas">
+                        </div>
+                        <div class="reel-item" data-preview="imagenes/showcase/hero_bots.png" data-fallback="https://lh3.googleusercontent.com/d/1KvJ0aZnZlCPRm_bmk1krxv8gYcayCS5h" data-role="bots" title="Bots & Streaming">
+                            <img src="imagenes/showcase/hero_bots.png" alt="Bots y Streaming">
+                        </div>
                     </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176802/ChatGPT_Image_19_may_2026_03_53_55_p_gahbdk.webp" alt="Multi Ideas Proyecto 4" loading="lazy">
-                    </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176803/ChatGPT_Image_22_may_2026_11_28_04_a_pd6rla.webp" alt="Multi Ideas Proyecto 5" loading="lazy">
-                    </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176803/ChatGPT_Image_22_may_2026_11_33_03_a_sd2n15.webp" alt="Multi Ideas Proyecto 6" loading="lazy">
-                    </div>
-                    
-                    <!-- Duplicated slides for seamless loop scrolling -->
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176804/ChatGPT_Image_25_may_2026_11_30_12_a_xaahne.webp" alt="Multi Ideas Proyecto 1" loading="lazy">
-                    </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176801/ChatGPT_Image_8_may_2026_10_57_09_a_vfy5ij.webp" alt="Multi Ideas Proyecto 2" loading="lazy">
-                    </div>
-                    <div class="hero-carousel-slide">
-                        <img src="https://res.cloudinary.com/dn6fmqae9/image/upload/v1782176801/ChatGPT_Image_20_may_2026_02_10_13_p_u6jauz.webp" alt="Multi Ideas Proyecto 3" loading="lazy">
-                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CARRUSEL CONTINUO INFINITO DE HISTORIAS VERTICALES (9:16) -->
+    <section class="productos-section" style="padding-top: 10px; padding-bottom: 35px; background: transparent;">
+        <div class="hero-carousel-container">
+            <div class="hero-carousel-track" id="infinite-stories-track">
+                <!-- ==================== GRUPO A (12 Historias Verticales Oficiales) ==================== -->
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Tu idea, convertida en app Android" data-service="Aplicación Móvil Android Nativa" data-src="imagenes/historias/historia_android.png">
+                    <img src="imagenes/historias/historia_android.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1aUIgGy9AxziUwQJVGHgxjhdU7NG-drUm';" alt="Tu idea, convertida en app Android" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Tu negocio merece su web" data-service="Página Web Adaptable y Tienda Virtual" data-src="imagenes/historias/historia_web.png">
+                    <img src="imagenes/historias/historia_web.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1nADalJPk53mnm_ujkqBHxSpD6m-O9Slz';" alt="Tu negocio merece su web" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Hacé que tu negocio llame la atención" data-service="Diseño Publicitario para Redes y Afiches" data-src="imagenes/historias/historia_diseno.png">
+                    <img src="imagenes/historias/historia_diseno.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1mgKGV16fo3DVmhVhF_Hn5Ov85P5-jSdQ';" alt="Hacé que tu negocio llame la atención" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Elegancia en cada tarjeta" data-service="Tarjetas de Presentación Personalizadas" data-src="imagenes/historias/historia_tarjetas.png">
+                    <img src="imagenes/historias/historia_tarjetas.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1GTiugCPIwMLGvWfAViYQ6GRlhyrsqFVJ';" alt="Elegancia en cada tarjeta" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Stickers personalizados para tus ideas" data-service="Stickers Troquelados e Identidad de Marca" data-src="imagenes/historias/historia_stickers.png">
+                    <img src="imagenes/historias/historia_stickers.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1DgcZrRW1RCyyhSQ92VrZAycl1QZs_hqS';" alt="Stickers personalizados para tus ideas" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Impresiones económicas desde $0.05" data-service="Impresiones a Color y Copias de Calidad" data-src="imagenes/historias/historia_impresiones.png">
+                    <img src="imagenes/historias/historia_impresiones.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1xQRJ4IEZJzZf-YulRg37SIikfL5_lwop';" alt="Impresiones económicas desde $0.05" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Recuerdos que puedes tocar" data-service="Fotografías Impresas y Retratos" data-src="imagenes/historias/historia_recuerdos.png">
+                    <img src="imagenes/historias/historia_recuerdos.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1ueaJqB9RHOc5yzIboHChMrJcGZSpbWqw';" alt="Recuerdos que puedes tocar" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Fotos magnéticas para recuerdos especiales" data-service="Fotos Magnéticas para Refrigerador o Metal" data-src="imagenes/historias/historia_fotos_magneticas.png">
+                    <img src="imagenes/historias/historia_fotos_magneticas.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1QCEexxXH85XDhAq6FqFBGamWYjRo7DSI';" alt="Fotos magnéticas para recuerdos especiales" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Afiches y diseño que destacan" data-service="Diseño y Medidas Publicitarias a Gran Escala" data-src="imagenes/historias/historia_afiches.png">
+                    <img src="imagenes/historias/historia_afiches.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1EPOJfGkEGJjOHLY2o7zkLpljaV4P_E6F';" alt="Afiches y diseño que destacan" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Sobres y páginas membretadas" data-service="Papelería Corporativa y Hojas Membretadas" data-src="imagenes/historias/historia_sobres.png">
+                    <img src="imagenes/historias/historia_sobres.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1ztRHoWX0HjO6a6gGT_6wjZ_lndkclFQQ';" alt="Sobres y páginas membretadas" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Recetarios personalizados para consultorios" data-service="Recetarios Médicos y Formatos Personalizados" data-src="imagenes/historias/historia_recetarios.png">
+                    <img src="imagenes/historias/historia_recetarios.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1je8fQ3NP-ZZACjU5nmH2s1c4Lu-NtgWw';" alt="Recetarios personalizados para consultorios" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Menús impresos que abren el apetito" data-service="Menús y Cartas para Restaurantes y Cafés" data-src="imagenes/historias/historia_menus.png">
+                    <img src="imagenes/historias/historia_menus.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1Z-wtvOINhjO7z9OSxtpiTRz7eMXsNjEx';" alt="Menús impresos que abren el apetito" loading="lazy">
+                </div>
+
+                <!-- ==================== GRUPO B (Clon idéntico para ciclo contínuo infinito sin cortes) ==================== -->
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Tu idea, convertida en app Android" data-service="Aplicación Móvil Android Nativa" data-src="imagenes/historias/historia_android.png">
+                    <img src="imagenes/historias/historia_android.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1aUIgGy9AxziUwQJVGHgxjhdU7NG-drUm';" alt="Tu idea, convertida en app Android" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Tu negocio merece su web" data-service="Página Web Adaptable y Tienda Virtual" data-src="imagenes/historias/historia_web.png">
+                    <img src="imagenes/historias/historia_web.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1nADalJPk53mnm_ujkqBHxSpD6m-O9Slz';" alt="Tu negocio merece su web" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Hacé que tu negocio llame la atención" data-service="Diseño Publicitario para Redes y Afiches" data-src="imagenes/historias/historia_diseno.png">
+                    <img src="imagenes/historias/historia_diseno.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1mgKGV16fo3DVmhVhF_Hn5Ov85P5-jSdQ';" alt="Hacé que tu negocio llame la atención" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Elegancia en cada tarjeta" data-service="Tarjetas de Presentación Personalizadas" data-src="imagenes/historias/historia_tarjetas.png">
+                    <img src="imagenes/historias/historia_tarjetas.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1GTiugCPIwMLGvWfAViYQ6GRlhyrsqFVJ';" alt="Elegancia en cada tarjeta" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Stickers personalizados para tus ideas" data-service="Stickers Troquelados e Identidad de Marca" data-src="imagenes/historias/historia_stickers.png">
+                    <img src="imagenes/historias/historia_stickers.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1DgcZrRW1RCyyhSQ92VrZAycl1QZs_hqS';" alt="Stickers personalizados para tus ideas" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Impresiones económicas desde $0.05" data-service="Impresiones a Color y Copias de Calidad" data-src="imagenes/historias/historia_impresiones.png">
+                    <img src="imagenes/historias/historia_impresiones.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1xQRJ4IEZJzZf-YulRg37SIikfL5_lwop';" alt="Impresiones económicas desde $0.05" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Recuerdos que puedes tocar" data-service="Fotografías Impresas y Retratos" data-src="imagenes/historias/historia_recuerdos.png">
+                    <img src="imagenes/historias/historia_recuerdos.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1ueaJqB9RHOc5yzIboHChMrJcGZSpbWqw';" alt="Recuerdos que puedes tocar" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Fotos magnéticas para recuerdos especiales" data-service="Fotos Magnéticas para Refrigerador o Metal" data-src="imagenes/historias/historia_fotos_magneticas.png">
+                    <img src="imagenes/historias/historia_fotos_magneticas.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1QCEexxXH85XDhAq6FqFBGamWYjRo7DSI';" alt="Fotos magnéticas para recuerdos especiales" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Afiches y diseño que destacan" data-service="Diseño y Medidas Publicitarias a Gran Escala" data-src="imagenes/historias/historia_afiches.png">
+                    <img src="imagenes/historias/historia_afiches.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1EPOJfGkEGJjOHLY2o7zkLpljaV4P_E6F';" alt="Afiches y diseño que destacan" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Sobres y páginas membretadas" data-service="Papelería Corporativa y Hojas Membretadas" data-src="imagenes/historias/historia_sobres.png">
+                    <img src="imagenes/historias/historia_sobres.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1ztRHoWX0HjO6a6gGT_6wjZ_lndkclFQQ';" alt="Sobres y páginas membretadas" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Recetarios personalizados para consultorios" data-service="Recetarios Médicos y Formatos Personalizados" data-src="imagenes/historias/historia_recetarios.png">
+                    <img src="imagenes/historias/historia_recetarios.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1je8fQ3NP-ZZACjU5nmH2s1c4Lu-NtgWw';" alt="Recetarios personalizados para consultorios" loading="lazy">
+                </div>
+                <div class="hero-carousel-slide" onclick="openStoryLightbox(this)" data-title="Menús impresos que abren el apetito" data-service="Menús y Cartas para Restaurantes y Cafés" data-src="imagenes/historias/historia_menus.png">
+                    <img src="imagenes/historias/historia_menus.png" onerror="this.onerror=null; this.src='https://lh3.googleusercontent.com/d/1Z-wtvOINhjO7z9OSxtpiTRz7eMXsNjEx';" alt="Menús impresos que abren el apetito" loading="lazy">
                 </div>
             </div>
         </div>
@@ -184,27 +393,131 @@
         </div>
     </section>
 
-    <section class="info-section">
-        <div class="info-container">
-            <div class="info-text">
-                <span class="badge">¿POR QUÉ ELEGIRNOS?</span>
-                <h2>Tu socio tecnológico en <span class="gradient-text">El Salvador</span></h2>
-                <p>En <strong>Multi Ideas Sv</strong>, transformamos la complejidad técnica en soluciones sencillas y rentables. No solo entregamos código, entregamos herramientas de crecimiento.</p>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <span class="stat-number">+50</span>
-                        <span class="stat-label">Clientes Satisfechos</span>
+    <!-- ========================================================
+         SECCIÓN SOBRE NOSOTROS & CONOCE AL CREADOR (ISAÍ CLAROS)
+         ======================================================== -->
+    <section class="about-creator-section" id="sobre-nosotros">
+        <div class="about-creator-container">
+            <!-- Fila Superior: Historia en 1ª Persona + Tarjeta Visual de Perfil -->
+            <div class="about-creator-top">
+                <!-- Columna Izquierda: Mensaje Cercano y Personal -->
+                <div class="about-text-column">
+                    <span class="badge">👋 SOBRE MÍ & MULTI IDEAS SV</span>
+                    <h2 class="about-title">¡Hola! Soy <span class="gradient-text">Isaí Claros</span>, creador de Multi Ideas Sv.</h2>
+                    <p class="about-subtitle">Desarrollo soluciones digitales prácticas para que tu negocio venda más, se organice mejor y ahorre tiempo.</p>
+                    
+                    <div class="about-bio">
+                        <p>
+                            Sé de primera mano el esfuerzo diario que implica levantar un emprendimiento o mantener a flote un negocio local: atender a la gente, cobrar, cuadrar inventarios, gestionar redes... y a veces la tecnología, en lugar de ayudar, parece que solo complica más las cosas.
+                        </p>
+                        <p>
+                            Por eso creé <strong>Multi Ideas Sv</strong>. Como <strong>Ingeniero en Sistemas Computacionales</strong>, programador y gestor de proyectos tecnológicos, mi meta es simple: <strong>poner herramientas modernas, rápidas y fáciles de usar al alcance de tu negocio</strong>, sin palabras técnicas enredadas ni sistemas que te tomen semanas aprender.
+                        </p>
+                        <p>
+                            Cuento además con <strong>certificación en el uso de Inteligencia Artificial aplicada al desarrollo de software y optimización</strong>. Mi enfoque como ingeniero es construir sistemas estables, seguros y rápidos, garantizando que cada herramienta sea intuitiva y fácil de usar en el día a día para ti y tus clientes.
+                        </p>
+                        <p>
+                            Aquí no vas a hablar con un bot ni con intermediarios; <strong>trabajas directamente conmigo</strong>. Analizamos juntos qué le falta a tu negocio y convertimos tu idea en un proyecto real, seguro y rentable paso a paso.
+                        </p>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-number">24/7</span>
-                        <span class="stat-label">Soporte Técnico</span>
+
+                    <!-- Firma Digital / Cierre de Confianza -->
+                    <div class="creator-signature-card">
+                        <div class="signature-info">
+                            <span class="signature-name">— Ing. Isaí Claros</span>
+                            <span class="signature-role">Ingeniero en Sistemas • Fundador & Desarrollador Principal</span>
+                        </div>
+                        <div class="signature-badge">
+                            <span class="signature-pulse"></span>
+                            <span>Trato Directo 1 a 1</span>
+                        </div>
                     </div>
                 </div>
-                <br>
-                <a href="nosotros.html" class="btn-secundario">Conoce nuestra historia</a>
+
+                <!-- Columna Derecha: Tarjeta Visual de Perfil -->
+                <div class="about-visual-column">
+                    <div class="creator-card-frame">
+                        <div class="creator-img-wrapper">
+                            <a href="https://wa.me/50372359113?text=Hola%20Ing.%20Isa%C3%AD,%20vi%20tu%20perfil%20en%20Multi%20Ideas%20SV%20y%20me%20gustar%C3%ADa%20consultarte%20sobre%20un%20proyecto" target="_blank" rel="noopener noreferrer" class="creator-avatar-link" title="Escríbeme por WhatsApp">
+                                <img src="imagenes/isai_claros.webp" alt="Ing. Isaí Claros - Creador de Multi Ideas Sv" class="creator-avatar-photo">
+                                <span class="creator-wa-badge-btn" title="Chatear con el Ing. Isaí Claros en WhatsApp" aria-label="Escríbeme a WhatsApp">
+                                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82-1.55 1.55-3.62 2.42-5.82 2.42-1.47 0-2.91-.39-4.18-1.15l-.3-.18-3.11.82.83-3.03-.2-.31a8.16 8.16 0 01-1.26-4.39c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.71 4.3 3.8.6.26 1.07.41 1.44.53.61.19 1.16.17 1.6.1 0.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.22-.16-.47-.28z"/>
+                                    </svg>
+                                </span>
+                            </a>
+                            <span class="creator-location-pill">📍 Sensuntepeque, El Salvador 🇸🇻</span>
+                        </div>
+                        <h3 class="creator-card-name">Ing. Isaí Claros</h3>
+                        <p class="creator-card-tagline">Ingeniero en Sistemas • Programador & Gestor Tecnológico</p>
+                        <div class="creator-skills-pills">
+                            <span>💻 Ing. en Sistemas</span>
+                            <span>📱 Apps Android & Web</span>
+                            <span>🧠 Certificado en IA</span>
+                            <span>📊 Gestión de Proyectos</span>
+                            <span>⚡ Automatización de Procesos</span>
+                        </div>
+                        <div class="creator-highlights-row">
+                            <div class="highlight-mini-card">
+                                <span class="hl-num">100%</span>
+                                <span class="hl-lbl">Trato Directo</span>
+                            </div>
+                            <div class="highlight-mini-card">
+                                <span class="hl-num">0%</span>
+                                <span class="hl-lbl">Relleno Inútil</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="info-graphic">
-                <img src="imagenes/logos/logosintexto.webp" alt="Multi Ideas Sv" class="big-logo-graphic">
+
+            <!-- Caja 'Cómo Trabajamos' + Botón WhatsApp -->
+            <div class="workflow-section-box">
+                <div class="workflow-header">
+                    <span class="badge">PROCESO TRANSPARENTE</span>
+                    <h3>¿Cómo trabajamos juntos?</h3>
+                    <p>Sin procesos burocráticos ni complicaciones. Así convertimos tu idea en una solución real:</p>
+                </div>
+
+                <div class="workflow-steps-grid">
+                    <div class="workflow-step-card">
+                        <div class="step-top-meta">
+                            <span class="step-number">PASO 01</span>
+                            <span class="step-icon">☕</span>
+                        </div>
+                        <h4>Nos tomamos un café (o charlamos por WhatsApp)</h4>
+                        <p>Me cuentas qué necesita tu negocio, qué retos tienes en tu día a día o qué idea quieres materializar.</p>
+                    </div>
+
+                    <div class="workflow-step-card">
+                        <div class="step-top-meta">
+                            <span class="step-number">PASO 02</span>
+                            <span class="step-icon">📐</span>
+                        </div>
+                        <h4>Diseño & Solución a tu medida</h4>
+                        <p>Creo la herramienta exacta sin funciones de relleno que no vayas a usar, optimizada para tu presupuesto.</p>
+                    </div>
+
+                    <div class="workflow-step-card">
+                        <div class="step-top-meta">
+                            <span class="step-number">PASO 03</span>
+                            <span class="step-icon">🚀</span>
+                        </div>
+                        <h4>Lanzamiento y acompañamiento</h4>
+                        <p>Te enseño a usarla sin tecnicismos y sigo ahí disponible para darte soporte por si surge cualquier duda.</p>
+                    </div>
+                </div>
+
+                <!-- Botón de Acción Directo -->
+                <div class="about-cta-container">
+                    <a href="https://wa.me/50372359113?text=Hola%20Isa%C3%AD,%20estuve%20leyendo%20sobre%20ti%20en%20Multi%20Ideas%20SV%20y%20me%20gustar%C3%ADa%20platicar%20sobre%20una%20idea%20para%20mi%20negocio" class="btn-principal btn-about-wa" target="_blank" rel="noopener noreferrer">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82-1.55 1.55-3.62 2.42-5.82 2.42-1.47 0-2.91-.39-4.18-1.15l-.3-.18-3.11.82.83-3.03-.2-.31a8.16 8.16 0 01-1.26-4.39c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.71 4.3 3.8.6.26 1.07.41 1.44.53.61.19 1.16.17 1.6.1 0.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.22-.16-.47-.28z"/>
+                        </svg>
+                        <span>Escríbeme a WhatsApp y platicamos de tu idea</span>
+                    </a>
+                    <span class="about-cta-sub">⚡ Respuesta directa de Isaí • Sin compromiso</span>
+                </div>
             </div>
         </div>
     </section>
@@ -219,12 +532,20 @@
         </div>
     </section>
 
-    <!-- Lightbox para ver imágenes del carrusel ampliadas -->
-    <div id="carousel-lightbox" class="lightbox">
-        <span class="lightbox-close" id="lightbox-close">&times;</span>
+    <!-- Lightbox para ver imágenes ampliadas (Historias y Visor Cyber) con WhatsApp Directo -->
+    <div id="carousel-lightbox" class="lightbox" onclick="if(event.target === this) closeStoryLightbox()">
+        <span class="lightbox-close" id="lightbox-close" title="Cerrar" onclick="closeStoryLightbox()">&times;</span>
         <div class="lightbox-content-wrapper">
             <img class="lightbox-content" id="lightbox-img" alt="Vista Ampliada">
-            <a href="productos.html" class="btn-principal lightbox-btn">Ir a Productos</a>
+            <div class="lightbox-actions-panel">
+                <h4 id="lightbox-title" class="lightbox-title">Detalle del Servicio</h4>
+                <a href="#" id="lightbox-wa-btn" class="lightbox-wa-btn" target="_blank" rel="noopener noreferrer">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82-1.55 1.55-3.62 2.42-5.82 2.42-1.47 0-2.91-.39-4.18-1.15l-.3-.18-3.11.82.83-3.03-.2-.31a8.16 8.16 0 01-1.26-4.39c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.71 4.3 3.8.6.26 1.07.41 1.44.53.61.19 1.16.17 1.6.1 0.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.22-.16-.47-.28z"/>
+                    </svg>
+                    <span>Cotizar este Servicio por WhatsApp</span>
+                </a>
+            </div>
         </div>
     </div>
 
@@ -234,48 +555,209 @@
 
     <script src="script.js?v=5"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const slides = document.querySelectorAll('.hero-carousel-slide img');
-            const lightbox = document.getElementById('carousel-lightbox');
-            const lightboxImg = document.getElementById('lightbox-img');
-            const lightboxClose = document.getElementById('lightbox-close');
+        (function() {
+            function setupHeroCyberStudio() {
+                // ========================================================
+                // 1. SELECTOR INTERACTIVO DE ROLES (CYBER-STUDIO HERO)
+                // ========================================================
+                const rolesData = {
+                    android: {
+                        tag: "DESARROLLO MÓVIL NATIVO",
+                        metric: "📱 100% Kotlin / SDK Nativo",
+                        title: "Tu Idea Convertida en Aplicación Android",
+                        desc: "Diseño y programación de aplicaciones móviles de alto rendimiento, fluidas, con almacenamiento seguro, sincronización en tiempo real y preparadas para Google Play.",
+                        chips: ["Google Play Ready", "Arquitectura Limpia", "Bases de Datos Realtime", "Notificaciones Push"],
+                        preview: "imagenes/showcase/hero_android.png",
+                        fallback: "https://lh3.googleusercontent.com/d/1n51DQFrf_u_SmG5TS3deOf3Ncr2-CuxX",
+                        badge: "MODO: ANDROID NATIVO",
+                        caption: "De idea a aplicación Android funcional",
+                        waText: "Hola Multi Ideas SV, me interesa cotizar una Aplicación Android a la medida"
+                    },
+                    web: {
+                        tag: "ARQUITECTURA WEB A MEDIDA",
+                        metric: "⚡ Rendimiento 100% / SEO Integrado",
+                        title: "Tu Negocio Merece una Web de Alto Nivel",
+                        desc: "Páginas funcionales, corporativas y e-commerce construidas con código limpio y sin sobrecarga. Velocidad de carga inmediata y adaptación impecable a computadoras y teléfonos.",
+                        chips: ["Diseño 100% Adaptable", "Velocidad Extrema", "Integración WhatsApp", "Posicionamiento SEO"],
+                        preview: "imagenes/showcase/hero_web.png",
+                        fallback: "https://lh3.googleusercontent.com/d/14vBpv0y1AdFtyzTBSLl_xr5XCUo404cF",
+                        badge: "MODO: WEB STUDIO",
+                        caption: "Landing Pages & Ecosistemas Digitales",
+                        waText: "Hola Multi Ideas SV, quiero cotizar un sitio web para mi negocio"
+                    },
+                    design: {
+                        tag: "IDENTIDAD VISUAL & PUBLICIDAD",
+                        metric: "🎨 Alta Resolución / Vectorial / Imprenta",
+                        title: "Diseño Publicitario que Impacta y Vende",
+                        desc: "Identidad visual corporativa, logotipos vectoriales, afiches publicitarios llamativos, tarjetas de presentación con acabados finos, menús comerciales y papelería física de calidad.",
+                        chips: ["Logotipos & Isotipos", "Afiches & Banners", "Tarjetas & Stickers", "Papelería Comercial"],
+                        preview: "imagenes/showcase/hero_design.png",
+                        fallback: "https://lh3.googleusercontent.com/d/1ntOfWtBbRBIbsQhPLNIfYMTtPJ8UWUxO",
+                        badge: "MODO: DISEÑO & MARCA",
+                        caption: "Branding, Publicidad e Imprenta",
+                        waText: "Hola Multi Ideas SV, me interesa el servicio de diseño gráfico y publicidad"
+                    },
+                    bots: {
+                        tag: "AUTOMATIZACIÓN & TOOLS DE CONTENIDO",
+                        metric: "🤖 24/7 En Línea / Widgets OBS / APIs",
+                        title: "Bots Inteligentes & Widgets para Creadores",
+                        desc: "Automatiza la atención de tus clientes en WhatsApp, Instagram y redes sociales las 24 horas. Además, diseñamos widgets interactivos y alertas personalizadas para streaming en OBS.",
+                        chips: ["Bots de Redes Sociales", "Widgets Interactivos OBS", "Automatización 24/7", "Integraciones con APIs"],
+                        preview: "imagenes/showcase/hero_bots.png",
+                        fallback: "https://lh3.googleusercontent.com/d/1KvJ0aZnZlCPRm_bmk1krxv8gYcayCS5h",
+                        badge: "MODO: BOTS & STREAMING",
+                        caption: "Automatizaciones & Herramientas OBS",
+                        waText: "Hola Multi Ideas SV, quiero información sobre bots y automatizaciones"
+                    }
+                };
 
-            if (slides.length > 0 && lightbox && lightboxImg && lightboxClose) {
-                // Abrir lightbox al hacer click en cualquier imagen del carrusel
-                slides.forEach(img => {
-                    img.style.cursor = 'zoom-in';
-                    img.parentElement.addEventListener('click', (e) => {
-                        // Evita conflictos si se arrastra
-                        lightboxImg.src = img.src;
-                        lightboxImg.alt = img.alt;
-                        lightbox.classList.add('active');
-                        document.body.style.overflow = 'hidden'; // Evita scroll de fondo
+                const tabs = document.querySelectorAll('.role-tab');
+                const roleTag = document.getElementById('role-tag');
+                const roleMetric = document.getElementById('role-metric');
+                const roleTitle = document.getElementById('role-title');
+                const roleDesc = document.getElementById('role-desc');
+                const roleChips = document.getElementById('role-chips');
+                const previewImg = document.getElementById('role-preview-img');
+                const overlayBadge = document.getElementById('overlay-badge');
+                const overlayCaption = document.getElementById('overlay-caption');
+                const waBtn = document.getElementById('hero-wa-btn');
+                const reelItems = document.querySelectorAll('.reel-item');
+                const panel = document.getElementById('role-info-panel');
+
+                function setRole(roleKey) {
+                    const data = rolesData[roleKey];
+                    if (!data) return;
+
+                    tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-role') === roleKey));
+                    reelItems.forEach(ri => ri.classList.toggle('active', ri.getAttribute('data-role') === roleKey && ri.getAttribute('data-preview') === data.preview));
+
+                    if (panel) {
+                        panel.style.opacity = '0.4';
+                        panel.style.transform = 'translateY(4px)';
+                    }
+
+                    setTimeout(() => {
+                        if (roleTag) roleTag.textContent = data.tag;
+                        if (roleMetric) roleMetric.textContent = data.metric;
+                        if (roleTitle) roleTitle.textContent = data.title;
+                        if (roleDesc) roleDesc.textContent = data.desc;
+                        if (overlayBadge) overlayBadge.textContent = data.badge;
+                        if (overlayCaption) overlayCaption.textContent = data.caption;
+
+                        if (roleChips) {
+                            roleChips.innerHTML = data.chips.map(c => `<span>${c}</span>`).join('');
+                        }
+
+                        if (waBtn) {
+                            waBtn.href = `https://wa.me/50372359113?text=${encodeURIComponent(data.waText)}`;
+                        }
+
+                        if (previewImg) {
+                            previewImg.style.opacity = '0.3';
+                            previewImg.onerror = () => {
+                                previewImg.onerror = null;
+                                previewImg.src = data.fallback;
+                                previewImg.style.opacity = '1';
+                            };
+                            previewImg.src = data.preview;
+                            previewImg.onload = () => { previewImg.style.opacity = '1'; };
+                        }
+
+                        if (panel) {
+                            panel.style.opacity = '1';
+                            panel.style.transform = 'translateY(0)';
+                        }
+                    }, 100);
+                }
+
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const role = tab.getAttribute('data-role');
+                        setRole(role);
                     });
                 });
 
-                // Cerrar lightbox al hacer click en la X
-                lightboxClose.addEventListener('click', () => {
-                    lightbox.classList.remove('active');
-                    document.body.style.overflow = '';
+                reelItems.forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        const role = item.getAttribute('data-role');
+                        const previewUrl = item.getAttribute('data-preview');
+                        const fallbackUrl = item.getAttribute('data-fallback');
+                        const titleText = item.getAttribute('title');
+
+                        reelItems.forEach(ri => ri.classList.remove('active'));
+                        item.classList.add('active');
+
+                        if (role) {
+                            tabs.forEach(t => t.classList.toggle('active', t.getAttribute('data-role') === role));
+                            const data = rolesData[role];
+                            if (data) {
+                                if (roleTag) roleTag.textContent = data.tag;
+                                if (roleMetric) roleMetric.textContent = data.metric;
+                                if (roleTitle) roleTitle.textContent = data.title;
+                                if (roleDesc) roleDesc.textContent = data.desc;
+                                if (overlayBadge) overlayBadge.textContent = data.badge;
+                                if (overlayCaption) overlayCaption.textContent = titleText || data.caption;
+                                if (roleChips) {
+                                    roleChips.innerHTML = data.chips.map(c => `<span>${c}</span>`).join('');
+                                }
+                                if (waBtn) {
+                                    waBtn.href = `https://wa.me/50372359113?text=${encodeURIComponent(data.waText)}`;
+                                }
+                            }
+                        }
+
+                        if (previewUrl && previewImg) {
+                            previewImg.style.opacity = '0.3';
+                            previewImg.onerror = () => {
+                                previewImg.onerror = null;
+                                if (fallbackUrl) previewImg.src = fallbackUrl;
+                                previewImg.style.opacity = '1';
+                            };
+                            previewImg.src = previewUrl;
+                            previewImg.onload = () => { previewImg.style.opacity = '1'; };
+                        }
+                    });
                 });
 
-                // Cerrar lightbox al hacer click fuera de la imagen
-                lightbox.addEventListener('click', (e) => {
-                    if (e.target === lightbox) {
-                        lightbox.classList.remove('active');
-                        document.body.style.overflow = '';
-                    }
+                // ========================================================
+                // 2. LIGHTBOX INTERACTIVO (HISTORIAS Y VISOR CYBER) CON WHATSAPP
+                // ========================================================
+                const carouselSlides = document.querySelectorAll('.hero-carousel-slide');
+                const cyberPreview = document.getElementById('role-preview-img');
+
+                carouselSlides.forEach(slide => {
+                    slide.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        if (window.openStoryLightbox) {
+                            window.openStoryLightbox(slide);
+                        }
+                    });
                 });
 
-                // Cerrar con la tecla Escape
-                document.addEventListener('keydown', (e) => {
-                    if (e.key === 'Escape' && lightbox.classList.contains('active')) {
-                        lightbox.classList.remove('active');
-                        document.body.style.overflow = '';
-                    }
-                });
+                if (cyberPreview) {
+                    cyberPreview.style.cursor = 'zoom-in';
+                    cyberPreview.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        const activeRoleTab = document.querySelector('.role-tab.active');
+                        const roleKey = activeRoleTab ? activeRoleTab.getAttribute('data-role') : 'android';
+                        const roleInfo = rolesData[roleKey] || {};
+                        const title = roleInfo.title || "Multi Ideas SV";
+                        const service = roleInfo.tag || "Desarrollo y Diseño";
+                        if (window.openStoryModal) {
+                            window.openStoryModal(cyberPreview.src, title, service);
+                        }
+                    });
+                }
             }
-        });
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupHeroCyberStudio);
+            } else {
+                setupHeroCyberStudio();
+            }
+        })();
     </script>
 </body>
 </html>
