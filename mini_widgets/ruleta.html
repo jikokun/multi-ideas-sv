@@ -1140,6 +1140,16 @@
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     pointer-events: auto;
+    transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.25s ease;
+    opacity: 1;
+    visibility: visible;
+  }
+  #test-dock.hidden,
+  #test-dock.oculto {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) translateY(35px) scale(0.95) !important;
   }
   .test-btn {
     padding: 6px 11px;
@@ -1518,6 +1528,7 @@
     <button class="test-btn" id="test-btn-combo">⚡ !girar 100 par rojo</button>
     <button class="test-btn" id="test-btn-salir">🚪 !salir</button>
     <button class="test-btn" id="test-btn-cfg" style="border-color:#fde047; color:#fde047;">⚙️ Config</button>
+    <button class="test-btn" id="btn-close-test-dock" style="padding: 5px 9px; font-size: 11px; background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444;" title="Cerrar barra de pruebas">✕</button>
   </div>
 </div>
 
@@ -3045,6 +3056,47 @@
       toggleModalAjustes();
     });
   }
+
+  // =====================================================
+  // ALTERNAR U OCULTAR BARRA DE PRUEBAS AL CLIC EN PANTALLA
+  // =====================================================
+  function toggleTestPanel(forceState) {
+    var panel = document.getElementById('test-dock');
+    if (!panel) return;
+    if (typeof forceState === 'boolean') {
+      if (forceState) panel.classList.remove('hidden', 'oculto');
+      else panel.classList.add('hidden', 'oculto');
+    } else {
+      panel.classList.toggle('hidden');
+    }
+  }
+  window.toggleTestPanel = toggleTestPanel;
+
+  var btnCloseDock = document.getElementById('btn-close-test-dock');
+  if (btnCloseDock) {
+    btnCloseDock.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleTestPanel(false);
+    });
+  }
+
+  // Al hacer clic en el fondo de la pantalla o fuera de la barra, ocultarla
+  document.addEventListener('pointerdown', function(e) {
+    if (e.target.closest('#test-dock, #roulette-widget, #paytable-floating, #settings-modal')) return;
+    toggleTestPanel();
+  }, { passive: true });
+
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('#test-dock, #roulette-widget, #paytable-floating, #settings-modal')) return;
+    toggleTestPanel(false);
+  }, { passive: true });
+
+  window.addEventListener('keydown', function(e) {
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    if (e.key === 't' || e.key === 'T') {
+      toggleTestPanel();
+    }
+  });
 
   /* =====================================================
      13. COLA Y SINCRONIZACIÓN DE WIDGETS
