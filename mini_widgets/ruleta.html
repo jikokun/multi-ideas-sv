@@ -995,6 +995,23 @@
   /* =====================================================
      PANEL DE CONFIGURACIÓN FLOTANTE (MOVIBLE Y ESCALABLE)
      ===================================================== */
+  /* Backdrop click-catcher a pantalla completa para cerrar ajustes al dar clic fuera */
+  #settings-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 99;
+    background: rgba(0, 0, 0, 0.001);
+    pointer-events: auto;
+    display: none;
+    cursor: default;
+  }
+  #settings-backdrop.open {
+    display: block;
+  }
+
   #settings-modal {
     position: absolute;
     left: 1080px;
@@ -1408,6 +1425,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Backdrop click-catcher transparente a pantalla completa -->
+  <div id="settings-backdrop" class="settings-backdrop"></div>
 
   <!-- =====================================================
        MODAL DE CONFIGURACIÓN Y PRUEBA DE COMANDOS
@@ -2833,27 +2853,77 @@
   });
 
   // Configuración
+  var settingsBackdrop = document.getElementById('settings-backdrop');
+
+  function abrirModalAjustes() {
+    settingsModal.classList.add('open');
+    if (settingsBackdrop) {
+      settingsBackdrop.classList.add('open');
+      settingsBackdrop.style.display = 'block';
+    }
+  }
+
+  function cerrarModalAjustes() {
+    settingsModal.classList.remove('open');
+    if (settingsBackdrop) {
+      settingsBackdrop.classList.remove('open');
+      settingsBackdrop.style.display = 'none';
+    }
+  }
+
+  function toggleModalAjustes() {
+    if (settingsModal.classList.contains('open')) {
+      cerrarModalAjustes();
+    } else {
+      abrirModalAjustes();
+    }
+  }
+
   document.getElementById('btn-open-settings').addEventListener('click', function(e) {
     e.stopPropagation();
-    settingsModal.classList.toggle('open');
+    toggleModalAjustes();
   });
   document.getElementById('cabinet-header-bar').addEventListener('dblclick', function(e) {
     e.stopPropagation();
-    settingsModal.classList.toggle('open');
+    toggleModalAjustes();
   });
-  document.getElementById('btn-close-settings').addEventListener('click', function() {
-    settingsModal.classList.remove('open');
+  document.getElementById('btn-close-settings').addEventListener('click', function(e) {
+    e.stopPropagation();
+    cerrarModalAjustes();
   });
 
-  // Cerrar panel de configuración al hacer clic en cualquier parte de la pantalla fuera del modal
+  // Cerrar panel de configuración al hacer clic en cualquier parte de la pantalla (backdrop click-catcher)
+  if (settingsBackdrop) {
+    ['pointerdown', 'mousedown', 'click'].forEach(function(evtName) {
+      settingsBackdrop.addEventListener(evtName, function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        cerrarModalAjustes();
+      });
+    });
+  }
+
+  // Prevenir que clics dentro del modal se propaguen al backdrop
+  settingsModal.addEventListener('pointerdown', function(e) {
+    e.stopPropagation();
+  });
+  settingsModal.addEventListener('mousedown', function(e) {
+    e.stopPropagation();
+  });
+  settingsModal.addEventListener('click', function(e) {
+    e.stopPropagation();
+  });
+
+  // Respaldo global en document
   function handleCloseSettingsOutside(e) {
     if (settingsModal && settingsModal.classList.contains('open')) {
       if (!settingsModal.contains(e.target) && !e.target.closest('#btn-open-settings, #cabinet-header-bar, #btn-toggle-ruleta-vis, #test-btn-cfg')) {
-        settingsModal.classList.remove('open');
+        cerrarModalAjustes();
       }
     }
   }
   document.addEventListener('pointerdown', handleCloseSettingsOutside);
+  document.addEventListener('click', handleCloseSettingsOutside);
 
   // Botón en configuración para mostrar / ocultar la ruleta
   var btnToggleVis = document.getElementById('btn-toggle-ruleta-vis');
@@ -2873,17 +2943,19 @@
     });
   }
 
-  // Atajo de teclado 'C' o 'S' y doble clic en fondo para abrir ajustes si la ruleta está escondida
+  // Atajo de teclado 'C' o 'S' o 'Escape' y doble clic en fondo para abrir ajustes si la ruleta está escondida
   window.addEventListener('keydown', function(e) {
     if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
     if (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S') {
-      settingsModal.classList.toggle('open');
+      toggleModalAjustes();
+    } else if (e.key === 'Escape') {
+      cerrarModalAjustes();
     }
   });
 
   document.addEventListener('dblclick', function(e) {
     if (!e.target.closest('#roulette-widget, #paytable-floating, #settings-modal, #test-dock')) {
-      settingsModal.classList.toggle('open');
+      toggleModalAjustes();
     }
   });
 
@@ -2970,7 +3042,7 @@
   if (btnTestCfg) {
     btnTestCfg.addEventListener('click', function(e) {
       e.stopPropagation();
-      settingsModal.classList.toggle('open');
+      toggleModalAjustes();
     });
   }
 
@@ -3146,7 +3218,7 @@
       if (ruletaVisible) ocultarRuleta();
       else mostrarRuleta();
     } else if (d.type === 'SETTINGS') {
-      settingsModal.classList.toggle('open');
+      toggleModalAjustes();
     } else if (d.type === 'HIDE') {
       ocultarRuleta();
     }

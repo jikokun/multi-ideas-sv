@@ -1113,6 +1113,22 @@
   }
 
   /* MODAL DE CONFIGURACIÓN */
+  #settings-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 199;
+    background: rgba(0, 0, 0, 0.001);
+    pointer-events: auto;
+    display: none;
+    cursor: default;
+  }
+  #settings-backdrop.open {
+    display: block;
+  }
+
   #settings-modal {
     position: absolute;
     left: 80px;
@@ -1699,6 +1715,9 @@
       </div>
     </div>
   </div>
+
+  <!-- Backdrop click-catcher transparente a pantalla completa -->
+  <div id="settings-backdrop" class="settings-backdrop"></div>
 
   <!-- =====================================================
        MODAL DE CONFIGURACIÓN (MOVIBLE Y ESCALABLE)
@@ -3115,15 +3134,57 @@
   });
 
   var settingsModal = document.getElementById('settings-modal');
-  document.getElementById('open-settings-btn').addEventListener('click', function() {
-    settingsModal.classList.toggle('open');
-  });
-  document.getElementById('slot-header-bar').addEventListener('dblclick', function() {
-    settingsModal.classList.toggle('open');
-  });
-  document.getElementById('close-settings-btn').addEventListener('click', function() {
+  var settingsBackdrop = document.getElementById('settings-backdrop');
+
+  function abrirModalAjustes() {
+    settingsModal.classList.add('open');
+    if (settingsBackdrop) {
+      settingsBackdrop.classList.add('open');
+      settingsBackdrop.style.display = 'block';
+    }
+  }
+
+  function cerrarModalAjustes() {
     settingsModal.classList.remove('open');
+    if (settingsBackdrop) {
+      settingsBackdrop.classList.remove('open');
+      settingsBackdrop.style.display = 'none';
+    }
+  }
+
+  function toggleModalAjustes() {
+    if (settingsModal.classList.contains('open')) {
+      cerrarModalAjustes();
+    } else {
+      abrirModalAjustes();
+    }
+  }
+
+  document.getElementById('open-settings-btn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    toggleModalAjustes();
   });
+  document.getElementById('slot-header-bar').addEventListener('dblclick', function(e) {
+    e.stopPropagation();
+    toggleModalAjustes();
+  });
+  document.getElementById('close-settings-btn').addEventListener('click', function(e) {
+    e.stopPropagation();
+    cerrarModalAjustes();
+  });
+
+  if (settingsBackdrop) {
+    ['pointerdown', 'mousedown', 'click'].forEach(function(evtName) {
+      settingsBackdrop.addEventListener(evtName, function(e) {
+        e.stopPropagation();
+        e.preventDefault();
+        cerrarModalAjustes();
+      });
+    });
+  }
+
+  settingsModal.addEventListener('pointerdown', function(e) { e.stopPropagation(); });
+  settingsModal.addEventListener('click', function(e) { e.stopPropagation(); });
 
   var isDraggingModal = false;
   var modalDrag = { x: 0, y: 0, startX: 80, startY: 120 };
