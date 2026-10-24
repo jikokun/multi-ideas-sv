@@ -30,7 +30,9 @@
   const DEFAULT_TTLS = {
     tienda: 75000,   // Mostrador de tiendita: auto-cierre suele ser ~60s
     cajero: 20000,   // Cajero JikoBank: duración consulta ~8-14s
-    perfil: 15000    // Tarjeta de perfil: duración ~10-12s
+    perfil: 15000,   // Tarjeta de perfil: duración ~10-12s
+    ruleta: 45000,   // Tragamonedas / Ruleta: 10s juego + 30s ventana inactividad
+    tragamonedas: 45000
   };
 
   let bus = null;
@@ -388,11 +390,13 @@
     if (busyWidget === 'cajero') busyName = 'El cajero automático JikoBank';
     else if (busyWidget === 'perfil') busyName = 'La tarjeta de perfil';
     else if (busyWidget === 'tienda') busyName = 'La tiendita';
+    else if (busyWidget === 'ruleta' || busyWidget === 'tragamonedas') busyName = 'La ruleta tragamonedas';
 
     let reqName = 'solicitud';
     if (targetWidget === 'tienda') reqName = 'apertura de tiendita';
     else if (targetWidget === 'cajero') reqName = 'consulta en el cajero';
     else if (targetWidget === 'perfil') reqName = 'tarjeta de perfil';
+    else if (targetWidget === 'ruleta' || targetWidget === 'tragamonedas') reqName = 'tiro en la ruleta tragamonedas';
 
     return `<b>@${sender}</b>: ${busyName} está ocupando la pantalla.<br>Tu ${reqName} está en cola y aparecerá automáticamente al desocuparse.`;
   }
