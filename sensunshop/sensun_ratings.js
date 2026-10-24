@@ -2110,6 +2110,20 @@ function createBusinessDOMCard(business) {
     }
     const locHref = business.locationUrl || "#";
 
+    const isPNC = (business.id || '').toLowerCase().includes('eme-003') || 
+                  (business.id || '').toLowerCase().includes('pnc') || 
+                  (business.title || '').toLowerCase().includes('polic');
+
+    const pncImgAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/logo_pnc.png' : 'imagenes/logos/logo_pnc.png';
+    const defaultImgAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/icono-sensun-shop.webp' : 'imagenes/logos/icono-sensun-shop.webp';
+
+    let cardImgSrc = business.imgSrc || '';
+    if (isPNC && (!cardImgSrc || cardImgSrc.includes('1y4DwflItMlbGUmftKKDKLCDGTqpQFjVF'))) {
+        cardImgSrc = pncImgAsset;
+    } else if (!cardImgSrc) {
+        cardImgSrc = defaultImgAsset;
+    }
+
     card.innerHTML = `
         <div class="producto-img" style="display: flex; align-items: center; justify-content: center; height: 210px; padding: 12px; border-radius: 8px; position: relative;">
             ${business.hasOffer ? `
@@ -2120,7 +2134,7 @@ function createBusinessDOMCard(business) {
                     <span>¡OFERTA ACTIVA!</span>
                 </div>
             ` : ''}
-            <img src="${business.imgSrc || 'imagenes/logos/icono-sensun-shop.webp'}" alt="${business.title}" style="object-fit: contain; max-height: 90%; max-width: 90%; border-radius: 8px;" loading="lazy">
+            <img src="${cardImgSrc}" alt="${business.title}" style="object-fit: contain; max-height: 90%; max-width: 90%; border-radius: 8px;" loading="lazy" onerror="this.onerror=null; if('${isPNC}' === 'true' || this.alt.toLowerCase().includes('polic')){ this.src='${pncImgAsset}'; } else { this.src='${defaultImgAsset}'; }">
         </div>
         <div class="producto-info">
             <div class="negocio-tags">${tagsHtml}</div>
@@ -2191,7 +2205,14 @@ function syncBusinessesToDOM(businessesList) {
             // Actualizar imagen principal si cambió
             const imgEl = targetCard.querySelector(".producto-img img, .slider-card-img img");
             if (imgEl && business.imgSrc && imgEl.src !== business.imgSrc) {
-                imgEl.src = business.imgSrc;
+                const isPNCBiz = (business.id || '').toLowerCase().includes('eme-003') || 
+                                 (business.title || '').toLowerCase().includes('polic');
+                const pncAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/logo_pnc.png' : 'imagenes/logos/logo_pnc.png';
+                if (isPNCBiz && business.imgSrc.includes('1y4DwflItMlbGUmftKKDKLCDGTqpQFjVF')) {
+                    imgEl.src = pncAsset;
+                } else {
+                    imgEl.src = business.imgSrc;
+                }
                 imgEl.alt = business.title || "Negocio";
             }
 
