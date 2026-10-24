@@ -1419,7 +1419,7 @@
 
   <!-- =====================================================
        CONTENEDOR PRINCIPAL DE LA MÁQUINA TRAGAMONEDAS
-       (INICIA OCULTO Y SE DESPLIEGA CON !ruleta [monto])
+       (INICIA OCULTO Y SE DESPLIEGA CON !tragamonedas o !tragamoneda)
   ===================================================== -->
   <div id="slot-wrapper" class="is-hidden">
     <!-- 4 Esquinas Invisibles para Estirar o Encoger con el Mouse en OBS -->
@@ -1446,7 +1446,7 @@
             <span class="player-name" id="player-username">@Jikokun</span>
             <span class="player-rank-pill" id="player-rank-pill">👑 Creador</span>
           </div>
-          <span class="player-sub-command" id="player-sub-cmd">Comando: !ruleta 10</span>
+          <span class="player-sub-command" id="player-sub-cmd">Comando: !girar 10</span>
         </div>
       </div>
       <div class="player-hud-right">
@@ -1529,7 +1529,7 @@
 
         <!-- PANTALLA DIGITAL DE ESTADO -->
         <div class="status-display-box">
-          <div class="status-message" id="status-text">¡USA !RULETA [PUNTOS] EN EL CHAT!</div>
+          <div class="status-message" id="status-text">¡USA !TRAGAMONEDAS O !GIRAR EN EL CHAT!</div>
           <div class="status-win-badge" id="last-win-badge">PREMIO: 0</div>
         </div>
 
@@ -1696,6 +1696,7 @@
       <button class="tab-btn active" data-tab="tab-probs">🎲 Probabilidad</button>
       <button class="tab-btn" data-tab="tab-prizes">🍒 Premios</button>
       <button class="tab-btn" data-tab="tab-style">✨ Estilo & OBS</button>
+      <button class="tab-btn" data-tab="tab-timing">⏱️ Tiempos & Sesión</button>
       <button class="tab-btn" data-tab="tab-credits">💰 Créditos</button>
     </div>
 
@@ -1841,7 +1842,47 @@
         </div>
       </div>
 
-      <!-- PESTAÑA 4: CRÉDITOS Y AUTO-GIRO -->
+      <!-- PESTAÑA 4: TIEMPOS Y SESIÓN (INTERACTIVA PARA OBS) -->
+      <div class="tab-pane" id="tab-timing">
+        <div class="control-group">
+          <div class="control-label">
+            <span>⏱️ Tiempo de Inactividad (Espera !girar)</span>
+            <span class="val-badge" id="lbl-tiempo-inactividad">30s</span>
+          </div>
+          <input type="range" id="rng-tiempo-inactividad" min="10" max="120" step="5" value="30">
+          <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+            Segundos de espera antes de que la máquina se cancele y desaparezca si el usuario no envía <code>!girar [apuesta]</code>.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>🎬 Duración de Giro y Celebración</span>
+            <span class="val-badge" id="lbl-tiempo-aparicion">8s</span>
+          </div>
+          <input type="range" id="rng-tiempo-aparicion" min="3" max="25" step="1" value="8">
+          <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+            Tiempo que los carretes giran y se muestran los premios antes de volver a quedar lista para otro giro sin cooldown.
+          </div>
+        </div>
+
+        <div class="control-group">
+          <div class="control-label"><span>⚡ Presets de Ritmo de Stream</span></div>
+          <div class="btn-grid-2">
+            <button class="action-btn" id="btn-preset-rapido">⚡ Rápido (15s / 5s)</button>
+            <button class="action-btn primary" id="btn-preset-estandar">🎯 Estándar (30s / 8s)</button>
+            <button class="action-btn" id="btn-preset-largo">⏳ Modo Relax (60s / 12s)</button>
+            <button class="action-btn" id="btn-reset-timings">🔄 Reset Predeterminado</button>
+          </div>
+        </div>
+
+        <div style="padding:10px 14px; border-radius:8px; background:rgba(0,245,212,0.08); border:1px solid rgba(0,245,212,0.3); font-size:0.8rem; color:#00f5d4; display:flex; align-items:center; gap:8px;">
+          <span>💾</span>
+          <span>Ajustes guardados automáticamente en OBS. Sin necesidad de editar código.</span>
+        </div>
+      </div>
+
+      <!-- PESTAÑA 5: CRÉDITOS Y AUTO-GIRO -->
       <div class="tab-pane" id="tab-credits">
         <div class="control-group">
           <div class="control-label"><span>💰 Recargar o Ajustar Créditos Locales</span></div>
@@ -1867,7 +1908,7 @@
   ===================================================== -->
   <div id="test-dock" class="test-dock hidden">
     <div class="test-dock-handle">
-      <span class="test-dock-title">🧪 LABORATORIO DE PRUEBAS • RULETA TRAGAMONEDAS</span>
+      <span class="test-dock-title">🧪 LABORATORIO DE PRUEBAS • TRAGAMONEDAS PRO 777</span>
       <div class="test-dock-actions">
         <span class="test-status-tag" id="test-sync-status">🟢 SYNC ACTIVO</span>
         <button class="test-min-btn" id="btn-toggle-test-dock" title="Minimizar">▼</button>
@@ -1875,10 +1916,12 @@
     </div>
     <div class="test-dock-body" id="test-dock-body">
       <div class="test-btn-group">
-        <button class="test-btn" id="test-btn-demo">🎲 !ruleta 25 (@demo)</button>
-        <button class="test-btn" id="test-btn-lobito">🍒 !ruleta 100 (@lobito)</button>
-        <button class="test-btn primary" id="test-btn-jikokun">👑 !ruleta 500 (@jikokun)</button>
-        <button class="test-btn warning" id="test-btn-cola">⚡ Encolar 3 Jugadores</button>
+        <button class="test-btn" id="test-btn-open">🎰 !tragamonedas (@demo)</button>
+        <button class="test-btn" id="test-btn-demo">🎯 !girar 25 (@demo)</button>
+        <button class="test-btn" id="test-btn-lobito">🍒 !girar 100 (@lobito)</button>
+        <button class="test-btn primary" id="test-btn-jikokun">👑 !girar 500 (@jikokun)</button>
+        <button class="test-btn danger" id="test-btn-salir">🚪 !salir (@demo)</button>
+        <button class="test-btn warning" id="test-btn-cola">⚡ Encolar 2 Jugadores</button>
         <button class="test-btn" id="test-btn-toggle-vis">👁️ Mostrar / Ocultar</button>
         <button class="test-btn" id="test-btn-ajustes">⚙️ Ajustes</button>
       </div>
@@ -1928,6 +1971,8 @@
     autoRefill: true,
     autoSpin: false,
     volume: 0.75,
+    tiempoInactividad: 30,
+    tiempoAparicion: 8,
     weights: {
       lose: 62,
       small: 23,
@@ -1971,12 +2016,34 @@
   var autoHideMachineTimer = null;
   var ruletaVisible = false;
 
-  // Cargar preferencias guardadas en localStorage
+  // Cargar preferencias guardadas en localStorage y URL
+  var urlParams = new URLSearchParams(window.location.search);
   try {
     var savedPos = localStorage.getItem('jiko_slot_pos');
     if (savedPos) state.pos = JSON.parse(savedPos);
     var savedBoardPos = localStorage.getItem('jiko_slot_board_pos');
     if (savedBoardPos) state.boardPos = JSON.parse(savedBoardPos);
+
+    var savedInact = localStorage.getItem('jiko_slot_tiempo_inactividad');
+    if (savedInact) {
+      var nInact = parseInt(savedInact, 10);
+      if (!isNaN(nInact) && nInact >= 5 && nInact <= 300) state.tiempoInactividad = nInact;
+    }
+    var savedApar = localStorage.getItem('jiko_slot_tiempo_aparicion');
+    if (savedApar) {
+      var nApar = parseInt(savedApar, 10);
+      if (!isNaN(nApar) && nApar >= 3 && nApar <= 60) state.tiempoAparicion = nApar;
+    }
+
+    // Parámetros URL directos para OBS
+    if (urlParams.has('inactividad') || urlParams.has('timeout')) {
+      var urlInact = parseInt(urlParams.get('inactividad') || urlParams.get('timeout'), 10);
+      if (!isNaN(urlInact) && urlInact >= 5) state.tiempoInactividad = urlInact;
+    }
+    if (urlParams.has('aparicion') || urlParams.has('spin_time')) {
+      var urlApar = parseInt(urlParams.get('aparicion') || urlParams.get('spin_time'), 10);
+      if (!isNaN(urlApar) && urlApar >= 3) state.tiempoAparicion = urlApar;
+    }
   } catch(e) {}
 
   // Normalizador de nombres
@@ -1985,7 +2052,7 @@
     return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
   }
 
-  // Parser inteligente de montos (!ruleta 50, !ruleta 1k, etc.)
+  // Parser inteligente de montos (!girar 50, !girar 1k, etc.)
   function parsearMonto(str) {
     if (typeof str === 'number') return Math.floor(str);
     if (!str) return NaN;
@@ -2093,13 +2160,11 @@
   }
 
   /* =====================================================
-     TEMPORIZADORES DE JUEGO (10s) E INACTIVIDAD (30s)
+     TEMPORIZADORES DE SESIÓN, GIRO E INACTIVIDAD
   ===================================================== */
-  var TIEMPO_JUEGO_MS = 10000;         // 10 segundos de juego (giro + celebración completa)
-  var TIEMPO_INACTIVIDAD_SEG = 30;     // 30 segundos de espera para re-apuesta del mismo usuario
   var spinStartTime = 0;
   var countdownInterval = null;
-  var tiempoRestanteInactividad = TIEMPO_INACTIVIDAD_SEG;
+  var tiempoRestanteInactividad = state.tiempoInactividad;
 
   function cancelarTemporizadorInactividad() {
     if (countdownInterval) {
@@ -2111,17 +2176,17 @@
   function iniciarTemporizadorInactividad(segundosTotales) {
     cancelarTemporizadorInactividad();
 
-    tiempoRestanteInactividad = (typeof segundosTotales === 'number') ? segundosTotales : TIEMPO_INACTIVIDAD_SEG;
+    tiempoRestanteInactividad = (typeof segundosTotales === 'number') ? segundosTotales : state.tiempoInactividad;
     var statusText = document.getElementById('status-text');
     var badgeText = document.getElementById('last-win-badge');
     var activeUser = (state.activePlayer && (state.activePlayer.username || state.activePlayer.displayName)) ? (state.activePlayer.username || state.activePlayer.displayName) : 'JUGADOR';
 
     function actualizarDisplayCuenta() {
       if (statusText) {
-        statusText.innerHTML = '⏱️ ESPERANDO A @' + activeUser.toUpperCase() + ' (' + tiempoRestanteInactividad + 's)';
+        statusText.innerHTML = '⏱️ ESPERANDO A @' + activeUser.toUpperCase() + ' (' + tiempoRestanteInactividad + 's) • USA !girar';
       }
       if (badgeText) {
-        badgeText.textContent = '!ruleta [monto] PARA CONTINUAR';
+        badgeText.textContent = '!girar [monto] PARA JUGAR';
       }
     }
 
@@ -2133,13 +2198,14 @@
         actualizarDisplayCuenta();
       } else {
         cancelarTemporizadorInactividad();
-        console.log('[Ruleta] ⌛ 30s de inactividad transcurridos para @' + activeUser + '. Finalizando turno.');
-        if (statusText) statusText.textContent = '👋 ¡SESIÓN TERMINADA!';
+        console.log('[Tragamonedas] ⌛ Tiempo de inactividad transcurrido para @' + activeUser + '. Finalizando sesión.');
+        if (statusText) statusText.textContent = '👋 ¡SESIÓN TERMINADA! TIEMPO AGOTADO';
         setTimeout(function() {
           if (!state.alwaysVisible) {
             ocultarRuleta();
           }
           if (window.JikoWidgetSync) {
+            window.JikoWidgetSync.release('tragamonedas');
             window.JikoWidgetSync.release('ruleta');
           }
         }, 700);
@@ -2186,7 +2252,7 @@
     if (elRank) elRank.textContent = (datos.emoji || '🐾') + ' ' + (datos.rango || 'Cachorro');
     if (elSaldo) elSaldo.textContent = Number(datos.saldo || 0).toLocaleString();
     if (elBet) elBet.textContent = '🎯 APUESTA: ' + Number(datos.apuesta || state.bet).toLocaleString() + ' JP';
-    if (elSubCmd) elSubCmd.textContent = 'Comando: !ruleta ' + Number(datos.apuesta || state.bet);
+    if (elSubCmd) elSubCmd.textContent = 'Comando: !girar ' + Number(datos.apuesta || state.bet);
 
     if (elAvatar && datos.avatar) {
       elAvatar.src = datos.avatar;
@@ -2492,10 +2558,11 @@
     var cabinet = document.getElementById('slot-cabinet');
     cabinet.classList.remove('is-spinning');
 
-    // Función que garantiza exactamente 10 segundos de experiencia de juego (giro + celebración)
+    // Función que garantiza la experiencia de juego configurada (giro + celebración de premio)
     function concluirRondaJuego() {
       var elapsed = Date.now() - spinStartTime;
-      var remainingGameTime = Math.max(800, TIEMPO_JUEGO_MS - elapsed);
+      var targetGameTime = Math.max(2500, state.tiempoAparicion * 1000);
+      var remainingGameTime = Math.max(600, targetGameTime - elapsed);
 
       setTimeout(function() {
         state.isSpinning = false;
@@ -2505,8 +2572,8 @@
         if (state.autoSpin) {
           checkAutoSpinContinue();
         } else {
-          // Ronda de juego de 10s completada: inicia la ventana de 30s de inactividad
-          iniciarTemporizadorInactividad(TIEMPO_INACTIVIDAD_SEG);
+          // Ronda de juego completada: reactiva la ventana de inactividad sin cooldown para seguir jugando
+          iniciarTemporizadorInactividad(state.tiempoInactividad);
         }
       }, remainingGameTime);
     }
@@ -3056,7 +3123,7 @@
     var txt = document.getElementById('ruleta-queue-text');
     if (!pill || !txt || !window.JikoWidgetSync) return;
     var q = window.JikoWidgetSync.getQueue().filter(function(it) {
-      return it.widget === 'ruleta' || it.widget === 'tragamonedas';
+      return it.widget === 'tragamonedas' || it.widget === 'ruleta';
     });
     if (q.length > 0) {
       var next = q[0];
@@ -3075,9 +3142,97 @@
   }
 
   /* =====================================================
-     LÓGICA MAESTRA: PROCESAMIENTO DE COMANDOS !ruleta
+     AJUSTES INTERACTIVOS DE TIEMPO (INACTIVIDAD & APARICIÓN)
   ===================================================== */
-  async function procesarComandoRuleta(opciones) {
+  function updateTimingUI() {
+    var elInact = document.getElementById('rng-tiempo-inactividad');
+    var elApar = document.getElementById('rng-tiempo-aparicion');
+    var lblInact = document.getElementById('lbl-tiempo-inactividad');
+    var lblApar = document.getElementById('lbl-tiempo-aparicion');
+
+    if (elInact) elInact.value = state.tiempoInactividad;
+    if (elApar) elApar.value = state.tiempoAparicion;
+    if (lblInact) lblInact.textContent = state.tiempoInactividad + 's';
+    if (lblApar) lblApar.textContent = state.tiempoAparicion + 's';
+  }
+
+  var rngInact = document.getElementById('rng-tiempo-inactividad');
+  if (rngInact) {
+    rngInact.addEventListener('input', function() {
+      state.tiempoInactividad = Number(this.value);
+      var lbl = document.getElementById('lbl-tiempo-inactividad');
+      if (lbl) lbl.textContent = state.tiempoInactividad + 's';
+      try { localStorage.setItem('jiko_slot_tiempo_inactividad', state.tiempoInactividad); } catch(e){}
+    });
+  }
+
+  var rngApar = document.getElementById('rng-tiempo-aparicion');
+  if (rngApar) {
+    rngApar.addEventListener('input', function() {
+      state.tiempoAparicion = Number(this.value);
+      var lbl = document.getElementById('lbl-tiempo-aparicion');
+      if (lbl) lbl.textContent = state.tiempoAparicion + 's';
+      try { localStorage.setItem('jiko_slot_tiempo_aparicion', state.tiempoAparicion); } catch(e){}
+    });
+  }
+
+  var btnRapido = document.getElementById('btn-preset-rapido');
+  if (btnRapido) {
+    btnRapido.addEventListener('click', function() {
+      state.tiempoInactividad = 15;
+      state.tiempoAparicion = 5;
+      updateTimingUI();
+      try {
+        localStorage.setItem('jiko_slot_tiempo_inactividad', '15');
+        localStorage.setItem('jiko_slot_tiempo_aparicion', '5');
+      } catch(e){}
+    });
+  }
+
+  var btnEstandar = document.getElementById('btn-preset-estandar');
+  if (btnEstandar) {
+    btnEstandar.addEventListener('click', function() {
+      state.tiempoInactividad = 30;
+      state.tiempoAparicion = 8;
+      updateTimingUI();
+      try {
+        localStorage.setItem('jiko_slot_tiempo_inactividad', '30');
+        localStorage.setItem('jiko_slot_tiempo_aparicion', '8');
+      } catch(e){}
+    });
+  }
+
+  var btnLargo = document.getElementById('btn-preset-largo');
+  if (btnLargo) {
+    btnLargo.addEventListener('click', function() {
+      state.tiempoInactividad = 60;
+      state.tiempoAparicion = 12;
+      updateTimingUI();
+      try {
+        localStorage.setItem('jiko_slot_tiempo_inactividad', '60');
+        localStorage.setItem('jiko_slot_tiempo_aparicion', '12');
+      } catch(e){}
+    });
+  }
+
+  var btnResetT = document.getElementById('btn-reset-timings');
+  if (btnResetT) {
+    btnResetT.addEventListener('click', function() {
+      state.tiempoInactividad = 30;
+      state.tiempoAparicion = 8;
+      updateTimingUI();
+      try {
+        localStorage.removeItem('jiko_slot_tiempo_inactividad');
+        localStorage.removeItem('jiko_slot_tiempo_aparicion');
+      } catch(e){}
+    });
+  }
+
+  /* =====================================================
+     LÓGICA MAESTRA: PROCESAMIENTO DE COMANDOS (!tragamonedas / !girar)
+  ===================================================== */
+  async function procesarComandoTragamonedas(opciones) {
+    var action = opciones.action || 'ACTIVAR'; // 'ACTIVAR', 'GIRAR', 'SALIR'
     var sender = opciones.sender || 'espectador';
     var params = opciones.params || [];
     var force = !!opciones.force;
@@ -3087,138 +3242,257 @@
     var sNorm = norm(sender);
     var activeNorm = (state.activePlayer && state.activePlayer.username) ? norm(state.activePlayer.username) : '';
 
-    // Manejo de salida voluntaria de la máquina
-    if (params.length > 0 && (params[0].toLowerCase() === 'salir' || params[0].toLowerCase() === 'cerrar' || params[0].toLowerCase() === 'terminar')) {
+    console.log('[Tragamonedas] 🎰 Petición [' + action + '] de @' + sender + ' (Activo: @' + activeNorm + ', params: ' + params.join(' ') + ')');
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACCIÓN 1: SALIR / CERRAR VOLUNTARIAMENTE
+    // ─────────────────────────────────────────────────────────────────────────
+    if (action === 'SALIR') {
       if (sNorm === activeNorm && ruletaVisible && !state.isSpinning) {
         cancelarTemporizadorInactividad();
-        ocultarRuleta();
-        if (window.JikoWidgetSync) window.JikoWidgetSync.release('ruleta');
+        var statusText = document.getElementById('status-text');
+        if (statusText) statusText.textContent = '👋 ¡SESIÓN FINALIZADA!';
+        setTimeout(function() {
+          ocultarRuleta();
+          if (window.JikoWidgetSync) {
+            window.JikoWidgetSync.release('tragamonedas');
+            window.JikoWidgetSync.release('ruleta');
+          }
+        }, 500);
       }
       return;
     }
 
-    var rawMonto = params.length > 0 ? params[0] : null;
-    var apuestaDeseada = parsearMonto(rawMonto);
-    var apuesta = (!isNaN(apuestaDeseada) && apuestaDeseada > 0) ? Math.min(50000, Math.max(5, apuestaDeseada)) : state.bet;
-
-    console.log('[Ruleta] 🎰 Comando recibido de @' + sender + ' (Apuesta: ' + apuesta + ' JP, force: ' + force + ', fromQueue: ' + fromQueue + ')');
-
-    // EXCLUSIÓN MUTUA & COLA SECUENCIAL:
-    // Si la máquina está visible, en los 30s de inactividad, y es EL MISMO jugador apostando, se le atiende inmediatamente
-    var esMismoJugadorActivo = (ruletaVisible && !state.isSpinning && activeNorm === sNorm);
-    var ruletaOcupada = state.isSpinning || (ruletaVisible && !esMismoJugadorActivo);
-    var lockActual = window.JikoWidgetSync ? window.JikoWidgetSync.getActiveLock() : null;
-    var otroWidgetOcupado = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('ruleta', sender) : false;
-    var debeEncolar = !force && !fromQueue && (ruletaOcupada || otroWidgetOcupado);
-
-    if (debeEncolar) {
-      console.log('[Ruleta] ⏳ Pantalla ocupada (lock: ' + (lockActual ? lockActual.widget : 'ninguno') + '). Comando encolado para @' + sender);
-      if (window.JikoWidgetSync) {
-        window.JikoWidgetSync.enqueue({
-          widget: 'ruleta',
-          command: '!ruleta',
-          sender: sender,
-          params: [String(apuesta)]
-        });
-      }
-      actualizarBadgeColaVisual();
-      return;
-    }
-
-    // Cancelar cualquier cuenta regresiva de inactividad ya que se inicia una nueva jugada
-    cancelarTemporizadorInactividad();
-
-    // ADQUIRIR/EXTENDER LOCK DE EXCLUSIÓN MUTUA (45 segundos para cubrir 10s juego + 30s inactividad)
-    if (window.JikoWidgetSync) {
-      window.JikoWidgetSync.acquire('ruleta', sNorm, 45000);
-    }
-
-    // OBTENER DATOS DE USUARIO DESDE FIREBASE O MOCK
-    var userObj = null;
-    if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
-      try {
-        userObj = await window.StreamDB.getUser(sNorm);
-      } catch(e) {}
-    }
-    if (!userObj) {
-      userObj = mockDB[sNorm] || {
-        displayName: sender,
-        jikopuntos: 1000,
-        avatar: null,
-        rol: 'espectador'
-      };
-    }
-
-    var saldoActual = (userObj.jikopuntos !== undefined && userObj.jikopuntos !== null) ? Number(userObj.jikopuntos) : 1000;
-    var nivelInfo = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(userObj) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
-
-    // Mostrar el Gabinete
-    mostrarRuleta();
-    actualizarHUDJugador({
-      user: userObj.displayName || sender,
-      avatar: userObj.avatar,
-      rango: nivelInfo.rangoTitulo,
-      emoji: nivelInfo.insigniaEmoji,
-      saldo: saldoActual,
-      apuesta: apuesta
-    });
-
-    // Validar Saldo Suficiente
-    if (saldoActual < apuesta) {
-      playLoseSound();
-      document.getElementById('status-text').textContent = '⚠️ SALDO INSUFICIENTE';
-      document.getElementById('last-win-badge').textContent = 'TIENES: ' + saldoActual.toLocaleString() + ' JP';
-
-      setTimeout(function() {
-        ocultarRuleta();
-        if (window.JikoWidgetSync) {
-          window.JikoWidgetSync.release('ruleta');
-        }
-      }, 3800);
-      return;
-    }
-
-    // Configurar apuesta y descontar de Firebase
-    state.bet = apuesta;
-    state.credits = saldoActual;
-    updateDashboardUI();
-
-    if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
-      try {
-        await window.StreamDB.addJikopuntos(sNorm, -apuesta, 'Apuesta en Ruleta Tragamonedas');
-      } catch(e) {
-        console.warn('[Ruleta] Error al descontar apuesta en Firebase:', e);
-      }
-    }
-
-    // Iniciar el giro con callback para acreditar premios
-    triggerSpin(forcedMode || null, async function(resultado) {
-      if (resultado.win && resultado.amount > 0) {
-        console.log('[Ruleta] 🏆 Usuario @' + sNorm + ' ganó ' + resultado.amount + ' JP!');
-        if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
-          try {
-            await window.StreamDB.addJikopuntos(sNorm, resultado.amount, 'Premio ganado en Ruleta Tragamonedas');
-          } catch(e) {
-            console.warn('[Ruleta] Error al acreditar premio en Firebase:', e);
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACCIÓN 2: ACTIVAR / ABRIR TRAGAMONEDAS (!tragamonedas o !tragamoneda)
+    // ─────────────────────────────────────────────────────────────────────────
+    if (action === 'ACTIVAR') {
+      // Si el mismo jugador ya la tiene abierta y no está girando, refrescar su tiempo de inactividad
+      if (ruletaVisible && !state.isSpinning && activeNorm === sNorm) {
+        if (params.length > 0) {
+          var initialBetRe = parsearMonto(params[0]);
+          if (!isNaN(initialBetRe) && initialBetRe > 0) {
+            state.bet = Math.min(50000, Math.max(5, initialBetRe));
+            var elBet = document.getElementById('player-stat-bet');
+            if (elBet) elBet.textContent = '🎯 APUESTA: ' + Number(state.bet).toLocaleString() + ' JP';
+            var elSubCmd = document.getElementById('player-sub-cmd');
+            if (elSubCmd) elSubCmd.textContent = 'Comando: !girar ' + Number(state.bet);
           }
         }
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+        playLeverSound();
+        return;
       }
-    });
+
+      // EXCLUSIÓN MUTUA & COLA SECUENCIAL DEL ECOSISTEMA JIKOPUNTOS:
+      // Si otro usuario está jugando, o la máquina está girando, o la pantalla está ocupada por Tienda/Cajero/Perfil:
+      var pantallaOcupada = (ruletaVisible && (state.isSpinning || activeNorm !== sNorm));
+      var otroWidgetOcupado = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('tragamonedas', sender) : false;
+      var debeEncolar = !force && !fromQueue && (pantallaOcupada || otroWidgetOcupado);
+
+      if (debeEncolar) {
+        console.log('[Tragamonedas] ⏳ Pantalla ocupada. Encolando apertura para @' + sender);
+        if (window.JikoWidgetSync) {
+          window.JikoWidgetSync.enqueue({
+            widget: 'tragamonedas',
+            command: '!tragamonedas',
+            sender: sender,
+            params: params
+          });
+        }
+        actualizarBadgeColaVisual();
+        return;
+      }
+
+      // ADQUIRIR LOCK DE EXCLUSIÓN MUTUA
+      var ttlLock = (state.tiempoInactividad + state.tiempoAparicion + 20) * 1000;
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.acquire('tragamonedas', sNorm, ttlLock);
+      }
+
+      // OBTENER DATOS DE USUARIO DESDE FIREBASE O MOCK
+      var userObj = null;
+      if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
+        try {
+          userObj = await window.StreamDB.getUser(sNorm);
+        } catch(e) {}
+      }
+      if (!userObj) {
+        userObj = mockDB[sNorm] || {
+          displayName: sender,
+          jikopuntos: 1000,
+          avatar: null,
+          rol: 'espectador'
+        };
+      }
+
+      var saldoActual = (userObj.jikopuntos !== undefined && userObj.jikopuntos !== null) ? Number(userObj.jikopuntos) : 1000;
+      var nivelInfo = (window.calcularNivelUsuario) ? window.calcularNivelUsuario(userObj) : { rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', nivel: 1 };
+
+      if (params.length > 0) {
+        var apuestaInicial = parsearMonto(params[0]);
+        if (!isNaN(apuestaInicial) && apuestaInicial > 0) {
+          state.bet = Math.min(50000, Math.max(5, apuestaInicial));
+        }
+      }
+
+      state.credits = saldoActual;
+
+      // Desplegar máquina en pantalla
+      mostrarRuleta();
+      actualizarHUDJugador({
+        user: userObj.displayName || sender,
+        avatar: userObj.avatar,
+        rango: nivelInfo.rangoTitulo,
+        emoji: nivelInfo.insigniaEmoji,
+        saldo: saldoActual,
+        apuesta: state.bet
+      });
+
+      updateDashboardUI();
+
+      var statusText = document.getElementById('status-text');
+      if (statusText) statusText.textContent = '🎰 ¡MÁQUINA LISTA! @' + (userObj.displayName || sender).toUpperCase();
+      var badgeText = document.getElementById('last-win-badge');
+      if (badgeText) badgeText.textContent = 'USA !girar [monto]';
+
+      // Iniciar ventana de 30 segundos (o configurada) de inactividad para que el usuario use !girar
+      iniciarTemporizadorInactividad(state.tiempoInactividad);
+      return;
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACCIÓN 3: GIRAR LA MÁQUINA (!girar [apuesta])
+    // ─────────────────────────────────────────────────────────────────────────
+    if (action === 'GIRAR') {
+      // Si la máquina no está visible aún, pero la pantalla está libre: auto-activar y girar directamente
+      if (!ruletaVisible) {
+        var widgetBusy = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('tragamonedas', sender) : false;
+        if (!force && !fromQueue && widgetBusy) {
+          if (window.JikoWidgetSync) {
+            window.JikoWidgetSync.enqueue({
+              widget: 'tragamonedas',
+              command: '!girar',
+              sender: sender,
+              params: params
+            });
+          }
+          actualizarBadgeColaVisual();
+          return;
+        }
+        await procesarComandoTragamonedas({ action: 'ACTIVAR', sender: sender, params: params, force: force, fromQueue: fromQueue });
+      }
+
+      // Si la máquina está visible pero es OTRO usuario intentando girar:
+      if (ruletaVisible && activeNorm !== sNorm) {
+        console.log('[Tragamonedas] ⚠️ Giro rechazado: pertenece al turno de @' + activeNorm + '. Encolando a @' + sender);
+        if (!force && !fromQueue) {
+          if (window.JikoWidgetSync) {
+            window.JikoWidgetSync.enqueue({
+              widget: 'tragamonedas',
+              command: '!girar',
+              sender: sender,
+              params: params
+            });
+          }
+          actualizarBadgeColaVisual();
+        }
+        return;
+      }
+
+      // Si ya está girando en este instante, ignorar comando repetido durante el giro
+      if (state.isSpinning) {
+        console.log('[Tragamonedas] ℹ️ La máquina ya está girando. Esperando finalización.');
+        return;
+      }
+
+      // Cancelar temporizador de inactividad mientras se prepara el giro
+      cancelarTemporizadorInactividad();
+
+      // Si se especificó una nueva apuesta en !girar [monto]
+      if (params.length > 0) {
+        var nuevaApuesta = parsearMonto(params[0]);
+        if (!isNaN(nuevaApuesta) && nuevaApuesta > 0) {
+          state.bet = Math.min(50000, Math.max(5, nuevaApuesta));
+        }
+      }
+
+      var elBetTag = document.getElementById('player-stat-bet');
+      if (elBetTag) elBetTag.textContent = '🎯 APUESTA: ' + Number(state.bet).toLocaleString() + ' JP';
+      var elCmdTag = document.getElementById('player-sub-cmd');
+      if (elCmdTag) elCmdTag.textContent = 'Comando: !girar ' + Number(state.bet);
+
+      // Re-consultar saldo actual
+      var saldoActualizado = state.credits;
+      if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
+        try {
+          var uLive = await window.StreamDB.getUser(sNorm);
+          if (uLive && uLive.jikopuntos !== undefined) {
+            saldoActualizado = Number(uLive.jikopuntos);
+            state.credits = saldoActualizado;
+          }
+        } catch(e) {}
+      }
+
+      // Validar Saldo
+      if (saldoActualizado < state.bet) {
+        playLoseSound();
+        var statusEl = document.getElementById('status-text');
+        if (statusEl) statusEl.textContent = '⚠️ SALDO INSUFICIENTE (Tienes ' + saldoActualizado.toLocaleString() + ' JP)';
+        var badgeEl = document.getElementById('last-win-badge');
+        if (badgeEl) badgeEl.textContent = 'USA !girar CON MENOR MONTO';
+
+        // Reanudar temporizador para que no se cierre inmediatamente y tenga oportunidad de apostar menos o salir
+        iniciarTemporizadorInactividad(15);
+        return;
+      }
+
+      // Extender Lock de exclusión mutua para cubrir este giro + nueva ventana de inactividad
+      var ttlExtension = (state.tiempoInactividad + state.tiempoAparicion + 20) * 1000;
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.acquire('tragamonedas', sNorm, ttlExtension);
+      }
+
+      // Descontar la apuesta en Firebase RTDB
+      if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
+        try {
+          await window.StreamDB.addJikopuntos(sNorm, -state.bet, 'Apuesta en Tragamonedas');
+        } catch(e) {
+          console.warn('[Tragamonedas] Error al descontar apuesta:', e);
+        }
+      }
+
+      // Iniciar el giro (al terminar el tiempo de aparición, se reactiva el timer sin cooldown)
+      triggerSpin(forcedMode || null, async function(resultado) {
+        if (resultado.win && resultado.amount > 0) {
+          console.log('[Tragamonedas] 🏆 Usuario @' + sNorm + ' ganó ' + resultado.amount + ' JP!');
+          if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
+            try {
+              await window.StreamDB.addJikopuntos(sNorm, resultado.amount, 'Premio ganado en Tragamonedas 777');
+            } catch(e) {
+              console.warn('[Tragamonedas] Error al acreditar premio:', e);
+            }
+          }
+        }
+      });
+    }
   }
 
   // Despacho de Comandos en Cola vía JikoWidgetSync
   if (window.JikoWidgetSync) {
-    window.JikoWidgetSync.onExecute('ruleta', function(item) {
-      console.log('[Ruleta] 🚀 Despachando elemento de cola para @' + item.sender);
-      procesarComandoRuleta({
+    window.JikoWidgetSync.onExecute('tragamonedas', function(item) {
+      console.log('[Tragamonedas] 🚀 Despachando elemento de cola para @' + item.sender);
+      procesarComandoTragamonedas({
+        action: item.command === '!girar' ? 'GIRAR' : 'ACTIVAR',
         sender: item.sender,
         params: item.params || [],
         force: false,
         fromQueue: true
       });
     });
-    window.JikoWidgetSync.onExecute('tragamonedas', function(item) {
-      procesarComandoRuleta({
+    window.JikoWidgetSync.onExecute('ruleta', function(item) {
+      procesarComandoTragamonedas({
+        action: item.command === '!girar' ? 'GIRAR' : 'ACTIVAR',
         sender: item.sender,
         params: item.params || [],
         force: false,
@@ -3228,94 +3502,232 @@
   }
 
   /* =====================================================
-     CONEXIÓN WEBSOCKET STREAMER.BOT (TWITCH / KICK)
+     DESPACHADOR INTELIGENTE DE COMANDOS DE CHAT
   ===================================================== */
-  function conectarStreamerBot(port) {
-    port = port || 8080;
+  function despacharTextoChat(sender, rawText) {
+    if (!rawText) return;
+    var cleanText = String(rawText).trim();
+    if (!cleanText.startsWith('!')) return;
+
+    var parts = cleanText.split(/\s+/);
+    var cmd = parts[0].toLowerCase();
+    var params = parts.slice(1);
+
+    // Salida voluntaria
+    if (cmd === '!salir' || cmd === '!cerrar') {
+      procesarComandoTragamonedas({ action: 'SALIR', sender: sender, params: params });
+      return;
+    }
+
+    // Activación con !tragamonedas o !tragamoneda (ambos soportados, además de !slot / !slots)
+    if (cmd === '!tragamonedas' || cmd === '!tragamoneda' || cmd === '!slot' || cmd === '!slots') {
+      if (params.length > 0 && (params[0].toLowerCase() === 'salir' || params[0].toLowerCase() === 'cerrar')) {
+        procesarComandoTragamonedas({ action: 'SALIR', sender: sender, params: params });
+        return;
+      }
+      procesarComandoTragamonedas({ action: 'ACTIVAR', sender: sender, params: params });
+      return;
+    }
+
+    // Giro con !girar o !giro o !spin
+    if (cmd === '!girar' || cmd === '!giro' || cmd === '!spin') {
+      if (params.length > 0 && (params[0].toLowerCase() === 'salir' || params[0].toLowerCase() === 'cerrar')) {
+        procesarComandoTragamonedas({ action: 'SALIR', sender: sender, params: params });
+        return;
+      }
+      procesarComandoTragamonedas({ action: 'GIRAR', sender: sender, params: params });
+      return;
+    }
+  }
+
+  /* =====================================================
+     CONEXIÓN ROBUSTA STREAMER.BOT WEBSOCKET & OBS
+  ===================================================== */
+  var streamerBotSocket = null;
+  var streamerBotConnected = false;
+  var currentPortIndex = 0;
+  var wsReconnectTimer = null;
+
+  function getPortsToTry() {
+    var urlPort = urlParams.get('port') || urlParams.get('wsport') || urlParams.get('sbport');
+    var basePorts = ['4445', '8080', '7474', '4455'];
+    if (urlPort && urlPort.trim()) {
+      var p = urlPort.trim();
+      return [p, ...basePorts.filter(function(x) { return x !== p; })];
+    }
+    return basePorts;
+  }
+
+  function setWsStatusTag(status, label) {
+    var tag = document.getElementById('test-sync-status');
+    if (!tag) return;
+    if (status === 'connected') {
+      tag.textContent = '🟢 ' + label;
+      tag.style.borderColor = '#00f5d4';
+      tag.style.color = '#00f5d4';
+    } else if (status === 'connecting') {
+      tag.textContent = '🟡 ' + label;
+      tag.style.borderColor = '#fbbf24';
+      tag.style.color = '#fbbf24';
+    } else {
+      tag.textContent = '⚪ ' + label;
+      tag.style.borderColor = '#94a3b8';
+      tag.style.color = '#94a3b8';
+    }
+  }
+
+  function conectarStreamerBot() {
+    if (wsReconnectTimer) {
+      clearTimeout(wsReconnectTimer);
+      wsReconnectTimer = null;
+    }
+
+    if (streamerBotSocket) {
+      try {
+        streamerBotSocket.onopen = null;
+        streamerBotSocket.onmessage = null;
+        streamerBotSocket.onerror = null;
+        streamerBotSocket.onclose = null;
+        streamerBotSocket.close();
+      } catch(e) {}
+      streamerBotSocket = null;
+    }
+
+    var ports = getPortsToTry();
+    var activePort = ports[currentPortIndex] || ports[0];
+    var host = urlParams.get('host') || '127.0.0.1';
+    var wsUrl = 'ws://' + host + ':' + activePort + '/';
+
+    setWsStatusTag('connecting', 'WS :' + activePort + '...');
+    console.log('[Tragamonedas Streamer.bot] Conectando a ' + wsUrl + '...');
+
     try {
-      var socket = new WebSocket('ws://localhost:' + port + '/');
-      socket.onopen = function() {
-        console.log('[Ruleta] ⚡ Conectado a Streamer.bot WebSocket en puerto ' + port);
-        socket.send(JSON.stringify({
-          request: 'Subscribe',
-          id: 'ruleta-sub',
-          events: {
-            General: ['Custom'],
-            Kick: ['ChatMessage'],
-            Twitch: ['ChatMessage']
-          }
-        }));
+      streamerBotSocket = new WebSocket(wsUrl);
+
+      streamerBotSocket.onopen = function() {
+        streamerBotConnected = true;
+        setWsStatusTag('connected', 'STREAMER.BOT :' + activePort);
+        console.log('[Tragamonedas Streamer.bot] 🟢 Conectado exitosamente en ' + wsUrl);
+
+        try {
+          streamerBotSocket.send(JSON.stringify({
+            request: 'Subscribe',
+            id: 'jiko-tragamonedas-sub',
+            events: {
+              General: ['Custom'],
+              Kick: ['ChatMessage', 'Message'],
+              Twitch: ['ChatMessage'],
+              YouTube: ['Message']
+            }
+          }));
+        } catch(subErr) {
+          console.warn('[Tragamonedas] Error enviando suscripción a Streamer.bot:', subErr);
+        }
       };
 
-      socket.onmessage = function(ev) {
+      streamerBotSocket.onmessage = function(ev) {
         try {
           var msg = JSON.parse(ev.data);
-          var eventObj = msg.event || {};
-          var eventType = ((typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) || msg.method || msg.type || '').toString().toLowerCase();
-          var rawData = msg.data || msg.body || msg;
-          var data = rawData.data || rawData;
-
-          if (eventType.includes('chatmessage') || data.message || data.messageText) {
-            var messageObj = data.message || data;
-            var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
-            var sender = 'espectador';
-            if (typeof userObj === 'string') sender = userObj;
-            else if (typeof userObj === 'object' && userObj !== null) {
-              sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
-            }
-
-            var text = '';
-            if (typeof data.messageText === 'string') text = data.messageText;
-            else if (typeof data.message === 'string') text = data.message;
-            else if (typeof messageObj === 'object' && messageObj !== null) {
-              text = messageObj.message || messageObj.text || '';
-            }
-
-            var cleanText = text.trim();
-            if (cleanText.startsWith('!')) {
-              var parts = cleanText.split(/\s+/);
-              var cmd = parts[0].toLowerCase();
-              if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
-                procesarComandoRuleta({
-                  sender: sender,
-                  params: parts.slice(1),
-                  force: false,
-                  fromQueue: false
-                });
-              }
-            }
-          }
-        } catch(e) {}
+          handleStreamerBotMessage(msg);
+        } catch(err) {
+          console.warn('[Tragamonedas] Error parseando mensaje WS:', err);
+        }
       };
 
-      socket.onclose = function() {
-        setTimeout(function() { conectarStreamerBot(port); }, 4000);
+      streamerBotSocket.onerror = function() {
+        streamerBotConnected = false;
       };
-      socket.onerror = function() {};
-    } catch(e) {}
+
+      streamerBotSocket.onclose = function() {
+        streamerBotConnected = false;
+        console.log('[Tragamonedas Streamer.bot] Conexión cerrada en ' + activePort + '. Rotando siguiente puerto...');
+        currentPortIndex = (currentPortIndex + 1) % ports.length;
+        var nextWait = currentPortIndex === 0 ? 4000 : 1500;
+        setWsStatusTag('connecting', 'RECONECTANDO...');
+        wsReconnectTimer = setTimeout(conectarStreamerBot, nextWait);
+      };
+    } catch(errEx) {
+      console.warn('[Tragamonedas] Excepción al crear WebSocket en ' + wsUrl + ':', errEx);
+      currentPortIndex = (currentPortIndex + 1) % ports.length;
+      wsReconnectTimer = setTimeout(conectarStreamerBot, 3000);
+    }
   }
+
+  function handleStreamerBotMessage(msg) {
+    if (!msg) return;
+
+    var eventObj = msg.event || {};
+    var eventType = (
+      (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) || 
+      msg.method || msg.type || ''
+    ).toString().toLowerCase();
+
+    var rawData = msg.data || msg.body || msg;
+    var data = rawData.data || rawData;
+
+    // 1. Evento Custom (Broadcast directo desde Acción en Streamer.bot)
+    if (eventType === 'custom' || msg.method === 'Custom') {
+      var customCmd = data.command || data.action || data.cmd || (typeof data === 'string' ? data : '');
+      var customUser = data.user || data.userName || data.username || data.sender || 'Streamerbot';
+      if (customCmd) {
+        despacharTextoChat(customUser, customCmd);
+      }
+      return;
+    }
+
+    // 2. Mensajes de Chat (Kick, Twitch, YouTube)
+    var isChat = eventType.includes('chat') || eventType.includes('message') || eventType === 'message' || data.message || data.messageText || data.text || data.content;
+    if (isChat) {
+      var messageObj = data.message || data;
+      var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+      var sender = 'espectador';
+      if (typeof userObj === 'string') {
+        sender = userObj;
+      } else if (typeof userObj === 'object' && userObj !== null) {
+        sender = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.userName || data.username || 'espectador';
+      }
+
+      var text = '';
+      if (typeof data.messageText === 'string') text = data.messageText;
+      else if (typeof data.message === 'string') text = data.message;
+      else if (typeof data.text === 'string') text = data.text;
+      else if (typeof data.content === 'string') text = data.content;
+      else if (typeof messageObj === 'object' && messageObj !== null) {
+        text = messageObj.message || messageObj.text || messageObj.content || '';
+      }
+
+      if (!text) return;
+
+      // Filtro de bots conocidos
+      var userNorm = (sender || '').toLowerCase().trim();
+      var BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'creepingbot', 'wizebot'];
+      if (BOTS_IGNORADOS.indexOf(userNorm) !== -1) return;
+
+      despacharTextoChat(sender, text);
+    }
+  }
+
   conectarStreamerBot();
 
   /* =====================================================
      INTEGRACIÓN EN MODO TEST / LABORATORIO
   ===================================================== */
-  window.simularRuletaDemo = function(username, monto) {
-    procesarComandoRuleta({
-      sender: username || 'jikokun',
-      params: [String(monto || 50)],
-      force: true,
-      fromQueue: false
-    });
+  window.simularTragamonedasDemo = function(username) {
+    despacharTextoChat(username || 'espectador_demo', '!tragamonedas');
+  };
+
+  window.simularGirarDemo = function(username, monto) {
+    despacharTextoChat(username || 'espectador_demo', '!girar ' + (monto || 25));
   };
 
   window.simularColaDemo = function() {
-    procesarComandoRuleta({ sender: 'espectador_demo', params: ['25'], force: false });
+    despacharTextoChat('espectador_demo', '!tragamonedas');
     setTimeout(function() {
-      procesarComandoRuleta({ sender: 'lobito', params: ['100'], force: false });
-    }, 200);
+      despacharTextoChat('lobito', '!tragamonedas');
+    }, 250);
     setTimeout(function() {
-      procesarComandoRuleta({ sender: 'amigo', params: ['250'], force: false });
-    }, 400);
+      despacharTextoChat('amigo', '!tragamonedas');
+    }, 500);
   };
 
   window.toggleVisibilidadRuleta = function() {
@@ -3327,24 +3739,29 @@
     settingsModal.classList.toggle('open');
   };
 
-  document.getElementById('test-btn-demo').addEventListener('click', function() {
-    window.simularRuletaDemo('espectador_demo', 25);
-  });
-  document.getElementById('test-btn-lobito').addEventListener('click', function() {
-    window.simularRuletaDemo('lobito', 100);
-  });
-  document.getElementById('test-btn-jikokun').addEventListener('click', function() {
-    window.simularRuletaDemo('jikokun', 500);
-  });
-  document.getElementById('test-btn-cola').addEventListener('click', function() {
-    window.simularColaDemo();
-  });
-  document.getElementById('test-btn-toggle-vis').addEventListener('click', function() {
-    window.toggleVisibilidadRuleta();
-  });
-  document.getElementById('test-btn-ajustes').addEventListener('click', function() {
-    window.abrirConfiguracion();
-  });
+  var btnOpenTest = document.getElementById('test-btn-open');
+  if (btnOpenTest) btnOpenTest.addEventListener('click', function() { despacharTextoChat('espectador_demo', '!tragamonedas'); });
+
+  var btnDemoTest = document.getElementById('test-btn-demo');
+  if (btnDemoTest) btnDemoTest.addEventListener('click', function() { despacharTextoChat('espectador_demo', '!girar 25'); });
+
+  var btnLobitoTest = document.getElementById('test-btn-lobito');
+  if (btnLobitoTest) btnLobitoTest.addEventListener('click', function() { despacharTextoChat('lobito', '!girar 100'); });
+
+  var btnJikoTest = document.getElementById('test-btn-jikokun');
+  if (btnJikoTest) btnJikoTest.addEventListener('click', function() { despacharTextoChat('jikokun', '!girar 500'); });
+
+  var btnSalirTest = document.getElementById('test-btn-salir');
+  if (btnSalirTest) btnSalirTest.addEventListener('click', function() { despacharTextoChat('espectador_demo', '!salir'); });
+
+  var btnColaTest = document.getElementById('test-btn-cola');
+  if (btnColaTest) btnColaTest.addEventListener('click', function() { window.simularColaDemo(); });
+
+  var btnVisTest = document.getElementById('test-btn-toggle-vis');
+  if (btnVisTest) btnVisTest.addEventListener('click', function() { window.toggleVisibilidadRuleta(); });
+
+  var btnAjustesTest = document.getElementById('test-btn-ajustes');
+  if (btnAjustesTest) btnAjustesTest.addEventListener('click', function() { window.abrirConfiguracion(); });
 
   // ==========================================================================
   // ALTERNAR VISIBILIDAD DEL PANEL DE SIMULACIÓN EN MODO INTERACTUAR DE OBS
@@ -3367,29 +3784,25 @@
     toggleTestPanel();
   }, { passive: true });
 
-  document.getElementById('btn-toggle-test-dock').addEventListener('click', function(e) {
-    e.stopPropagation();
-    var dock = document.getElementById('test-dock');
-    dock.classList.toggle('collapsed');
-    this.textContent = dock.classList.contains('collapsed') ? '▲' : '▼';
-  });
+  var btnMinDock = document.getElementById('btn-toggle-test-dock');
+  if (btnMinDock) {
+    btnMinDock.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var dock = document.getElementById('test-dock');
+      dock.classList.toggle('collapsed');
+      this.textContent = dock.classList.contains('collapsed') ? '▲' : '▼';
+    });
+  }
 
   // Escuchador de postMessage para OBS Studio y Zona de Pruebas
   window.addEventListener('message', function(ev) {
     var data = ev.data;
     if (!data || typeof data !== 'object') return;
     if (data.type === 'COMMAND') {
-      var parts = (data.command || '').trim().split(/\s+/);
-      var cmd = parts[0].toLowerCase();
-      if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
-        procesarComandoRuleta({
-          sender: data.sender || 'jikokun',
-          params: parts.slice(1),
-          force: true
-        });
-      }
+      despacharTextoChat(data.sender || 'jikokun', data.command || '');
     } else if (data.type === 'FORCE') {
-      procesarComandoRuleta({
+      procesarComandoTragamonedas({
+        action: 'GIRAR',
         sender: data.sender || 'jikokun',
         params: ['500'],
         force: true,
@@ -3397,8 +3810,8 @@
       });
     } else if (data.type === 'QUEUE_DEMO') {
       if (window.JikoWidgetSync) {
-        window.JikoWidgetSync.enqueue({ widget: 'ruleta', command: '!ruleta', sender: 'espectador_1', params: ['25'] });
-        window.JikoWidgetSync.enqueue({ widget: 'ruleta', command: '!ruleta', sender: 'espectador_2', params: ['50'] });
+        window.JikoWidgetSync.enqueue({ widget: 'tragamonedas', command: '!tragamonedas', sender: 'espectador_1', params: ['25'] });
+        window.JikoWidgetSync.enqueue({ widget: 'tragamonedas', command: '!tragamonedas', sender: 'espectador_2', params: ['50'] });
         actualizarBadgeColaVisual();
       }
     } else if (data.type === 'TOGGLE_VIS') {
@@ -3408,8 +3821,7 @@
         mostrarRuleta();
       }
     } else if (data.type === 'SETTINGS') {
-      var modal = document.getElementById('settings-modal');
-      if (modal) modal.classList.toggle('open');
+      window.abrirConfiguracion();
     } else if (data.type === 'SHOW') {
       mostrarRuleta();
     } else if (data.type === 'HIDE') {
@@ -3426,12 +3838,14 @@
   });
 
   // URL Params: Si tiene ?always_visible=1 queda fija, si tiene ?preview=1 o ?test=1 se muestra para probar
-  var urlParams = new URLSearchParams(window.location.search);
   if (urlParams.has('always_visible') || urlParams.has('visible')) {
     state.alwaysVisible = true;
     mostrarRuleta();
-    document.getElementById('btn-toggle-always-visible').textContent = 'Modo: SIEMPRE VISIBLE';
-    document.getElementById('btn-toggle-always-visible').classList.add('primary');
+    var btnVis = document.getElementById('btn-toggle-always-visible');
+    if (btnVis) {
+      btnVis.textContent = 'Modo: SIEMPRE VISIBLE';
+      btnVis.classList.add('primary');
+    }
   } else if (urlParams.has('preview') || urlParams.has('test')) {
     mostrarRuleta();
   }
@@ -3440,6 +3854,7 @@
   renderInitialReels();
   updateDashboardUI();
   updateProbSlidersUI();
+  updateTimingUI();
   applyWrapperTransform();
   applyBoardTransform();
   actualizarHUDJugador({
@@ -3450,168 +3865,10 @@
     apuesta: 10
   });
 
-  // ==========================================================================
-  // CONECTIVIDAD NATIVA: STREAMER.BOT WEBSOCKET (:4445 / :8080)
-  // ==========================================================================
-  function conectarStreamerBot() {
-    var port = urlParams.get('port') || '4445';
-    var altPort = port === '4445' ? '8080' : '4445';
-    var wsUrl = 'ws://127.0.0.1:' + port + '/';
-    var socket = null;
-    var connected = false;
-
-    try {
-      socket = new WebSocket(wsUrl);
-      socket.onopen = function() {
-        connected = true;
-        console.log('[Tragamonedas] ⚡ Conectado exitosamente a Streamer.bot en puerto ' + port);
-        var tag = document.getElementById('test-sync-status');
-        if (tag) {
-          tag.textContent = '🟢 STREAMER.BOT :' + port;
-          tag.style.borderColor = '#00f5d4';
-          tag.style.color = '#00f5d4';
-        }
-        socket.send(JSON.stringify({
-          request: 'Subscribe',
-          id: 'tragamonedas-sub',
-          events: {
-            General: ['Custom'],
-            Kick: ['ChatMessage'],
-            Twitch: ['ChatMessage'],
-            YouTube: ['Message']
-          }
-        }));
-      };
-
-      socket.onmessage = function(ev) {
-        try {
-          var msg = JSON.parse(ev.data);
-          var eventObj = msg.event || {};
-          var eventType = (
-            (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) || 
-            msg.method || msg.type || ''
-          ).toString().toLowerCase();
-
-          var rawData = msg.data || msg.body || msg;
-          var data = rawData.data || rawData;
-
-          if (eventType.includes('chatmessage') || data.message || data.messageText) {
-            var messageObj = data.message || data;
-            var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
-            var sender = 'espectador';
-            if (typeof userObj === 'string') {
-              sender = userObj;
-            } else if (typeof userObj === 'object' && userObj !== null) {
-              sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
-            }
-
-            var text = '';
-            if (typeof data.messageText === 'string') text = data.messageText;
-            else if (typeof data.message === 'string') text = data.message;
-            else if (typeof messageObj === 'object' && messageObj !== null) {
-              text = messageObj.message || messageObj.text || '';
-            }
-
-            var cleanText = text.trim();
-            if (cleanText.startsWith('!')) {
-              var parts = cleanText.split(/\s+/);
-              var cmd = parts[0].toLowerCase();
-              if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
-                procesarComandoRuleta({
-                  sender: sender,
-                  params: parts.slice(1),
-                  force: false,
-                  fromQueue: false
-                });
-              }
-            }
-          }
-        } catch(e) {
-          console.warn('[Tragamonedas] Error procesando mensaje de Streamer.bot:', e);
-        }
-      };
-
-      socket.onclose = function() {
-        if (!connected) {
-          probarPuertoAlternativoStreamerBot(altPort);
-        } else {
-          setTimeout(conectarStreamerBot, 4000);
-        }
-      };
-      socket.onerror = function() {};
-    } catch(e) {
-      setTimeout(conectarStreamerBot, 5000);
-    }
-  }
-
-  var altIntentado = false;
-  function probarPuertoAlternativoStreamerBot(altPort) {
-    if (altIntentado) {
-      setTimeout(conectarStreamerBot, 5000);
-      return;
-    }
-    altIntentado = true;
-    try {
-      var altSocket = new WebSocket('ws://127.0.0.1:' + altPort + '/');
-      altSocket.onopen = function() {
-        console.log('[Tragamonedas] ⚡ Conectado a Streamer.bot (Puerto alternativo ' + altPort + ')');
-        var tag = document.getElementById('test-sync-status');
-        if (tag) {
-          tag.textContent = '🟢 STREAMER.BOT :' + altPort;
-          tag.style.borderColor = '#00f5d4';
-          tag.style.color = '#00f5d4';
-        }
-        altSocket.send(JSON.stringify({
-          request: 'Subscribe',
-          id: 'tragamonedas-sub',
-          events: {
-            General: ['Custom'],
-            Kick: ['ChatMessage'],
-            Twitch: ['ChatMessage'],
-            YouTube: ['Message']
-          }
-        }));
-      };
-      altSocket.onmessage = function(ev) {
-        try {
-          var msg = JSON.parse(ev.data);
-          var rawData = msg.data || msg.body || msg;
-          var data = rawData.data || rawData;
-          var messageObj = data.message || data;
-          var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
-          var sender = 'espectador';
-          if (typeof userObj === 'string') sender = userObj;
-          else if (typeof userObj === 'object' && userObj !== null) {
-            sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
-          }
-          var text = typeof data.messageText === 'string' ? data.messageText : (typeof data.message === 'string' ? data.message : ((messageObj && messageObj.message) || ''));
-          var cleanText = (text || '').trim();
-          if (cleanText.startsWith('!')) {
-            var parts = cleanText.split(/\s+/);
-            var cmd = parts[0].toLowerCase();
-            if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
-              procesarComandoRuleta({
-                sender: sender,
-                params: parts.slice(1),
-                force: false,
-                fromQueue: false
-              });
-            }
-          }
-        } catch(e) {}
-      };
-      altSocket.onclose = function() {
-        setTimeout(conectarStreamerBot, 4000);
-      };
-    } catch(e) {
-      setTimeout(conectarStreamerBot, 5000);
-    }
-  }
-
-  conectarStreamerBot();
-
   // Exponer a global
-  window.procesarComandoRuleta = procesarComandoRuleta;
+  window.procesarComandoTragamonedas = procesarComandoTragamonedas;
+  window.procesarComandoRuleta = procesarComandoTragamonedas; // Retrocompatibilidad
+  window.despacharTextoChat = despacharTextoChat;
   window.mostrarRuleta = mostrarRuleta;
   window.ocultarRuleta = ocultarRuleta;
   window.triggerSpin = triggerSpin;
@@ -3648,23 +3905,13 @@
         await window.StreamDB.iniciarDetectorKick();
         window.StreamDB.onKickChatMessage(function(msg) {
           if (msg && msg.mensaje && typeof msg.mensaje === 'string') {
-            var clean = msg.mensaje.trim();
-            if (clean.startsWith('!')) {
-              var parts = clean.split(/\s+/);
-              var cmd = parts[0].toLowerCase();
-              if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
-                window.procesarComandoRuleta({
-                  sender: msg.usuario || 'espectador',
-                  params: parts.slice(1),
-                  force: false,
-                  fromQueue: false
-                });
-              }
+            if (window.despacharTextoChat) {
+              window.despacharTextoChat(msg.usuario || 'espectador', msg.mensaje);
             }
           }
         });
       } catch(errInit) {
-        console.warn('[Ruleta] Advertencia al iniciar detector Kick:', errInit.message);
+        console.warn('[Tragamonedas] Advertencia al iniciar detector Kick:', errInit.message);
       }
     }
   }

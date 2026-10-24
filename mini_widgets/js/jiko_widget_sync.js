@@ -78,8 +78,11 @@
     if (!lock) return false;
 
     // Si se pasa usuario y widget, permitir únicamente si es el MISMO usuario interactuando con su propia sesión activa
-    // (ej: usuario navegando por el carrusel de la tienda ya abierta con !rotar, !comprar, etc.)
-    if (widget && user && lock.widget === widget) {
+    // (ej: usuario navegando por el carrusel de la tienda ya abierta con !rotar, !comprar, etc., o tragamonedas con !girar)
+    const isSameWidget = (lock.widget === widget) || 
+      ((widget === 'tragamonedas' || widget === 'ruleta') && (lock.widget === 'tragamonedas' || lock.widget === 'ruleta'));
+
+    if (widget && user && isSameWidget) {
       const cleanUser = String(user).replace(/^@/, '').trim().toLowerCase();
       const lockUser = String(lock.user || '').trim().toLowerCase();
       if (lockUser === cleanUser) {
@@ -126,7 +129,10 @@
 
   function release(widget = null) {
     const current = getActiveLock();
-    if (current && (!widget || current.widget === widget)) {
+    const isMatchingWidget = !widget || current.widget === widget ||
+      ((widget === 'tragamonedas' || widget === 'ruleta') && (current.widget === 'tragamonedas' || current.widget === 'ruleta'));
+
+    if (current && isMatchingWidget) {
       try {
         localStorage.removeItem(STORAGE_LOCK_KEY);
       } catch(e) {}
@@ -390,13 +396,13 @@
     if (busyWidget === 'cajero') busyName = 'El cajero automático JikoBank';
     else if (busyWidget === 'perfil') busyName = 'La tarjeta de perfil';
     else if (busyWidget === 'tienda') busyName = 'La tiendita';
-    else if (busyWidget === 'ruleta' || busyWidget === 'tragamonedas') busyName = 'La ruleta tragamonedas';
+    else if (busyWidget === 'ruleta' || busyWidget === 'tragamonedas') busyName = 'La máquina tragamonedas';
 
     let reqName = 'solicitud';
     if (targetWidget === 'tienda') reqName = 'apertura de tiendita';
     else if (targetWidget === 'cajero') reqName = 'consulta en el cajero';
     else if (targetWidget === 'perfil') reqName = 'tarjeta de perfil';
-    else if (targetWidget === 'ruleta' || targetWidget === 'tragamonedas') reqName = 'tiro en la ruleta tragamonedas';
+    else if (targetWidget === 'ruleta' || targetWidget === 'tragamonedas') reqName = 'sesión en la máquina tragamonedas';
 
     return `<b>@${sender}</b>: ${busyName} está ocupando la pantalla.<br>Tu ${reqName} está en cola y aparecerá automáticamente al desocuparse.`;
   }
