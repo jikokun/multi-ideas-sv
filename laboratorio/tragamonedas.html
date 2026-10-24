@@ -3082,6 +3082,7 @@
     var params = opciones.params || [];
     var force = !!opciones.force;
     var fromQueue = !!opciones.fromQueue;
+    var forcedMode = opciones.forcedMode || null;
 
     var sNorm = norm(sender);
     var activeNorm = (state.activePlayer && state.activePlayer.username) ? norm(state.activePlayer.username) : '';
@@ -3191,7 +3192,7 @@
     }
 
     // Iniciar el giro con callback para acreditar premios
-    triggerSpin(null, async function(resultado) {
+    triggerSpin(forcedMode || null, async function(resultado) {
       if (resultado.win && resultado.amount > 0) {
         console.log('[Ruleta] 🏆 Usuario @' + sNorm + ' ganó ' + resultado.amount + ' JP!');
         if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
@@ -3373,20 +3374,42 @@
     this.textContent = dock.classList.contains('collapsed') ? '▲' : '▼';
   });
 
-  // Escuchador de postMessage para OBS Studio
+  // Escuchador de postMessage para OBS Studio y Zona de Pruebas
   window.addEventListener('message', function(ev) {
     var data = ev.data;
     if (!data || typeof data !== 'object') return;
     if (data.type === 'COMMAND') {
       var parts = (data.command || '').trim().split(/\s+/);
       var cmd = parts[0].toLowerCase();
-      if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot') {
+      if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
         procesarComandoRuleta({
           sender: data.sender || 'jikokun',
           params: parts.slice(1),
           force: true
         });
       }
+    } else if (data.type === 'FORCE') {
+      procesarComandoRuleta({
+        sender: data.sender || 'jikokun',
+        params: ['500'],
+        force: true,
+        forcedMode: data.tier || 'big'
+      });
+    } else if (data.type === 'QUEUE_DEMO') {
+      if (window.JikoWidgetSync) {
+        window.JikoWidgetSync.enqueue({ widget: 'ruleta', command: '!ruleta', sender: 'espectador_1', params: ['25'] });
+        window.JikoWidgetSync.enqueue({ widget: 'ruleta', command: '!ruleta', sender: 'espectador_2', params: ['50'] });
+        actualizarBadgeColaVisual();
+      }
+    } else if (data.type === 'TOGGLE_VIS') {
+      if (ruletaVisible) {
+        ocultarRuleta(true);
+      } else {
+        mostrarRuleta();
+      }
+    } else if (data.type === 'SETTINGS') {
+      var modal = document.getElementById('settings-modal');
+      if (modal) modal.classList.toggle('open');
     } else if (data.type === 'SHOW') {
       mostrarRuleta();
     } else if (data.type === 'HIDE') {
@@ -3427,10 +3450,171 @@
     apuesta: 10
   });
 
+  // ==========================================================================
+  // CONECTIVIDAD NATIVA: STREAMER.BOT WEBSOCKET (:4445 / :8080)
+  // ==========================================================================
+  function conectarStreamerBot() {
+    var port = urlParams.get('port') || '4445';
+    var altPort = port === '4445' ? '8080' : '4445';
+    var wsUrl = 'ws://127.0.0.1:' + port + '/';
+    var socket = null;
+    var connected = false;
+
+    try {
+      socket = new WebSocket(wsUrl);
+      socket.onopen = function() {
+        connected = true;
+        console.log('[Tragamonedas] ⚡ Conectado exitosamente a Streamer.bot en puerto ' + port);
+        var tag = document.getElementById('test-sync-status');
+        if (tag) {
+          tag.textContent = '🟢 STREAMER.BOT :' + port;
+          tag.style.borderColor = '#00f5d4';
+          tag.style.color = '#00f5d4';
+        }
+        socket.send(JSON.stringify({
+          request: 'Subscribe',
+          id: 'tragamonedas-sub',
+          events: {
+            General: ['Custom'],
+            Kick: ['ChatMessage'],
+            Twitch: ['ChatMessage'],
+            YouTube: ['Message']
+          }
+        }));
+      };
+
+      socket.onmessage = function(ev) {
+        try {
+          var msg = JSON.parse(ev.data);
+          var eventObj = msg.event || {};
+          var eventType = (
+            (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) || 
+            msg.method || msg.type || ''
+          ).toString().toLowerCase();
+
+          var rawData = msg.data || msg.body || msg;
+          var data = rawData.data || rawData;
+
+          if (eventType.includes('chatmessage') || data.message || data.messageText) {
+            var messageObj = data.message || data;
+            var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+            var sender = 'espectador';
+            if (typeof userObj === 'string') {
+              sender = userObj;
+            } else if (typeof userObj === 'object' && userObj !== null) {
+              sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
+            }
+
+            var text = '';
+            if (typeof data.messageText === 'string') text = data.messageText;
+            else if (typeof data.message === 'string') text = data.message;
+            else if (typeof messageObj === 'object' && messageObj !== null) {
+              text = messageObj.message || messageObj.text || '';
+            }
+
+            var cleanText = text.trim();
+            if (cleanText.startsWith('!')) {
+              var parts = cleanText.split(/\s+/);
+              var cmd = parts[0].toLowerCase();
+              if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
+                procesarComandoRuleta({
+                  sender: sender,
+                  params: parts.slice(1),
+                  force: false,
+                  fromQueue: false
+                });
+              }
+            }
+          }
+        } catch(e) {
+          console.warn('[Tragamonedas] Error procesando mensaje de Streamer.bot:', e);
+        }
+      };
+
+      socket.onclose = function() {
+        if (!connected) {
+          probarPuertoAlternativoStreamerBot(altPort);
+        } else {
+          setTimeout(conectarStreamerBot, 4000);
+        }
+      };
+      socket.onerror = function() {};
+    } catch(e) {
+      setTimeout(conectarStreamerBot, 5000);
+    }
+  }
+
+  var altIntentado = false;
+  function probarPuertoAlternativoStreamerBot(altPort) {
+    if (altIntentado) {
+      setTimeout(conectarStreamerBot, 5000);
+      return;
+    }
+    altIntentado = true;
+    try {
+      var altSocket = new WebSocket('ws://127.0.0.1:' + altPort + '/');
+      altSocket.onopen = function() {
+        console.log('[Tragamonedas] ⚡ Conectado a Streamer.bot (Puerto alternativo ' + altPort + ')');
+        var tag = document.getElementById('test-sync-status');
+        if (tag) {
+          tag.textContent = '🟢 STREAMER.BOT :' + altPort;
+          tag.style.borderColor = '#00f5d4';
+          tag.style.color = '#00f5d4';
+        }
+        altSocket.send(JSON.stringify({
+          request: 'Subscribe',
+          id: 'tragamonedas-sub',
+          events: {
+            General: ['Custom'],
+            Kick: ['ChatMessage'],
+            Twitch: ['ChatMessage'],
+            YouTube: ['Message']
+          }
+        }));
+      };
+      altSocket.onmessage = function(ev) {
+        try {
+          var msg = JSON.parse(ev.data);
+          var rawData = msg.data || msg.body || msg;
+          var data = rawData.data || rawData;
+          var messageObj = data.message || data;
+          var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+          var sender = 'espectador';
+          if (typeof userObj === 'string') sender = userObj;
+          else if (typeof userObj === 'object' && userObj !== null) {
+            sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
+          }
+          var text = typeof data.messageText === 'string' ? data.messageText : (typeof data.message === 'string' ? data.message : ((messageObj && messageObj.message) || ''));
+          var cleanText = (text || '').trim();
+          if (cleanText.startsWith('!')) {
+            var parts = cleanText.split(/\s+/);
+            var cmd = parts[0].toLowerCase();
+            if (cmd === '!ruleta' || cmd === '!tragamonedas' || cmd === '!slot' || cmd === '!slots') {
+              procesarComandoRuleta({
+                sender: sender,
+                params: parts.slice(1),
+                force: false,
+                fromQueue: false
+              });
+            }
+          }
+        } catch(e) {}
+      };
+      altSocket.onclose = function() {
+        setTimeout(conectarStreamerBot, 4000);
+      };
+    } catch(e) {
+      setTimeout(conectarStreamerBot, 5000);
+    }
+  }
+
+  conectarStreamerBot();
+
   // Exponer a global
   window.procesarComandoRuleta = procesarComandoRuleta;
   window.mostrarRuleta = mostrarRuleta;
   window.ocultarRuleta = ocultarRuleta;
+  window.triggerSpin = triggerSpin;
 })();
 </script>
 
