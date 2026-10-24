@@ -257,14 +257,16 @@
   }
 
   #roulette-widget.is-hidden {
-    opacity: 0;
-    transform: translateY(60px) scale(0.92);
-    pointer-events: none;
+    opacity: 0 !important;
+    transform: translateY(60px) scale(0.92) !important;
+    pointer-events: none !important;
+    display: none;
   }
   #roulette-widget.is-visible {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
+    opacity: 1 !important;
+    transform: translateY(0) scale(1) !important;
+    pointer-events: auto !important;
+    display: block;
   }
 
   /* Zonas invisibles en las 4 esquinas para estirar con doble flecha */
@@ -1171,7 +1173,7 @@
   <!-- =====================================================
        WIDGET PRINCIPAL DE RULETA TRADICIONAL (560x560)
        ===================================================== -->
-  <div id="roulette-widget" class="is-visible" data-theme="vegas">
+  <div id="roulette-widget" class="is-hidden" data-theme="vegas" style="display: none;">
     <div class="resize-corner nw" data-corner="nw"></div>
     <div class="resize-corner ne" data-corner="ne"></div>
     <div class="resize-corner sw" data-corner="sw"></div>
@@ -1423,6 +1425,13 @@
 
     <div class="modal-body">
       <div class="cfg-group">
+        <div class="cfg-title">👁️ Control de Visibilidad en OBS</div>
+        <div class="cfg-btn-grid" style="grid-template-columns: 1fr;">
+          <button class="cfg-btn" id="btn-toggle-ruleta-vis" style="padding: 10px; font-weight: 800; font-size: 13px; background: rgba(250, 204, 21, 0.25); border-color: #fde047; color: #fff;">👁️ Mostrar / Ocultar Ruleta</button>
+        </div>
+      </div>
+
+      <div class="cfg-group">
         <div class="cfg-title">🎨 Tema Visual del Gabinete</div>
         <div class="cfg-btn-grid">
           <button class="cfg-btn active" data-set-theme="vegas">✨ Vegas Dorado</button>
@@ -1488,6 +1497,7 @@
     <button class="test-btn" id="test-btn-pleno">👑 !girar 100 17</button>
     <button class="test-btn" id="test-btn-combo">⚡ !girar 100 par rojo</button>
     <button class="test-btn" id="test-btn-salir">🚪 !salir</button>
+    <button class="test-btn" id="test-btn-cfg" style="border-color:#fde047; color:#fde047;">⚙️ Config</button>
   </div>
 </div>
 
@@ -2695,35 +2705,16 @@
         return;
       }
 
+      // Si la ruleta no está visible o la sesión no está activa en pantalla:
+      // NO auto-activar y NO encolar. El comando !girar sólo funciona si el usuario previamente activó con !ruleta.
       if (!ruletaVisible || !state.sessionActive) {
-        var widgetBusy = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('ruleta', userSender) : false;
-        if (widgetBusy) {
-          if (window.JikoWidgetSync) {
-            window.JikoWidgetSync.enqueue({
-              widget: 'ruleta',
-              command: '!girar',
-              sender: userSender,
-              params: params
-            });
-          }
-          actualizarBadgeColaVisual();
-          return;
-        }
-        await handleChatCommand('!ruleta', userSender);
-        activeNorm = norm(state.activePlayer.username);
+        console.log('[Ruleta] ℹ️ Ignorando comando !girar porque la ruleta no está activa ni en pantalla.');
+        return;
       }
 
-      if (ruletaVisible && state.sessionActive && activeNorm !== sNorm) {
-        console.log('[Ruleta] ⚠️ Giro rechazado: pertenece a @' + activeNorm + '. Encolando @' + userSender);
-        if (window.JikoWidgetSync) {
-          window.JikoWidgetSync.enqueue({
-            widget: 'ruleta',
-            command: '!girar',
-            sender: userSender,
-            params: params
-          });
-        }
-        actualizarBadgeColaVisual();
+      // Si la ruleta está visible pero es de otro espectador:
+      if (activeNorm !== sNorm) {
+        console.log('[Ruleta] ⚠️ Giro rechazado: pertenece al turno de @' + activeNorm + '. Para jugar envía !ruleta');
         return;
       }
 
@@ -2842,14 +2833,58 @@
   });
 
   // Configuración
-  document.getElementById('btn-open-settings').addEventListener('click', function() {
+  document.getElementById('btn-open-settings').addEventListener('click', function(e) {
+    e.stopPropagation();
     settingsModal.classList.toggle('open');
   });
-  document.getElementById('cabinet-header-bar').addEventListener('dblclick', function() {
+  document.getElementById('cabinet-header-bar').addEventListener('dblclick', function(e) {
+    e.stopPropagation();
     settingsModal.classList.toggle('open');
   });
   document.getElementById('btn-close-settings').addEventListener('click', function() {
     settingsModal.classList.remove('open');
+  });
+
+  // Cerrar panel de configuración al hacer clic en cualquier parte de la pantalla fuera del modal
+  function handleCloseSettingsOutside(e) {
+    if (settingsModal && settingsModal.classList.contains('open')) {
+      if (!settingsModal.contains(e.target) && !e.target.closest('#btn-open-settings, #cabinet-header-bar, #btn-toggle-ruleta-vis, #test-btn-cfg')) {
+        settingsModal.classList.remove('open');
+      }
+    }
+  }
+  document.addEventListener('pointerdown', handleCloseSettingsOutside);
+
+  // Botón en configuración para mostrar / ocultar la ruleta
+  var btnToggleVis = document.getElementById('btn-toggle-ruleta-vis');
+  if (btnToggleVis) {
+    btnToggleVis.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (ruletaVisible) {
+        state.sessionActive = false;
+        ocultarRuleta();
+        if (window.JikoWidgetSync) window.JikoWidgetSync.release('ruleta');
+      } else {
+        state.sessionActive = true;
+        mostrarRuleta();
+        updateBettingUI();
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+      }
+    });
+  }
+
+  // Atajo de teclado 'C' o 'S' y doble clic en fondo para abrir ajustes si la ruleta está escondida
+  window.addEventListener('keydown', function(e) {
+    if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) return;
+    if (e.key === 'c' || e.key === 'C' || e.key === 's' || e.key === 'S') {
+      settingsModal.classList.toggle('open');
+    }
+  });
+
+  document.addEventListener('dblclick', function(e) {
+    if (!e.target.closest('#roulette-widget, #paytable-floating, #settings-modal, #test-dock')) {
+      settingsModal.classList.toggle('open');
+    }
   });
 
   // Temas visuales
@@ -2882,15 +2917,19 @@
     state.autoShowPaytable = this.checked;
   });
 
+  // Forzar caída de bola desde ajustes (muestra la ruleta automáticamente si estaba oculta)
   document.getElementById('btn-force-red').addEventListener('click', function() {
+    if (!ruletaVisible) { state.sessionActive = true; mostrarRuleta(); updateBettingUI(); }
     var reds = [32, 19, 21, 25, 34, 27, 36, 30, 23, 5, 16, 1, 14, 9, 18, 7, 12, 3];
     spinRoulette(reds[Math.floor(Math.random() * reds.length)]);
   });
   document.getElementById('btn-force-black').addEventListener('click', function() {
+    if (!ruletaVisible) { state.sessionActive = true; mostrarRuleta(); updateBettingUI(); }
     var blacks = [15, 4, 2, 17, 6, 13, 11, 8, 10, 24, 33, 20, 31, 22, 29, 28, 35, 26];
     spinRoulette(blacks[Math.floor(Math.random() * blacks.length)]);
   });
   document.getElementById('btn-force-green').addEventListener('click', function() {
+    if (!ruletaVisible) { state.sessionActive = true; mostrarRuleta(); updateBettingUI(); }
     spinRoulette(0);
   });
   document.getElementById('btn-reset-pos').addEventListener('click', function() {
@@ -2927,6 +2966,13 @@
   document.getElementById('test-btn-salir').addEventListener('click', function() {
     handleChatCommand('!salir', getActiveTestUser());
   });
+  var btnTestCfg = document.getElementById('test-btn-cfg');
+  if (btnTestCfg) {
+    btnTestCfg.addEventListener('click', function(e) {
+      e.stopPropagation();
+      settingsModal.classList.toggle('open');
+    });
+  }
 
   /* =====================================================
      13. COLA Y SINCRONIZACIÓN DE WIDGETS
@@ -3114,8 +3160,10 @@
   updateBettingUI();
   drawRouletteWheel(0);
 
-  if (urlParams.has('always_visible') || urlParams.has('visible') || urlParams.has('preview') || urlParams.has('test')) {
+  if (urlParams.has('always_visible') || urlParams.has('visible')) {
     mostrarRuleta();
+  } else {
+    ocultarRuleta();
   }
 })();
 </script>

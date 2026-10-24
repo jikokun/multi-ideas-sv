@@ -3538,38 +3538,16 @@
     // ACCIÓN 3: GIRAR LA MÁQUINA (!girar [apuesta])
     // ─────────────────────────────────────────────────────────────────────────
     if (action === 'GIRAR') {
-      // Si la máquina no está visible aún, pero la pantalla está libre: auto-activar y girar directamente
+      // Si la máquina no está visible o activa en pantalla, NO auto-activar y NO encolar.
+      // El comando !girar sólo debe funcionar si el usuario previamente activó con !tragamonedas o !slot.
       if (!ruletaVisible) {
-        var widgetBusy = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('tragamonedas', sender) : false;
-        if (!force && !fromQueue && widgetBusy) {
-          if (window.JikoWidgetSync) {
-            window.JikoWidgetSync.enqueue({
-              widget: 'tragamonedas',
-              command: '!girar',
-              sender: sender,
-              params: params
-            });
-          }
-          actualizarBadgeColaVisual();
-          return;
-        }
-        await procesarComandoTragamonedas({ action: 'ACTIVAR', sender: sender, params: params, force: force, fromQueue: fromQueue });
+        console.log('[Tragamonedas] ℹ️ Ignorando comando !girar porque la tragamonedas no está activa.');
+        return;
       }
 
       // Si la máquina está visible pero es OTRO usuario intentando girar:
       if (ruletaVisible && activeNorm !== sNorm) {
-        console.log('[Tragamonedas] ⚠️ Giro rechazado: pertenece al turno de @' + activeNorm + '. Encolando a @' + sender);
-        if (!force && !fromQueue) {
-          if (window.JikoWidgetSync) {
-            window.JikoWidgetSync.enqueue({
-              widget: 'tragamonedas',
-              command: '!girar',
-              sender: sender,
-              params: params
-            });
-          }
-          actualizarBadgeColaVisual();
-        }
+        console.log('[Tragamonedas] ⚠️ Giro rechazado: pertenece al turno de @' + activeNorm + '. Para jugar envía !tragamonedas');
         return;
       }
 
@@ -4048,7 +4026,7 @@
   async function iniciarConexionFirebase() {
     let mod = null;
     try {
-      mod = await import("./js/stream_firebase.js");
+      mod = await import("../mini_widgets/js/stream_firebase.js");
     } catch(e1) {
       try {
         mod = await import("../stream_firebase.js");
