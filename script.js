@@ -140,20 +140,32 @@
 // ==========================================================================
 // CONFIGURACIÓN GLOBAL Y TIEMPOS
 // ==========================================================================
-const TRANSITION_DURATION = 200;
+const TRANSITION_DURATION = 0; // Transiciones instantáneas sin bloqueos de pantalla
 
-// Inicialización inmediata del tema claro/oscuro para evitar parpadeos
+// Inicialización inmediata y síncrona del tema claro/oscuro para evitar parpadeos
 (function() {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-        document.body.classList.add('light-theme');
-    } else {
-        document.body.classList.remove('light-theme');
-    }
+    try {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'light') {
+            document.documentElement.classList.add('light-theme');
+            if (document.body) document.body.classList.add('light-theme');
+        } else {
+            document.documentElement.classList.remove('light-theme');
+            if (document.body) document.body.classList.remove('light-theme');
+        }
+    } catch(e) {}
 })();
 
+// Garantizar que la página siempre sea visible tras navegación o uso del historial (bfcache)
+window.addEventListener('pageshow', () => {
+    if (document.body) {
+        document.body.style.opacity = '1';
+        document.body.classList.add('page-loaded');
+    }
+});
+
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Efecto de entrada (Fade-in) al cargar el documento
+    // 1. Efecto de entrada inmediato sin FOUC
     document.body.classList.add('page-loaded');
 
     // 2. Inicializar la carga del menú global centralizado
@@ -232,37 +244,54 @@ function cargarMenuGlobal() {
             menuPath = "menu.html";
         }
 
+        const cacheKey = 'multi_cached_menu_v6_' + (isSensunshop ? 'sensun' : 'main');
+        let hasRendered = false;
+
+        function applyMenuHTML(html) {
+            headerContainer.innerHTML = html;
+            adjustMenuPaths(headerContainer, depth, isSensunshop, isMiniWidgets);
+            initMobileMenu();
+            highlightCurrentPage();
+            initPageTransitions();
+            initSensunSearch(isSensunshop, depth);
+            if (isSensunshop) {
+                initSensunInlineHeroSearch(depth);
+            }
+            initThemeToggle();
+            initAuthentication(depth);
+        }
+
+        // 1. Cargar instantáneamente de sessionStorage a 0ms (sin esperar red ni layout shift)
+        try {
+            const cachedHtml = sessionStorage.getItem(cacheKey);
+            if (cachedHtml) {
+                applyMenuHTML(cachedHtml);
+                hasRendered = true;
+            }
+        } catch(e) {}
+
         const isLocalFile = window.location.protocol === 'file:';
-        // Add a timestamp cache-buster to force browser/server to bypass cache and load the latest file
-        const fetchUrl = isLocalFile ? menuPath : (menuPath + "?v=" + Date.now());
+        const fetchUrl = isLocalFile ? menuPath : (menuPath + "?v=6");
 
         fetch(fetchUrl)
             .then(response => {
-                if (!response.ok) throw new Error("No se pudo obtener el archivo menu.html");
+                if (!response.ok) throw new Error("No se pudo obtener el archivo " + menuPath);
                 return response.text();
             })
             .then(html => {
-                headerContainer.innerHTML = html;
-
-                adjustMenuPaths(headerContainer, depth, isSensunshop, isMiniWidgets);
-                
-                initMobileMenu();
-                highlightCurrentPage();
-                initPageTransitions();
-
-                 // Inicializar buscador si estamos en sector sensunshop
-                initSensunSearch(isSensunshop, depth);
-                if (isSensunshop) {
-                    initSensunInlineHeroSearch(depth);
+                try {
+                    const currentCache = sessionStorage.getItem(cacheKey);
+                    if (currentCache !== html || !hasRendered) {
+                        sessionStorage.setItem(cacheKey, html);
+                        applyMenuHTML(html);
+                    }
+                } catch(e) {
+                    if (!hasRendered) applyMenuHTML(html);
                 }
-
-                // Inicializar interruptor de tema claro/oscuro
-                initThemeToggle();
-
-                // Inicializar sistema de autenticación
-                initAuthentication(depth);
             })
-            .catch(error => console.error("Error al construir el menú adaptativo:", error));
+            .catch(error => {
+                if (!hasRendered) console.error("Error al construir el menú adaptativo:", error);
+            });
     } else {
         initPageTransitions();
     }
@@ -392,12 +421,32 @@ function initMobileMenu() {
 // ==========================================================================
 // COMPORTAMIENTO DE EFECTOS DE NAVEGACIÓN (FADE-OUT)
 // ==========================================================================
+// ==========================================================================
+// PRECARGA INSTANTÁNEA Y NAVEGACIÓN FLUIDA SIN PANTALLAS EN BLANCO
+// ==========================================================================
+const prefetchedUrls = new Set();
+function prefetchPage(url) {
+    if (!url || prefetchedUrls.has(url) || url.startsWith('#') || url.startsWith('http') || url.startsWith('mailto:') || url.startsWith('tel:') || url.startsWith('javascript:')) return;
+    try {
+        prefetchedUrls.add(url);
+        const link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = url;
+        document.head.appendChild(link);
+    } catch(e) {}
+}
+
 function initPageTransitions() {
-    // Selecciona enlaces estáticos y los enlaces dinámicos inyectados en el nav, incluyendo el logo
     const links = document.querySelectorAll('nav a, .logo-container, .hero-buttons a, .btn-card, .btn-secundario, footer a');
     
     links.forEach(link => {
-        // Evitamos duplicar listeners si la función se llama más de una vez
+        const destination = link.getAttribute('href');
+        if (!destination || destination.startsWith('#') || destination.startsWith('http') || link.target) return;
+
+        // Precargar en hover/toque para respuesta inmediata de 0ms al hacer clic
+        link.addEventListener('mouseenter', () => prefetchPage(destination), { passive: true });
+        link.addEventListener('touchstart', () => prefetchPage(destination), { passive: true });
+
         link.removeEventListener('click', handleLinkClick);
         link.addEventListener('click', handleLinkClick);
     });
@@ -407,7 +456,6 @@ function handleLinkClick(e) {
     const link = e.currentTarget;
     const destination = link.getAttribute('href');
     
-    // Si no hay destino, o es una sección/ancla interna (empieza con #), o se abre en otra pestaña, no interferimos
     if (!destination || destination.startsWith('http') || destination.startsWith('#') || link.target) {
         return;
     }
@@ -416,7 +464,6 @@ function handleLinkClick(e) {
         const targetURL = new URL(destination, window.location.href);
         const currentURL = new URL(window.location.href);
         
-        // Normalizar rutas para comparar si corresponden exactamente a la misma página
         const normalizePath = p => {
             let path = p.toLowerCase();
             if (path.endsWith('/index.html')) path = path.slice(0, -10);
@@ -427,24 +474,14 @@ function handleLinkClick(e) {
         const isSamePage = normalizePath(currentURL.pathname) === normalizePath(targetURL.pathname);
 
         if (isSamePage) {
-            // Si tiene hash (ej. #productos), permitimos el scroll nativo
-            if (targetURL.hash) {
-                return;
-            }
-            // Si es exactamente la misma URL sin hash, prevenimos recarga redundante
+            if (targetURL.hash) return;
             e.preventDefault();
             return;
         }
 
-        // Si es una página interna distinta, aplicamos transición
-        e.preventDefault();
-        document.body.style.opacity = '0';
-        setTimeout(() => {
-            window.location.href = destination;
-        }, TRANSITION_DURATION);
-    } catch (err) {
-        // En caso de error de análisis de URL, dejar comportamiento por defecto
-    }
+        // Navegación nativa fluida: el navegador sostiene la página previa hasta que la nueva está lista
+        // Cero pantallas negras, cero retraso artificial de 200ms
+    } catch (err) {}
 }
 
 // ==========================================================================
@@ -1555,59 +1592,9 @@ function checkHighlightHash() {
 
 // Función para aplicar/remover la hoja de estilos clara con precarga
 function toggleLightStylesheet(isLight, callback) {
-    const link = document.querySelector('link[href*="estilo_claro_multi.css"]') || 
-                 document.querySelector('link[href*="estilo_claro.css"]') ||
-                 document.querySelector('link[href*="estilos.css"]');
-    if (!link) {
-        if (callback) callback();
-        return;
-    }
-
-    const pathname = window.location.pathname.toLowerCase();
-    const isSensun = pathname.includes("sensunshop");
-    
-    let depth = 0;
-    if (pathname.includes("/sensunshop/negocioslocales/")) {
-        depth = 2;
-    } else if (pathname.includes("/sensunshop/") && !pathname.endsWith("/sensunshop.html")) {
-        depth = 1;
-    } else if (pathname.includes("/mini_widgets/") || pathname.includes("/mini_widgets")) {
-        depth = 1;
-    }
-    
-    let pathPrefix = "";
-    if (depth === 2) {
-        pathPrefix = "../../";
-    } else if (depth === 1) {
-        pathPrefix = "../";
-    }
-
-    let newHref = "";
-    if (isLight) {
-        if (isSensun) {
-            newHref = pathPrefix + "estilo_claro.css?v=4";
-        } else {
-            newHref = pathPrefix + "estilo_claro_multi.css?v=4";
-        }
-    } else {
-        newHref = pathPrefix + "estilos.css?v=4";
-    }
-
-    // Usar callback cuando el navegador termine de cargar la nueva hoja de estilos
-    let called = false;
-    const handleLoad = () => {
-        if (!called) {
-            called = true;
-            if (callback) callback();
-        }
-    };
-
-    link.onload = handleLoad;
-    
-    // Timeout de respaldo por si el evento onload no se dispara
-    setTimeout(handleLoad, 400);
-
-    link.href = newHref;
+    document.documentElement.classList.toggle('light-theme', isLight);
+    document.body.classList.toggle('light-theme', isLight);
+    if (callback) callback();
 }
 
 // Inicializar interruptores de tema claro/oscuro
@@ -1616,35 +1603,17 @@ function initThemeToggle() {
     if (toggleButtons.length === 0) return;
 
     toggleButtons.forEach(btn => {
-        btn.addEventListener('click', (e) => {
+        btn.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
             
-            // 1. Agregar clase de transición para desvanecer el contenido de forma fluida
-            document.body.classList.add('theme-transitioning');
-            
-            // 2. Dar tiempo para el fade-out (200ms)
-            setTimeout(() => {
-                const isLight = !document.body.classList.contains('light-theme');
-                
-                // 3. Intercambiar la hoja de estilos y esperar a que se precargue
-                toggleLightStylesheet(isLight, () => {
-                    // 4. Cambiar clases del body una vez cargada la hoja
-                    if (isLight) {
-                        document.body.classList.add('light-theme');
-                        localStorage.setItem('theme', 'light');
-                    } else {
-                        document.body.classList.remove('light-theme');
-                        localStorage.setItem('theme', 'dark');
-                    }
-                    
-                    // 5. Retirar la clase de transición para hacer un fade-in suave con los nuevos estilos ya aplicados
-                    setTimeout(() => {
-                        document.body.classList.remove('theme-transitioning');
-                    }, 50);
-                });
-            }, 200);
-        });
+            const isLight = !document.documentElement.classList.contains('light-theme');
+            document.documentElement.classList.toggle('light-theme', isLight);
+            document.body.classList.toggle('light-theme', isLight);
+            try {
+                localStorage.setItem('theme', isLight ? 'light' : 'dark');
+            } catch(err) {}
+        };
     });
 }
 
@@ -1652,26 +1621,44 @@ function initThemeToggle() {
 // SISTEMA DE AUTENTICACIÓN (LOGIN, LOGOUT, REGISTRO CON FIREBASE)
 // ==========================================================================
 function initAuthentication(depth) {
+    if (document.getElementById('auth-modal')) return;
+
     const prefix = depth === 2 ? '../../' : depth === 1 ? '../' : './';
     const authModalPath = prefix + 'partials/auth-modal.html';
     const profileModalPath = prefix + 'partials/profile-modal.html';
     const configPath = prefix + 'firebase-config.js';
 
-    console.log("[Auth Debug] initAuthentication started. configPath:", configPath);
+    let cachedAuth = null;
+    let cachedProfile = null;
+    try {
+        cachedAuth = sessionStorage.getItem('multi_cached_auth_modal');
+        cachedProfile = sessionStorage.getItem('multi_cached_profile_modal');
+    } catch(e) {}
 
-    // Cargar los modales de autenticación y perfil dinámicamente de forma concurrente
-    Promise.all([
-        fetch(authModalPath).then(res => {
+    const getAuth = cachedAuth 
+        ? Promise.resolve(cachedAuth) 
+        : fetch(authModalPath).then(res => {
             if (!res.ok) throw new Error("No se pudo cargar el modal de autenticación");
-            return res.text();
-        }),
-        fetch(profileModalPath).then(res => {
+            return res.text().then(html => {
+                try { sessionStorage.setItem('multi_cached_auth_modal', html); } catch(e){}
+                return html;
+            });
+        });
+
+    const getProfile = cachedProfile 
+        ? Promise.resolve(cachedProfile) 
+        : fetch(profileModalPath).then(res => {
             if (!res.ok) throw new Error("No se pudo cargar el modal de perfil");
-            return res.text();
-        })
-    ])
+            return res.text().then(html => {
+                try { sessionStorage.setItem('multi_cached_profile_modal', html); } catch(e){}
+                return html;
+            });
+        });
+
+    // Cargar los modales de autenticación y perfil dinámicamente de forma concurrente o desde caché
+    Promise.all([getAuth, getProfile])
     .then(async ([authHtml, profileHtml]) => {
-        console.log("[Auth Debug] Modales cargados exitosamente.");
+        if (document.getElementById('auth-modal')) return;
 
         // Inyectar modal de Auth
         const authWrapper = document.createElement('div');
@@ -1703,7 +1690,6 @@ function initAuthentication(depth) {
         // Importar dinámicamente la configuración de Firebase
         try {
             const fb = await import(configPath);
-            console.log("[Auth Debug] Firebase config loaded. Exported keys:", Object.keys(fb));
             connectFirebaseToAuth(authUI, fb);
             connectFirebaseToProfile(profileUI, fb);
         } catch (err) {

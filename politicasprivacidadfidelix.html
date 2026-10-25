@@ -5,15 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Política de Privacidad FideliX | Multi Ideas Sv</title>
     <link rel="icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
-    <link rel="stylesheet" href="estilos.css">
+            <!-- Anti-FOUC & Fast Paint Inline Tokens -->
+    <style>
+        html { background-color: #0a0c10; color: #ffffff; }
+        html.light-theme { background-color: #f0fbfb; color: #063d41; }
+        #global-header, header { min-height: 72px; }
+    </style>
     <script>
         (function() {
-            const savedTheme = localStorage.getItem('theme');
-            if (savedTheme === 'light') {
-                document.querySelector('link[href*="estilos.css"]').href = 'estilo_claro_multi.css?v=3';
-            }
+            try {
+                const isLight = localStorage.getItem('theme') === 'light';
+                if (isLight) {
+                    document.documentElement.classList.add('light-theme');
+                }
+                if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+                    let p = window.location.pathname;
+                    if (p.endsWith('/index.html')) p = p.slice(0, -10);
+                    else if (p === '/index.html' || p === 'index.html') p = '/';
+                    else if (p.endsWith('.html')) p = p.slice(0, -5);
+                    if (p !== window.location.pathname) {
+                        window.history.replaceState(null, document.title, p + window.location.search + window.location.hash);
+                    }
+                }
+                if (isLight) {
+                    const obs = new MutationObserver(() => {
+                        if (document.body) {
+                            document.body.classList.add('light-theme');
+                            obs.disconnect();
+                        }
+                    });
+                    obs.observe(document.documentElement, { childList: true });
+                }
+            } catch(e) {}
         })();
     </script>
+    <link rel="stylesheet" href="estilos.css">
+    <link rel="stylesheet" href="estilo_claro_multi.css" id="theme-light-css">
     <style>
         :root {
             /* Tonalidades Violeta y Azul Neon para FideliX */
