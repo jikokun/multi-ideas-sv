@@ -282,25 +282,27 @@
     <!-- ==========================================================================
          SECCIÓN 2: SHOWCASE MODERNO DE SERVICIOS DIGITALES & TECH STUDIO
          ========================================================================== -->
-    <section id="seccion-servicios" class="showcase-modern-section" style="background: radial-gradient(circle at 50% 0%, rgba(142, 68, 173, 0.08) 0%, rgba(10, 12, 16, 0.98) 75%); border-top: 1px solid rgba(142, 68, 173, 0.2);">
+        <section id="seccion-servicios" class="services-bento-section">
         <div class="showcase-inner-container">
             <div class="showcase-header-center">
-                <span class="showcase-top-badge" style="background: rgba(142, 68, 173, 0.15); border-color: rgba(142, 68, 173, 0.4); color: #d8b4fe;">⚡ ECOSISTEMA TECNOLÓGICO & SOFTWARE</span>
-                <h2>Servicios <span class="gradient-text">Profesionales</span> a tu Medida</h2>
-                <p>Ingeniería de software a la medida, aplicaciones móviles Android nativas, automatización de atención 24/7 y diseño publicitario contemporáneo.</p>
+                <span class="bento-top-badge">⚡ ECOSISTEMA TECNOLÓGICO & SOFTWARE CORE</span>
+                <h2>Tech Studio de <span class="gradient-text">Servicios Digitales</span></h2>
+                <p>Ingeniería de software a la medida, aplicaciones móviles Android nativas, automatización de atención 24/7 y diseño publicitario contemporáneo. Elige el nivel de solución para tu empresa y cotiza en 1 clic.</p>
             </div>
 
             <!-- Filtros de Categorías para Servicios -->
-            <div class="showcase-filters-bar" id="servicesCategoryFilters">
-                <button type="button" class="showcase-filter-pill active" data-category="all">Todos los Servicios</button>
-                <button type="button" class="showcase-filter-pill" data-category="Apps Android">Apps Android Nativas</button>
-                <button type="button" class="showcase-filter-pill" data-category="Desarrollo Web">Desarrollo Web & Tiendas</button>
-                <button type="button" class="showcase-filter-pill" data-category="Bots & Streaming">Bots & Automatización</button>
-                <button type="button" class="showcase-filter-pill" data-category="Diseño & Marca">Diseño Publicitario & Marca</button>
+            <div class="showcase-toolbar-row" style="justify-content: center; margin-bottom: 36px;">
+                <div class="showcase-filters-bar" id="servicesCategoryFilters">
+                    <button type="button" class="showcase-filter-pill active" data-category="all">Todos los Servicios</button>
+                    <button type="button" class="showcase-filter-pill" data-category="Apps Android">Apps Android Nativas</button>
+                    <button type="button" class="showcase-filter-pill" data-category="Desarrollo Web">Desarrollo Web & Tiendas</button>
+                    <button type="button" class="showcase-filter-pill" data-category="Bots & Streaming">Bots & Automatización</button>
+                    <button type="button" class="showcase-filter-pill" data-category="Diseño & Marca">Diseño Publicitario & Marca</button>
+                </div>
             </div>
 
-            <!-- Grilla Dinámica de Servicios -->
-            <div class="services-studio-grid" id="publicServicesGrid">
+            <!-- Grilla Bento Dinámica de Servicios -->
+            <div class="tech-studio-bento-grid" id="publicServicesBentoGrid">
                 <!-- Se inyecta dinámicamente desde Firebase RTDB / LocalStorage -->
             </div>
         </div>
@@ -598,302 +600,120 @@
 
     <!-- MÓDULO REACTIVO: CATÁLOGO DE PRODUCTOS & SERVICIOS SINCRONIZADO CON FIREBASE RTDB Y DRIVE -->
     <script type="module">
-        import { rtdb } from "./firebase-config.js";
-        import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getApps, getApp, initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 
-        // ==========================================================================
-        // 1. DATOS PREDETERMINADOS (CON ENLACES REALES GOOGLE DRIVE CDN & CLOUDINARY)
-        // ==========================================================================
-        const DEFAULT_STORE_PRODUCTS = [
-            {
-                id: "prod-tarjetas-matte",
-                name: "Tarjetas de Presentación Matte",
-                subtitle: "Matte - Doble Cara",
-                category: "Tarjetas",
-                price: 16.00,
-                oldPrice: 20.00,
-                unit: "/ 100 uni.",
-                badge: "MÁS VENDIDO",
-                stock: "En Stock (Envío Rápido)",
-                img: "https://lh3.googleusercontent.com/d/1WDGaVmOyy-t_zGIHfIcbWehKLKX9eVDg",
-                desc: "Tarjetas impresas en papel couché de 300g con laminado mate antirreflejo y colores vivos de alta definición por ambas caras.",
-                specs: ["Papel Couché 300g grueso", "Acabado mate fino antirreflejo", "Impresión full color tiro y retiro", "Esquinas rectas o redondeadas"]
-            },
-            {
-                id: "prod-stickers-personalizados",
-                name: "Stickers Troquelados a la Forma",
-                subtitle: "Vinil Adhesivo Brillante",
-                category: "Stickers",
-                price: 3.00,
-                oldPrice: 4.50,
-                unit: "/ 30 uni.",
-                badge: "OFERTA",
-                stock: "En Stock",
-                img: "https://lh3.googleusercontent.com/d/1DgcZrRW1RCyyhSQ92VrZAycl1QZs_hqS",
-                desc: "Stickers adhesivos troquelados individualmente. Resistentes al agua, polvo y rozaduras, perfectos para termos, libretas y empaques.",
-                specs: ["Corte computarizado exacto", "Vinil adhesivo de alta adherencia", "Colores resistentes a la luz", "Fácil desprendimiento"]
-            },
-            {
-                id: "prod-recetarios-talonarios",
-                name: "Recetarios o Talonarios Comerciales",
-                subtitle: "100 Hojas por Block",
-                category: "Talonarios",
-                price: 8.00,
-                oldPrice: 10.00,
-                unit: "/ block",
-                badge: "POPULAR",
-                stock: "Bajo Pedido (24-48h)",
-                img: "https://lh3.googleusercontent.com/d/1je8fQ3NP-ZZACjU5nmH2s1c4Lu-NtgWw",
-                desc: "Talonarios numerados o recetarios médicos personalizados con el logo, dirección y colores de tu clínica o empresa.",
-                specs: ["100 Hojas bond de alta blancura", "Encolado superior de alta resistencia", "Opción de copia con papel químico", "Tamaño media carta estándar"]
-            },
-            {
-                id: "prod-sobres-membretados",
-                name: "Sobres y Páginas Membretadas",
-                subtitle: "Medida 14x15.5 cm",
-                category: "Papelería",
-                price: 2.00,
-                oldPrice: 3.00,
-                unit: "/ 12 uni.",
-                badge: "CORPORATIVO",
-                stock: "En Stock",
-                img: "https://lh3.googleusercontent.com/d/1ztRHoWX0HjO6a6gGT_6wjZ_lndkclFQQ",
-                desc: "Sobres impresos a todo color ideales para correspondencia oficial, tarjetas de regalo, invitaciones y eventos corporativos.",
-                specs: ["Papel bond especial de 90g", "Impresión de alta resolución", "Cierre con adhesivo engomado", "Diseño personalizado a tu marca"]
-            },
-            {
-                id: "prod-menus-restaurante",
-                name: "Menús Rígidos para Restaurantes",
-                subtitle: "Plastificado Grueso Lavable",
-                category: "Menús",
-                price: 6.00,
-                oldPrice: 8.50,
-                unit: "/ unidad",
-                badge: "ALTA DEMANDA",
-                stock: "Bajo Pedido",
-                img: "https://lh3.googleusercontent.com/d/1Z-wtvOINhjO7z9OSxtpiTRz7eMXsNjEx",
-                desc: "Menús y cartas comerciales resistentes al agua, grasa y limpieza constante. Diseñados para resaltar el apetito y las ventas.",
-                specs: ["Plastificado rígido térmico", "Resistente a líquidos y salsas", "Formato díptico, tríptico o carta", "Colores vívidos y nítidos"]
-            },
-            {
-                id: "prod-afiches-publicitarios",
-                name: "Afiches Publicitarios Gran Impacto",
-                subtitle: "Tamaño Tabloide 11x17 pulg.",
-                category: "Afiches",
-                price: 12.00,
-                oldPrice: 15.00,
-                unit: "/ 50 uni.",
-                badge: "EVENTOS",
-                stock: "En Stock",
-                img: "https://lh3.googleusercontent.com/d/1EPOJfGkEGJjOHLY2o7zkLpljaV4P_E6F",
-                desc: "Afiches publicitarios en papel satinado brillante. Máxima visibilidad para conciertos, promociones de temporada y avisos comerciales.",
-                specs: ["Medida 11x17 pulgadas (Tabloide)", "Papel satinado de 150g", "Tinta resistente al desvanecimiento", "Ideal para vitrinas y muros"]
-            },
-            {
-                id: "prod-fotografias-impresas",
-                name: "Fotografías Impresas y Retratos",
-                subtitle: "Papel Fotográfico Genuino",
-                category: "Fotografía",
-                price: 1.00,
-                oldPrice: 1.50,
-                unit: "/ foto (6x4)",
-                badge: "RECUERDOS",
-                stock: "En Stock",
-                img: "https://lh3.googleusercontent.com/d/1cz8Ip8MG7JMnCUxx_4HznTQ7zgifo_fY",
-                desc: "Tus mejores momentos fuera de la pantalla. Fotografías impresas en papel fotográfico profesional con protección UV de larga duración.",
-                specs: ["Papel fotográfico glossy o mate", "Colores calibrados de estudio", "Tamaño estándar 4x6, 5x7 o 8x10", "No se borra con el tiempo"]
-            }
-        ];
+        const firebaseConfig = {
+            apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
+            authDomain: "sensunshopweb.firebaseapp.com",
+            databaseURL: "https://sensunshopweb-default-rtdb.firebaseio.com",
+            projectId: "sensunshopweb",
+            storageBucket: "sensunshopweb.firebasestorage.app",
+            messagingSenderId: "618261314687",
+            appId: "1:618261314687:web:b71c592f23538e2ca2d34a"
+        };
 
-        const DEFAULT_STORE_SERVICES = [
-            {
-                id: "serv-apps-android",
-                name: "Desarrollo de Apps Android Nativas",
-                category: "Apps Android",
-                priceMode: "Desde $180",
-                turnaround: "⚡ 1 a 2 semanas",
-                badge: "DESTACADO",
-                img: "https://lh3.googleusercontent.com/d/1aUIgGy9AxziUwQJVGHgxjhdU7NG-drUm",
-                desc: "Diseñamos y programamos aplicaciones móviles fluidas y potentes listas para descargar e instalar en dispositivos Android.",
-                deliverables: [
-                    "Arquitectura nativa Android con interfaz moderna",
-                    "Base de datos en tiempo real (Firebase RTDB)",
-                    "Compatibilidad total con Google Play Store",
-                    "Notificaciones push automáticas",
-                    "Modo offline con caché local inteligente",
-                    "Garantía y soporte técnico incluido por 3 meses"
-                ],
-                waMsg: "Hola Multi Ideas SV, me interesa cotizar una Aplicación Móvil Android Nativa a la medida."
-            },
-            {
-                id: "serv-web-corporativas",
-                name: "Páginas Web Corporativas & E-Commerce",
-                category: "Desarrollo Web",
-                priceMode: "Desde $120",
-                turnaround: "⚡ 3 a 5 días hábiles",
-                badge: "RECOMENDADO",
-                img: "https://lh3.googleusercontent.com/d/1nADalJPk53mnm_ujkqBHxSpD6m-O9Slz",
-                desc: "Sitios web rápidos, modernos y optimizados para Google. Incluyen catálogo de productos y botón de compra directa a WhatsApp.",
-                deliverables: [
-                    "Diseño 100% responsivo adaptable a celulares y PC",
-                    "Catálogo interactivo con carrito de compras WhatsApp",
-                    "Velocidad de carga ultrarrápida (100% Performance)",
-                    "Posicionamiento SEO local en El Salvador",
-                    "Dominio .com y hosting por 1 año incluido",
-                    "Panel administrativo autogestionable"
-                ],
-                waMsg: "Hola Multi Ideas SV, quiero cotizar un sitio web corporativo o tienda virtual para mi negocio."
-            },
-            {
-                id: "serv-bots-automatizacion",
-                name: "Bots Inteligentes & Automatización 24/7",
-                category: "Bots & Streaming",
-                priceMode: "Desde $50",
-                turnaround: "⚡ 24 a 48 horas",
-                badge: "AUTOMATIZACIÓN",
-                img: "https://lh3.googleusercontent.com/d/1KvJ0aZnZlCPRm_bmk1krxv8gYcayCS5h",
-                desc: "Atiende a tus prospectos en redes sociales las 24 horas del día. Respuestas inmediatas, catálogo automático y cierre de ventas.",
-                deliverables: [
-                    "Atención automática en WhatsApp, Messenger e Instagram",
-                    "Menús interactivos y respuestas de preguntas frecuentes",
-                    "Recepción de pedidos y cotizaciones sin esperas",
-                    "Conexión con hojas de cálculo o bases de datos",
-                    "Capacitación para modificar respuestas fácilmente"
-                ],
-                waMsg: "Hola Multi Ideas SV, quiero implementar un bot de automatización 24/7 en mis redes sociales."
-            },
-            {
-                id: "serv-diseno-publicitario",
-                name: "Diseño Publicitario & Identidad de Marca",
-                category: "Diseño & Marca",
-                priceMode: "Desde $25",
-                turnaround: "⚡ 24 a 72 horas",
-                badge: "IDENTIDAD",
-                img: "https://lh3.googleusercontent.com/d/1ZxXgUCAbCMa4BIrO90udWNF46ipMWiT3",
-                desc: "Creamos la identidad visual que tu negocio necesita para transmitir confianza, profesionalismo y destacar frente a la competencia.",
-                deliverables: [
-                    "Diseño de logotipos vectoriales de alta resolución",
-                    "Banners publicitarios y flyers para campañas de redes",
-                    "Diseño de etiquetas, empaques y papelería comercial",
-                    "Formatos listos para imprenta y uso digital",
-                    "Manual básico de paleta de colores y tipografía"
-                ],
-                waMsg: "Hola Multi Ideas SV, me interesa el servicio de diseño publicitario y creación de marca."
-            },
-            {
-                id: "serv-widgets-obs",
-                name: "Overlays & Widgets para Creadores (OBS)",
-                category: "Bots & Streaming",
-                priceMode: "Desde $35",
-                turnaround: "⚡ 2 a 3 días hábiles",
-                badge: "STREAMING",
-                img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600",
-                desc: "Widgets transparentes en tiempo real para transmisiones en Kick, Twitch y YouTube con alertas, ruletas y animaciones fluidas.",
-                deliverables: [
-                    "Integración transparente directa en OBS Studio",
-                    "Ruletas interactivas, contadores y metas de donación",
-                    "Sincronización en tiempo real vía WebSockets",
-                    "Diseño adaptado a la temática del canal",
-                    "Instalación remota guiada paso a paso"
-                ],
-                waMsg: "Hola Multi Ideas SV, me interesa cotizar overlays y widgets personalizados para OBS Studio."
-            }
-        ];
+        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+        const rtdb = getDatabase(app);
 
-        // Estado Reactivo
         window.siteState = {
             products: [],
             services: [],
             activeProductCategory: "all",
             activeServiceCategory: "all",
+            quantities: {},
+            selectedTiers: {},
             quickViewProduct: null,
             quickViewQty: 1
         };
 
-        // Cargar almacenamiento local inmediato
-        function loadLocalShowcaseData() {
-            try {
-                const lp = localStorage.getItem("multiideas_store_products");
-                window.siteState.products = lp ? JSON.parse(lp) : DEFAULT_STORE_PRODUCTS;
-            } catch(e) {
-                window.siteState.products = DEFAULT_STORE_PRODUCTS;
-            }
+        // Cargar caché local inmediato
+        try {
+            const cachedP = localStorage.getItem("multiideas_store_products");
+            if (cachedP) window.siteState.products = JSON.parse(cachedP);
+            const cachedS = localStorage.getItem("multiideas_store_services");
+            if (cachedS) window.siteState.services = JSON.parse(cachedS);
+        } catch(e) {}
 
-            try {
-                const ls = localStorage.getItem("multiideas_store_services");
-                window.siteState.services = ls ? JSON.parse(ls) : DEFAULT_STORE_SERVICES;
-            } catch(e) {
-                window.siteState.services = DEFAULT_STORE_SERVICES;
-            }
-        }
-        loadLocalShowcaseData();
-
-        // Renderizado de Galería de Compras
+        // 1. RENDERIZADO DE PRODUCTOS BOUTIQUE
         function renderShoppingGallery() {
             const grid = document.getElementById("publicShoppingGrid");
             if (!grid) return;
 
             const cat = window.siteState.activeProductCategory;
-            const items = window.siteState.products.filter(p => {
-                if (cat === "all") return true;
-                return p.category === cat || (p.subtitle && p.subtitle.toLowerCase().includes(cat.toLowerCase()));
+            const list = (window.siteState.products || []).filter(p => {
+                if (cat !== "all" && p.category !== cat) return false;
+                return true;
             });
 
-            if (items.length === 0) {
-                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-gray);">No se encontraron productos en esta categoría.</div>`;
+            if (list.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 50px; color: var(--text-muted);">No hay productos en esta categoría.</div>`;
                 return;
             }
 
-            grid.innerHTML = items.map(p => {
-                const oldPriceHTML = p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price) 
-                    ? `<span class="boutique-old-price">${parseFloat(p.oldPrice).toFixed(2)}</span>` 
-                    : "";
-                
-                const badgeLabel = p.badge || (p.oldPrice ? "OFERTA" : "DESTACADO");
-                const specsPreview = (p.specs || []).slice(0, 2).map(s => `<span class="boutique-spec-pill">✓ ${s}</span>`).join('');
+            grid.innerHTML = list.map(p => {
+                const qty = window.siteState.quantities[p.id] || 1;
+                const isUnderOrder = (p.stock || "").toLowerCase().includes("pedido");
+                const stockClass = isUnderOrder ? "order" : "in-stock";
+                const stockText = p.stock || "En Stock";
 
-                const waDirectMsg = encodeURIComponent(`Hola Multi Ideas SV, me gustaría ordenar el producto: ${p.name} (${parseFloat(p.price).toFixed(2)} ${p.unit || ''}). ¿Podrían brindarme información?`);
+                const hasDiscount = p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price);
+                const discountPercent = hasDiscount ? Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100) : 0;
+
+                const specsHTML = (p.specs || []).slice(0, 2).map(s => `
+                    <span class="boutique-spec-chip"><span>✓</span> ${s}</span>
+                `).join('');
+
+                const waOrderMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa comprar el producto: ${p.name} (${p.subtitle || p.category}). Cantidad: ${qty}. Precio: ${(p.price * qty).toFixed(2)}.`);
 
                 return `
-                    <article class="boutique-product-card" data-category="${p.category}">
-                        <div class="boutique-cover-wrap" onclick="window.openProductQuickView('${p.id}')">
-                            <div class="boutique-floating-tags">
-                                <span class="boutique-badge-label">${badgeLabel}</span>
-                                <span class="boutique-stock-indicator">
-                                    <span class="boutique-stock-dot"></span>
-                                    <span>${p.stock || 'En Stock'}</span>
-                                </span>
-                            </div>
-                            <img src="${p.img}" alt="${p.name}" class="boutique-cover-img" loading="lazy" onerror="this.src='imagenes/imagenes_generales/imagen48.webp'">
-                            <button type="button" class="boutique-quickview-trigger">👁️ Vista Rápida</button>
+                    <article class="boutique-product-card">
+                        <div class="boutique-img-wrap">
+                            <span class="boutique-badge-tag">${p.badge || 'DESTACADO'}</span>
+                            <span class="boutique-stock-indicator ${stockClass}">
+                                <span class="dot"></span>
+                                <span>${stockText}</span>
+                            </span>
+                            <button type="button" class="boutique-quickview-btn" onclick="openProductQuickView('${p.id}')">
+                                <span>👁️ Vista Rápida</span>
+                            </button>
+                            <img src="${p.img}" alt="${p.name}" onerror="this.onerror=null; this.src='imagenes/imagenes_generales/imagen48.webp';">
                         </div>
-                        <div class="boutique-card-body">
-                            <span class="boutique-category-subtitle">${p.subtitle || p.category}</span>
-                            <h3 class="boutique-product-title">${p.name}</h3>
-                            <p class="boutique-product-desc">${p.desc}</p>
-                            
-                            <div class="boutique-specs-preview">${specsPreview}</div>
 
-                            <div class="boutique-pricing-row">
-                                <span class="boutique-main-price">${parseFloat(p.price).toFixed(2)}</span>
-                                ${oldPriceHTML}
-                                <span class="boutique-unit-text">${p.unit || '/ unidad'}</span>
+                        <div class="boutique-card-body">
+                            <div class="boutique-meta-row">
+                                <span class="boutique-cat-tag">${p.category}</span>
+                                <span class="boutique-stars">★★★★★</span>
                             </div>
 
-                            <div class="boutique-card-actions">
-                                <button type="button" class="boutique-btn-add-cart btn-add-to-cart" 
-                                    data-id="${p.id}" 
-                                    data-name="${p.name}" 
-                                    data-subtitle="${p.subtitle || p.category}" 
-                                    data-price="${p.price}" 
-                                    data-image="${p.img}">
-                                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-                                    <span>Añadir al Carrito</span>
+                            <h3 class="boutique-product-title">${p.name}</h3>
+                            <div class="boutique-product-sub">${p.subtitle || ''}</div>
+                            <p class="boutique-product-desc">${p.desc}</p>
+
+                            <div class="boutique-specs-preview">
+                                ${specsHTML}
+                            </div>
+
+                            <div class="boutique-price-box">
+                                <span class="boutique-price-val">${parseFloat(p.price).toFixed(2)}</span>
+                                ${hasDiscount ? `<span class="boutique-old-price">${parseFloat(p.oldPrice).toFixed(2)}</span>` : ''}
+                                <span class="boutique-unit-val">${p.unit || '/ unidad'}</span>
+                                ${hasDiscount ? `<span class="boutique-discount-tag">-${discountPercent}%</span>` : ''}
+                            </div>
+
+                            <div class="boutique-actions-row">
+                                <div class="boutique-qty-control">
+                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', -1)">-</button>
+                                    <span class="boutique-qty-number" id="qty-${p.id}">${qty}</span>
+                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', 1)">+</button>
+                                </div>
+
+                                <button type="button" class="boutique-btn-add" onclick="addProductToCart('${p.id}')">
+                                    <span>🛒 Añadir</span>
                                 </button>
-                                <a href="https://wa.me/50372359113?text=${waDirectMsg}" target="_blank" rel="noopener noreferrer" class="boutique-btn-wa-order" title="Pedir directo por WhatsApp">
-                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                                        <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0012.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.27-2.42 5.82-1.55 1.55-3.62 2.42-5.82 2.42-1.47 0-2.91-.39-4.18-1.15l-.3-.18-3.11.82.83-3.03-.2-.31a8.16 8.16 0 01-1.26-4.39c0-4.54 3.7-8.24 8.24-8.24zm4.52 11.64c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.25-.75-.67-1.26-1.5-1.41-1.75-.14-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.34-.76-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.71 4.3 3.8.6.26 1.07.41 1.44.53.61.19 1.16.17 1.6.1 0.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.15-1.18-.06-.1-.22-.16-.47-.28z"/>
-                                    </svg>
+
+                                <a href="https://wa.me/50372359113?text=${waOrderMsg}" id="wa-${p.id}" target="_blank" rel="noopener noreferrer" class="boutique-btn-wa" title="Comprar por WhatsApp">
+                                    💬
                                 </a>
                             </div>
                         </div>
@@ -902,52 +722,147 @@
             }).join('');
         }
 
-        // Renderizado de Servicios Digitales
+        // Stepper en tarjeta
+        window.changeCardQty = function(id, delta) {
+            let current = window.siteState.quantities[id] || 1;
+            current += delta;
+            if (current < 1) current = 1;
+            window.siteState.quantities[id] = current;
+
+            const el = document.getElementById(`qty-${id}`);
+            if (el) el.textContent = current;
+
+            const p = window.siteState.products.find(x => x.id === id);
+            if (p) {
+                const waLink = document.getElementById(`wa-${id}`);
+                if (waLink) {
+                    const msg = encodeURIComponent(`Hola Multi Ideas SV, me interesa comprar el producto: ${p.name} (${p.subtitle || p.category}). Cantidad: ${current}. Precio estimado: ${(p.price * current).toFixed(2)}.`);
+                    waLink.href = `https://wa.me/50372359113?text=${msg}`;
+                }
+            }
+        };
+
+        window.addProductToCart = function(id) {
+            const p = window.siteState.products.find(x => x.id === id);
+            if (!p) return;
+            const qty = window.siteState.quantities[id] || 1;
+
+            for (let i = 0; i < qty; i++) {
+                if (window.addToCart) {
+                    window.addToCart(p.id, p.name, p.subtitle || p.category, p.price, p.img);
+                }
+            }
+        };
+
+        // 2. RENDERIZADO DE SERVICIOS EN BENTO MATRIX
         function renderServicesStudio() {
-            const grid = document.getElementById("publicServicesGrid");
+            const grid = document.getElementById("publicServicesBentoGrid");
             if (!grid) return;
 
             const cat = window.siteState.activeServiceCategory;
-            const items = window.siteState.services.filter(s => {
-                if (cat === "all") return true;
-                return s.category === cat;
+            const list = (window.siteState.services || []).filter(s => {
+                if (cat !== "all" && s.category !== cat) return false;
+                return true;
             });
 
-            if (items.length === 0) {
-                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-gray);">No se encontraron servicios en esta categoría.</div>`;
+            if (list.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 50px; color: var(--text-muted);">No hay servicios en esta categoría.</div>`;
                 return;
             }
 
-            grid.innerHTML = items.map(s => {
+            grid.innerHTML = list.map(s => {
+                const tiers = s.tiers && s.tiers.length > 0 ? s.tiers : [
+                    { name: "Estándar", price: s.priceMode || "Cotizar", time: s.turnaround || "1 semana", feat: s.desc }
+                ];
+                
+                const activeTierIdx = window.siteState.selectedTiers[s.id] !== undefined 
+                    ? window.siteState.selectedTiers[s.id] 
+                    : 0;
+
+                const currentTier = tiers[activeTierIdx] || tiers[0];
+
+                const tierButtonsHTML = tiers.map((t, idx) => `
+                    <button type="button" class="bento-tier-btn ${idx === activeTierIdx ? 'active' : ''}" onclick="selectServiceTier('${s.id}', ${idx})">
+                        ${t.name}
+                    </button>
+                `).join('');
+
+                const defaultTechStack = ["Arquitectura Nativa", "Firebase RTDB", "Cloud CDN", "Seguridad SSL"];
+                const stackList = s.techStack && s.techStack.length > 0 ? s.techStack : defaultTechStack;
+                const techChipsHTML = stackList.map(tech => `
+                    <span class="bento-tech-chip">${tech}</span>
+                `).join('');
+
                 const delivsHTML = (s.deliverables || []).map(d => `
-                    <div class="service-deliverable-line">
-                        <span class="service-check-bullet">✓</span>
-                        <span>${d}</span>
+                    <div class="bento-deliverable-item">
+                        <span>✓</span>
+                        <div>${d}</div>
                     </div>
                 `).join('');
 
-                const waQuoteMsg = encodeURIComponent(s.waMsg || `Hola Multi Ideas SV, me interesa cotizar el servicio de ${s.name}. ¿Podrían orientarme con los detalles?`);
+                const icon = s.icon || (s.category.includes("Android") ? "📱" : s.category.includes("Web") ? "💻" : s.category.includes("Bot") ? "🤖" : "🎨");
+
+                const waProposalMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa solicitar la Propuesta Técnica para: ${s.name} (Plan: ${currentTier.name} - Inversión Estimada: ${currentTier.price}). ¿Podrían orientarme con los siguientes pasos?`);
 
                 return `
-                    <article class="service-tech-card">
-                        <div class="service-header-row">
-                            <span class="service-cat-pill">${s.category}</span>
-                            <span class="service-turnaround-badge">${s.turnaround || '⚡ Disponible'}</span>
-                        </div>
-                        <h3 class="service-tech-title">${s.name}</h3>
-                        <p class="service-tech-desc">${s.desc}</p>
-                        
-                        <div class="service-deliverables-box">
-                            ${delivsHTML}
+                    <article class="tech-bento-card">
+                        <div class="bento-header-flex">
+                            <div class="bento-tech-icon-box">
+                                ${icon}
+                            </div>
+                            <div class="bento-header-info">
+                                <div class="bento-tag-row">
+                                    <span class="bento-cat-tag">${s.category}</span>
+                                    <span class="bento-sla-pill">⏱️ ${currentTier.time || s.turnaround || '⚡ Disponible'}</span>
+                                </div>
+                                <h3 class="bento-service-title">${s.name}</h3>
+                            </div>
                         </div>
 
-                        <div class="service-card-footer">
-                            <div class="service-price-block">
-                                <span class="service-price-label">Inversión Estimada</span>
-                                <span class="service-price-val">${s.priceMode || 'Cotización Libre'}</span>
+                        <p class="bento-service-desc">${s.desc}</p>
+
+                        <div class="bento-tech-stack">
+                            ${techChipsHTML}
+                        </div>
+
+                        <div class="bento-tier-container">
+                            <div class="bento-tier-header">
+                                <span class="bento-tier-label">Nivel de Solución:</span>
+                                <div class="bento-tier-segmented">
+                                    ${tierButtonsHTML}
+                                </div>
                             </div>
-                            <a href="https://wa.me/50372359113?text=${waQuoteMsg}" target="_blank" rel="noopener noreferrer" class="service-btn-quote">
-                                <span>Cotizar por WhatsApp ↗</span>
+
+                            <div class="bento-tier-display">
+                                <div>
+                                    <span style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 800; display: block;">Inversión Estimada:</span>
+                                    <span class="bento-tier-price" id="tier-price-${s.id}">${currentTier.price}</span>
+                                </div>
+                                <div style="text-align: right;">
+                                    <span style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 800; display: block;">Tiempo de Entrega:</span>
+                                    <span class="bento-tier-time" id="tier-time-${s.id}">${currentTier.time}</span>
+                                </div>
+                            </div>
+
+                            <div class="bento-tier-feature" id="tier-feat-${s.id}">
+                                💡 ${currentTier.feat || 'Alcance completo con garantía y soporte técnico.'}
+                            </div>
+                        </div>
+
+                        <div class="bento-deliverables-box">
+                            <div class="bento-deliverables-title">
+                                <span>📋</span>
+                                <span>Roadmap de Entregables Incluidos:</span>
+                            </div>
+                            <div class="bento-deliverables-grid">
+                                ${delivsHTML}
+                            </div>
+                        </div>
+
+                        <div class="bento-card-footer">
+                            <a href="https://wa.me/50372359113?text=${waProposalMsg}" id="btn-prop-${s.id}" target="_blank" rel="noopener noreferrer" class="bento-btn-proposal">
+                                <span class="bento-btn-wa-icon">⚡</span>
+                                <span>Solicitar Propuesta Técnica / WhatsApp ↗</span>
                             </a>
                         </div>
                     </article>
@@ -955,13 +870,43 @@
             }).join('');
         }
 
+        window.selectServiceTier = function(serviceId, tierIdx) {
+            window.siteState.selectedTiers[serviceId] = tierIdx;
+            const s = window.siteState.services.find(x => x.id === serviceId);
+            if (!s || !s.tiers || !s.tiers[tierIdx]) return;
+
+            const t = s.tiers[tierIdx];
+
+            const priceEl = document.getElementById(`tier-price-${serviceId}`);
+            const timeEl = document.getElementById(`tier-time-${serviceId}`);
+            const featEl = document.getElementById(`tier-feat-${serviceId}`);
+            const btnEl = document.getElementById(`btn-prop-${serviceId}`);
+
+            if (priceEl) priceEl.textContent = t.price;
+            if (timeEl) timeEl.textContent = t.time;
+            if (featEl) featEl.textContent = `💡 ${t.feat}`;
+
+            if (btnEl) {
+                const msg = encodeURIComponent(`Hola Multi Ideas SV, me interesa solicitar la Propuesta Técnica para: ${s.name} (Plan: ${t.name} - Inversión: ${t.price}). ¿Podrían orientarme con los detalles?`);
+                btnEl.href = `https://wa.me/50372359113?text=${msg}`;
+            }
+
+            const card = priceEl ? priceEl.closest('.tech-bento-card') : null;
+            if (card) {
+                card.querySelectorAll('.bento-tier-btn').forEach((b, i) => {
+                    if (i === tierIdx) b.classList.add('active');
+                    else b.classList.remove('active');
+                });
+            }
+        };
+
         // Modal de Vista Rápida
         window.openProductQuickView = function(id) {
             const p = window.siteState.products.find(x => x.id === id);
             if (!p) return;
 
             window.siteState.quickViewProduct = p;
-            window.siteState.quickViewQty = 1;
+            window.siteState.quickViewQty = window.siteState.quantities[id] || 1;
 
             const qvImg = document.getElementById("qvCoverImg");
             qvImg.onerror = function() {
@@ -969,11 +914,12 @@
                 this.src = "imagenes/imagenes_generales/imagen48.webp";
             };
             qvImg.src = p.img || "imagenes/imagenes_generales/imagen48.webp";
+
             document.getElementById("qvCategory").textContent = p.subtitle || p.category;
             document.getElementById("qvTitle").textContent = p.name;
             document.getElementById("qvDesc").textContent = p.desc;
             document.getElementById("qvUnit").textContent = p.unit || "/ unidad";
-            document.getElementById("qvQtyVal").textContent = "1";
+            document.getElementById("qvQtyVal").textContent = window.siteState.quickViewQty;
 
             const oldPriceEl = document.getElementById("qvOldPrice");
             if (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price)) {
@@ -1058,12 +1004,9 @@
             });
         });
 
-        // ==========================================================================
-        // 2. CONEXIÓN EN TIEMPO REAL CON FIREBASE RTDB (multiideas_catalogo)
-        // ==========================================================================
+        // CONEXIÓN EN TIEMPO REAL CON FIREBASE RTDB
         try {
-            // Escuchar nodo de productos
-            const productsRef = ref(rtdb, "multiideas_catalogo/products");
+            const productsRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
             onValue(productsRef, (snap) => {
                 const data = snap.val();
                 if (data) {
@@ -1076,8 +1019,7 @@
                 }
             });
 
-            // Escuchar nodo de servicios
-            const servicesRef = ref(rtdb, "multiideas_catalogo/services");
+            const servicesRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services");
             onValue(servicesRef, (snap) => {
                 const data = snap.val();
                 if (data) {
@@ -1097,6 +1039,5 @@
         renderShoppingGallery();
         renderServicesStudio();
     </script>
-
 </body>
 </html>

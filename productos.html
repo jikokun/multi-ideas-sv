@@ -3,12 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Productos y Servicios | Multi Ideas Sv</title>
-    <meta name="description" content="Explora nuestras soluciones digitales: Desarrollo web, E-commerce y Sistemas a medida en El Salvador.">
+    <title>Catálogo de Productos & Imprenta Boutique | Multi Ideas Sv</title>
+    <meta name="description" content="Catálogo e-commerce de productos impresos, tarjetas de presentación, stickers troquelados, menús y papelería corporativa en El Salvador.">
     <link rel="icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="shortcut icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="apple-touch-icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1">
-            <!-- Anti-FOUC & Fast Paint Inline Tokens -->
+    
+    <!-- Anti-FOUC & Fast Paint Inline Tokens -->
     <style>
         html { background-color: #0a0c10; color: #ffffff; }
         html.light-theme { background-color: #f0fbfb; color: #063d41; }
@@ -48,211 +49,388 @@
 <body>
     <header id="global-header"></header>
 
-    <!-- 1. SECCIÓN DE TEXTO INTRODUCTORIA -->
-    <section class="hero" style="min-height: 50vh;">
-        <div class="hero-content">
-            <span class="badge">NUESTRO CATÁLOGO</span>
-            <h1>Servicios y Productos <span class="gradient-text">Versátiles</span></h1>
-            <p>Desde desarrollo web adaptable a cualquier presupuesto hasta soluciones de imprenta y consultoría técnica especializada.</p>
-        </div>
-    </section>
+    <main>
+        <section class="showcase-modern-section" style="padding-top: 110px;">
+            <div class="showcase-inner-container">
+                
+                <!-- Encabezado Boutique Store -->
+                <div class="showcase-header-center">
+                    <span class="showcase-top-badge">🛍️ TIENDA & IMPRENTA BOUTIQUE MULTI IDEAS SV</span>
+                    <h2>Galería de <span class="gradient-text">Compras</span> & Catálogo</h2>
+                    <p>Materiales de primera calidad, acabados finos y personalización garantizada para tu negocio o marca en El Salvador. Pide directamente al carrito o solicita tu pedido por WhatsApp.</p>
+                </div>
 
-    <!-- 2. PRODUCTOS MÁS SOLICITADOS -->
-    <section class="productos-section" style="padding-top: 0;">
-        <div class="section-title">
-            <h2>Productos <span class="gradient-text">más Solicitados</span></h2>
-        </div>
-        <div class="productos-grid">
-            <div class="producto-card llamativo">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen48.webp" alt="Tarjetas de Presentación" class="producto-foto">
+                <!-- Barra de Búsqueda y Filtros de Categorías -->
+                <div class="showcase-toolbar-row">
+                    <div class="showcase-search-box">
+                        <span class="showcase-search-icon">🔍</span>
+                        <input type="text" id="productsSearchInput" placeholder="Buscar por producto, acabado o material..." aria-label="Buscar producto">
+                    </div>
+
+                    <div class="showcase-filters-bar" id="productsCategoryFilters">
+                        <button type="button" class="showcase-filter-pill active" data-category="all">Todos los Productos</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Tarjetas">Tarjetas</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Stickers">Stickers</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Talonarios">Talonarios</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Menús">Menús</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Afiches">Afiches</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Papelería">Papelería</button>
+                        <button type="button" class="showcase-filter-pill" data-category="Fotografía">Fotografía</button>
+                    </div>
                 </div>
-                <div class="producto-info">
-                    <h3>Tarjetas de Presentación</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Matte - Doble Cara)</p>
-                    <p>Tarjetas con acabados finos y profesionales por ambos lados, impresas con excelente resolución.</p>
-                    <span class="precio">Desde $16.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 100 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="tarjetas-matte" data-name="Tarjetas de Presentación" data-subtitle="Matte - Doble Cara" data-price="16.00" data-image="imagenes/imagenes_generales/imagen48.webp">Añadir al Carrito</button>
+
+                <!-- Grilla Dinámica de Galería de Compras -->
+                <div class="boutique-shopping-grid" id="publicShoppingGrid">
+                    <!-- Se inyecta dinámicamente desde Firebase RTDB / LocalStorage -->
                 </div>
+
             </div>
+        </section>
+    </main>
 
-            <div class="producto-card llamativo">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen49.webp" alt="Stickers Personalizados" class="producto-foto">
+    <!-- MODAL DE VISTA RÁPIDA (QUICK VIEW) -->
+    <div id="productQuickViewModal" class="quickview-modal-backdrop" onclick="if(event.target === this) closeProductQuickView()">
+        <div class="quickview-modal-card">
+            <button type="button" class="quickview-close-btn" onclick="closeProductQuickView()" aria-label="Cerrar vista rápida">&times;</button>
+            <div class="quickview-layout-split">
+                <div class="quickview-left-cover">
+                    <img id="qvCoverImg" src="imagenes/imagenes_generales/imagen48.webp" alt="Vista previa de producto">
                 </div>
-                <div class="producto-info">
-                    <h3>Stickers Personalizados</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Brillantes - Troquelados)</p>
-                    <p>Stickers adhesivos ideales para personalizar tus empaques, cuadernos, termos o envíos de marca.</p>
-                    <span class="precio">Desde $3.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 30 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="stickers-personalizados" data-name="Stickers Personalizados" data-subtitle="Brillantes - 30 uds" data-price="3.00" data-image="imagenes/imagenes_generales/imagen49.webp">Añadir al Carrito</button>
-                </div>
-            </div>
+                <div class="quickview-right-info">
+                    <span class="quickview-info-badge" id="qvCategory">Categoría</span>
+                    <h3 class="quickview-info-title" id="qvTitle">Nombre del Producto</h3>
+                    
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px;">
+                        <span class="quickview-info-price" id="qvPrice">$0.00</span>
+                        <span id="qvOldPrice" style="font-size: 0.95rem; text-decoration: line-through; color: #f87171; display: none;"></span>
+                        <span id="qvUnit" style="font-size: 0.84rem; color: var(--text-gray);"></span>
+                    </div>
 
-            <div class="producto-card llamativo">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen60.webp" alt="Recetarios o Talonarios" class="producto-foto">
-                </div>
-                <div class="producto-info">
-                    <h3>Recetarios o Talonarios</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(100 Hojas por Block)</p>
-                    <p>Talonarios para recetas médicas, facturas o control interno de tu negocio, totalmente personalizados.</p>
-                    <span class="precio">Desde $8.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ block</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="recetarios-talonarios" data-name="Recetarios o Talonarios" data-subtitle="100 Hojas por block" data-price="8.00" data-image="imagenes/imagenes_generales/imagen60.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-        </div>
-    </section>
+                    <p class="quickview-info-desc" id="qvDesc"></p>
 
-    <!-- 3. SECCIÓN DE IMPRENTA Y PRODUCTOS FÍSICOS (MOVIDA ARRIBA CON FILTROS) -->
-    <section class="productos-section" style="background-color: rgba(13, 16, 23, 0.4); border-top: 1px solid rgba(0, 173, 181, 0.1);">
-        <div class="category-header">
-            <span class="cyan-text">// 01</span>
-            <h2>Imprenta & <span class="gradient-text">Productos Físicos</span></h2>
-        </div>
+                    <div style="font-size: 0.78rem; font-weight: 800; color: #00f2fe; text-transform: uppercase; margin-bottom: 6px;">Especificaciones Incluidas:</div>
+                    <div class="quickview-specs-list" id="qvSpecsList"></div>
 
-        <!-- Filtros de Categorías para Productos Físicos -->
-        <div class="filter-container">
-            <button class="filter-btn active" data-filter="all">Todos</button>
-            <button class="filter-btn" data-filter="tarjetas">Tarjetas</button>
-            <button class="filter-btn" data-filter="afiches-talonarios">Afiches & Talonarios</button>
-            <button class="filter-btn" data-filter="sobres-stickers">Sobres & Stickers</button>
-            <button class="filter-btn" data-filter="fotografia">Fotografía</button>
-            <button class="filter-btn" data-filter="menus">Menús</button>
-        </div>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; margin-bottom: 8px;">
+                        <span style="font-size: 0.82rem; font-weight: 700; color: #ffffff;">Cantidad:</span>
+                        <div class="quickview-qty-stepper">
+                            <button type="button" class="quickview-qty-btn" onclick="adjustQuickViewQty(-1)">-</button>
+                            <span class="quickview-qty-val" id="qvQtyVal">1</span>
+                            <button type="button" class="quickview-qty-btn" onclick="adjustQuickViewQty(1)">+</button>
+                        </div>
+                    </div>
 
-        <div class="productos-grid" id="productos-fisicos-grid">
-            <!-- 1. Tarjetas de Presentación Matte -->
-            <div class="producto-card" data-category="tarjetas">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen48.webp" alt="Tarjetas de Presentación Matte" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Tarjetas de Presentación</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Matte - Doble Cara)</p>
-                    <p>Tarjetas con acabados finos y profesionales por ambos lados, impresas con excelente resolución.</p>
-                    <span class="precio">Desde $16.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 100 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="tarjetas-matte" data-name="Tarjetas de Presentación" data-subtitle="Matte - Doble Cara" data-price="16.00" data-image="imagenes/imagenes_generales/imagen48.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 2. Recetarios o Talonarios -->
-            <div class="producto-card" data-category="afiches-talonarios">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen60.webp" alt="Recetarios o Talonarios" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Recetarios o Talonarios</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(100 Hojas por Block)</p>
-                    <p>Talonarios para recetas médicas, facturas o control interno de tu negocio, totalmente personalizados.</p>
-                    <span class="precio">Desde $8.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ block</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="recetarios-talonarios" data-name="Recetarios o Talonarios" data-subtitle="100 Hojas por block" data-price="8.00" data-image="imagenes/imagenes_generales/imagen60.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 3. Sobres Impresos -->
-            <div class="producto-card" data-category="sobres-stickers">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen35.webp" alt="Sobres Impresos" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Sobres Impresos</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Medida 14x15.5 cm)</p>
-                    <p>Sobres personalizados con diseños llamativos para cartas, invitaciones, cumpleaños y celebraciones.</p>
-                    <span class="precio">Desde $2.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 12 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="sobres-impresos" data-name="Sobres Impresos" data-subtitle="14x15.5 cm - 12 uds" data-price="2.00" data-image="imagenes/imagenes_generales/imagen35.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 4. Menús de Comida -->
-            <div class="producto-card" data-category="menus">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen53.webp" alt="Menús de Comida" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Menús de Comida</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Empastado Simple - Folleto)</p>
-                    <p>Muestrario de productos y catálogos impresos a color con alta durabilidad para tu restaurante.</p>
-                    <span class="precio">Desde $6.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ unidad</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="menus-comida" data-name="Menús de Comida" data-subtitle="Empastado Simple" data-price="6.00" data-image="imagenes/imagenes_generales/imagen53.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 5. Tickets de Regalo -->
-            <div class="producto-card" data-category="sobres-stickers">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen34.webp" alt="Tickets de Regalo" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Tickets de Regalo</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Glossy una cara - 14x15.5cm)</p>
-                    <p>Tickets glossy con brillo y corte troquelado de recibido. Ideales para premios, rifas o promociones.</p>
-                    <span class="precio">Desde $12.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 36 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="tickets-regalo" data-name="Tickets de Regalo" data-subtitle="Glossy una cara" data-price="12.00" data-image="imagenes/imagenes_generales/imagen34.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 6. Stickers Personalizados -->
-            <div class="producto-card" data-category="sobres-stickers">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen49.webp" alt="Stickers Personalizados" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Stickers Personalizados</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Brillantes - Troquelados)</p>
-                    <p>Stickers adhesivos ideales para personalizar tus empaques, cuadernos, termos o envíos de marca.</p>
-                    <span class="precio">Desde $3.00 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 30 uni.</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="stickers-personalizados" data-name="Stickers Personalizados" data-subtitle="Brillantes - 30 uds" data-price="3.00" data-image="imagenes/imagenes_generales/imagen49.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 7. Afiches Publicitarios -->
-            <div class="producto-card" data-category="afiches-talonarios">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imaagen52.webp" alt="Afiches Publicitarios" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Afiches Publicitarios</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Papel Bond - Ciento)</p>
-                    <p>Volantes y afiches coloridos o en blanco y negro para la promoción comercial de tus servicios.</p>
-                    <span class="precio">Desde $3.50 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ ciento</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="afiches-publicitarios" data-name="Afiches Publicitarios" data-subtitle="Papel Bond - 100 uds" data-price="3.50" data-image="imagenes/imagenes_generales/imaagen52.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 8. Fotografías Postales -->
-            <div class="producto-card" data-category="fotografia">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen40.webp" alt="Fotografías Postales" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Fotografías Postales</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Tamaño Postal 6x4)</p>
-                    <p>Impresiones de fotos, dibujos o anime en papel fotográfico de alta calidad sin bordes.</p>
-                    <span class="precio">Desde $0.75 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 10+ uni. o $1 c/u</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="fotos-postales" data-name="Fotografías Postales" data-subtitle="Tamaño 6x4" data-price="1.00" data-image="imagenes/imagenes_generales/imagen40.webp">Añadir al Carrito</button>
-                </div>
-            </div>
-
-            <!-- 9. Fotografías Carta -->
-            <div class="producto-card" data-category="fotografia">
-                <div class="producto-img">
-                    <img src="imagenes/imagenes_generales/imagen41.webp" alt="Fotografías Carta" class="producto-foto" loading="lazy">
-                </div>
-                <div class="producto-info">
-                    <h3>Fotografías Carta</h3>
-                    <p style="font-size: 0.85rem; color: var(--cyan); margin-bottom: 8px; font-weight: 600;">(Tamaño Carta 8x10)</p>
-                    <p>Impresión de gran tamaño con excelente resolución en papel fotográfico brillante sin bordes.</p>
-                    <span class="precio">Desde $1.75 <span style="font-size: 0.9rem; font-weight: normal; color: var(--text-gray);">/ 10+ uni. o $2.75 c/u</span></span>
-                    <button class="btn-card btn-add-to-cart" data-id="fotos-carta" data-name="Fotografías Carta" data-subtitle="Tamaño 8x10" data-price="2.75" data-image="imagenes/imagenes_generales/imagen41.webp">Añadir al Carrito</button>
+                    <div class="quickview-modal-actions">
+                        <button type="button" class="quickview-btn-primary" id="qvBtnAddCart">
+                            <span>🛒 Añadir al Carrito</span>
+                        </button>
+                        <a href="#" target="_blank" rel="noopener noreferrer" class="quickview-btn-wa" id="qvBtnWa">
+                            <span>💬 Comprar por WhatsApp Directo</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
-    </section>
+    </div>
 
     <footer>
         <p>&copy; 2026 Multi Ideas Sv. San Salvador, El Salvador. Todos los derechos reservados.</p>
     </footer>
+
+    <!-- Scripts Core y Carrito Global -->
     <script src="script.js"></script>
+
+    <!-- Módulo de Sincronización en Tiempo Real con Firebase RTDB -->
+    <script type="module">
+        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getApps, getApp, initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBPDKdjd6mTRre3TJ5nYxAaaZd7uKCcbyc",
+            authDomain: "sensunshopweb.firebaseapp.com",
+            databaseURL: "https://sensunshopweb-default-rtdb.firebaseio.com",
+            projectId: "sensunshopweb",
+            storageBucket: "sensunshopweb.firebasestorage.app",
+            messagingSenderId: "618261314687",
+            appId: "1:618261314687:web:b71c592f23538e2ca2d34a"
+        };
+
+        const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
+        const rtdb = getDatabase(app);
+
+        // Estado del Catálogo de la Tienda
+        window.storeCatalogState = {
+            products: [],
+            activeCategory: "all",
+            searchQuery: "",
+            quantities: {},
+            quickViewProduct: null,
+            quickViewQty: 1
+        };
+
+        // Cargar productos en caché local de inmediato
+        try {
+            const cached = localStorage.getItem("multiideas_store_products");
+            if (cached) {
+                window.storeCatalogState.products = JSON.parse(cached);
+            }
+        } catch(e) {}
+
+        // Renderizado del Catálogo Boutique
+        function renderShoppingCatalog() {
+            const grid = document.getElementById("publicShoppingGrid");
+            if (!grid) return;
+
+            const q = window.storeCatalogState.searchQuery.toLowerCase().trim();
+            const cat = window.storeCatalogState.activeCategory;
+
+            const list = (window.storeCatalogState.products || []).filter(p => {
+                if (cat !== "all" && p.category !== cat) return false;
+                if (q) {
+                    const searchCorpus = [p.name, p.subtitle, p.category, p.desc, ...(p.specs || [])].join(" ").toLowerCase();
+                    if (!searchCorpus.includes(q)) return false;
+                }
+                return true;
+            });
+
+            if (list.length === 0) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+                        <div style="font-size: 2.2rem; margin-bottom: 10px;">🛍️</div>
+                        <h4 style="color: #ffffff; margin-bottom: 6px;">No se encontraron productos</h4>
+                        <p style="font-size: 0.9rem;">Prueba con otra palabra clave o selecciona otra categoría.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            grid.innerHTML = list.map(p => {
+                const qty = window.storeCatalogState.quantities[p.id] || 1;
+                const isUnderOrder = (p.stock || "").toLowerCase().includes("pedido");
+                const stockClass = isUnderOrder ? "order" : "in-stock";
+                const stockText = p.stock || "En Stock";
+
+                const hasDiscount = p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price);
+                const discountPercent = hasDiscount ? Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100) : 0;
+
+                const specsHTML = (p.specs || []).slice(0, 2).map(s => `
+                    <span class="boutique-spec-chip"><span>✓</span> ${s}</span>
+                `).join('');
+
+                const waOrderMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa comprar el producto: ${p.name} (${p.subtitle || p.category}). Cantidad: ${qty}. Precio: $${(p.price * qty).toFixed(2)}.`);
+
+                return `
+                    <article class="boutique-product-card">
+                        <div class="boutique-img-wrap">
+                            <span class="boutique-badge-tag">${p.badge || 'DESTACADO'}</span>
+                            <span class="boutique-stock-indicator ${stockClass}">
+                                <span class="dot"></span>
+                                <span>${stockText}</span>
+                            </span>
+                            <button type="button" class="boutique-quickview-btn" onclick="openProductQuickView('${p.id}')">
+                                <span>👁️ Vista Rápida</span>
+                            </button>
+                            <img src="${p.img}" alt="${p.name}" onerror="this.onerror=null; this.src='imagenes/imagenes_generales/imagen48.webp';">
+                        </div>
+
+                        <div class="boutique-card-body">
+                            <div class="boutique-meta-row">
+                                <span class="boutique-cat-tag">${p.category}</span>
+                                <span class="boutique-stars">★★★★★</span>
+                            </div>
+
+                            <h3 class="boutique-product-title">${p.name}</h3>
+                            <div class="boutique-product-sub">${p.subtitle || ''}</div>
+                            <p class="boutique-product-desc">${p.desc}</p>
+
+                            <div class="boutique-specs-preview">
+                                ${specsHTML}
+                            </div>
+
+                            <div class="boutique-price-box">
+                                <span class="boutique-price-val">$${parseFloat(p.price).toFixed(2)}</span>
+                                ${hasDiscount ? `<span class="boutique-old-price">$${parseFloat(p.oldPrice).toFixed(2)}</span>` : ''}
+                                <span class="boutique-unit-val">${p.unit || '/ unidad'}</span>
+                                ${hasDiscount ? `<span class="boutique-discount-tag">-${discountPercent}%</span>` : ''}
+                            </div>
+
+                            <div class="boutique-actions-row">
+                                <div class="boutique-qty-control">
+                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', -1)">-</button>
+                                    <span class="boutique-qty-number" id="qty-${p.id}">${qty}</span>
+                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', 1)">+</button>
+                                </div>
+
+                                <button type="button" class="boutique-btn-add" onclick="addProductToCart('${p.id}')">
+                                    <span>🛒 Añadir</span>
+                                </button>
+
+                                <a href="https://wa.me/50372359113?text=${waOrderMsg}" id="wa-${p.id}" target="_blank" rel="noopener noreferrer" class="boutique-btn-wa" title="Comprar por WhatsApp">
+                                    💬
+                                </a>
+                            </div>
+                        </div>
+                    </article>
+                `;
+            }).join('');
+        }
+
+        // Stepper de Cantidad en la Tarjeta
+        window.changeCardQty = function(id, delta) {
+            let current = window.storeCatalogState.quantities[id] || 1;
+            current += delta;
+            if (current < 1) current = 1;
+            window.storeCatalogState.quantities[id] = current;
+
+            const el = document.getElementById(`qty-${id}`);
+            if (el) el.textContent = current;
+
+            const p = window.storeCatalogState.products.find(x => x.id === id);
+            if (p) {
+                const waLink = document.getElementById(`wa-${id}`);
+                if (waLink) {
+                    const msg = encodeURIComponent(`Hola Multi Ideas SV, me interesa comprar el producto: ${p.name} (${p.subtitle || p.category}). Cantidad: ${current}. Precio estimado: $${(p.price * current).toFixed(2)}.`);
+                    waLink.href = `https://wa.me/50372359113?text=${msg}`;
+                }
+            }
+        };
+
+        // Añadir al Carrito con soporte de cantidad
+        window.addProductToCart = function(id) {
+            const p = window.storeCatalogState.products.find(x => x.id === id);
+            if (!p) return;
+            const qty = window.storeCatalogState.quantities[id] || 1;
+
+            for (let i = 0; i < qty; i++) {
+                if (window.addToCart) {
+                    window.addToCart(p.id, p.name, p.subtitle || p.category, p.price, p.img);
+                }
+            }
+        };
+
+        // Modal de Vista Rápida
+        window.openProductQuickView = function(id) {
+            const p = window.storeCatalogState.products.find(x => x.id === id);
+            if (!p) return;
+
+            window.storeCatalogState.quickViewProduct = p;
+            window.storeCatalogState.quickViewQty = window.storeCatalogState.quantities[id] || 1;
+
+            const qvImg = document.getElementById("qvCoverImg");
+            qvImg.onerror = function() {
+                this.onerror = null;
+                this.src = "imagenes/imagenes_generales/imagen48.webp";
+            };
+            qvImg.src = p.img || "imagenes/imagenes_generales/imagen48.webp";
+
+            document.getElementById("qvCategory").textContent = p.subtitle || p.category;
+            document.getElementById("qvTitle").textContent = p.name;
+            document.getElementById("qvDesc").textContent = p.desc;
+            document.getElementById("qvUnit").textContent = p.unit || "/ unidad";
+            document.getElementById("qvQtyVal").textContent = window.storeCatalogState.quickViewQty;
+
+            const oldPriceEl = document.getElementById("qvOldPrice");
+            if (p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price)) {
+                oldPriceEl.textContent = `$${parseFloat(p.oldPrice).toFixed(2)}`;
+                oldPriceEl.style.display = "inline";
+            } else {
+                oldPriceEl.style.display = "none";
+            }
+
+            updateQuickViewPrice();
+
+            const specsList = document.getElementById("qvSpecsList");
+            const specs = p.specs && p.specs.length > 0 ? p.specs : ["Calidad profesional garantizada", "Atención personalizada"];
+            specsList.innerHTML = specs.map(s => `
+                <div class="quickview-spec-bullet">
+                    <span style="color: #00f2fe; font-weight: 900;">✓</span>
+                    <span>${s}</span>
+                </div>
+            `).join('');
+
+            const btnAddCart = document.getElementById("qvBtnAddCart");
+            btnAddCart.onclick = function() {
+                const qty = window.storeCatalogState.quickViewQty;
+                for (let i = 0; i < qty; i++) {
+                    if (window.addToCart) {
+                        window.addToCart(p.id, p.name, p.subtitle || p.category, p.price, p.img);
+                    }
+                }
+                closeProductQuickView();
+            };
+
+            const btnWa = document.getElementById("qvBtnWa");
+            const waMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa ordenar el producto: ${p.name} (Cantidad: ${window.storeCatalogState.quickViewQty}).`);
+            btnWa.href = `https://wa.me/50372359113?text=${waMsg}`;
+
+            document.getElementById("productQuickViewModal").classList.add("open");
+        };
+
+        window.closeProductQuickView = function() {
+            document.getElementById("productQuickViewModal").classList.remove("open");
+        };
+
+        window.adjustQuickViewQty = function(delta) {
+            let qty = window.storeCatalogState.quickViewQty + delta;
+            if (qty < 1) qty = 1;
+            window.storeCatalogState.quickViewQty = qty;
+            document.getElementById("qvQtyVal").textContent = qty;
+            updateQuickViewPrice();
+
+            const p = window.storeCatalogState.quickViewProduct;
+            if (p) {
+                const btnWa = document.getElementById("qvBtnWa");
+                const waMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa ordenar el producto: ${p.name} (Cantidad: ${qty}). Total estimado: $${(p.price * qty).toFixed(2)}.`);
+                btnWa.href = `https://wa.me/50372359113?text=${waMsg}`;
+            }
+        };
+
+        function updateQuickViewPrice() {
+            const p = window.storeCatalogState.quickViewProduct;
+            if (!p) return;
+            const total = p.price * window.storeCatalogState.quickViewQty;
+            document.getElementById("qvPrice").textContent = `$${total.toFixed(2)}`;
+        }
+
+        // Filtros de Categorías
+        document.querySelectorAll("#productsCategoryFilters .showcase-filter-pill").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll("#productsCategoryFilters .showcase-filter-pill").forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                window.storeCatalogState.activeCategory = btn.getAttribute("data-category");
+                renderShoppingCatalog();
+            });
+        });
+
+        // Buscador en Vivo
+        const searchInput = document.getElementById("productsSearchInput");
+        if (searchInput) {
+            searchInput.addEventListener("input", (e) => {
+                window.storeCatalogState.searchQuery = e.target.value;
+                renderShoppingCatalog();
+            });
+        }
+
+        // Sincronización en Tiempo Real con Firebase RTDB
+        try {
+            const productsRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
+            onValue(productsRef, (snap) => {
+                const data = snap.val();
+                if (data) {
+                    const list = Array.isArray(data) ? data : Object.values(data);
+                    if (list.length > 0) {
+                        window.storeCatalogState.products = list;
+                        localStorage.setItem("multiideas_store_products", JSON.stringify(list));
+                        renderShoppingCatalog();
+                    }
+                }
+            });
+        } catch(err) {
+            console.warn("[RTDB Products Sync Warning]:", err);
+        }
+
+        // Renderizado inicial
+        renderShoppingCatalog();
+    </script>
 </body>
 </html>
