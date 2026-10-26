@@ -1415,6 +1415,130 @@
                 padding: 12px 14px;
             }
         }
+    
+        /* Estilos específicos para integración con Google Drive y Servicios */
+        .drive-upload-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-drive-upload {
+            background: linear-gradient(135deg, rgba(66, 133, 244, 0.2), rgba(15, 157, 88, 0.2));
+            border: 1px solid rgba(66, 133, 244, 0.45);
+            color: #60a5fa;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-drive-upload:hover {
+            background: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 0 16px rgba(37, 99, 235, 0.5);
+        }
+
+        .btn-drive-browse {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+            font-size: 0.82rem;
+            font-weight: 700;
+            padding: 8px 14px;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-drive-browse:hover {
+            background: var(--mi-cyan);
+            color: #07090e;
+            border-color: var(--mi-cyan);
+        }
+
+        .drive-preview-thumb-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: rgba(0, 0, 0, 0.35);
+            border: 1px solid var(--border-glass);
+            border-radius: var(--radius-sm);
+        }
+
+        .drive-preview-thumb-img {
+            width: 54px;
+            height: 54px;
+            object-fit: cover;
+            border-radius: 6px;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            background: #000;
+        }
+
+        .drive-browser-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 14px;
+            max-height: 440px;
+            overflow-y: auto;
+            padding: 10px 4px;
+        }
+
+        .drive-item-card {
+            background: rgba(18, 24, 38, 0.9);
+            border: 1px solid var(--border-glass);
+            border-radius: 10px;
+            padding: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .drive-item-card:hover {
+            border-color: var(--mi-cyan-bright);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0, 173, 181, 0.3);
+        }
+
+        .drive-item-card img {
+            width: 100%;
+            height: 85px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-bottom: 6px;
+        }
+
+        .drive-item-name {
+            font-size: 0.72rem;
+            color: #e2e8f0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            width: 100%;
+        }
+
+        .drive-item-folder {
+            font-size: 0.65rem;
+            color: var(--mi-cyan-bright);
+            font-weight: 700;
+        }
+    </style>
+
     </style>
 </head>
 
@@ -1506,7 +1630,15 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                         <span>Galería & Productos</span>
                     </div>
-                    <span class="nav-counter-pill" id="badgeTotalProducts">6</span>
+                    <span class="nav-counter-pill" id="badgeTotalProducts">7</span>
+                </button>
+
+                <button class="nav-link-btn" data-tab="tab-services" onclick="switchTab('tab-services', this)">
+                    <div class="nav-link-content">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+                        <span>Servicios Digitales</span>
+                    </div>
+                    <span class="nav-counter-pill" id="badgeTotalServices">5</span>
                 </button>
 
                 <button class="nav-link-btn" data-tab="tab-posts" onclick="switchTab('tab-posts', this)">
@@ -1768,6 +1900,32 @@
                     </div>
                 </section>
 
+
+                <!-- ==========================================================
+                     TAB NUEVO: SERVICIOS DIGITALES & TECH STUDIO
+                     ========================================================== -->
+                <section class="tab-view-pane" id="tab-services">
+                    <div class="table-controls-bar">
+                        <div class="search-box-wrap">
+                            <svg class="search-icon-inside" viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            <input type="text" id="servicesSearchInput" class="search-box-input" placeholder="Buscar servicios por nombre o categoría..." oninput="filterServicesCards()">
+                        </div>
+                        <div class="filter-pills-row">
+                            <button type="button" class="filter-btn-pill active" data-cat="all" onclick="filterServicesCategory('all', this)">Todos</button>
+                            <button type="button" class="filter-btn-pill" data-cat="Apps Android" onclick="filterServicesCategory('Apps Android', this)">Apps Android</button>
+                            <button type="button" class="filter-btn-pill" data-cat="Desarrollo Web" onclick="filterServicesCategory('Desarrollo Web', this)">Desarrollo Web</button>
+                            <button type="button" class="filter-btn-pill" data-cat="Bots & Streaming" onclick="filterServicesCategory('Bots & Streaming', this)">Bots & Streaming</button>
+                            <button type="button" class="filter-btn-pill" data-cat="Diseño & Marca" onclick="filterServicesCategory('Diseño & Marca', this)">Diseño & Marca</button>
+                            <button type="button" class="btn-action-trigger" onclick="openCreateServiceModal()">+ Añadir Servicio</button>
+                        </div>
+                    </div>
+
+                    <div class="cards-mosaic-grid" id="servicesMosaicGrid">
+                        <!-- Se llena con servicios -->
+                    </div>
+                </section>
+
+
                 <!-- ==========================================================
                      TAB 5: PUBLICACIONES & NOVEDADES FUTURAS
                      ========================================================== -->
@@ -2022,50 +2180,112 @@
         </div>
     </div>
 
-    <!-- Modal 2: Crear / Editar Producto -->
+        <!-- Modal 2: Crear / Editar Producto (Molde Completo de Producto) -->
     <div class="admin-modal-backdrop" id="modalProductBackdrop">
-        <div class="admin-modal-box">
+        <div class="admin-modal-box" style="max-width: 650px;">
             <div class="modal-header-row">
-                <h3 class="modal-title" id="productModalTitle">Nuevo Producto del Catálogo</h3>
+                <h3 class="modal-title" id="productModalTitle">Molde de Producto del Catálogo</h3>
                 <button type="button" class="btn-modal-close" onclick="closeModal('modalProductBackdrop')">✕</button>
             </div>
             <form id="productForm" onsubmit="event.preventDefault(); saveProductHandler();">
                 <input type="hidden" id="productFormId">
+                
                 <div class="form-field-group">
                     <label class="form-label">Nombre del Producto *</label>
                     <input type="text" id="productFormName" class="form-input-text" placeholder="Ej: Tarjetas de Presentación Matte" required>
                 </div>
-                <div class="form-field-group">
-                    <label class="form-label">Especificación / Subtítulo</label>
-                    <input type="text" id="productFormSubtitle" class="form-input-text" placeholder="Ej: Doble Cara - Acabado Fino">
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-field-group">
+                        <label class="form-label">Especificación / Subtítulo</label>
+                        <input type="text" id="productFormSubtitle" class="form-input-text" placeholder="Ej: Matte - Doble Cara">
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Categoría *</label>
+                        <select id="productFormCategory" class="form-select" required>
+                            <option value="Tarjetas">Tarjetas de Presentación</option>
+                            <option value="Stickers">Stickers Troquelados</option>
+                            <option value="Talonarios">Talonarios & Recetarios</option>
+                            <option value="Menús">Menús & Restaurantes</option>
+                            <option value="Afiches">Afiches & Publicidad</option>
+                            <option value="Papelería">Sobres & Papelería</option>
+                            <option value="Fotografía">Fotografías & Recuerdos</option>
+                            <option value="Mercancía">Mercancía & Personalizados</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-field-group">
-                    <label class="form-label">Categoría *</label>
-                    <select id="productFormCategory" class="form-select" required>
-                        <option value="tarjetas">Tarjetas de Presentación</option>
-                        <option value="stickers">Stickers Personalizados</option>
-                        <option value="imprenta">Talonarios & Imprenta</option>
-                        <option value="afiches">Afiches & Publicidad</option>
-                        <option value="menus">Menús & Restaurantes</option>
-                        <option value="digital">Servicios Digitales</option>
-                    </select>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px;">
+                    <div class="form-field-group">
+                        <label class="form-label">Precio Venta ($) *</label>
+                        <input type="number" id="productFormPrice" class="form-input-text" step="0.25" min="0.50" value="16.00" required>
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Precio Anterior ($)</label>
+                        <input type="number" id="productFormOldPrice" class="form-input-text" step="0.25" min="0" placeholder="Ej: 20.00">
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Unidad de Venta</label>
+                        <input type="text" id="productFormUnit" class="form-input-text" placeholder="Ej: / 100 uni., / block">
+                    </div>
                 </div>
-                <div class="form-field-group">
-                    <label class="form-label">Precio Base (USD $) *</label>
-                    <input type="number" id="productFormPrice" class="form-input-text" step="0.50" min="1" value="16.00" required>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-field-group">
+                        <label class="form-label">Distintivo / Badge</label>
+                        <select id="productFormBadge" class="form-select">
+                            <option value="MÁS VENDIDO">MÁS VENDIDO</option>
+                            <option value="OFERTA">OFERTA ESPECIAL</option>
+                            <option value="POPULAR">POPULAR</option>
+                            <option value="NUEVO">NUEVO LANZAMIENTO</option>
+                            <option value="EXPRESS">EXPRESS (24H)</option>
+                        </select>
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Disponibilidad / Stock</label>
+                        <select id="productFormStock" class="form-select">
+                            <option value="En Stock (Envío Rápido)">En Stock (Envío Rápido)</option>
+                            <option value="Bajo Pedido (24-48h)">Bajo Pedido (24-48h)</option>
+                            <option value="Agotado Temporal">Agotado Temporal</option>
+                        </select>
+                    </div>
                 </div>
+
+                <!-- Campo de Multimedia con Google Drive -->
                 <div class="form-field-group">
-                    <label class="form-label">Unidad de Venta</label>
-                    <input type="text" id="productFormUnit" class="form-input-text" placeholder="Ej: / 100 uni., / block">
+                    <label class="form-label">Imagen Multimedia del Producto</label>
+                    <input type="text" id="productFormImg" class="form-input-text" placeholder="https://lh3.googleusercontent.com/d/..." oninput="updateThumbPreview('productFormImg', 'productImgThumb')">
+                    
+                    <div class="drive-upload-toolbar">
+                        <input type="file" id="productDriveFileInput" accept="image/*" style="display:none;" onchange="window.uploadMediaToDrive(this, 'productFormImg', 'productImgThumb', '03_Productos_Fisicos', 'productUploadStatus')">
+                        <button type="button" class="btn-drive-upload" onclick="document.getElementById('productDriveFileInput').click()">
+                            <span>☁️ Subir a Google Drive</span>
+                        </button>
+                        <button type="button" class="btn-drive-browse" onclick="window.openDriveMediaPicker('productFormImg', 'productImgThumb')">
+                            <span>📁 Elegir de mi Drive</span>
+                        </button>
+                        <span id="productUploadStatus" style="font-size: 0.8rem; color: #00f2fe; font-weight: 700;"></span>
+                    </div>
+
+                    <div id="productImgThumbWrap" class="drive-preview-thumb-box" style="display:none;">
+                        <img id="productImgThumb" class="drive-preview-thumb-img" src="" alt="Previsualización">
+                        <div>
+                            <div style="font-size: 0.78rem; font-weight: 700; color: #ffffff;">Previsualización de Imagen</div>
+                            <div style="font-size: 0.72rem; color: #94a3b8;" id="productImgThumbUrl"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-field-group">
-                    <label class="form-label">URL de Imagen</label>
-                    <input type="text" id="productFormImg" class="form-input-text" placeholder="imagenes/imagenes_generales/imagen48.webp">
-                </div>
+
                 <div class="form-field-group">
                     <label class="form-label">Descripción Comercial</label>
-                    <textarea id="productFormDesc" class="form-textarea" placeholder="Detalles de impresión y materiales..."></textarea>
+                    <textarea id="productFormDesc" class="form-textarea" placeholder="Explica los acabados, durabilidad y valor para el cliente..."></textarea>
                 </div>
+
+                <div class="form-field-group">
+                    <label class="form-label">Especificaciones / Viñetas (Una por línea)</label>
+                    <textarea id="productFormSpecs" class="form-textarea" style="min-height: 85px;" placeholder="Papel Couché 300g grueso&#10;Acabado mate fino antirreflejo&#10;Impresión full color doble cara&#10;Esquinas rectas o redondeadas"></textarea>
+                </div>
+
                 <div class="form-actions-row">
                     <button type="button" class="btn-card-action btn-action-outline" onclick="closeModal('modalProductBackdrop')">Cancelar</button>
                     <button type="submit" class="btn-card-action btn-action-primary" style="flex: none; padding: 12px 24px;">Guardar Producto</button>
@@ -2120,6 +2340,130 @@
         </div>
     </div>
 
+        <!-- Modal: Crear / Editar Servicio (Molde Completo de Servicio) -->
+    <div class="admin-modal-backdrop" id="modalServiceBackdrop">
+        <div class="admin-modal-box" style="max-width: 650px;">
+            <div class="modal-header-row">
+                <h3 class="modal-title" id="serviceModalTitle">Molde de Servicio Digital</h3>
+                <button type="button" class="btn-modal-close" onclick="closeModal('modalServiceBackdrop')">✕</button>
+            </div>
+            <form id="serviceForm" onsubmit="event.preventDefault(); saveServiceHandler();">
+                <input type="hidden" id="serviceFormId">
+                
+                <div class="form-field-group">
+                    <label class="form-label">Nombre del Servicio *</label>
+                    <input type="text" id="serviceFormName" class="form-input-text" placeholder="Ej: Desarrollo de Apps Android Nativas" required>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-field-group">
+                        <label class="form-label">Categoría *</label>
+                        <select id="serviceFormCategory" class="form-select" required>
+                            <option value="Apps Android">Apps Android Nativas</option>
+                            <option value="Desarrollo Web">Desarrollo Web & Tiendas</option>
+                            <option value="Bots & Streaming">Bots & Automatización</option>
+                            <option value="Diseño & Marca">Diseño Publicitario & Marca</option>
+                            <option value="Asesoría Técnica">Asesoría Técnica & Hardware</option>
+                        </select>
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Inversión / Modalidad de Precio *</label>
+                        <input type="text" id="serviceFormPriceMode" class="form-input-text" placeholder="Ej: Desde $180, Desde $50, Cotización Libre" required>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+                    <div class="form-field-group">
+                        <label class="form-label">Tiempo Estimado de Entrega</label>
+                        <input type="text" id="serviceFormTurnaround" class="form-input-text" placeholder="Ej: ⚡ 1 a 2 semanas, ⚡ 3 a 5 días hábiles">
+                    </div>
+                    <div class="form-field-group">
+                        <label class="form-label">Distintivo / Badge</label>
+                        <select id="serviceFormBadge" class="form-select">
+                            <option value="DESTACADO">DESTACADO</option>
+                            <option value="RECOMENDADO">RECOMENDADO</option>
+                            <option value="AUTOMATIZACIÓN">AUTOMATIZACIÓN</option>
+                            <option value="IDENTIDAD">IDENTIDAD VISUAL</option>
+                            <option value="STREAMING">STREAMING & OBS</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Campo de Multimedia con Google Drive -->
+                <div class="form-field-group">
+                    <label class="form-label">Imagen / Portada del Servicio</label>
+                    <input type="text" id="serviceFormImg" class="form-input-text" placeholder="https://lh3.googleusercontent.com/d/..." oninput="updateThumbPreview('serviceFormImg', 'serviceImgThumb')">
+                    
+                    <div class="drive-upload-toolbar">
+                        <input type="file" id="serviceDriveFileInput" accept="image/*" style="display:none;" onchange="window.uploadMediaToDrive(this, 'serviceFormImg', 'serviceImgThumb', '04_Servicios_Digitales', 'serviceUploadStatus')">
+                        <button type="button" class="btn-drive-upload" onclick="document.getElementById('serviceDriveFileInput').click()">
+                            <span>☁️ Subir a Google Drive</span>
+                        </button>
+                        <button type="button" class="btn-drive-browse" onclick="window.openDriveMediaPicker('serviceFormImg', 'serviceImgThumb')">
+                            <span>📁 Elegir de mi Drive</span>
+                        </button>
+                        <span id="serviceUploadStatus" style="font-size: 0.8rem; color: #00f2fe; font-weight: 700;"></span>
+                    </div>
+
+                    <div id="serviceImgThumbWrap" class="drive-preview-thumb-box" style="display:none;">
+                        <img id="serviceImgThumb" class="drive-preview-thumb-img" src="" alt="Previsualización">
+                        <div>
+                            <div style="font-size: 0.78rem; font-weight: 700; color: #ffffff;">Previsualización de Imagen</div>
+                            <div style="font-size: 0.72rem; color: #94a3b8;" id="serviceImgThumbUrl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-field-group">
+                    <label class="form-label">Descripción Comercial y Orientada a Resultados</label>
+                    <textarea id="serviceFormDesc" class="form-textarea" placeholder="Explica qué problema soluciona y cómo beneficia al negocio..."></textarea>
+                </div>
+
+                <div class="form-field-group">
+                    <label class="form-label">Entregables Clave / Qué Incluye (Uno por línea)</label>
+                    <textarea id="serviceFormDeliverables" class="form-textarea" style="min-height: 95px;" placeholder="Arquitectura nativa Android con interfaz moderna&#10;Base de datos en tiempo real (Firebase RTDB)&#10;Compatibilidad total con Google Play Store&#10;Notificaciones push automáticas&#10;Garantía y soporte técnico incluido por 3 meses"></textarea>
+                </div>
+
+                <div class="form-field-group">
+                    <label class="form-label">Mensaje Pre-rellenado de WhatsApp para Cotizar</label>
+                    <input type="text" id="serviceFormWaMsg" class="form-input-text" placeholder="Ej: Hola Multi Ideas SV, me interesa cotizar una Aplicación Móvil Android a la medida.">
+                </div>
+
+                <div class="form-actions-row">
+                    <button type="button" class="btn-card-action btn-action-outline" onclick="closeModal('modalServiceBackdrop')">Cancelar</button>
+                    <button type="submit" class="btn-card-action btn-action-primary" style="flex: none; padding: 12px 24px;">Guardar Servicio</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Explorador Multimedia de Google Drive (Biblioteca) -->
+    <div class="admin-modal-backdrop" id="modalDrivePickerBackdrop">
+        <div class="admin-modal-box" style="max-width: 740px;">
+            <div class="modal-header-row">
+                <div>
+                    <h3 class="modal-title">📁 Biblioteca Multimedia de Google Drive</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 2px;">Imágenes sincronizadas directamente de tu Google Drive oficial (Multi Ideas SV).</p>
+                </div>
+                <button type="button" class="btn-modal-close" onclick="closeModal('modalDrivePickerBackdrop')">✕</button>
+            </div>
+            
+            <div style="display: flex; gap: 8px; margin-bottom: 14px;">
+                <input type="text" id="driveSearchFilter" class="form-input-text" placeholder="Filtrar imágenes por nombre..." oninput="filterDriveBrowserItems()">
+                <button type="button" class="btn-card-action btn-action-outline" style="flex: none;" onclick="loadDriveMediaTree(true)">🔄 Recargar</button>
+            </div>
+
+            <div id="drivePickerLoading" style="text-align: center; padding: 30px; color: var(--mi-cyan);">
+                <span>Cargando biblioteca de Google Drive...</span>
+            </div>
+
+            <div class="drive-browser-grid" id="drivePickerGrid" style="display: none;">
+                <!-- Miniaturas de archivos de Google Drive -->
+            </div>
+        </div>
+    </div>
+
+
     <!-- Modal 4: Detalle de Usuario -->
     <div class="admin-modal-backdrop" id="modalUserDetailBackdrop">
         <div class="admin-modal-box">
@@ -2155,6 +2499,8 @@
             users: [],
             projects: [],
             products: [],
+            services: [],
+            activeFilterServiceCat: "all",
             posts: [],
             leads: [],
             activeFilterProvider: "all",
@@ -2217,6 +2563,7 @@
             "tab-products": { title: "Galería de Productos", sub: "Imprenta, productos físicos y soluciones para empresas" },
             "tab-posts": { title: "Publicaciones & Boletines", sub: "Espacio editorial para anuncios, avisos y lanzamientos" },
             "tab-system": { title: "Salud del Sistema", sub: "Telemetría, latencia de base de datos y consola de registros" },
+            "tab-services": { title: "Servicios Digitales", sub: "Soluciones de software a la medida, Apps Android y automatizaciones" },
             "tab-leads": { title: "Solicitudes & Leads", sub: "Bandeja de cotizaciones y mensajes recibidos" },
             "tab-settings": { title: "Ajustes & Respaldo", sub: "Configuración global y copias de seguridad descargables" }
         };
@@ -2240,6 +2587,12 @@
 
             // Cerrar menú móvil si está abierto
             toggleMobileSidebar(false);
+
+            if (tabId === "tab-services" && window.renderServicesMosaic) {
+                window.renderServicesMosaic();
+            } else if (tabId === "tab-products" && window.renderProductsMosaic) {
+                window.renderProductsMosaic();
+            }
         };
 
         window.toggleMobileSidebar = function(force) {
@@ -2367,64 +2720,199 @@
         // 7. Catálogo de Productos Base de Multi Ideas SV (de productos.html)
         const DEFAULT_PRODUCTS = [
             {
-                id: "tarjetas-matte",
-                name: "Tarjetas de Presentación",
+                id: "prod-tarjetas-matte",
+                name: "Tarjetas de Presentación Matte",
                 subtitle: "Matte - Doble Cara",
-                category: "tarjetas",
+                category: "Tarjetas",
                 price: 16.00,
+                oldPrice: 20.00,
                 unit: "/ 100 uni.",
-                img: "./imagenes/imagenes_generales/imagen48.webp",
-                desc: "Tarjetas con acabados finos y profesionales por ambos lados, impresas con excelente resolución."
+                badge: "MÁS VENDIDO",
+                stock: "En Stock (Envío Rápido)",
+                img: "https://lh3.googleusercontent.com/d/1WDGaVmOyy-t_zGIHfIcbWehKLKX9eVDg",
+                desc: "Tarjetas impresas en papel couché de 300g con laminado mate antirreflejo y colores vivos de alta definición por ambas caras.",
+                specs: ["Papel Couché 300g grueso", "Acabado mate fino antirreflejo", "Impresión full color tiro y retiro", "Esquinas rectas o redondeadas"]
             },
             {
-                id: "stickers-personalizados",
-                name: "Stickers Personalizados",
-                subtitle: "Brillantes - Troquelados",
-                category: "stickers",
+                id: "prod-stickers-personalizados",
+                name: "Stickers Troquelados a la Forma",
+                subtitle: "Vinil Adhesivo Brillante",
+                category: "Stickers",
                 price: 3.00,
+                oldPrice: 4.50,
                 unit: "/ 30 uni.",
-                img: "./imagenes/imagenes_generales/imagen49.webp",
-                desc: "Stickers adhesivos ideales para personalizar tus empaques, termos, libretas o envíos de marca."
+                badge: "OFERTA",
+                stock: "En Stock",
+                img: "https://lh3.googleusercontent.com/d/1DgcZrRW1RCyyhSQ92VrZAycl1QZs_hqS",
+                desc: "Stickers adhesivos troquelados individualmente. Resistentes al agua, polvo y rozaduras, perfectos para termos, libretas y empaques.",
+                specs: ["Corte computarizado exacto", "Vinil adhesivo de alta adherencia", "Colores resistentes a la luz", "Fácil desprendimiento"]
             },
             {
-                id: "recetarios-talonarios",
-                name: "Recetarios o Talonarios",
+                id: "prod-recetarios-talonarios",
+                name: "Recetarios o Talonarios Comerciales",
                 subtitle: "100 Hojas por Block",
-                category: "imprenta",
+                category: "Talonarios",
                 price: 8.00,
+                oldPrice: 10.00,
                 unit: "/ block",
-                img: "./imagenes/imagenes_generales/imagen60.webp",
-                desc: "Talonarios para recetas médicas, facturas o control interno de tu negocio, totalmente personalizados."
+                badge: "POPULAR",
+                stock: "Bajo Pedido (24-48h)",
+                img: "https://lh3.googleusercontent.com/d/1je8fQ3NP-ZZACjU5nmH2s1c4Lu-NtgWw",
+                desc: "Talonarios numerados o recetarios médicos personalizados con el logo, dirección y colores de tu clínica o empresa.",
+                specs: ["100 Hojas bond de alta blancura", "Encolado superior de alta resistencia", "Opción de copia con papel químico", "Tamaño media carta estándar"]
             },
             {
-                id: "afiches-publicitarios",
-                name: "Afiches Publicitarios",
-                subtitle: "Full Color - 11x17 pulg.",
-                category: "afiches",
+                id: "prod-sobres-membretados",
+                name: "Sobres y Páginas Membretadas",
+                subtitle: "Medida 14x15.5 cm",
+                category: "Papelería",
+                price: 2.00,
+                oldPrice: 3.00,
+                unit: "/ 12 uni.",
+                badge: "CORPORATIVO",
+                stock: "En Stock",
+                img: "https://lh3.googleusercontent.com/d/1ztRHoWX0HjO6a6gGT_6wjZ_lndkclFQQ",
+                desc: "Sobres impresos a todo color ideales para correspondencia oficial, tarjetas de regalo, invitaciones y eventos corporativos.",
+                specs: ["Papel bond especial de 90g", "Impresión de alta resolución", "Cierre con adhesivo engomado", "Diseño personalizado a tu marca"]
+            },
+            {
+                id: "prod-menus-restaurante",
+                name: "Menús Rígidos para Restaurantes",
+                subtitle: "Plastificado Grueso Lavable",
+                category: "Menús",
+                price: 6.00,
+                oldPrice: 8.50,
+                unit: "/ unidad",
+                badge: "ALTA DEMANDA",
+                stock: "Bajo Pedido",
+                img: "https://lh3.googleusercontent.com/d/1Z-wtvOINhjO7z9OSxtpiTRz7eMXsNjEx",
+                desc: "Menús y cartas comerciales resistentes al agua, grasa y limpieza constante. Diseñados para resaltar el apetito y las ventas.",
+                specs: ["Plastificado rígido térmico", "Resistente a líquidos y salsas", "Formato díptico, tríptico o carta", "Colores vívidos y nítidos"]
+            },
+            {
+                id: "prod-afiches-publicitarios",
+                name: "Afiches Publicitarios Gran Impacto",
+                subtitle: "Tamaño Tabloide 11x17 pulg.",
+                category: "Afiches",
                 price: 12.00,
+                oldPrice: 15.00,
                 unit: "/ 50 uni.",
-                img: "https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&q=80&w=600",
-                desc: "Impresión de afiches de alto impacto para promocionar eventos, ofertas y menús de temporada."
+                badge: "EVENTOS",
+                stock: "En Stock",
+                img: "https://lh3.googleusercontent.com/d/1EPOJfGkEGJjOHLY2o7zkLpljaV4P_E6F",
+                desc: "Afiches publicitarios en papel satinado brillante. Máxima visibilidad para conciertos, promociones de temporada y avisos comerciales.",
+                specs: ["Medida 11x17 pulgadas (Tabloide)", "Papel satinado de 150g", "Tinta resistente al desvanecimiento", "Ideal para vitrinas y muros"]
             },
             {
-                id: "menus-plastificados",
-                name: "Menús para Restaurantes",
-                subtitle: "Plastificado Grueso Rígido",
-                category: "menus",
-                price: 25.00,
-                unit: "/ 10 uni.",
-                img: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=600",
-                desc: "Menús resistentes al agua y al uso diario con diseño gráfico adaptado a la identidad de tu negocio."
+                id: "prod-fotografias-impresas",
+                name: "Fotografías Impresas y Retratos",
+                subtitle: "Papel Fotográfico Genuino",
+                category: "Fotografía",
+                price: 1.00,
+                oldPrice: 1.50,
+                unit: "/ foto (6x4)",
+                badge: "RECUERDOS",
+                stock: "En Stock",
+                img: "https://lh3.googleusercontent.com/d/1cz8Ip8MG7JMnCUxx_4HznTQ7zgifo_fY",
+                desc: "Tus mejores momentos fuera de la pantalla. Fotografías impresas en papel fotográfico profesional con protección UV de larga duración.",
+                specs: ["Papel fotográfico glossy o mate", "Colores calibrados de estudio", "Tamaño estándar 4x6, 5x7 o 8x10", "No se borra con el tiempo"]
+            }
+        ];
+
+        
+        // Catálogo de Servicios Digitales Base de Multi Ideas SV (con Drive CDN)
+        const DEFAULT_STORE_SERVICES = [
+            {
+                id: "serv-apps-android",
+                name: "Desarrollo de Apps Android Nativas",
+                category: "Apps Android",
+                priceMode: "Desde $180",
+                turnaround: "⚡ 1 a 2 semanas",
+                badge: "DESTACADO",
+                img: "https://lh3.googleusercontent.com/d/1aUIgGy9AxziUwQJVGHgxjhdU7NG-drUm",
+                desc: "Diseñamos y programamos aplicaciones móviles fluidas y potentes listas para descargar e instalar en dispositivos Android.",
+                deliverables: [
+                    "Arquitectura nativa Android con interfaz moderna",
+                    "Base de datos en tiempo real (Firebase RTDB)",
+                    "Compatibilidad total con Google Play Store",
+                    "Notificaciones push automáticas",
+                    "Modo offline con caché local inteligente",
+                    "Garantía y soporte técnico incluido por 3 meses"
+                ],
+                waMsg: "Hola Multi Ideas SV, me interesa cotizar una Aplicación Móvil Android Nativa a la medida."
             },
             {
-                id: "diplomas-certificados",
-                name: "Diplomas & Certificados",
-                subtitle: "Papel Opalina / Pergamino",
-                category: "imprenta",
-                price: 15.00,
-                unit: "/ 25 uni.",
-                img: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&q=80&w=600",
-                desc: "Certificados elegantes para graduaciones, cursos, torneos deportivos o capacitaciones empresariales."
+                id: "serv-web-corporativas",
+                name: "Páginas Web Corporativas & E-Commerce",
+                category: "Desarrollo Web",
+                priceMode: "Desde $120",
+                turnaround: "⚡ 3 a 5 días hábiles",
+                badge: "RECOMENDADO",
+                img: "https://lh3.googleusercontent.com/d/1nADalJPk53mnm_ujkqBHxSpD6m-O9Slz",
+                desc: "Sitios web rápidos, modernos y optimizados para Google. Incluyen catálogo de productos y botón de compra directa a WhatsApp.",
+                deliverables: [
+                    "Diseño 100% responsivo adaptable a celulares y PC",
+                    "Catálogo interactivo con carrito de compras WhatsApp",
+                    "Velocidad de carga ultrarrápida (100% Performance)",
+                    "Posicionamiento SEO local en El Salvador",
+                    "Dominio .com y hosting por 1 año incluido",
+                    "Panel administrativo autogestionable"
+                ],
+                waMsg: "Hola Multi Ideas SV, quiero cotizar un sitio web corporativo o tienda virtual para mi negocio."
+            },
+            {
+                id: "serv-bots-automatizacion",
+                name: "Bots Inteligentes & Automatización 24/7",
+                category: "Bots & Streaming",
+                priceMode: "Desde $50",
+                turnaround: "⚡ 24 a 48 horas",
+                badge: "AUTOMATIZACIÓN",
+                img: "https://lh3.googleusercontent.com/d/1KvJ0aZnZlCPRm_bmk1krxv8gYcayCS5h",
+                desc: "Atiende a tus prospectos en redes sociales las 24 horas del día. Respuestas inmediatas, catálogo automático y cierre de ventas.",
+                deliverables: [
+                    "Atención automática en WhatsApp, Messenger e Instagram",
+                    "Menús interactivos y respuestas de preguntas frecuentes",
+                    "Recepción de pedidos y cotizaciones sin esperas",
+                    "Conexión con hojas de cálculo o bases de datos",
+                    "Capacitación para modificar respuestas fácilmente"
+                ],
+                waMsg: "Hola Multi Ideas SV, quiero implementar un bot de automatización 24/7 en mis redes sociales."
+            },
+            {
+                id: "serv-diseno-publicitario",
+                name: "Diseño Publicitario & Identidad de Marca",
+                category: "Diseño & Marca",
+                priceMode: "Desde $25",
+                turnaround: "⚡ 24 a 72 horas",
+                badge: "IDENTIDAD",
+                img: "https://lh3.googleusercontent.com/d/1ZxXgUCAbCMa4BIrO90udWNF46ipMWiT3",
+                desc: "Creamos la identidad visual que tu negocio necesita para transmitir confianza, profesionalismo y destacar frente a la competencia.",
+                deliverables: [
+                    "Diseño de logotipos vectoriales de alta resolución",
+                    "Banners publicitarios y flyers para campañas de redes",
+                    "Diseño de etiquetas, empaques y papelería comercial",
+                    "Formatos listos para imprenta y uso digital",
+                    "Manual básico de paleta de colores y tipografía"
+                ],
+                waMsg: "Hola Multi Ideas SV, me interesa el servicio de diseño publicitario y creación de marca."
+            },
+            {
+                id: "serv-widgets-obs",
+                name: "Overlays & Widgets para Creadores (OBS)",
+                category: "Bots & Streaming",
+                priceMode: "Desde $35",
+                turnaround: "⚡ 2 a 3 días hábiles",
+                badge: "STREAMING",
+                img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&q=80&w=600",
+                desc: "Widgets transparentes en tiempo real para transmisiones en Kick, Twitch y YouTube con alertas, ruletas y animaciones fluidas.",
+                deliverables: [
+                    "Integración transparente directa en OBS Studio",
+                    "Ruletas interactivas, contadores y metas de donación",
+                    "Sincronización en tiempo real vía WebSockets",
+                    "Diseño adaptado a la temática del canal",
+                    "Instalación remota guiada paso a paso"
+                ],
+                waMsg: "Hola Multi Ideas SV, me interesa cotizar overlays y widgets personalizados para OBS Studio."
             }
         ];
 
@@ -2473,10 +2961,14 @@
 
                 const storedPosts = localStorage.getItem("multiideas_admin_posts");
                 window.adminState.posts = storedPosts ? JSON.parse(storedPosts) : DEFAULT_POSTS;
+
+                const storedServices = localStorage.getItem("multiideas_store_services");
+                window.adminState.services = storedServices ? JSON.parse(storedServices) : DEFAULT_STORE_SERVICES;
             } catch(e) {
                 window.adminState.projects = DEFAULT_PROJECTS;
                 window.adminState.products = DEFAULT_PRODUCTS;
                 window.adminState.posts = DEFAULT_POSTS;
+                window.adminState.services = DEFAULT_STORE_SERVICES;
             }
         }
         loadLocalData();
@@ -2900,7 +3392,339 @@
             logTerminal("PROJECTS", `Proyecto eliminado con ID: ${id}`, "warn");
         };
 
-        // 13. Render de Galería de Productos
+        
+        // ==========================================================================
+        // INTEGRACIÓN CON GOOGLE DRIVE (SUBIDA & EXPLORADOR DE BIBLIOTECA)
+        // ==========================================================================
+        const APPS_SCRIPT_DRIVE_ENDPOINT = "https://script.google.com/macros/s/AKfycbz5Zq7CYZTgrA6QoCAWCLzIRx-Y_fLyex_OMS124dCQPCxj-fJTd6okjS6Bovv4PT_w/exec";
+        let driveCachedFiles = [];
+
+        window.updateThumbPreview = function(inputId, thumbImgId) {
+            const val = (document.getElementById(inputId)?.value || "").trim();
+            const thumb = document.getElementById(thumbImgId);
+            const wrap = document.getElementById(thumbImgId + "Wrap");
+            const urlText = document.getElementById(thumbImgId + "Url");
+            if (thumb && wrap) {
+                if (val) {
+                    thumb.src = val;
+                    wrap.style.display = "flex";
+                    if (urlText) urlText.textContent = val.length > 50 ? val.slice(0, 48) + '...' : val;
+                } else {
+                    wrap.style.display = "none";
+                }
+            }
+        };
+
+        window.uploadMediaToDrive = async function(fileInput, targetInputId, thumbImgId, subfolderName, statusId) {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const statusEl = document.getElementById(statusId);
+            if (statusEl) statusEl.textContent = "☁️ Subiendo a Google Drive...";
+
+            showToast(`☁️ Subiendo "${file.name}" a Google Drive...`, "☁️");
+            logTerminal("DRIVE", `Iniciando subida de ${file.name} a carpeta ${subfolderName}...`);
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const rawBase64 = e.target.result.split(',')[1];
+                    const payload = {
+                        base64: rawBase64,
+                        mimeType: file.type || "image/png",
+                        filename: file.name.replace(/[^a-zA-Z0-9_\-\.]/g, '_'),
+                        folderName: "Imagenes_Negocio_MultiIdeasSv",
+                        subfolderName: subfolderName || "03_Productos_Fisicos",
+                        inRoot: false,
+                        keepFiles: true,
+                        userName: "Admin_MultiIdeasSv",
+                        userEmail: "admin@multiideassv.com"
+                    };
+
+                    const res = await fetch(APPS_SCRIPT_DRIVE_ENDPOINT, {
+                        method: "POST",
+                        body: JSON.stringify(payload),
+                        headers: { "Content-Type": "application/json" }
+                    });
+
+                    const data = await res.json();
+                    if (data && data.status === "success" && data.fileUrl) {
+                        const targetInput = document.getElementById(targetInputId);
+                        if (targetInput) {
+                            targetInput.value = data.fileUrl;
+                            window.updateThumbPreview(targetInputId, thumbImgId);
+                        }
+                        if (statusEl) statusEl.textContent = "✅ Guardado en Drive";
+                        showToast("✅ Archivo subido exitosamente a Google Drive!");
+                        logTerminal("DRIVE", `Archivo guardado: ${data.filename} (CDN: ${data.fileUrl})`, "success");
+                    } else {
+                        throw new Error(data ? data.message : "Error desconocido");
+                    }
+                } catch(err) {
+                    console.error("Error al subir a Google Drive:", err);
+                    if (statusEl) statusEl.textContent = "⚠️ Error al subir";
+                    showToast("⚠️ No se pudo subir la imagen a Drive. Verifica la conexión.");
+                    logTerminal("DRIVE", `Error de subida: ${err.message}`, "warn");
+                } finally {
+                    fileInput.value = "";
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+
+        let currentPickerTargetInput = null;
+        let currentPickerThumb = null;
+
+        window.openDriveMediaPicker = function(targetInputId, thumbImgId) {
+            currentPickerTargetInput = targetInputId;
+            currentPickerThumb = thumbImgId;
+            document.getElementById("modalDrivePickerBackdrop").classList.add("open");
+            loadDriveMediaTree(false);
+        };
+
+        window.loadDriveMediaTree = async function(force) {
+            const loading = document.getElementById("drivePickerLoading");
+            const grid = document.getElementById("drivePickerGrid");
+            loading.style.display = "block";
+            grid.style.display = "none";
+
+            try {
+                if (!force && driveCachedFiles.length > 0) {
+                    renderDrivePickerGrid(driveCachedFiles);
+                    loading.style.display = "none";
+                    grid.style.display = "grid";
+                    return;
+                }
+
+                const res = await fetch(APPS_SCRIPT_DRIVE_ENDPOINT + "?folder=Imagenes_Negocio_MultiIdeasSv");
+                const json = await res.json();
+
+                if (json && json.status === "success" && json.data) {
+                    const allFiles = [];
+                    function extract(folder, folderPath) {
+                        if (folder.files) {
+                            folder.files.forEach(f => {
+                                if (!f.name.startsWith('.init_')) {
+                                    allFiles.push({
+                                        id: f.id,
+                                        name: f.name,
+                                        cdnUrl: f.cdnUrl,
+                                        folder: folderPath || folder.name
+                                    });
+                                }
+                            });
+                        }
+                        if (folder.subfolders) {
+                            folder.subfolders.forEach(sf => extract(sf, sf.name));
+                        }
+                    }
+                    extract(json.data, "Imagenes_Negocio_MultiIdeasSv");
+                    driveCachedFiles = allFiles;
+                    renderDrivePickerGrid(allFiles);
+                    logTerminal("DRIVE", `Cargadas ${allFiles.length} imágenes desde Google Drive.`, "info");
+                } else {
+                    grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No se encontraron imágenes en el Drive.</div>`;
+                }
+            } catch(e) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: #f87171; padding: 20px;">Error al conectar con Google Drive.</div>`;
+            } finally {
+                loading.style.display = "none";
+                grid.style.display = "grid";
+            }
+        };
+
+        function renderDrivePickerGrid(files) {
+            const grid = document.getElementById("drivePickerGrid");
+            if (!grid) return;
+            const filter = (document.getElementById("driveSearchFilter")?.value || "").toLowerCase().trim();
+            const filtered = files.filter(f => !filter || f.name.toLowerCase().includes(filter) || f.folder.toLowerCase().includes(filter));
+
+            if (filtered.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No hay imágenes que coincidan.</div>`;
+                return;
+            }
+
+            grid.innerHTML = filtered.map(f => `
+                <div class="drive-item-card" onclick="selectDriveImage('${f.cdnUrl}')" title="${f.name}">
+                    <img src="${f.cdnUrl}" alt="${f.name}" loading="lazy">
+                    <span class="drive-item-name">${f.name}</span>
+                    <span class="drive-item-folder">${f.folder}</span>
+                </div>
+            `).join('');
+        }
+
+        window.filterDriveBrowserItems = function() {
+            renderDrivePickerGrid(driveCachedFiles);
+        };
+
+        window.selectDriveImage = function(cdnUrl) {
+            if (currentPickerTargetInput) {
+                const input = document.getElementById(currentPickerTargetInput);
+                if (input) {
+                    input.value = cdnUrl;
+                    window.updateThumbPreview(currentPickerTargetInput, currentPickerThumb);
+                }
+            }
+            closeModal("modalDrivePickerBackdrop");
+            showToast("🖼️ Imagen de Drive seleccionada");
+        };
+
+        // ==========================================================================
+        // GESTIÓN Y CRUD DE SERVICIOS DIGITALES (MOLDE DE SERVICIO)
+        // ==========================================================================
+        window.renderServicesMosaic = function() {
+            const grid = document.getElementById("servicesMosaicGrid");
+            if (!grid) return;
+
+            const q = (document.getElementById("servicesSearchInput")?.value || "").toLowerCase().trim();
+            const cat = window.adminState.activeFilterServiceCat;
+
+            const list = (window.adminState.services || []).filter(s => {
+                if (cat !== "all" && s.category !== cat) return false;
+                if (q) {
+                    const hay = [s.name, s.category, s.desc, s.priceMode].join(" ").toLowerCase();
+                    if (!hay.includes(q)) return false;
+                }
+                return true;
+            });
+
+            if (list.length === 0) {
+                grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">No se encontraron servicios registrados.</div>`;
+                return;
+            }
+
+            grid.innerHTML = list.map(s => {
+                const delivsHTML = (s.deliverables || []).slice(0, 3).map(d => `<div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 3px;">✓ ${d}</div>`).join('');
+
+                return `
+                    <div class="mosaic-card">
+                        <div class="mosaic-card-cover" style="height: 180px;">
+                            <span class="card-floating-badge tag-pill tag-prod">${s.badge || 'ACTIVO'}</span>
+                            <span class="card-floating-price">${s.priceMode || 'Cotizar'}</span>
+                            <img src="${s.img}" alt="${s.name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=600'">
+                        </div>
+                        <div class="mosaic-card-body">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                                <span style="font-size: 0.72rem; color: var(--mi-cyan-bright); font-weight: 800; text-transform: uppercase;">${s.category}</span>
+                                <span style="font-size: 0.72rem; color: #fbbf24; font-weight: 700;">${s.turnaround || '⚡ Disponible'}</span>
+                            </div>
+                            <h3 class="mosaic-card-title">${s.name}</h3>
+                            <p class="mosaic-card-desc">${s.desc}</p>
+                            
+                            <div style="background: rgba(0,0,0,0.25); border: 1px solid var(--border-glass); border-radius: 8px; padding: 10px; margin-bottom: 14px;">
+                                <span style="font-size: 0.7rem; color: var(--mi-cyan); font-weight: 800; text-transform: uppercase; display: block; margin-bottom: 6px;">Qué Incluye:</span>
+                                ${delivsHTML}
+                            </div>
+
+                            <div class="mosaic-card-footer-actions">
+                                <button type="button" class="btn-card-action btn-action-outline" onclick="openEditServiceModal('${s.id}')">Editar</button>
+                                <button type="button" class="btn-card-action btn-action-danger" style="flex: none;" onclick="deleteServiceHandler('${s.id}')" title="Eliminar Servicio">🗑️</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        window.filterServicesCards = function() {
+            renderServicesMosaic();
+        };
+
+        window.filterServicesCategory = function(cat, btn) {
+            window.adminState.activeFilterServiceCat = cat;
+            document.querySelectorAll("#tab-services .filter-btn-pill").forEach(b => b.classList.remove("active"));
+            if (btn) btn.classList.add("active");
+            renderServicesMosaic();
+        };
+
+        window.openCreateServiceModal = function() {
+            document.getElementById("serviceModalTitle").textContent = "Nuevo Servicio Digital";
+            document.getElementById("serviceFormId").value = "";
+            document.getElementById("serviceFormName").value = "";
+            document.getElementById("serviceFormCategory").value = "Apps Android";
+            document.getElementById("serviceFormPriceMode").value = "Desde $180";
+            document.getElementById("serviceFormTurnaround").value = "⚡ 1 a 2 semanas";
+            document.getElementById("serviceFormBadge").value = "DESTACADO";
+            document.getElementById("serviceFormImg").value = "";
+            document.getElementById("serviceFormDesc").value = "";
+            document.getElementById("serviceFormDeliverables").value = "Arquitectura nativa Android con interfaz moderna\nBase de datos en tiempo real (Firebase RTDB)\nCompatibilidad total con Google Play Store\nNotificaciones push automáticas";
+            document.getElementById("serviceFormWaMsg").value = "Hola Multi Ideas SV, me interesa cotizar este servicio.";
+            window.updateThumbPreview('serviceFormImg', 'serviceImgThumb');
+            document.getElementById("modalServiceBackdrop").classList.add("open");
+        };
+
+        window.openEditServiceModal = function(id) {
+            const s = (window.adminState.services || []).find(x => x.id === id);
+            if (!s) return;
+            document.getElementById("serviceModalTitle").textContent = "Editar Servicio Digital";
+            document.getElementById("serviceFormId").value = s.id;
+            document.getElementById("serviceFormName").value = s.name;
+            document.getElementById("serviceFormCategory").value = s.category;
+            document.getElementById("serviceFormPriceMode").value = s.priceMode || "Desde $100";
+            document.getElementById("serviceFormTurnaround").value = s.turnaround || "⚡ 3 a 5 días";
+            document.getElementById("serviceFormBadge").value = s.badge || "DESTACADO";
+            document.getElementById("serviceFormImg").value = s.img || "";
+            document.getElementById("serviceFormDesc").value = s.desc || "";
+            document.getElementById("serviceFormDeliverables").value = (s.deliverables || []).join("\n");
+            document.getElementById("serviceFormWaMsg").value = s.waMsg || "";
+            window.updateThumbPreview('serviceFormImg', 'serviceImgThumb');
+            document.getElementById("modalServiceBackdrop").classList.add("open");
+        };
+
+        window.saveServiceHandler = function() {
+            const id = document.getElementById("serviceFormId").value || ("serv_" + Date.now());
+            const deliverablesRaw = document.getElementById("serviceFormDeliverables").value || "";
+            const deliverables = deliverablesRaw.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+
+            const service = {
+                id: id,
+                name: document.getElementById("serviceFormName").value,
+                category: document.getElementById("serviceFormCategory").value,
+                priceMode: document.getElementById("serviceFormPriceMode").value,
+                turnaround: document.getElementById("serviceFormTurnaround").value,
+                badge: document.getElementById("serviceFormBadge").value,
+                img: document.getElementById("serviceFormImg").value || "https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&q=80&w=600",
+                desc: document.getElementById("serviceFormDesc").value || "Solución tecnológica Multi Ideas SV.",
+                deliverables: deliverables,
+                waMsg: document.getElementById("serviceFormWaMsg").value,
+                updatedAt: Date.now()
+            };
+
+            const idx = (window.adminState.services || []).findIndex(x => x.id === id);
+            if (idx >= 0) {
+                window.adminState.services[idx] = service;
+                showToast(`✅ Servicio "${service.name}" actualizado`);
+            } else {
+                window.adminState.services.unshift(service);
+                showToast(`💼 Servicio "${service.name}" añadido al catálogo`);
+            }
+
+            localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
+            try {
+                set(ref(rtdb, "multiideas_catalogo/services"), window.adminState.services);
+            } catch(e) {}
+
+            closeModal("modalServiceBackdrop");
+            renderServicesMosaic();
+            updateDashboardCounters();
+            logTerminal("SERVICES", `Servicio guardado: ${service.name}`, "success");
+        };
+
+        window.deleteServiceHandler = function(id) {
+            if (!confirm("¿Deseas eliminar este servicio del catálogo?")) return;
+            window.adminState.services = (window.adminState.services || []).filter(x => x.id !== id);
+            localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
+            try {
+                set(ref(rtdb, "multiideas_catalogo/services"), window.adminState.services);
+            } catch(e) {}
+            renderServicesMosaic();
+            updateDashboardCounters();
+            showToast("🗑️ Servicio eliminado");
+            logTerminal("SERVICES", `Servicio eliminado ID: ${id}`, "warn");
+        };
+
+
+                // 13. Render de Galería de Productos
         window.renderProductsMosaic = function() {
             const grid = document.getElementById("productsMosaicGrid");
             if (!grid) return;
@@ -2923,19 +3747,24 @@
             }
 
             grid.innerHTML = list.map(p => {
+                const oldPriceHTML = p.oldPrice ? `<span style="font-size: 0.78rem; text-decoration: line-through; opacity: 0.8; margin-right: 4px;">${parseFloat(p.oldPrice).toFixed(2)}</span>` : '';
                 return `
                     <div class="mosaic-card">
                         <div class="mosaic-card-cover">
-                            <span class="card-floating-price">$${parseFloat(p.price).toFixed(2)} ${p.unit || ''}</span>
+                            <span class="card-floating-badge tag-pill tag-prod">${p.badge || 'DISPONIBLE'}</span>
+                            <span class="card-floating-price">${oldPriceHTML}${parseFloat(p.price).toFixed(2)} ${p.unit || ''}</span>
                             <img src="${p.img}" alt="${p.name}" loading="lazy" onerror="this.src='./imagenes/imagenes_generales/imagen48.webp'">
                         </div>
                         <div class="mosaic-card-body">
-                            <span style="font-size: 0.72rem; color: var(--mi-cyan-bright); font-weight: 700; text-transform: uppercase;">${p.subtitle || p.category}</span>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span style="font-size: 0.72rem; color: var(--mi-cyan-bright); font-weight: 700; text-transform: uppercase;">${p.subtitle || p.category}</span>
+                                <span style="font-size: 0.68rem; color: #34d399;">● ${p.stock || 'En Stock'}</span>
+                            </div>
                             <h3 class="mosaic-card-title">${p.name}</h3>
                             <p class="mosaic-card-desc">${p.desc}</p>
 
                             <div class="mosaic-card-footer-actions">
-                                <button type="button" class="btn-card-action btn-action-primary" onclick="quickEditPrice('${p.id}')">💵 Cambiar Precio</button>
+                                <button type="button" class="btn-card-action btn-action-primary" onclick="quickEditPrice('${p.id}')">💵 Precio</button>
                                 <button type="button" class="btn-card-action btn-action-outline" onclick="openEditProductModal('${p.id}')">Editar</button>
                                 <button type="button" class="btn-card-action btn-action-danger" style="flex: none;" onclick="deleteProductHandler('${p.id}')">🗑️</button>
                             </div>
@@ -2945,43 +3774,21 @@
             }).join('');
         };
 
-        window.filterProductsCards = function() {
-            renderProductsMosaic();
-        };
-
-        window.filterProductsCategory = function(cat, btn) {
-            window.adminState.activeFilterProductCat = cat;
-            document.querySelectorAll("#tab-products .filter-btn-pill").forEach(b => b.classList.remove("active"));
-            if (btn) btn.classList.add("active");
-            renderProductsMosaic();
-        };
-
-        window.quickEditPrice = function(id) {
-            const p = window.adminState.products.find(x => x.id === id);
-            if (!p) return;
-            const newPrice = prompt(`Introduce el nuevo precio para "${p.name}":`, p.price);
-            if (newPrice !== null && !isNaN(parseFloat(newPrice))) {
-                p.price = parseFloat(newPrice);
-                localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
-                try {
-                    update(ref(rtdb, `multiideas/productos/${p.id}`), { price: p.price });
-                } catch(e) {}
-                renderProductsMosaic();
-                showToast(`💵 Precio actualizado a $${p.price.toFixed(2)}`);
-                logTerminal("PRODUCTS", `Precio actualizado para ${p.name}: $${p.price}`);
-            }
-        };
-
         window.openCreateProductModal = function() {
             document.getElementById("productModalTitle").textContent = "Nuevo Producto del Catálogo";
             document.getElementById("productFormId").value = "";
             document.getElementById("productFormName").value = "";
             document.getElementById("productFormSubtitle").value = "";
-            document.getElementById("productFormCategory").value = "tarjetas";
+            document.getElementById("productFormCategory").value = "Tarjetas";
             document.getElementById("productFormPrice").value = "16.00";
+            document.getElementById("productFormOldPrice").value = "";
             document.getElementById("productFormUnit").value = "/ 100 uni.";
+            document.getElementById("productFormBadge").value = "MÁS VENDIDO";
+            document.getElementById("productFormStock").value = "En Stock (Envío Rápido)";
             document.getElementById("productFormImg").value = "";
             document.getElementById("productFormDesc").value = "";
+            document.getElementById("productFormSpecs").value = "Papel Couché 300g grueso\nAcabado mate fino antirreflejo\nImpresión full color doble cara";
+            window.updateThumbPreview('productFormImg', 'productImgThumb');
             document.getElementById("modalProductBackdrop").classList.add("open");
         };
 
@@ -2992,25 +3799,38 @@
             document.getElementById("productFormId").value = p.id;
             document.getElementById("productFormName").value = p.name;
             document.getElementById("productFormSubtitle").value = p.subtitle || "";
-            document.getElementById("productFormCategory").value = p.category;
+            document.getElementById("productFormCategory").value = p.category || "Tarjetas";
             document.getElementById("productFormPrice").value = p.price;
+            document.getElementById("productFormOldPrice").value = p.oldPrice || "";
             document.getElementById("productFormUnit").value = p.unit || "";
+            document.getElementById("productFormBadge").value = p.badge || "MÁS VENDIDO";
+            document.getElementById("productFormStock").value = p.stock || "En Stock (Envío Rápido)";
             document.getElementById("productFormImg").value = p.img || "";
             document.getElementById("productFormDesc").value = p.desc || "";
+            document.getElementById("productFormSpecs").value = (p.specs || []).join("\n");
+            window.updateThumbPreview('productFormImg', 'productImgThumb');
             document.getElementById("modalProductBackdrop").classList.add("open");
         };
 
         window.saveProductHandler = function() {
             const id = document.getElementById("productFormId").value || ("prod_" + Date.now());
+            const specsRaw = document.getElementById("productFormSpecs").value || "";
+            const specs = specsRaw.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+
             const product = {
                 id: id,
                 name: document.getElementById("productFormName").value,
                 subtitle: document.getElementById("productFormSubtitle").value,
                 category: document.getElementById("productFormCategory").value,
                 price: parseFloat(document.getElementById("productFormPrice").value) || 10.00,
+                oldPrice: document.getElementById("productFormOldPrice").value ? parseFloat(document.getElementById("productFormOldPrice").value) : null,
                 unit: document.getElementById("productFormUnit").value || "/ uni.",
+                badge: document.getElementById("productFormBadge").value,
+                stock: document.getElementById("productFormStock").value,
                 img: document.getElementById("productFormImg").value || "./imagenes/imagenes_generales/imagen48.webp",
-                desc: document.getElementById("productFormDesc").value || "Solución gráfica Multi Ideas SV."
+                desc: document.getElementById("productFormDesc").value || "Solución gráfica Multi Ideas SV.",
+                specs: specs,
+                updatedAt: Date.now()
             };
 
             const idx = window.adminState.products.findIndex(x => x.id === id);
@@ -3022,29 +3842,32 @@
                 showToast(`🛍️ Producto "${product.name}" añadido al catálogo`);
             }
 
+            localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
             try {
-                update(ref(rtdb, `multiideas/productos/${product.id}`), product);
+                set(ref(rtdb, "multiideas_catalogo/products"), window.adminState.products);
             } catch(e) {}
 
             closeModal("modalProductBackdrop");
             renderProductsMosaic();
             updateDashboardCounters();
-            logTerminal("PRODUCTS", `Producto guardado: ${product.name}`);
+            logTerminal("PRODUCTS", `Producto guardado: ${product.name}`, "success");
         };
 
         window.deleteProductHandler = function(id) {
             if (!confirm("¿Deseas eliminar este producto del catálogo?")) return;
             window.adminState.products = window.adminState.products.filter(x => x.id !== id);
+            localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
             try {
-                remove(ref(rtdb, `multiideas/productos/${id}`));
+                set(ref(rtdb, "multiideas_catalogo/products"), window.adminState.products);
             } catch(e) {}
             renderProductsMosaic();
             updateDashboardCounters();
             showToast("🗑️ Producto eliminado");
             logTerminal("PRODUCTS", `Producto eliminado ID: ${id}`, "warn");
         };
+
 
         // 14. Render de Publicaciones & Boletines
         window.renderPostsMosaic = function() {
@@ -3308,6 +4131,7 @@
         renderOverviewProjects();
         renderProjectsMosaic();
         renderProductsMosaic();
+        renderServicesMosaic();
         renderPostsMosaic();
         updateDashboardCounters();
     </script>
