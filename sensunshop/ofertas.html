@@ -268,18 +268,25 @@
 
         /* Barra de Filtros y Búsqueda */
         .cartelera-controls-section {
+            width: 100%;
             max-width: 1200px;
             margin: 0 auto 30px auto;
             padding: 0 5%;
+            box-sizing: border-box;
         }
 
         .cartelera-search-wrapper {
             position: relative;
             margin-bottom: 20px;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .cartelera-search-input {
             width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
             background: rgba(22, 27, 34, 0.85);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -346,8 +353,12 @@
             align-items: center;
             gap: 10px;
             overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
             padding-bottom: 8px;
             scrollbar-width: none;
+            width: 100%;
+            max-width: 100%;
+            box-sizing: border-box;
         }
 
         .cartelera-filter-chips::-webkit-scrollbar {
@@ -800,6 +811,122 @@
             box-shadow: 0 12px 28px rgba(255, 107, 53, 0.6);
             color: #ffffff;
         }
+
+        /* Adaptabilidad Móvil Sensun Shop */
+        @media (max-width: 768px) {
+            .hero-cartelera {
+                padding: 36px 4% 30px !important;
+                min-height: auto !important;
+            }
+            .hero-cartelera h1 {
+                font-size: 1.85rem !important;
+                line-height: 1.2 !important;
+                margin-top: 6px !important;
+                margin-bottom: 12px !important;
+                word-break: break-word !important;
+            }
+            .hero-cartelera p {
+                font-size: 0.95rem !important;
+                line-height: 1.5 !important;
+            }
+            .live-indicator-pill {
+                font-size: 0.72rem !important;
+                padding: 5px 12px !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                white-space: normal !important;
+                line-height: 1.3 !important;
+                text-align: center !important;
+            }
+            .cartelera-stats-bar {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                grid-template-columns: repeat(3, 1fr) !important;
+                gap: 8px !important;
+                margin-top: 20px !important;
+            }
+            .stat-card-pill {
+                padding: 10px 8px !important;
+                gap: 8px !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                text-align: center !important;
+                border-radius: 12px !important;
+            }
+            .stat-icon {
+                font-size: 1.4rem !important;
+            }
+            .stat-num {
+                font-size: 1.25rem !important;
+            }
+            .stat-label {
+                font-size: 0.65rem !important;
+                line-height: 1.1 !important;
+            }
+            .cartelera-controls-section {
+                padding: 0 4% !important;
+                margin-bottom: 20px !important;
+            }
+            .cartelera-search-input {
+                font-size: 0.92rem !important;
+                padding: 13px 16px 13px 44px !important;
+            }
+            .cartelera-filter-chips {
+                padding-bottom: 6px !important;
+                gap: 6px !important;
+            }
+            .filter-chip {
+                padding: 7px 13px !important;
+                font-size: 0.8rem !important;
+            }
+            main {
+                padding: 0 4% !important;
+            }
+            .cartelera-grid {
+                grid-template-columns: 1fr !important;
+                gap: 16px !important;
+                padding: 6px 0 40px 0 !important;
+            }
+            .cartelera-card-body {
+                padding: 16px !important;
+            }
+            .merchant-join-banner {
+                flex-direction: column !important;
+                text-align: center !important;
+                padding: 24px 16px !important;
+                margin: 24px auto 50px auto !important;
+                gap: 16px !important;
+            }
+            .merchant-banner-content h3 {
+                font-size: 1.25rem !important;
+            }
+            .btn-merchant-cta {
+                width: 100% !important;
+                justify-content: center !important;
+                box-sizing: border-box !important;
+                font-size: 0.92rem !important;
+            }
+            footer {
+                padding-bottom: 150px !important;
+            }
+        }
+
+        @media (max-width: 420px) {
+            .hero-cartelera h1 {
+                font-size: 1.6rem !important;
+            }
+            .cartelera-stats-bar {
+                grid-template-columns: 1fr !important;
+                gap: 8px !important;
+            }
+            .stat-card-pill {
+                flex-direction: row !important;
+                text-align: left !important;
+                align-items: center !important;
+                padding: 10px 14px !important;
+            }
+        }
     </style>
 </head>
 
@@ -869,7 +996,7 @@
     </section>
 
     <!-- CONTENEDOR PRINCIPAL DE LA CARTELERA -->
-    <main style="padding: 0 5%; max-width: 1200px; margin: 0 auto; min-height: 400px;">
+    <main style="padding: 0 5%; width: 100%; max-width: 1200px; box-sizing: border-box; margin: 0 auto; min-height: 400px;">
         <div id="ofertas-grid" class="cartelera-grid">
             <!-- Estado de Carga Inicial -->
             <div class="cartelera-loading-state" id="offersLoading">
@@ -930,6 +1057,17 @@
 
         // Fallback de imagen
         const DEFAULT_AVATAR = "../imagenes/logos/icono-sensun-shop.webp";
+
+        // Optimización Cloudinary para móvil
+        function optimizeImg(url, width = 200) {
+            if (!url || typeof url !== 'string') return DEFAULT_AVATAR;
+            if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+                if (!url.includes('/f_auto') && !url.includes('/w_')) {
+                    return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+                }
+            }
+            return url;
+        }
 
         // Función Copiar Cupón
         window.copyCoupon = function (code, btn) {
@@ -1089,7 +1227,7 @@
                         <div class="cartelera-card-body">
                             <!-- Info del Negocio -->
                             <div class="biz-profile-row">
-                                <img src="${avatar}" alt="${item.title}" class="biz-avatar-img" loading="lazy" onerror="this.src='${DEFAULT_AVATAR}'">
+                                <img src="${optimizeImg(avatar, 160)}" alt="${item.title}" class="biz-avatar-img" loading="lazy" decoding="async" onerror="this.src='${DEFAULT_AVATAR}'">
                                 <div class="biz-info-meta">
                                     <h3 class="biz-name-title">${item.title}</h3>
                                     <div class="biz-category-rating">

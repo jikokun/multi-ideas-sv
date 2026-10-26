@@ -18,6 +18,17 @@ import {
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { ref, set, get, onValue, push, remove, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// Helper de optimización de imágenes Cloudinary para rendimiento móvil y web
+function optimizeSensunImage(url, width = 300) {
+    if (!url || typeof url !== 'string') return url;
+    if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+        if (!url.includes('/f_auto') && !url.includes('/w_')) {
+            return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+        }
+    }
+    return url;
+}
+
 // Estilos dinámicos para las estrellas y el modal
 const styles = `
     .star-rating-container {
@@ -2117,7 +2128,7 @@ function createBusinessDOMCard(business) {
     const pncImgAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/logo_pnc.png' : 'imagenes/logos/logo_pnc.png';
     const defaultImgAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/icono-sensun-shop.webp' : 'imagenes/logos/icono-sensun-shop.webp';
 
-    let cardImgSrc = business.imgSrc || '';
+    let cardImgSrc = optimizeSensunImage(business.imgSrc, 400) || '';
     if (isPNC && (!cardImgSrc || cardImgSrc.includes('1y4DwflItMlbGUmftKKDKLCDGTqpQFjVF'))) {
         cardImgSrc = pncImgAsset;
     } else if (!cardImgSrc) {
@@ -2134,7 +2145,7 @@ function createBusinessDOMCard(business) {
                     <span>¡OFERTA ACTIVA!</span>
                 </div>
             ` : ''}
-            <img src="${cardImgSrc}" alt="${business.title}" style="object-fit: contain; max-height: 90%; max-width: 90%; border-radius: 8px;" loading="lazy" onerror="this.onerror=null; if('${isPNC}' === 'true' || this.alt.toLowerCase().includes('polic')){ this.src='${pncImgAsset}'; } else { this.src='${defaultImgAsset}'; }">
+            <img src="${cardImgSrc}" alt="${business.title}" style="object-fit: contain; max-height: 90%; max-width: 90%; border-radius: 8px;" loading="lazy" decoding="async" onerror="this.onerror=null; if('${isPNC}' === 'true' || this.alt.toLowerCase().includes('polic')){ this.src='${pncImgAsset}'; } else { this.src='${defaultImgAsset}'; }">
         </div>
         <div class="producto-info">
             <div class="negocio-tags">${tagsHtml}</div>
@@ -2204,14 +2215,21 @@ function syncBusinessesToDOM(businessesList) {
 
             // Actualizar imagen principal si cambió
             const imgEl = targetCard.querySelector(".producto-img img, .slider-card-img img");
-            if (imgEl && business.imgSrc && imgEl.src !== business.imgSrc) {
+            if (imgEl && business.imgSrc) {
                 const isPNCBiz = (business.id || '').toLowerCase().includes('eme-003') || 
                                  (business.title || '').toLowerCase().includes('polic');
                 const pncAsset = window.location.pathname.includes('/sensunshop/') ? '../imagenes/logos/logo_pnc.png' : 'imagenes/logos/logo_pnc.png';
+                let targetSrc = '';
                 if (isPNCBiz && business.imgSrc.includes('1y4DwflItMlbGUmftKKDKLCDGTqpQFjVF')) {
-                    imgEl.src = pncAsset;
+                    targetSrc = pncAsset;
                 } else {
-                    imgEl.src = business.imgSrc;
+                    targetSrc = optimizeSensunImage(business.imgSrc, 500);
+                }
+                if (imgEl.src !== targetSrc) {
+                    imgEl.src = targetSrc;
+                }
+                if (!imgEl.hasAttribute('decoding')) {
+                    imgEl.setAttribute('decoding', 'async');
                 }
                 imgEl.alt = business.title || "Negocio";
             }
@@ -2860,7 +2878,7 @@ function renderUnifiedNovedadesSlider() {
                     </div>
                 ` : ''}
                 <div class="slider-card-img" style="display: flex; align-items: center; justify-content: center; padding: 6px;">
-                    <img src="${item.imgSrc}" alt="${item.title}" style="object-fit: contain; width: 100%; height: 100%;" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'" loading="lazy">
+                    <img src="${optimizeSensunImage(item.imgSrc, 400)}" alt="${item.title}" style="object-fit: contain; width: 100%; height: 100%;" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'" loading="lazy" decoding="async">
                 </div>
                 <div class="slider-card-content">
                     <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">${item.badge.toUpperCase()}</span>
@@ -4585,7 +4603,7 @@ function updateBellAndPopupFeed() {
 
                 const thumbHtml = hasRealPhoto ? `
                     <div class="sensun-hub-thumb-box thumb-${catMeta.key}" style="background: ${catMeta.fallbackBg}; border: 1.5px solid ${catMeta.fallbackBorder};">
-                        <img src="${item.imgSrc}" alt="${item.title}" class="sensun-hub-item-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                        <img src="${optimizeSensunImage(item.imgSrc, 120)}" alt="${item.title}" class="sensun-hub-item-img" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
                         <div class="sensun-hub-fallback-icon" style="display: none;">${defaultIcon}</div>
                     </div>
                 ` : `
@@ -4638,7 +4656,8 @@ function showSensunPopup(item) {
     modal.classList.remove("shrinking-to-bell");
 
     const defaultLogo = window.location.pathname.includes("/sensunshop/") ? "../imagenes/logos/icono-sensun-shop.webp" : "imagenes/logos/icono-sensun-shop.webp";
-    img.src = item.imgSrc || defaultLogo;
+    img.src = optimizeSensunImage(item.imgSrc, 400) || defaultLogo;
+    if (!img.hasAttribute('decoding')) img.setAttribute('decoding', 'async');
     img.onerror = () => { img.src = defaultLogo; };
     badge.textContent = item.badge;
     badge.style.background = item.badgeBg || "rgba(232, 98, 26, 0.15)";
@@ -5131,7 +5150,7 @@ function renderPublicMapItems() {
         // Contenido del Popup
         const imgTag = b.imgSrc 
             ? `<div style="width: 100%; height: 110px; border-radius: 12px; overflow: hidden; margin-bottom: 10px; background: #1e2433;">
-                 <img src="${b.imgSrc}" alt="${b.title}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'">
+                 <img src="${optimizeSensunImage(b.imgSrc, 280)}" alt="${b.title}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'">
                </div>` 
             : '';
 
@@ -5201,7 +5220,7 @@ function renderPublicSidebarList(list) {
     container.innerHTML = list.map(b => {
         const visuals = getPublicCategoryVisuals(b.category, b.type);
         const thumbTag = b.imgSrc 
-            ? `<img src="${b.imgSrc}" alt="${b.title}" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
+            ? `<img src="${optimizeSensunImage(b.imgSrc, 100)}" alt="${b.title}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
             : visuals.icon;
 
         const distTag = b.distanceMeters !== null

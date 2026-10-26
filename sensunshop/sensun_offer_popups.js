@@ -812,10 +812,24 @@
         document.head.appendChild(style);
     }
 
+    // Fallback oficial optimizado
+    const FALLBACK_POPUP_THUMB = 'https://res.cloudinary.com/dn6fmqae9/image/upload/f_auto,q_auto,w_200/v1788626857/logo_comandos_hivma7.webp';
+
+    function optimizeSensunThumb(url, width = 240) {
+        if (!url || typeof url !== 'string') return FALLBACK_POPUP_THUMB;
+        if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+            if (!url.includes('/f_auto') && !url.includes('/w_')) {
+                return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+            }
+        }
+        return url;
+    }
+
     // 3. Generar HTML para cada Estilo (reutilizable en modal real o preview)
     function generatePopupHTML(biz, isPreview) {
         const style = parseInt(biz.offerStyle, 10) || 1;
-        const thumb = biz.imgSrc || biz.imageUrl || 'https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp';
+        const rawThumb = biz.imgSrc || biz.imageUrl || FALLBACK_POPUP_THUMB;
+        const thumb = optimizeSensunThumb(rawThumb, 240);
         const title = biz.title || 'Comercio Sensun Shop';
         const category = biz.category || biz.badge || 'Comercio';
         const stars = biz.rating || '4.8';
@@ -839,7 +853,7 @@
             <div class="so-m1" id="so-popup-m1">
                 ${closeBtnSoft}
                 <div class="so-m1-head">
-                    <img class="so-m1-thumb" src="${thumb}" alt="${title}" onerror="this.src='https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp'">
+                    <img class="so-m1-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
                     <div>
                         <div class="so-m1-name">${title}</div>
                         <div class="so-m1-cat">${category} · <svg class="so-ic fill"><use href="#so-star"/></svg> ${stars}</div>
@@ -867,7 +881,7 @@
             <div class="so-m2" id="so-popup-m2">
                 ${closeBtnLight}
                 <div class="so-m2-top">
-                    <img class="so-m2-thumb" src="${thumb}" alt="${title}" onerror="this.src='https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp'">
+                    <img class="so-m2-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
                     <div>
                         <div class="so-m2-name">${title}</div>
                         <div class="so-m2-rate"><svg class="so-ic fill"><use href="#so-star"/></svg> ${stars} · ${category}</div>
@@ -889,7 +903,7 @@
             // Estilo 3 · Minimal
             return `
             <div class="so-m3" id="so-popup-m3">
-                <img class="so-m3-ava" src="${thumb}" alt="${title}" onerror="this.src='https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp'">
+                <img class="so-m3-ava" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
                 ${closeBtnSoft}
                 <div class="so-m3-badge">${badge.toUpperCase()}</div>
                 <div class="so-m3-name">${title}</div>
@@ -919,7 +933,7 @@
                     <span class="so-m4-hoy" style="right: 50px;">${badge}</span>
                 </div>
                 <div class="so-m4-biz">
-                    <img class="so-m4-thumb" src="${thumb}" alt="${title}" onerror="this.src='https://res.cloudinary.com/dn6fmqae9/image/upload/v1788626857/logo_comandos_hivma7.webp'">
+                    <img class="so-m4-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
                     <div>
                         <div class="so-m4-name">${title}</div>
                         <div class="so-m4-rate"><svg class="so-ic fill"><use href="#so-star"/></svg> ${stars} · ${category} · ${distance}</div>

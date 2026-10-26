@@ -482,33 +482,102 @@
 
         /* Adaptación Responsive */
         @media (max-width: 900px) {
+            .map-page-wrapper {
+                padding: 16px 3% 40px 3% !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .map-page-header h1 {
+                font-size: 1.85rem !important;
+                word-break: break-word !important;
+            }
+            .map-page-header p {
+                font-size: 0.88rem !important;
+                line-height: 1.5 !important;
+            }
             .fullmap-controls-card {
-                flex-direction: column;
-                align-items: stretch;
-                gap: 12px;
-                padding: 12px 14px;
+                flex-direction: column !important;
+                align-items: stretch !important;
+                gap: 10px !important;
+                padding: 10px 12px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
             }
             .fullmap-categories-wrapper {
-                width: 100%;
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+            }
+            .fullmap-categories {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
             }
             .fullmap-actions-group {
-                justify-content: space-between;
-                overflow-x: auto;
-                padding-bottom: 2px;
-                width: 100%;
+                display: flex !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                justify-content: space-between !important;
+                overflow-x: visible !important;
+            }
+            .fullmap-action-btn {
+                flex: 1 1 calc(33.333% - 6px) !important;
+                justify-content: center !important;
+                padding: 8px 10px !important;
+                font-size: 0.78rem !important;
+                white-space: nowrap !important;
+            }
+            .fullmap-layer-dropdown {
+                flex: 1 1 100% !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                font-size: 0.82rem !important;
             }
             .fullmap-main-box {
-                flex-direction: column;
-                height: 82vh;
-            }
-            .fullmap-sidebar-panel {
-                width: 100%;
-                height: 220px;
-                border-left: none;
-                border-top: 1px solid rgba(255, 255, 255, 0.08);
+                flex-direction: column !important;
+                height: 78vh !important;
+                min-height: 480px !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                border-radius: 18px !important;
             }
             .fullmap-viewport {
-                flex: 1;
+                flex: 1 1 58% !important;
+                min-height: 260px !important;
+                width: 100% !important;
+            }
+            .fullmap-sidebar-panel {
+                flex: 1 1 42% !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 180px !important;
+                border-left: none !important;
+                border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+            }
+            footer {
+                padding-bottom: 180px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .map-page-header h1 {
+                font-size: 1.6rem !important;
+            }
+            .fullmap-action-btn {
+                flex: 1 1 calc(50% - 6px) !important;
+                font-size: 0.76rem !important;
+                padding: 7px 8px !important;
+            }
+            .fullmap-action-btn:nth-child(3) {
+                flex: 1 1 100% !important;
+            }
+            .fullmap-main-box {
+                height: 80vh !important;
             }
         }
 
@@ -925,6 +994,16 @@
             return list.filter(b => b.coords && b.coords.lat);
         }
 
+        function optimizeSensunImg(url, width = 300) {
+            if (!url || typeof url !== 'string') return url;
+            if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+                if (!url.includes('/f_auto') && !url.includes('/w_')) {
+                    return url.replace('/upload/', `/upload/f_auto,q_auto,w_${width}/`);
+                }
+            }
+            return url;
+        }
+
         function renderFullMapData() {
             if (!fullMap) return;
 
@@ -992,7 +1071,7 @@
                     offset: [0, -38]
                 });
 
-                const thumb = b.imgSrc ? `<div style="width: 100%; height: 115px; border-radius: 12px; overflow: hidden; margin-bottom: 8px;"><img src="${b.imgSrc}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : '';
+                const thumb = b.imgSrc ? `<div style="width: 100%; height: 115px; border-radius: 12px; overflow: hidden; margin-bottom: 8px;"><img src="${optimizeSensunImg(b.imgSrc, 300)}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : '';
                 const distTag = b.dist !== null ? `<div style="background: rgba(2, 132, 199, 0.15); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">📍 A ${formatDist(b.dist)} de ti</div>` : '';
                 const wspBtn = b.whatsapp ? `<a href="https://wa.me/${b.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola ' + b.title + ', los vi en el mapa de Sensun Shop')}" target="_blank" style="flex: 1; text-align: center; background: #25D366; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">💬 WhatsApp</a>` : '';
                 const mapBtn = b.locationUrl ? `<a href="${b.locationUrl}" target="_blank" style="flex: 1; text-align: center; background: #0284c7; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">🗺️ Cómo Llegar</a>` : '';
@@ -1036,7 +1115,7 @@
             container.innerHTML = list.map(b => {
                 const visuals = getFullCatVisuals(b.category, b.type);
                 const thumb = b.imgSrc 
-                    ? `<img src="${b.imgSrc}" alt="${b.title}" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
+                    ? `<img src="${optimizeSensunImg(b.imgSrc, 120)}" alt="${b.title}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
                     : visuals.icon;
                 const distBadge = b.dist !== null ? `<span class="fullmap-dist-pill">📍 ${formatDist(b.dist)}</span>` : '';
 
