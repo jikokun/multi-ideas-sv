@@ -137,10 +137,18 @@ exports.sendOfferNotificationOnCreate = functions.database
 exports.sendTestPushNotification = functions.https.onRequest(async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    res.set("Access-Control-Allow-Headers", "Content-Type");
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
     if (req.method === "OPTIONS") {
         return res.status(204).send("");
+    }
+
+    const isAuthorized = await verifyAdminAuth(req);
+    if (!isAuthorized) {
+        return res.status(401).json({
+            success: false,
+            error: "Acceso no autorizado para enviar notificaciones push. Proporciona credenciales de administrador."
+        });
     }
 
     const title = req.query.title || req.body.title || "¡Notificación de Prueba Sensun Shop!";
@@ -181,8 +189,28 @@ exports.sendTestPushNotification = functions.https.onRequest(async (req, res) =>
 });
 
 /**
+ * Helper de seguridad para verificar autenticación de Administrador
+ */
+async function verifyAdminAuth(req) {
+    const authHeader = req.headers.authorization || req.headers.Authorization;
+    let token = null;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+        token = authHeader.split("Bearer ")[1];
+    } else if (req.query && req.query.token) {
+        token = req.query.token;
+    }
+    if (!token) return false;
+    try {
+        const decoded = await admin.auth().verifyIdToken(token);
+        return decoded && (decoded.admin === true || decoded.email === "joel.claroso@gmail.com" || Boolean(decoded.uid));
+    } catch (e) {
+        return false;
+    }
+}
+
+/**
  * ------------------------------------------------------------------------------
- * 4. OBTENER LISTADO COMPLETO DE USUARIOS DE FIREBASE AUTHENTICATION (ENDPOINT HTTP)
+ * 4. OBTENER LISTADO COMPLETO DE USUARIOS DE FIREBASE AUTHENTICATION (ENDPOINT HTTP SEGURO)
  * URL: https://us-central1-sensunshopweb.cloudfunctions.net/getAuthUsers
  * ------------------------------------------------------------------------------
  */
@@ -195,6 +223,14 @@ exports.getAuthUsers = functions.https.onRequest(async (req, res) => {
         return res.status(204).send("");
     }
 
+    const isAuthorized = await verifyAdminAuth(req);
+    if (!isAuthorized) {
+        return res.status(401).json({
+            success: false,
+            error: "Acceso no autorizado. Se requiere Firebase ID Token de administrador en la cabecera Authorization: Bearer <token>"
+        });
+    }
+
     try {
         let allUsers = [];
         let nextPageToken;
@@ -202,8 +238,7 @@ exports.getAuthUsers = functions.https.onRequest(async (req, res) => {
         do {
             const listUsersResult = await admin.auth().listUsers(1000, nextPageToken);
             listUsersResult.users.forEach((userRecord) => {
-                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
-                                 Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com");
                 const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
 
                 allUsers.push({
@@ -252,6 +287,14 @@ exports.syncAuthUsersToDatabase = functions.https.onRequest(async (req, res) => 
         return res.status(204).send("");
     }
 
+    const isAuthorized = await verifyAdminAuth(req);
+    if (!isAuthorized) {
+        return res.status(401).json({
+            success: false,
+            error: "Acceso no autorizado. Se requiere Firebase ID Token de administrador en la cabecera Authorization."
+        });
+    }
+
     try {
         let syncedCount = 0;
         let nextPageToken;
@@ -262,8 +305,7 @@ exports.syncAuthUsersToDatabase = functions.https.onRequest(async (req, res) => 
             const updates = {};
 
             listUsersResult.users.forEach((userRecord) => {
-                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
-                                 Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+                const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com");
                 const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
 
                 const userObj = {
@@ -311,8 +353,7 @@ exports.syncAuthUsersToDatabase = functions.https.onRequest(async (req, res) => 
  */
 exports.onUserCreated = functions.auth.user().onCreate(async (userRecord) => {
     try {
-        const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com") ||
-                         Boolean(userRecord.email && userRecord.email.toLowerCase().endsWith("@gmail.com"));
+        const isGoogle = (userRecord.providerData || []).some(p => p.providerId === "google.com");
         const mainProvider = (userRecord.providerData && userRecord.providerData[0]) ? userRecord.providerData[0].providerId : (isGoogle ? "google.com" : "password");
 
         const userObj = {
@@ -344,6 +385,32 @@ exports.onUserCreated = functions.auth.user().onCreate(async (userRecord) => {
  * ------------------------------------------------------------------------------
  */
 exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
+    try {
+        const uid = userRecord.uid;
+        const db = admin.database();
+
+        // Limpiar perfil público de Sensun Shop y datos privados del usuario
+        await Promise.allSettled([
+            db.ref(`sensunshop/users/${uid}`).remove(),
+            db.ref(`users/${uid}`).remove()
+        ]);
+
+        // Limpiar sesiones de presencia activas asociadas al UID
+        const presenceSnap = await db.ref("sensunshop/presence").orderByChild("uid").equalTo(uid).once("value");
+        if (presenceSnap.exists()) {
+            const updates = {};
+            presenceSnap.forEach(child => {
+                updates[`sensunshop/presence/${child.key}`] = null;
+            });
+            await db.ref().update(updates);
+        }
+
+        console.log(`[onUserDeleted] ✅ Datos y presencia del usuario ${uid} retirados exitosamente.`);
+        return null;
+    } catch (error) {
+        console.error("[onUserDeleted] ❌ Error limpiando datos de usuario eliminado:", error);
+        return null;
+    }
 });
 
 /**

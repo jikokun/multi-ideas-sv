@@ -1409,14 +1409,14 @@ async function syncUserProfileToDatabase(user) {
     if (!user || !user.uid || user.isAnonymous) return;
     try {
         const isGoogle = Boolean(
-            (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) || 
-            (user.email && user.email.toLowerCase().endsWith('@gmail.com'))
+            user.providerData && user.providerData.some(p => p.providerId === 'google.com')
         );
         const providerId = (user.providerData && user.providerData[0]) ? user.providerData[0].providerId : (isGoogle ? 'google.com' : 'password');
         
         const ua = navigator.userAgent || '';
+        const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
         const isAndroid = /android/i.test(ua);
-        const platform = isAndroid ? 'android' : 'web';
+        const platform = isAndroidApp ? 'android_app' : (isAndroid ? 'android_web' : 'web');
 
         const createdAt = user.metadata && user.metadata.createdAt ? parseInt(user.metadata.createdAt, 10) : Date.now();
         const lastLoginAt = user.metadata && user.metadata.lastLoginAt ? parseInt(user.metadata.lastLoginAt, 10) : Date.now();
@@ -1467,14 +1467,14 @@ async function initPresenceTracking(user) {
 
         function writePresenceData() {
             const ua = navigator.userAgent || '';
+            const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
             const isAndroid = /android/i.test(ua);
             const isIOS = /iphone|ipad|ipod/i.test(ua);
-            const platform = isAndroid ? 'android' : (isIOS ? 'ios' : 'web');
+            const platform = isAndroidApp ? 'android_app' : (isAndroid ? 'android_web' : (isIOS ? 'ios' : 'web'));
 
             const isRegistered = Boolean(activeUser && activeUser.uid && !activeUser.isAnonymous);
             const isGoogle = isRegistered ? Boolean(
-                (activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')) || 
-                (activeUser.email && activeUser.email.toLowerCase().endsWith('@gmail.com'))
+                activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')
             ) : false;
 
             const pageTitle = document.title ? document.title.split('—')[0].split('·')[0].trim() : "Sensun Shop";
@@ -1485,7 +1485,7 @@ async function initPresenceTracking(user) {
                 uid: isRegistered ? activeUser.uid : null,
                 displayName: isRegistered 
                     ? (activeUser.displayName || (activeUser.email ? activeUser.email.split('@')[0] : "Usuario"))
-                    : (isAndroid ? "Visitante en App/Móvil Android" : (isIOS ? "Visitante en iPhone" : "Visitante Web")),
+                    : (isAndroidApp ? "Usuario App Android" : (isAndroid ? "Visitante Web Android" : (isIOS ? "Visitante en iPhone" : "Visitante Web"))),
                 email: isRegistered ? (activeUser.email || "") : "",
                 photoURL: isRegistered ? (activeUser.photoURL || "") : "",
                 isGoogle: isGoogle,
@@ -2475,9 +2475,19 @@ function setupBusinessesRealtimeSync() {
 
         businessesRtdbListener = onValue(businessesRef, (snapshot) => {
             const data = snapshot.val() || {};
-            const list = Object.keys(data).map(key => {
+            const allItems = Object.keys(data).map(key => {
                 const item = data[key];
-                const coords = extractCoordinates(item.locationUrl, item.id || key);
+
+                // H08: Priorizar coordenadas numéricas válidas guardadas por Android o la Web
+                let coords = null;
+                const rawLat = parseFloat(item.lat !== undefined ? item.lat : (item.latitude !== undefined ? item.latitude : NaN));
+                const rawLng = parseFloat(item.lng !== undefined ? item.lng : (item.longitude !== undefined ? item.longitude : NaN));
+                if (!isNaN(rawLat) && !isNaN(rawLng) && rawLat >= -90 && rawLat <= 90 && rawLng >= -180 && rawLng <= 180) {
+                    coords = { lat: rawLat, lng: rawLng };
+                } else {
+                    coords = extractCoordinates(item.locationUrl, item.id || key);
+                }
+
                 return {
                     id: item.id || key,
                     code: item.code || "",
@@ -2486,7 +2496,7 @@ function setupBusinessesRealtimeSync() {
                     category: item.category || "comercio",
                     badge: item.badge || "",
                     description: item.description || "",
-                    imgSrc: item.imgSrc || "",
+                    imgSrc: item.imgSrc || item.imageUrl || "",
                     gallery: Array.isArray(item.gallery) ? item.gallery : [],
                     whatsapp: item.whatsapp || "",
                     phone: item.phone || "",
@@ -2511,23 +2521,22 @@ function setupBusinessesRealtimeSync() {
                     tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : []),
                     isActive: item.isActive !== false
                 };
-            }).filter(b => b.isActive);
+            });
 
-            if (list.length > 0) {
-                cachedParsedBusinesses = list;
-                window.sensunBusinessesCache = list;
+            // H09: Sincronizar todos (incluyendo marcar bajas/inactivos) en el DOM
+            syncBusinessesToDOM(allItems);
 
-                // Sincronizar cambios en el DOM inmediatamente sin recargar
-                syncBusinessesToDOM(list);
+            const activeList = allItems.filter(b => b.isActive);
+            cachedParsedBusinesses = activeList;
+            window.sensunBusinessesCache = activeList;
 
-                // Si el modal de favoritos está visible, refrescarlo
-                if (window.userFavorites && typeof window.renderFavoritesView === 'function') {
-                    window.renderFavoritesView(window.userFavorites);
-                }
-
-                // Notificar a cualquier componente activo
-                document.dispatchEvent(new CustomEvent("sensun-businesses-updated", { detail: { businesses: list } }));
+            // Si el modal de favoritos está visible, refrescarlo
+            if (window.userFavorites && typeof window.renderFavoritesView === 'function') {
+                window.renderFavoritesView(window.userFavorites);
             }
+
+            // Notificar a cualquier componente activo (mapa, filtros, contadores)
+            document.dispatchEvent(new CustomEvent("sensun-businesses-updated", { detail: { businesses: activeList, all: allItems } }));
         });
     } catch (err) {
         console.warn("Aviso: No se pudo conectar a sensunshop/businesses en Firebase RTDB:", err);
@@ -4626,11 +4635,18 @@ function updateBellAndPopupFeed() {
         }
     }
 
-    // Disparar popup emergente en la primera carga si hay items disponibles
-    if (uniqueItems.length > 0 && !sessionStorage.getItem("sensun_popup_seen")) {
+    // Disparar popup emergente con frecuencia limitada y nunca en emergencias (Manual pág. 15)
+    const isEmergenciasPage = window.location.pathname.includes("emergencias");
+    const lastPopupTime = parseInt(localStorage.getItem("sensun_popup_last_time") || "0", 10);
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    if (!isEmergenciasPage && uniqueItems.length > 0 && !sessionStorage.getItem("sensun_popup_seen") && (now - lastPopupTime > TWENTY_FOUR_HOURS)) {
         setTimeout(() => {
             showSensunPopup(uniqueItems[0]);
-        }, 1200);
+            localStorage.setItem("sensun_popup_last_time", String(now));
+            sessionStorage.setItem("sensun_popup_seen", "true");
+        }, 1500);
     }
 }
 

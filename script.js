@@ -2188,12 +2188,13 @@ async function connectFirebaseToAuth(authUI, fb) {
             const { ref, update } = dbHelpers;
             const userData = extractUserProfileData(user);
             const isGoogle = Boolean(
-                (user.providerData && user.providerData.some(p => p.providerId === 'google.com')) || 
-                (userData.email && userData.email.toLowerCase().endsWith('@gmail.com'))
+                user.providerData && user.providerData.some(p => p.providerId === 'google.com')
             );
             const providerId = (user.providerData && user.providerData[0]) ? user.providerData[0].providerId : (isGoogle ? 'google.com' : 'password');
             const ua = navigator.userAgent || '';
-            const platform = /android/i.test(ua) ? 'android' : 'web';
+            const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
+            const isAndroid = /android/i.test(ua);
+            const platform = isAndroidApp ? 'android_app' : (isAndroid ? 'android_web' : 'web');
             const createdAt = user.metadata && user.metadata.createdAt ? parseInt(user.metadata.createdAt, 10) : Date.now();
             const lastLoginAt = user.metadata && user.metadata.lastLoginAt ? parseInt(user.metadata.lastLoginAt, 10) : Date.now();
 
@@ -2235,15 +2236,15 @@ async function connectFirebaseToAuth(authUI, fb) {
 
             function writeCurrentPresence() {
                 const ua = navigator.userAgent || '';
+                const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
                 const isAndroid = /android/i.test(ua);
                 const isIOS = /iphone|ipad|ipod/i.test(ua);
-                const platform = isAndroid ? "android" : (isIOS ? "ios" : "web");
+                const platform = isAndroidApp ? 'android_app' : (isAndroid ? 'android_web' : (isIOS ? 'ios' : 'web'));
 
                 const isRegistered = Boolean(activeUser && activeUser.uid && !activeUser.isAnonymous);
                 const userData = isRegistered ? extractUserProfileData(activeUser) : null;
                 const isGoogle = isRegistered ? Boolean(
-                    (activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')) || 
-                    (userData.email && userData.email.toLowerCase().endsWith('@gmail.com'))
+                    activeUser.providerData && activeUser.providerData.some(p => p.providerId === 'google.com')
                 ) : false;
 
                 const pageTitle = document.title ? document.title.split('—')[0].split('·')[0].trim() : "Multi Ideas SV";
@@ -3307,11 +3308,30 @@ function connectFirebaseToProfile(profileUI, fb) {
             }
 
             try {
-                // Reautenticar
-                const credential = EmailAuthProvider.credential(user.email, password);
-                await reauthenticateWithCredential(user, credential);
+                // Reautenticar según el proveedor del usuario (Google vs Correo)
+                const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+                if (isGoogleUser && fb.reauthenticateWithPopup && fb.GoogleAuthProvider) {
+                    const provider = new fb.GoogleAuthProvider();
+                    await fb.reauthenticateWithPopup(user, provider);
+                } else {
+                    const credential = EmailAuthProvider.credential(user.email, password);
+                    await reauthenticateWithCredential(user, credential);
+                }
+
+                // Limpiar perfiles asociados en Realtime Database
+                try {
+                    const configPath = './firebase-config.js';
+                    const { rtdb } = await import(configPath);
+                    const { ref, remove } = await import("https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js");
+                    if (rtdb) {
+                        await Promise.allSettled([
+                            remove(ref(rtdb, `sensunshop/users/${user.uid}`)),
+                            remove(ref(rtdb, `users/${user.uid}`))
+                        ]);
+                    }
+                } catch(e) {}
                 
-                // Eliminar usuario
+                // Eliminar usuario en Firebase Auth
                 await deleteUser(user);
                 
                 closeReauth();
@@ -3319,13 +3339,15 @@ function connectFirebaseToProfile(profileUI, fb) {
             } catch (err) {
                 console.error("Error de eliminación:", err);
                 if (reauthError) {
-                    let msg = 'Contraseña incorrecta. Verifica tus datos.';
+                    let msg = 'Contraseña o verificación incorrecta. Verifica tus datos.';
                     if (err.code === 'auth/wrong-password') {
                         msg = 'Contraseña incorrecta. Verifica tus datos.';
                     } else if (err.code === 'auth/user-mismatch') {
-                        msg = 'El usuario no coincide.';
+                        msg = 'El usuario no coincide con la cuenta activa.';
+                    } else if (err.code === 'auth/popup-closed-by-user') {
+                        msg = 'Ventana de Google cerrada antes de confirmar.';
                     } else {
-                        msg = 'Ocurrió un error inesperado al validar la identidad.';
+                        msg = 'Ocurrió un error al validar la identidad.';
                     }
                     reauthError.textContent = msg;
                     reauthError.style.display = 'block';

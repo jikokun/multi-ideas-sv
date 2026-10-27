@@ -8,11 +8,12 @@
     <link rel="icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="shortcut icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="apple-touch-icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1">
+    <link rel="canonical" href="https://multiideassv.com/productos">
     
     <!-- Anti-FOUC & Fast Paint Inline Tokens -->
     <style>
         html { background-color: #0a0c10; color: #ffffff; }
-        html.light-theme { background-color: #f0fbfb; color: #063d41; }
+        html.light-theme { background-color: #F8FAFC; color: #0B1220; }
         #global-header, header { min-height: 72px; }
     </style>
     <script>
@@ -312,22 +313,15 @@
                 stock: "En Stock",
                 img: "imagenes/imagenes_generales/imagen41.webp",
                 desc: "Impresión fotográfica de gran tamaño con excelente resolución en papel fotográfico brillante sin bordes ($1.75 a partir de 10 unidades).",
-                specs: ["Papel fotográfico de 230g brillante", "Formato amplio 8x10 pulgadas (Carta)", "Acabado de galería fotográfica", "Impresión nítida de alta definición"]
+                specs: ["Papel fotográfico de 230g brillante", "Formato amplio 8.5x11 pulgadas (Carta estándar)", "Acabado de galería fotográfica", "Impresión nítida de alta definición"]
             }
         ];
 
-        // Función de fusión inteligente: preserva el catálogo anterior y actualiza con datos del Dashboard
-        function mergeProducts(defaults, remoteList) {
-            if (!remoteList || !Array.isArray(remoteList) || remoteList.length === 0) return defaults;
-            const map = new Map();
-            defaults.forEach(p => map.set(p.id, { ...p }));
-            remoteList.forEach(p => {
-                if (p && p.id) {
-                    const existing = map.get(p.id) || {};
-                    map.set(p.id, { ...existing, ...p });
-                }
-            });
-            return Array.from(map.values());
+        // Función de resolución autoritativa: prioriza los datos sincronizados del Dashboard/RTDB
+        function resolveAuthoritativeProducts(defaults, remoteData) {
+            if (remoteData === null || remoteData === undefined) return defaults;
+            const list = Array.isArray(remoteData) ? remoteData : Object.values(remoteData);
+            return list.filter(p => p && p.id);
         }
 
         // Estado del Catálogo de la Tienda
@@ -586,20 +580,21 @@
             });
         }
 
-        // Sincronización en Tiempo Real con Firebase RTDB
+        // Sincronización en Tiempo Real con Firebase RTDB (Fuente Autoritativa)
         try {
             const productsRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
             onValue(productsRef, (snap) => {
                 const data = snap.val();
-                if (data) {
-                    const list = Array.isArray(data) ? data : Object.values(data);
-                    if (list.length > 0) {
-                        const merged = mergeProducts(DEFAULT_PRODUCTS, list);
-                        window.storeCatalogState.products = merged;
-                        localStorage.setItem("multiideas_store_products", JSON.stringify(merged));
-                        renderShoppingCatalog();
-                    }
+                if (data !== null) {
+                    const list = resolveAuthoritativeProducts(DEFAULT_PRODUCTS, data);
+                    window.storeCatalogState.products = list;
+                    try {
+                        localStorage.setItem("multiideas_store_products", JSON.stringify(list));
+                    } catch(e) {}
+                    renderShoppingCatalog();
                 }
+            }, (error) => {
+                console.warn("[RTDB Products Sync Warning]: Usando catálogo local/caché por error de red.", error);
             });
         } catch(err) {
             console.warn("[RTDB Products Sync Warning]:", err);

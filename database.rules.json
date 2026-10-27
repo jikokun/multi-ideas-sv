@@ -3,11 +3,45 @@
     ".read": false,
     ".write": false,
     "sensunshop": {
-      ".read": true,
-      ".write": "auth != null",
+      "businesses": {
+        ".read": true,
+        ".write": "auth != null",
+        ".indexOn": ["type", "category", "isActive", "hasOffer"]
+      },
+      "news": {
+        ".read": true,
+        ".write": "auth != null",
+        ".indexOn": ["timestamp", "isActive", "badge"]
+      },
+      "bulletins": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "boletines": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "offers": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "ratings": {
+        ".read": true,
+        "$businessId": {
+          "$uid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true)"
+          }
+        }
+      },
       "presence": {
         ".read": true,
         ".write": true
+      },
+      "users": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+          ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true)"
+        }
       }
     },
     "sensun_shop": {
@@ -16,24 +50,35 @@
     },
     "comments": {
       ".read": true,
-      ".write": true
+      "$businessId": {
+        "$commentId": {
+          ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid || auth.token.admin === true)"
+        }
+      }
     },
     "laboratorio_ventas": {
-      ".read": true,
-      ".write": true
+      "multiideas_catalogo": {
+        ".read": true,
+        ".write": "auth != null"
+      },
+      "users": {
+        "$uid": {
+          ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
+          ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true)"
+        }
+      }
     },
     "test_conexion": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null"
     },
     "multiideas_catalogo": {
       ".read": true,
-      ".write": true
+      ".write": "auth != null"
     },
     "users": {
-      ".read": true,
       "$uid": {
-        ".read": true,
+        ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true)",
         ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true)"
       }
     },
@@ -89,4 +134,3 @@
     }
   }
 }
-

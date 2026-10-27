@@ -8,11 +8,12 @@
     <link rel="icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="shortcut icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1" type="image/webp">
     <link rel="apple-touch-icon" href="imagenes/iconos_generales/multiideassv_ico.webp?v=1">
+    <link rel="canonical" href="https://multiideassv.com/servicios">
     
     <!-- Anti-FOUC & Fast Paint Inline Tokens -->
     <style>
         html { background-color: #0a0c10; color: #ffffff; }
-        html.light-theme { background-color: #f0fbfb; color: #063d41; }
+        html.light-theme { background-color: #F8FAFC; color: #0B1220; }
         #global-header, header { min-height: 72px; }
     </style>
     <script>
@@ -362,18 +363,11 @@
             }
         ];
 
-        // Función de fusión inteligente para servicios
-        function mergeServices(defaults, remoteList) {
-            if (!remoteList || !Array.isArray(remoteList) || remoteList.length === 0) return defaults;
-            const map = new Map();
-            defaults.forEach(s => map.set(s.id, { ...s }));
-            remoteList.forEach(s => {
-                if (s && s.id) {
-                    const existing = map.get(s.id) || {};
-                    map.set(s.id, { ...existing, ...s });
-                }
-            });
-            return Array.from(map.values());
+        // Función de resolución autoritativa: prioriza los datos sincronizados del Dashboard/RTDB
+        function resolveAuthoritativeServices(defaults, remoteData) {
+            if (remoteData === null || remoteData === undefined) return defaults;
+            const list = Array.isArray(remoteData) ? remoteData : Object.values(remoteData);
+            return list.filter(s => s && s.id);
         }
 
         // Estado de Servicios
@@ -565,20 +559,21 @@
             });
         });
 
-        // Sincronización en Tiempo Real con Firebase RTDB
+        // Sincronización en Tiempo Real con Firebase RTDB (Fuente Autoritativa)
         try {
             const servicesRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services");
             onValue(servicesRef, (snap) => {
                 const data = snap.val();
-                if (data) {
-                    const list = Array.isArray(data) ? data : Object.values(data);
-                    if (list.length > 0) {
-                        const merged = mergeServices(DEFAULT_STORE_SERVICES, list);
-                        window.servicesStudioState.services = merged;
-                        localStorage.setItem("multiideas_store_services", JSON.stringify(merged));
-                        renderServicesBento();
-                    }
+                if (data !== null) {
+                    const list = resolveAuthoritativeServices(DEFAULT_STORE_SERVICES, data);
+                    window.servicesStudioState.services = list;
+                    try {
+                        localStorage.setItem("multiideas_store_services", JSON.stringify(list));
+                    } catch(e) {}
+                    renderServicesBento();
                 }
+            }, (error) => {
+                console.warn("[RTDB Services Sync Warning]: Fallback a servicios locales por error de red.", error);
             });
         } catch(err) {
             console.warn("[RTDB Services Sync Warning]:", err);

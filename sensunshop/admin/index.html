@@ -5013,6 +5013,17 @@
             const imgSrc = document.getElementById("bizImgSrc").value.trim();
             const whatsapp = formatWhatsappNumber(document.getElementById("bizWhatsapp").value.trim());
 
+            const existingBiz = currentEditBizId ? businessesList.find(x => x.id === currentEditBizId) : null;
+            let finalLat = 13.8767;
+            let finalLng = -88.6319;
+            if (coords && typeof coords.lat === "number" && typeof coords.lng === "number" && !isNaN(coords.lat) && !isNaN(coords.lng)) {
+                finalLat = coords.lat;
+                finalLng = coords.lng;
+            } else if (existingBiz && typeof existingBiz.lat === "number" && typeof existingBiz.lng === "number" && !isNaN(existingBiz.lat) && !isNaN(existingBiz.lng)) {
+                finalLat = existingBiz.lat;
+                finalLng = existingBiz.lng;
+            }
+
             // Estructura sincronizada con la app Android (imgSrc, whatsapp, etc.)
             const bizData = {
                 id: rawId,
@@ -5029,8 +5040,8 @@
                 websiteUrl: document.getElementById("bizWebsiteUrl").value.trim(),
                 facebookUrl: document.getElementById("bizFacebookUrl").value.trim(),
                 locationUrl: locationUrl,
-                lat: coords ? coords.lat : 13.8767,
-                lng: coords ? coords.lng : -88.6319,
+                lat: finalLat,
+                lng: finalLng,
                 tags: document.getElementById("bizTags").value.split(",").map(t => t.trim()).filter(Boolean),
                 hasOffer: document.getElementById("bizHasOffer").checked,
                 offerMsg: document.getElementById("bizOfferMsg").value.trim(),
@@ -5974,10 +5985,14 @@
             console.warn("Aviso al escuchar nodo raíz users:", e);
         }
 
-        // Intentar consultar el listado completo de Firebase Authentication desde Cloud Functions
         async function fetchAuthUsersFromCloudFunction(notify = false) {
             try {
-                const res = await fetch("https://us-central1-sensunshopweb.cloudfunctions.net/getAuthUsers");
+                let token = null;
+                if (window.auth && window.auth.currentUser) {
+                    try { token = await window.auth.currentUser.getIdToken(); } catch(e) {}
+                }
+                const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+                const res = await fetch("https://us-central1-sensunshopweb.cloudfunctions.net/getAuthUsers", { headers });
                 if (res.ok) {
                     const json = await res.json();
                     if (json && json.success && Array.isArray(json.users)) {
