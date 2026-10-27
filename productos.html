@@ -13,7 +13,7 @@
     <!-- Anti-FOUC & Fast Paint Inline Tokens -->
     <style>
         html { background-color: #0a0c10; color: #ffffff; }
-        html.light-theme { background-color: #F8FAFC; color: #0B1220; }
+        html.light-theme { background-color: #F5F8F7; color: #123236; }
         #global-header, header { min-height: 72px; }
     </style>
     <script>
@@ -51,37 +51,52 @@
     <header id="global-header"></header>
 
     <main>
-        <section class="showcase-modern-section" style="padding-top: 110px;">
-            <div class="showcase-inner-container">
+        <section class="a1-page-shell">
+            <div class="a1-container">
                 
-                <!-- Encabezado Boutique Store -->
-                <div class="showcase-header-center">
-                    <span class="showcase-top-badge">🛍️ Catálogo Oficial</span>
-                    <h1>Catálogo de <span class="gradient-text">Productos</span></h1>
-                    <p>Materiales de primera calidad y acabados finos para tu negocio. Pedidos directos a WhatsApp o al carrito.</p>
+                <!-- Encabezado A1 UI-002 -->
+                <div class="a1-breadcrumbs">
+                    <a href="index.html">Inicio</a>
+                    <span class="sep">/</span>
+                    <span>Catálogo de productos</span>
                 </div>
 
-                <!-- Barra de Búsqueda y Filtros de Categorías -->
-                <div class="showcase-toolbar-row">
-                    <div class="showcase-search-box">
-                        <span class="showcase-search-icon">🔍</span>
-                        <input type="text" id="productsSearchInput" placeholder="Buscar por producto o material..." aria-label="Buscar producto">
-                    </div>
+                <span class="a1-context-badge">MULTI IDEAS SV</span>
+                <h1 class="a1-hero-title">Elige cómo dar forma a tu idea</h1>
+                <p class="a1-hero-desc">Materiales, formatos y acabados reunidos en un catálogo fácil de cotizar.</p>
 
-                    <div class="showcase-filters-bar" id="productsCategoryFilters">
-                        <button type="button" class="showcase-filter-pill active" data-category="all">Todos</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Tarjetas">Tarjetas</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Stickers">Stickers</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Talonarios">Talonarios</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Menús">Menús</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Afiches">Afiches</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Papelería">Papelería</button>
-                        <button type="button" class="showcase-filter-pill" data-category="Fotografía">Fotografía</button>
+                <!-- Barra de Búsqueda y Filtros de Categorías (B06) -->
+                <div class="a1-search-box" style="margin-bottom: 20px;">
+                    <span style="font-size: 18px; opacity: 0.6;">🔍</span>
+                    <input type="text" id="productsSearchInput" placeholder="Buscar producto, material o acabado..." aria-label="Buscar producto" style="border: none; background: transparent; outline: none; width: 100%; font-size: 15px; color: inherit;">
+                </div>
+
+                <div class="showcase-filters-bar" id="productsCategoryFilters" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button type="button" class="a1-filter-chip active" data-category="all">Todos</button>
+                    <button type="button" class="a1-filter-chip" data-category="Tarjetas">Tarjetas</button>
+                    <button type="button" class="a1-filter-chip" data-category="Stickers">Stickers</button>
+                    <button type="button" class="a1-filter-chip" data-category="Talonarios">Talonarios</button>
+                    <button type="button" class="a1-filter-chip" data-category="Menús">Menús</button>
+                    <button type="button" class="a1-filter-chip" data-category="Afiches">Afiches</button>
+                    <button type="button" class="a1-filter-chip" data-category="Papelería">Papelería</button>
+                    <button type="button" class="a1-filter-chip" data-category="Fotografía">Fotografía</button>
+                </div>
+
+                <!-- Barra de Estado y Selector de Vista (B07) -->
+                <div class="a1-status-row">
+                    <span id="productsCountText">11 productos de referencia</span>
+                    <div class="a1-view-toggle">
+                        <button type="button" class="a1-view-btn active" id="viewModeGrid" onclick="setProductViewMode('grid')">
+                            <span>⊞</span> Tarjetas
+                        </button>
+                        <button type="button" class="a1-view-btn" id="viewModeList" onclick="setProductViewMode('list')">
+                            <span>☰</span> Lista
+                        </button>
                     </div>
                 </div>
 
-                <!-- Grilla Dinámica de Galería de Compras -->
-                <div class="boutique-shopping-grid" id="publicShoppingGrid">
+                <!-- Grilla Dinámica de 4 Columnas A1 UI-002 -->
+                <div class="a1-product-grid" id="publicShoppingGrid">
                     <!-- Se inyecta dinámicamente desde Firebase RTDB / LocalStorage -->
                 </div>
 
@@ -381,7 +396,27 @@
             }
         } catch(e) {}
 
-        // Renderizado del Catálogo Boutique
+        // Modo de visualización (Tarjetas vs Lista)
+        window.currentViewMode = 'grid';
+        window.setProductViewMode = function(mode) {
+            window.currentViewMode = mode;
+            const grid = document.getElementById("publicShoppingGrid");
+            const btnGrid = document.getElementById("viewModeGrid");
+            const btnList = document.getElementById("viewModeList");
+            if (btnGrid && btnList) {
+                if (mode === 'grid') {
+                    btnGrid.classList.add('active');
+                    btnList.classList.remove('active');
+                    if (grid) grid.style.gridTemplateColumns = "";
+                } else {
+                    btnList.classList.add('active');
+                    btnGrid.classList.remove('active');
+                    if (grid) grid.style.gridTemplateColumns = "1fr";
+                }
+            }
+        };
+
+        // Renderizado del Catálogo Canónico A1 (UI-002)
         function renderShoppingCatalog() {
             const grid = document.getElementById("publicShoppingGrid");
             if (!grid) return;
@@ -398,11 +433,16 @@
                 return true;
             });
 
+            const countEl = document.getElementById("productsCountText");
+            if (countEl) {
+                countEl.textContent = `${list.length} ${list.length === 1 ? 'producto' : 'productos'} de referencia`;
+            }
+
             if (list.length === 0) {
                 grid.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 16px; border: 1px dashed rgba(255,255,255,0.1);">
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--multi-text-muted); background: var(--multi-surface-card); border-radius: var(--radius-card); border: 1px dashed var(--multi-border);">
                         <div style="font-size: 2.2rem; margin-bottom: 10px;">🛍️</div>
-                        <h4 style="color: #ffffff; margin-bottom: 6px;">No se encontraron productos</h4>
+                        <h4 style="color: var(--multi-text); margin-bottom: 6px; font-size: 1.15rem;">No se encontraron productos</h4>
                         <p style="font-size: 0.9rem;">Prueba con otra palabra clave o selecciona otra categoría.</p>
                     </div>
                 `;
@@ -412,74 +452,35 @@
             grid.innerHTML = list.map(p => {
                 const qty = window.storeCatalogState.quantities[p.id] || 1;
                 const isUnderOrder = (p.stock || "").toLowerCase().includes("pedido");
-                const stockClass = isUnderOrder ? "order" : "in-stock";
                 const stockText = p.stock || "En Stock";
 
                 const isLimited = Boolean(p.isLimitedOffer || p.limitedOffer);
                 const hasDiscount = Boolean(p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
                 const discountPercent = hasDiscount ? Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100) : 0;
 
-                const specsHTML = (p.specs || []).slice(0, 2).map(s => `
-                    <span class="boutique-spec-chip"><span>✓</span> ${s}</span>
-                `).join('');
-
-                const waOrderMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa comprar el producto: ${p.name} (${p.subtitle || p.category}). Cantidad: ${qty}. Precio: $${(p.price * qty).toFixed(2)}.`);
+                const waOrderMsg = encodeURIComponent(`Hola Multi Ideas SV, me interesa cotizar/comprar: ${p.name} (${p.subtitle || p.category}). Cantidad: ${qty}. Precio estimado: $${(p.price * qty).toFixed(2)}.`);
 
                 return `
-                    <article class="boutique-product-card">
-                        <div class="boutique-img-wrap">
-                            ${isLimited ? `
-                                <div class="boutique-limited-corner-ribbon">
-                                    <span>⏰ OFERTA LIMITADA</span>
-                                </div>
-                            ` : ''}
-                            <span class="boutique-badge-tag">${p.badge || 'DESTACADO'}</span>
-                            <span class="boutique-stock-indicator ${stockClass}">
-                                <span class="dot"></span>
-                                <span>${stockText}</span>
-                            </span>
-                            <button type="button" class="boutique-quickview-btn" onclick="openProductQuickView('${p.id}')">
-                                <span>👁️ Vista Rápida</span>
-                            </button>
-                            <img src="${p.img}" alt="${p.name}" onerror="this.onerror=null; this.src='imagenes/imagenes_generales/imagen48.webp';">
+                    <article class="a1-product-card" id="card-${p.id}">
+                        <div class="a1-product-card-img-wrap">
+                            <img src="${p.img}" alt="${p.name}" loading="lazy" decoding="async" onerror="this.onerror=null; this.src='imagenes/imagenes_generales/imagen48.webp';">
+                            ${isLimited ? `<span style="position: absolute; top: 10px; left: 10px; background: #C2410C; color: #fff; font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 9999px;">OFERTA</span>` : ''}
                         </div>
 
-                        <div class="boutique-card-body">
-                            <div class="boutique-meta-row">
-                                <span class="boutique-cat-tag">${p.category}</span>
-                                <span class="boutique-stars">★★★★★</span>
-                            </div>
+                        <span class="a1-product-card-tag">${p.category}</span>
+                        <h3 class="a1-product-card-title">${p.name}</h3>
+                        <div class="a1-product-card-sub">${p.subtitle || stockText}</div>
 
-                            <h3 class="boutique-product-title">${p.name}</h3>
-                            <div class="boutique-product-sub">${p.subtitle || ''}</div>
-                            <p class="boutique-product-desc">${p.desc}</p>
+                        <div class="a1-product-card-price-row">
+                            <span class="a1-product-card-price">$${parseFloat(p.price).toFixed(2)}</span>
+                            ${hasDiscount ? `<span class="a1-product-card-old-price">$${parseFloat(p.oldPrice).toFixed(2)}</span>` : ''}
+                            <span class="a1-product-card-unit">${p.unit || '/ unidad'}</span>
+                        </div>
 
-                            <div class="boutique-specs-preview">
-                                ${specsHTML}
-                            </div>
-
-                            <div class="boutique-price-box">
-                                <span class="boutique-price-val">$${parseFloat(p.price).toFixed(2)}</span>
-                                ${hasDiscount ? `<span class="boutique-old-price">$${parseFloat(p.oldPrice).toFixed(2)}</span>` : ''}
-                                <span class="boutique-unit-val">${p.unit || '/ unidad'}</span>
-                                ${hasDiscount ? `<span class="boutique-discount-tag">-${discountPercent}%</span>` : ''}
-                            </div>
-
-                            <div class="boutique-actions-row">
-                                <div class="boutique-qty-control">
-                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', -1)">-</button>
-                                    <span class="boutique-qty-number" id="qty-${p.id}">${qty}</span>
-                                    <button type="button" class="boutique-qty-btn" onclick="changeCardQty('${p.id}', 1)">+</button>
-                                </div>
-
-                                <button type="button" class="boutique-btn-add" onclick="addProductToCart('${p.id}')">
-                                    <span>🛒 Añadir</span>
-                                </button>
-
-                                <a href="https://wa.me/50372359113?text=${waOrderMsg}" id="wa-${p.id}" target="_blank" rel="noopener noreferrer" class="boutique-btn-wa" title="Comprar por WhatsApp">
-                                    💬
-                                </a>
-                            </div>
+                        <div class="a1-product-card-actions">
+                            <button type="button" class="a1-btn-options" onclick="openProductQuickView('${p.id}')">Ver opciones</button>
+                            <button type="button" class="a1-btn-add-quick" onclick="addProductToCart('${p.id}')" title="Añadir al carrito">+</button>
+                            <a href="https://wa.me/50372359113?text=${waOrderMsg}" id="wa-${p.id}" target="_blank" rel="noopener noreferrer" class="a1-btn-wa-quick" title="Comprar por WhatsApp">💬</a>
                         </div>
                     </article>
                 `;
