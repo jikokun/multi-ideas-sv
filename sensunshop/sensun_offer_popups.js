@@ -36,16 +36,17 @@
         style.id = 'sensun-offer-styles';
         style.textContent = `
         :root {
-            --so-orange: #FF6B00;
-            --so-orange-2: #FF8A2A;
-            --so-purple: #9B59B6;
-            --so-purple-d: #7D3FA8;
-            --so-ink: #282D33;
-            --so-body: #5C6670;
-            --so-muted: #98A1AA;
-            --so-cream: #FFF7F1;
-            --so-line: #F0E6DE;
-            --so-star: #FF8A00;
+            --so-orange: #C2410C;
+            --so-orange-2: #EA580C;
+            --so-purple: #6D28D9;
+            --so-purple-d: #5B21B6;
+            --so-ink: #242B36;
+            --so-body: #67717E;
+            --so-muted: #94A3B8;
+            --so-cream: #FFFAF5;
+            --so-line: #E9E2DA;
+            --so-soft: #FFF3E8;
+            --so-star: #F59E0B;
         }
 
         /* Contenedor Overlay Modal Global */
@@ -56,31 +57,45 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
-            background: rgba(18, 14, 24, 0);
+            padding: 16px;
+            background: rgba(36, 43, 54, 0);
             pointer-events: none;
             backdrop-filter: blur(0px);
             -webkit-backdrop-filter: blur(0px);
-            transition: background 0.3s ease, backdrop-filter 0.3s ease, -webkit-backdrop-filter 0.3s ease;
-            font-family: 'Inter', -apple-system, sans-serif;
+            transition: background 0.24s ease, backdrop-filter 0.24s ease, -webkit-backdrop-filter 0.24s ease;
+            font-family: system-ui, -apple-system, sans-serif;
         }
 
         .sensun-offer-overlay.open {
-            background: rgba(18, 14, 24, 0.65);
+            background: rgba(36, 43, 54, 0.65);
             pointer-events: auto;
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
         }
 
         .sensun-offer-modal-box {
             width: 100%;
-            max-width: 320px;
+            max-width: 480px;
             position: relative;
-            transform: scale(0.88) translateY(22px);
+            transform: scale(0.94) translateY(16px);
             opacity: 0;
-            transition: all 0.38s cubic-bezier(0.18, 0.9, 0.3, 1.18);
-            font-family: 'Inter', sans-serif;
+            transition: all 0.24s cubic-bezier(0.18, 0.9, 0.3, 1.18);
+            font-family: system-ui, -apple-system, sans-serif;
             color: var(--so-ink);
+            background: #ffffff;
+            border-radius: 22px;
+            box-shadow: 0 20px 48px rgba(36, 43, 54, 0.18);
+            border: 1px solid var(--so-line);
+            box-sizing: border-box;
+            overflow: hidden;
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+        }
+
+        @media (max-width: 720px) {
+            .sensun-offer-modal-box {
+                border-radius: 19px;
+            }
         }
 
         .sensun-offer-overlay.open .sensun-offer-modal-box {
@@ -106,27 +121,34 @@
 
         .so-close {
             position: absolute;
-            top: 12px;
-            right: 12px;
-            width: 30px;
-            height: 30px;
+            top: 14px;
+            right: 14px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
-            border: none;
+            border: 1px solid var(--so-line);
+            background: #ffffff;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10;
-            transition: transform 0.18s ease, background 0.2s;
+            color: var(--so-body);
+            transition: transform 0.16s ease, background 0.16s, color 0.16s;
+        }
+
+        .so-close:hover {
+            background: var(--so-soft);
+            color: var(--so-orange);
         }
 
         .so-close:active {
-            transform: scale(0.88);
+            transform: scale(0.92);
         }
 
         .so-close svg {
-            width: 13px;
-            height: 13px;
+            width: 16px;
+            height: 16px;
         }
 
         .so-close-soft {
@@ -784,6 +806,168 @@
             fill: #ffffff;
         }
 
+        /* ===== ESTILO CANÓNICO A1 · W18 (Manual A1 · Modal único de ofertas) ===== */
+        .so-w18 {
+            background: #ffffff;
+            padding: 24px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-sizing: border-box;
+        }
+
+        .so-w18-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-right: 44px;
+        }
+
+        .so-w18-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: var(--so-soft);
+            color: var(--so-orange);
+            border: 1px solid var(--so-line);
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .so-w18-benefit {
+            font-size: 22px;
+            font-weight: 800;
+            color: var(--so-orange);
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+        }
+
+        .so-w18-biz {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 14px;
+            background: var(--so-cream);
+            border: 1px solid var(--so-line);
+            border-radius: 14px;
+        }
+
+        .so-w18-thumb {
+            width: 52px;
+            height: 52px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: #ffffff;
+            border: 1px solid var(--so-line);
+            flex-shrink: 0;
+        }
+
+        .so-w18-biz-name {
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--so-ink);
+        }
+
+        .so-w18-biz-sub {
+            font-size: 12px;
+            color: var(--so-body);
+            margin-top: 2px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .so-w18-coupon {
+            border: 2px dashed var(--so-orange);
+            background: var(--so-soft);
+            border-radius: 12px;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .so-w18-coupon-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            color: #9A3412;
+            text-transform: uppercase;
+        }
+
+        .so-w18-code {
+            font-family: monospace, system-ui;
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--so-orange);
+            letter-spacing: 1.5px;
+        }
+
+        .so-w18-copy-btn {
+            min-height: 36px;
+            padding: 0 14px;
+            border-radius: 8px;
+            background: var(--so-orange);
+            color: #ffffff;
+            font-size: 12px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.16s ease, transform 0.1s ease;
+        }
+
+        .so-w18-copy-btn:hover {
+            background: #9A3412;
+        }
+
+        .so-w18-copy-btn:active {
+            transform: scale(0.96);
+        }
+
+        .so-w18-conditions {
+            background: #FAFAF9;
+            border: 1px solid var(--so-line);
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 12px;
+            line-height: 1.55;
+            color: var(--so-body);
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .so-w18-cond-item {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .so-w18-check {
+            color: #166534;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        .so-w18-cta {
+            display: flex;
+            gap: 10px;
+            margin-top: 4px;
+        }
+
+        .so-w18-cta .so-cta-fill {
+            flex: 1;
+        }
+
         /* Toast de confirmación de copiado */
         .sensun-offer-toast {
             position: fixed;
@@ -825,135 +1009,87 @@
         return url;
     }
 
-    // 3. Generar HTML para cada Estilo (reutilizable en modal real o preview)
+    // 3. Generar HTML Canónico W18 (Manual A1 · Única propuesta seleccionada)
     function generatePopupHTML(biz, isPreview) {
-        const style = parseInt(biz.offerStyle, 10) || 1;
         const rawThumb = biz.imgSrc || biz.imageUrl || FALLBACK_POPUP_THUMB;
         const thumb = optimizeSensunThumb(rawThumb, 240);
         const title = biz.title || 'Comercio Sensun Shop';
-        const category = biz.category || biz.badge || 'Comercio';
+        const category = biz.category || biz.badge || 'Comercio Local';
         const stars = biz.rating || '4.8';
-        const discount = biz.offerDiscount || '-25%';
-        const msg = biz.offerMsg || 'Descuento Especial';
-        const code = biz.offerCode || 'PROMO25';
+        const discount = biz.offerDiscount || '';
+        const msg = biz.offerMsg || 'Beneficio para nuestra comunidad';
+        const code = biz.offerCode || '';
         const expiry = biz.offerExpiry || 'Válido por tiempo limitado';
-        const detail = biz.offerDetail || `En todo el menú y productos seleccionados. Presenta el código al llegar.`;
-        const badge = biz.offerBadge || (style === 4 ? '¡HOY!' : `${discount} DESCUENTO`);
+        const detail = biz.offerDetail || 'Consulta condiciones y disponibilidad directamente con el negocio.';
         const distance = biz.offerDistance || 'Sensuntepeque';
+        const hasCountdown = parseInt(biz.offerStyle, 10) === 2 || !!biz.offerDurationHours;
 
         const phoneClean = (biz.whatsapp || '').replace(/\D/g, '');
-        const targetUrl = biz.whatsapp ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent('Hola ' + title + ', vi su oferta "' + msg + '" en Sensun Shop')}` : '#';
+        const targetUrl = biz.whatsapp ? `https://api.whatsapp.com/send?phone=${phoneClean}&text=${encodeURIComponent('Hola ' + title + ', vi su oferta "' + msg + '" en Sensun Shop')}` : (biz.website || '#');
 
-        const closeBtnSoft = isPreview ? '' : `<button type="button" class="so-close so-close-soft" data-so-close aria-label="Cerrar"><svg class="so-ic"><use href="#so-x"/></svg></button>`;
-        const closeBtnLight = isPreview ? '' : `<button type="button" class="so-close so-close-light" data-so-close aria-label="Cerrar"><svg class="so-ic"><use href="#so-x"/></svg></button>`;
+        const closeBtn = isPreview ? '' : `<button type="button" class="so-close so-close-soft" data-so-close aria-label="Cerrar"><svg class="so-ic"><use href="#so-x"/></svg></button>`;
 
-        if (style === 1) {
-            // Estilo 1 · Cupón
-            return `
-            <div class="so-m1" id="so-popup-m1">
-                ${closeBtnSoft}
-                <div class="so-m1-head">
-                    <img class="so-m1-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
-                    <div>
-                        <div class="so-m1-name">${title}</div>
-                        <div class="so-m1-cat">${category} · <svg class="so-ic fill"><use href="#so-star"/></svg> ${stars}</div>
-                    </div>
+        return `
+        <div class="so-w18" id="so-popup-w18">
+            ${closeBtn}
+            <div class="so-w18-header">
+                <span class="so-w18-badge">${category}</span>
+                ${distance ? `<span style="font-size: 11.5px; color: var(--so-muted);">${distance}</span>` : ''}
+            </div>
+
+            <div class="so-w18-benefit">
+                ${discount ? `<span style="display:inline-block; margin-right:6px; color:#C2410C;">${discount}</span> ` : ''}${msg}
+            </div>
+
+            <div class="so-w18-biz">
+                <img class="so-w18-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
+                <div style="flex: 1; min-width: 0;">
+                    <div class="so-w18-biz-name">${title}</div>
+                    <div class="so-w18-biz-sub"><svg class="so-ic fill" style="color:var(--so-star); width:13px; height:13px;"><use href="#so-star"/></svg> ${stars} · ${category}</div>
                 </div>
-                <div class="so-m1-coupon">
-                    <span class="so-m1-scissors"><svg class="so-ic"><use href="#so-scissors"/></svg></span>
-                    <div class="so-m1-pct">${discount}</div>
-                    <div class="so-m1-lbl">${msg}</div>
-                    ${code ? `
-                    <button type="button" class="so-m1-code" data-copy-code="${code}">
-                        <svg class="so-ic"><use href="#so-copy"/></svg> ${code}
-                    </button>` : ''}
+            </div>
+
+            ${code ? `
+            <div class="so-w18-coupon">
+                <div>
+                    <div class="so-w18-coupon-label">Código de cupón</div>
+                    <div class="so-w18-code">${code}</div>
                 </div>
-                <div class="so-m1-valid">${expiry}</div>
+                <button type="button" class="so-w18-copy-btn" data-copy-code="${code}" aria-label="Copiar código ${code}">
+                    <svg class="so-ic"><use href="#so-copy"/></svg> Copiar código
+                </button>
+            </div>` : ''}
+
+            ${hasCountdown ? `
+            <div class="so-m2-count" data-countdown-box style="margin-top: 6px;">
+                <div class="so-cd-box"><div class="so-cd-num so-cd-hh">05</div><div class="so-cd-lb">HRS</div></div>
+                <div class="so-cd-box"><div class="so-cd-num so-cd-mm">59</div><div class="so-cd-lb">MIN</div></div>
+                <div class="so-cd-box"><div class="so-cd-num so-cd-ss">59</div><div class="so-cd-lb">SEG</div></div>
+            </div>` : ''}
+
+            <div class="so-w18-conditions">
+                <div class="so-w18-cond-item">
+                    <span class="so-w18-check">✓</span>
+                    <span><strong>Vigencia:</strong> ${expiry}</span>
+                </div>
+                <div class="so-w18-cond-item">
+                    <span class="so-w18-check">✓</span>
+                    <span><strong>Condiciones:</strong> ${detail}</span>
+                </div>
+                <div class="so-w18-cond-item">
+                    <span class="so-w18-check">✓</span>
+                    <span>Confirmar la promoción directamente con el negocio.</span>
+                </div>
+            </div>
+
+            <div class="so-w18-cta">
                 <a href="${targetUrl}" class="so-cta-fill" ${biz.whatsapp ? 'target="_blank" rel="noopener noreferrer"' : ''}>
                     Ver Negocio <svg class="so-ic"><use href="#so-chev-r"/></svg>
                 </a>
+                <button type="button" class="so-m4-heart" data-so-heart aria-label="Guardar en favoritos"><svg class="so-ic"><use href="#so-heart"/></svg></button>
             </div>
-            `;
-        } else if (style === 2) {
-            // Estilo 2 · Festivo
-            const pctClean = discount.replace('%', '');
-            return `
-            <div class="so-m2" id="so-popup-m2">
-                ${closeBtnLight}
-                <div class="so-m2-top">
-                    <img class="so-m2-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
-                    <div>
-                        <div class="so-m2-name">${title}</div>
-                        <div class="so-m2-rate"><svg class="so-ic fill"><use href="#so-star"/></svg> ${stars} · ${category}</div>
-                    </div>
-                </div>
-                <div class="so-m2-big">${pctClean}<span>%</span></div>
-                <div class="so-m2-pill">${msg.toUpperCase()}</div>
-                <div class="so-m2-count" data-countdown-box>
-                    <div class="so-cd-box"><div class="so-cd-num so-cd-hh">05</div><div class="so-cd-lb">HRS</div></div>
-                    <div class="so-cd-box"><div class="so-cd-num so-cd-mm">59</div><div class="so-cd-lb">MIN</div></div>
-                    <div class="so-cd-box"><div class="so-cd-num so-cd-ss">59</div><div class="so-cd-lb">SEG</div></div>
-                </div>
-                <a href="${targetUrl}" class="so-cta-white" ${biz.whatsapp ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    Ver Negocio
-                </a>
-            </div>
-            `;
-        } else if (style === 3) {
-            // Estilo 3 · Minimal
-            return `
-            <div class="so-m3" id="so-popup-m3">
-                <img class="so-m3-ava" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
-                ${closeBtnSoft}
-                <div class="so-m3-badge">${badge.toUpperCase()}</div>
-                <div class="so-m3-name">${title}</div>
-                <div class="so-m3-cat">${category} · Sensuntepeque</div>
-                <div class="so-m3-stars">
-                    <svg class="so-ic fill"><use href="#so-star"/></svg>
-                    <svg class="so-ic fill"><use href="#so-star"/></svg>
-                    <svg class="so-ic fill"><use href="#so-star"/></svg>
-                    <svg class="so-ic fill"><use href="#so-star"/></svg>
-                    <svg class="so-ic fill"><use href="#so-star"/></svg>
-                </div>
-                <p class="so-m3-offer"><b>${msg}</b> ${detail}</p>
-                <div class="so-m3-dots"><span></span><span></span><span></span></div>
-                <a href="${targetUrl}" class="so-cta-soft" ${biz.whatsapp ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    Ver Negocio <svg class="so-ic"><use href="#so-chev-r"/></svg>
-                </a>
-                <button type="button" class="so-m3-later" data-so-close>Guardar para después</button>
-            </div>
-            `;
-        } else {
-            // Estilo 4 · Banner
-            return `
-            <div class="so-m4" id="so-popup-m4">
-                ${closeBtnLight}
-                <div class="so-m4-banner">
-                    <div class="so-m4-pct">${discount}<div class="so-m4-blbl">DESCUENTO</div></div>
-                    <span class="so-m4-hoy" style="right: 50px;">${badge}</span>
-                </div>
-                <div class="so-m4-biz">
-                    <img class="so-m4-thumb" src="${thumb}" alt="${title}" loading="lazy" decoding="async" onerror="this.src='${FALLBACK_POPUP_THUMB}'">
-                    <div>
-                        <div class="so-m4-name">${title}</div>
-                        <div class="so-m4-rate"><svg class="so-ic fill"><use href="#so-star"/></svg> ${stars} · ${category} · ${distance}</div>
-                    </div>
-                </div>
-                <div class="so-m4-body">
-                    <div class="so-m4-title">${msg}</div>
-                    <p class="so-m4-txt">${detail}</p>
-                    ${code ? `
-                    <button type="button" class="so-m4-code" data-copy-code="${code}">
-                        <svg class="so-ic"><use href="#so-copy"/></svg> ${code}
-                    </button>` : ''}
-                </div>
-                <div class="so-m4-cta">
-                    <a href="${targetUrl}" class="so-cta-fill" ${biz.whatsapp ? 'target="_blank" rel="noopener noreferrer"' : ''}>Ver Negocio</a>
-                    <button type="button" class="so-m4-heart" data-so-heart aria-label="Favorito"><svg class="so-ic"><use href="#so-heart"/></svg></button>
-                </div>
-            </div>
-            `;
-        }
+        </div>
+        `;
     }
 
     // 4. Controlador del Reloj Regresivo (Estilo 2)
@@ -1059,8 +1195,8 @@
             });
         }
 
-        // Reloj si es estilo 2
-        if (parseInt(businessData.offerStyle, 10) === 2) {
+        // Reloj si existe caja de cuenta regresiva
+        if (modalBox.querySelector('[data-countdown-box]')) {
             startCountdown(modalBox, businessData.offerDurationHours || 6);
         }
 
