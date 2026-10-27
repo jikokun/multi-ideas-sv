@@ -191,6 +191,8 @@
                 name: "Bots Inteligentes & Automatización 24/7",
                 category: "Bots & Streaming",
                 priceMode: "Desde $50",
+                oldPrice: "Antes $75",
+                isLimitedOffer: true,
                 turnaround: "⚡ 24 a 48 horas",
                 badge: "AUTOMATIZACIÓN",
                 icon: "🤖",
@@ -367,7 +369,17 @@
         function resolveAuthoritativeServices(defaults, remoteData) {
             if (remoteData === null || remoteData === undefined) return defaults;
             const list = Array.isArray(remoteData) ? remoteData : Object.values(remoteData);
-            return list.filter(s => s && s.id);
+            return list.map(rem => {
+                const def = defaults.find(d => d.id === rem.id);
+                const isLimited = Boolean(rem.isLimitedOffer !== undefined ? rem.isLimitedOffer : (def && def.isLimitedOffer));
+                const oldPrice = rem.oldPrice !== undefined ? (rem.oldPrice || null) : (def ? def.oldPrice : null);
+                return {
+                    ...(def || {}),
+                    ...rem,
+                    oldPrice: oldPrice,
+                    isLimitedOffer: isLimited
+                };
+            }).filter(s => s && s.id);
         }
 
         // Estado de Servicios
@@ -449,6 +461,11 @@
 
                 return `
                     <article class="tech-bento-card">
+                        ${(s.isLimitedOffer || s.limitedOffer) ? `
+                            <div class="bento-limited-corner-ribbon">
+                                <span>⏰ OFERTA LIMITADA</span>
+                            </div>
+                        ` : ''}
                         <div class="bento-header-flex">
                             <div class="bento-tech-icon-box">
                                 ${icon}
@@ -481,7 +498,10 @@
                             <div class="bento-tier-display">
                                 <div>
                                     <span style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 800; display: block;">Inversión Estimada:</span>
-                                    <span class="bento-tier-price" id="tier-price-${s.id}">${currentTier.price}</span>
+                                    <div style="display: flex; align-items: baseline; gap: 8px;">
+                                        ${s.oldPrice ? `<span class="bento-old-price">${s.oldPrice}</span>` : ''}
+                                        <span class="bento-tier-price" id="tier-price-${s.id}">${currentTier.price}</span>
+                                    </div>
                                 </div>
                                 <div style="text-align: right;">
                                     <span style="font-size: 0.72rem; color: #94a3b8; text-transform: uppercase; font-weight: 800; display: block;">Tiempo de Entrega:</span>

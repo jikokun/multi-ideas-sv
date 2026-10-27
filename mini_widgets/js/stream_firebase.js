@@ -406,7 +406,12 @@ class StreamFirebaseService {
       'camiii': 'camiii07_ok',
       'emmy': 'emmy_aine',
       'juancho': 'juanchofficial',
-      'ethan': 'xeth4n_k'
+      'ethan': 'xeth4n_k',
+      'culi0n_3000': 'aguita_e_jiko',
+      'culi0n': 'aguita_e_jiko',
+      'culion_3000': 'aguita_e_jiko',
+      'culion3000': 'aguita_e_jiko',
+      'aguita': 'aguita_e_jiko'
     };
     if (ALIASES[q]) return ALIASES[q];
 

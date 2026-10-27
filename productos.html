@@ -101,6 +101,11 @@
                     <span class="quickview-info-badge" id="qvCategory">Categoría</span>
                     <h3 class="quickview-info-title" id="qvTitle">Nombre del Producto</h3>
                     
+                    <div id="qvLimitedBanner" class="qv-limited-banner" style="display: none;">
+                        <span>⏰</span>
+                        <span>¡OFERTA POR TIEMPO LIMITADO! Aprovecha el precio especial hoy.</span>
+                    </div>
+
                     <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 12px;">
                         <span class="quickview-info-price" id="qvPrice">$0.00</span>
                         <span id="qvOldPrice" style="font-size: 0.95rem; text-decoration: line-through; color: #f87171; display: none;"></span>
@@ -167,7 +172,8 @@
                 subtitle: "Matte - Doble Cara",
                 category: "Tarjetas",
                 price: 16.00,
-                oldPrice: 20.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ 100 uni.",
                 badge: "MÁS VENDIDO",
                 stock: "En Stock (Envío Rápido)",
@@ -182,6 +188,7 @@
                 category: "Stickers",
                 price: 3.00,
                 oldPrice: 4.50,
+                isLimitedOffer: true,
                 unit: "/ 30 uni.",
                 badge: "OFERTA",
                 stock: "En Stock",
@@ -195,7 +202,8 @@
                 subtitle: "Brillantes - Troquelados",
                 category: "Stickers",
                 price: 3.00,
-                oldPrice: 4.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ 30 uni.",
                 badge: "POPULAR",
                 stock: "En Stock",
@@ -209,7 +217,8 @@
                 subtitle: "100 Hojas por Block",
                 category: "Talonarios",
                 price: 8.00,
-                oldPrice: 10.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ block",
                 badge: "POPULAR",
                 stock: "Bajo Pedido (24-48h)",
@@ -223,7 +232,8 @@
                 subtitle: "Medida 14x15.5 cm",
                 category: "Papelería",
                 price: 2.00,
-                oldPrice: 3.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ 12 uni.",
                 badge: "CORPORATIVO",
                 stock: "En Stock",
@@ -237,7 +247,8 @@
                 subtitle: "Glossy una cara - 14x15.5cm",
                 category: "Papelería",
                 price: 12.00,
-                oldPrice: 15.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ 36 uni.",
                 badge: "EVENTOS",
                 stock: "En Stock",
@@ -252,6 +263,7 @@
                 category: "Menús",
                 price: 6.00,
                 oldPrice: 8.50,
+                isLimitedOffer: true,
                 unit: "/ unidad",
                 badge: "ALTA DEMANDA",
                 stock: "Bajo Pedido",
@@ -265,7 +277,8 @@
                 subtitle: "Tamaño Tabloide 11x17 pulg.",
                 category: "Afiches",
                 price: 12.00,
-                oldPrice: 15.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ 50 uni.",
                 badge: "EVENTOS",
                 stock: "En Stock",
@@ -279,7 +292,8 @@
                 subtitle: "Papel Bond - Ciento (100 uds)",
                 category: "Afiches",
                 price: 3.50,
-                oldPrice: 5.00,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ ciento",
                 badge: "ECONÓMICO",
                 stock: "En Stock",
@@ -293,7 +307,8 @@
                 subtitle: "Tamaño Postal 6x4 sin bordes",
                 category: "Fotografía",
                 price: 1.00,
-                oldPrice: 1.50,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ foto (6x4)",
                 badge: "RECUERDOS",
                 stock: "En Stock",
@@ -307,7 +322,8 @@
                 subtitle: "Tamaño Carta 8x10 pulg.",
                 category: "Fotografía",
                 price: 2.75,
-                oldPrice: 3.50,
+                oldPrice: null,
+                isLimitedOffer: false,
                 unit: "/ unidad",
                 badge: "CALIDAD HD",
                 stock: "En Stock",
@@ -321,7 +337,27 @@
         function resolveAuthoritativeProducts(defaults, remoteData) {
             if (remoteData === null || remoteData === undefined) return defaults;
             const list = Array.isArray(remoteData) ? remoteData : Object.values(remoteData);
-            return list.filter(p => p && p.id);
+            return list.map(rem => {
+                const def = defaults.find(d => d.id === rem.id);
+                let oldPrice = null;
+                if (rem.oldPrice !== undefined && rem.oldPrice !== null && rem.oldPrice !== "") {
+                    const parsed = parseFloat(rem.oldPrice);
+                    if (!isNaN(parsed) && parsed > parseFloat(rem.price)) {
+                        oldPrice = parsed;
+                    }
+                } else if (def && def.oldPrice) {
+                    oldPrice = def.oldPrice;
+                }
+
+                const isLimited = Boolean(rem.isLimitedOffer !== undefined ? rem.isLimitedOffer : (def && def.isLimitedOffer));
+
+                return {
+                    ...(def || {}),
+                    ...rem,
+                    oldPrice: oldPrice,
+                    isLimitedOffer: isLimited
+                };
+            }).filter(p => p && p.id);
         }
 
         // Estado del Catálogo de la Tienda
@@ -334,13 +370,13 @@
             quickViewQty: 1
         };
 
-        // Cargar productos en caché local fusionando con catálogo maestro
+        // Cargar productos en caché local con resolución autoritativa
         try {
             const cached = localStorage.getItem("multiideas_store_products");
             if (cached) {
                 const parsed = JSON.parse(cached);
                 if (Array.isArray(parsed) && parsed.length > 0) {
-                    window.storeCatalogState.products = mergeProducts(DEFAULT_PRODUCTS, parsed);
+                    window.storeCatalogState.products = resolveAuthoritativeProducts(DEFAULT_PRODUCTS, parsed);
                 }
             }
         } catch(e) {}
@@ -379,7 +415,8 @@
                 const stockClass = isUnderOrder ? "order" : "in-stock";
                 const stockText = p.stock || "En Stock";
 
-                const hasDiscount = p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price);
+                const isLimited = Boolean(p.isLimitedOffer || p.limitedOffer);
+                const hasDiscount = Boolean(p.oldPrice && parseFloat(p.oldPrice) > parseFloat(p.price));
                 const discountPercent = hasDiscount ? Math.round(((p.oldPrice - p.price) / p.oldPrice) * 100) : 0;
 
                 const specsHTML = (p.specs || []).slice(0, 2).map(s => `
@@ -391,6 +428,11 @@
                 return `
                     <article class="boutique-product-card">
                         <div class="boutique-img-wrap">
+                            ${isLimited ? `
+                                <div class="boutique-limited-corner-ribbon">
+                                    <span>⏰ OFERTA LIMITADA</span>
+                                </div>
+                            ` : ''}
                             <span class="boutique-badge-tag">${p.badge || 'DESTACADO'}</span>
                             <span class="boutique-stock-indicator ${stockClass}">
                                 <span class="dot"></span>
@@ -504,6 +546,11 @@
                 oldPriceEl.style.display = "inline";
             } else {
                 oldPriceEl.style.display = "none";
+            }
+
+            const limitedBanner = document.getElementById("qvLimitedBanner");
+            if (limitedBanner) {
+                limitedBanner.style.display = (p.isLimitedOffer || p.limitedOffer) ? "flex" : "none";
             }
 
             updateQuickViewPrice();
