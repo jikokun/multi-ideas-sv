@@ -3207,31 +3207,27 @@
             }
         ];
 
-        // Funciones de Fusión Inteligente
-        function mergeProducts(defaults, remoteList) {
-            if (!remoteList || !Array.isArray(remoteList) || remoteList.length === 0) return defaults;
-            const map = new Map();
-            defaults.forEach(p => map.set(p.id, { ...p }));
-            remoteList.forEach(p => {
-                if (p && p.id) {
-                    const existing = map.get(p.id) || {};
-                    map.set(p.id, { ...existing, ...p });
-                }
-            });
-            return Array.from(map.values());
+        // Funciones Autoritativas de Resolución (Respetan eliminaciones en vivo)
+        function resolveAuthoritativeProducts(defaults, remoteList) {
+            if (!remoteList || !Array.isArray(remoteList)) return [];
+            return remoteList.filter(Boolean).map(rem => {
+                const def = (defaults || []).find(d => d.id === rem.id);
+                return {
+                    ...(def || {}),
+                    ...rem
+                };
+            }).filter(p => p && p.id);
         }
 
-        function mergeServices(defaults, remoteList) {
-            if (!remoteList || !Array.isArray(remoteList) || remoteList.length === 0) return defaults;
-            const map = new Map();
-            defaults.forEach(s => map.set(s.id, { ...s }));
-            remoteList.forEach(s => {
-                if (s && s.id) {
-                    const existing = map.get(s.id) || {};
-                    map.set(s.id, { ...existing, ...s });
-                }
-            });
-            return Array.from(map.values());
+        function resolveAuthoritativeServices(defaults, remoteList) {
+            if (!remoteList || !Array.isArray(remoteList)) return [];
+            return remoteList.filter(Boolean).map(rem => {
+                const def = (defaults || []).find(d => d.id === rem.id);
+                return {
+                    ...(def || {}),
+                    ...rem
+                };
+            }).filter(s => s && s.id);
         }
 
         // 9. Inicialización de Almacenes Reactivos
@@ -3240,14 +3236,14 @@
                 const storedProjects = localStorage.getItem("multiideas_admin_projects");
                 window.adminState.projects = storedProjects ? JSON.parse(storedProjects) : DEFAULT_PROJECTS;
 
-                const storedProducts = localStorage.getItem("multiideas_admin_products");
-                window.adminState.products = storedProducts ? mergeProducts(DEFAULT_PRODUCTS, JSON.parse(storedProducts)) : [...DEFAULT_PRODUCTS];
+                const storedProducts = localStorage.getItem("multiideas_admin_products") || localStorage.getItem("multiideas_store_products");
+                window.adminState.products = storedProducts ? resolveAuthoritativeProducts(DEFAULT_PRODUCTS, JSON.parse(storedProducts)) : [...DEFAULT_PRODUCTS];
 
                 const storedPosts = localStorage.getItem("multiideas_admin_posts");
                 window.adminState.posts = storedPosts ? JSON.parse(storedPosts) : DEFAULT_POSTS;
 
                 const storedServices = localStorage.getItem("multiideas_store_services");
-                window.adminState.services = storedServices ? mergeServices(DEFAULT_STORE_SERVICES, JSON.parse(storedServices)) : [...DEFAULT_STORE_SERVICES];
+                window.adminState.services = storedServices ? resolveAuthoritativeServices(DEFAULT_STORE_SERVICES, JSON.parse(storedServices)) : [...DEFAULT_STORE_SERVICES];
             } catch(e) {
                 window.adminState.projects = DEFAULT_PROJECTS;
                 window.adminState.products = [...DEFAULT_PRODUCTS];
@@ -3257,42 +3253,59 @@
         }
         loadLocalData();
 
-        // Sincronización Manual/Automática del Catálogo Maestro a Firebase RTDB
+        // Sincronización Manual/Restablecimiento del Catálogo Maestro a Firebase RTDB
         window.syncFullCatalogToFirebase = function() {
-            window.adminState.products = mergeProducts(DEFAULT_PRODUCTS, window.adminState.products);
-            window.adminState.services = mergeServices(DEFAULT_STORE_SERVICES, window.adminState.services);
+            if (!confirm("¿Deseas restablecer el catálogo maestro completo en Firebase RTDB? Esto volverá a incluir todos los productos y servicios base originales.")) return;
+
+            const mapP = new Map();
+            DEFAULT_PRODUCTS.forEach(p => mapP.set(p.id, { ...p }));
+            (window.adminState.products || []).forEach(p => { if (p && p.id) mapP.set(p.id, { ...(mapP.get(p.id) || {}), ...p }); });
+            window.adminState.products = Array.from(mapP.values());
+
+            const mapS = new Map();
+            DEFAULT_STORE_SERVICES.forEach(s => mapS.set(s.id, { ...s }));
+            (window.adminState.services || []).forEach(s => { if (s && s.id) mapS.set(s.id, { ...(mapS.get(s.id) || {}), ...s }); });
+            window.adminState.services = Array.from(mapS.values());
+
             localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products);
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services);
-                showToast("🚀 Catálogo Maestro Completo sincronizado en Firebase RTDB");
-                logTerminal("SYNC", "Catálogo completo (11 productos y 10 servicios) subido a Firebase RTDB", "success");
-            } catch(e) {
-                showToast("⚠️ Error al sincronizar con Firebase: " + e.message);
-            }
+            localStorage.setItem("multiideas_admin_services_seeded", "true");
+            localStorage.setItem("multiideas_admin_products_seeded", "true");
+
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products);
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services)
+                .then(() => {
+                    showToast("🚀 Catálogo Maestro Completo sincronizado en Firebase RTDB");
+                    logTerminal("SYNC", `Catálogo completo (${window.adminState.products.length} productos y ${window.adminState.services.length} servicios) subido a Firebase RTDB`, "success");
+                })
+                .catch(err => {
+                    showToast("⚠️ Error al sincronizar con Firebase: " + err.message);
+                });
+
             if (window.renderProductsMosaic) renderProductsMosaic();
             if (window.renderServicesMosaic) renderServicesMosaic();
             updateDashboardCounters();
         };
 
-        // 10. Conexión en Tiempo Real a Firebase RTDB
+        // 10. Conexión en Tiempo Real a Firebase RTDB (Fuente Autoritativa)
         function initFirebaseListeners() {
             // Escuchar nodo de productos en tiempo real
             try {
                 const prodRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
                 onValue(prodRef, (snap) => {
                     const data = snap.val();
-                    if (data) {
+                    if (data !== null) {
                         const list = Array.isArray(data) ? data : Object.values(data);
-                        if (list.length > 0) {
-                            window.adminState.products = mergeProducts(DEFAULT_PRODUCTS, list);
-                            localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
-                            localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
-                            if (window.renderProductsMosaic) renderProductsMosaic();
-                        }
+                        window.adminState.products = resolveAuthoritativeProducts(DEFAULT_PRODUCTS, list);
+                    } else if (snap.exists() === false && localStorage.getItem("multiideas_admin_products_seeded")) {
+                        window.adminState.products = [];
                     }
+                    localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
+                    localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
+                    localStorage.setItem("multiideas_admin_products_seeded", "true");
+                    if (window.renderProductsMosaic) renderProductsMosaic();
+                    updateDashboardCounters();
                 });
             } catch(e) { console.warn("[Admin Prod Listener]", e); }
 
@@ -3301,14 +3314,16 @@
                 const servRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services");
                 onValue(servRef, (snap) => {
                     const data = snap.val();
-                    if (data) {
+                    if (data !== null) {
                         const list = Array.isArray(data) ? data : Object.values(data);
-                        if (list.length > 0) {
-                            window.adminState.services = mergeServices(DEFAULT_STORE_SERVICES, list);
-                            localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
-                            if (window.renderServicesMosaic) renderServicesMosaic();
-                        }
+                        window.adminState.services = resolveAuthoritativeServices(DEFAULT_STORE_SERVICES, list);
+                    } else if (snap.exists() === false && localStorage.getItem("multiideas_admin_services_seeded")) {
+                        window.adminState.services = [];
                     }
+                    localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
+                    localStorage.setItem("multiideas_admin_services_seeded", "true");
+                    if (window.renderServicesMosaic) renderServicesMosaic();
+                    updateDashboardCounters();
                 });
             } catch(e) { console.warn("[Admin Serv Listener]", e); }
 
@@ -4044,27 +4059,45 @@
             }
 
             localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services);
-            } catch(e) {}
+            localStorage.setItem("multiideas_admin_services_seeded", "true");
+            
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services)
+                .then(() => {
+                    logTerminal("SERVICES", `Servicio sincronizado en Firebase RTDB: "${service.name}"`, "success");
+                })
+                .catch(err => {
+                    console.error("[RTDB Service Save Error]:", err);
+                    showToast("⚠️ Error al sincronizar en Firebase: " + err.message);
+                    logTerminal("SERVICES", `Error al guardar servicio: ${err.message}`, "error");
+                });
 
             closeModal("modalServiceBackdrop");
             renderServicesMosaic();
             updateDashboardCounters();
-            logTerminal("SERVICES", `Servicio guardado: ${service.name}`, "success");
         };
 
         window.deleteServiceHandler = function(id) {
-            if (!confirm("¿Deseas eliminar este servicio del catálogo?")) return;
+            const s = (window.adminState.services || []).find(x => x.id === id);
+            const serviceName = s ? s.name : id;
+            if (!confirm(`¿Deseas eliminar permanentemente el servicio "${serviceName}" del catálogo y de la web en vivo?`)) return;
+
             window.adminState.services = (window.adminState.services || []).filter(x => x.id !== id);
             localStorage.setItem("multiideas_store_services", JSON.stringify(window.adminState.services));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services);
-            } catch(e) {}
+            localStorage.setItem("multiideas_admin_services_seeded", "true");
+
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services"), window.adminState.services)
+                .then(() => {
+                    showToast("🗑️ Servicio eliminado y sincronizado en tiempo real");
+                    logTerminal("SERVICES", `Servicio eliminado: "${serviceName}" (ID: ${id})`, "warn");
+                })
+                .catch(err => {
+                    console.error("[RTDB Services Delete Error]:", err);
+                    showToast("⚠️ Error al sincronizar en Firebase: " + err.message);
+                    logTerminal("SERVICES", `Error al sincronizar eliminación: ${err.message}`, "error");
+                });
+
             renderServicesMosaic();
             updateDashboardCounters();
-            showToast("🗑️ Servicio eliminado");
-            logTerminal("SERVICES", `Servicio eliminado ID: ${id}`, "warn");
         };
 
 
@@ -4199,14 +4232,21 @@
 
             localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products);
-            } catch(e) {}
+            localStorage.setItem("multiideas_admin_products_seeded", "true");
+
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products)
+                .then(() => {
+                    logTerminal("PRODUCTS", `Producto sincronizado en Firebase RTDB: "${product.name}"`, "success");
+                })
+                .catch(err => {
+                    console.error("[RTDB Product Save Error]:", err);
+                    showToast("⚠️ Error al sincronizar en Firebase: " + err.message);
+                    logTerminal("PRODUCTS", `Error al guardar producto: ${err.message}`, "error");
+                });
 
             closeModal("modalProductBackdrop");
             renderProductsMosaic();
             updateDashboardCounters();
-            logTerminal("PRODUCTS", `Producto guardado: ${product.name}`, "success");
         };
 
         window.quickEditPrice = function(id) {
@@ -4228,25 +4268,44 @@
             p.updatedAt = Date.now();
             localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products);
-            } catch(e) {}
+            localStorage.setItem("multiideas_admin_products_seeded", "true");
+
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products)
+                .then(() => {
+                    logTerminal("PRODUCTS", `Precio actualizado en Firebase para "${p.name}": $${newPrice.toFixed(2)}`, "success");
+                })
+                .catch(err => {
+                    console.error("[RTDB Price Update Error]:", err);
+                    showToast("⚠️ Error al actualizar precio en Firebase: " + err.message);
+                });
+
             renderProductsMosaic();
-            showToast(`💵 Precio de "${p.name}" actualizado a ${newPrice.toFixed(2)}`);
+            showToast(`💵 Precio de "${p.name}" actualizado a $${newPrice.toFixed(2)}`);
         };
 
         window.deleteProductHandler = function(id) {
-            if (!confirm("¿Deseas eliminar este producto del catálogo?")) return;
+            const p = window.adminState.products.find(x => x.id === id);
+            const productName = p ? p.name : id;
+            if (!confirm(`¿Deseas eliminar permanentemente el producto "${productName}" del catálogo y de la web en vivo?`)) return;
+
             window.adminState.products = window.adminState.products.filter(x => x.id !== id);
             localStorage.setItem("multiideas_store_products", JSON.stringify(window.adminState.products));
             localStorage.setItem("multiideas_admin_products", JSON.stringify(window.adminState.products));
-            try {
-                set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products);
-            } catch(e) {}
+            localStorage.setItem("multiideas_admin_products_seeded", "true");
+
+            set(ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products"), window.adminState.products)
+                .then(() => {
+                    showToast("🗑️ Producto eliminado y sincronizado en tiempo real");
+                    logTerminal("PRODUCTS", `Producto eliminado: "${productName}" (ID: ${id})`, "warn");
+                })
+                .catch(err => {
+                    console.error("[RTDB Products Delete Error]:", err);
+                    showToast("⚠️ Error al sincronizar en Firebase: " + err.message);
+                    logTerminal("PRODUCTS", `Error al sincronizar eliminación: ${err.message}`, "error");
+                });
+
             renderProductsMosaic();
             updateDashboardCounters();
-            showToast("🗑️ Producto eliminado");
-            logTerminal("PRODUCTS", `Producto eliminado ID: ${id}`, "warn");
         };
 
 

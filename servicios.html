@@ -417,13 +417,13 @@
             selectedTiers: {} // { serviceId: tierIndex }
         };
 
-        // Cargar caché local fusionando con catálogo maestro
+        // Cargar caché local con resolución autoritativa
         try {
             const cached = localStorage.getItem("multiideas_store_services");
             if (cached) {
                 const parsed = JSON.parse(cached);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    window.servicesStudioState.services = mergeServices(DEFAULT_STORE_SERVICES, parsed);
+                if (Array.isArray(parsed)) {
+                    window.servicesStudioState.services = resolveAuthoritativeServices(DEFAULT_STORE_SERVICES, parsed);
                 }
             }
         } catch(e) {}
@@ -584,6 +584,12 @@
                     window.servicesStudioState.services = list;
                     try {
                         localStorage.setItem("multiideas_store_services", JSON.stringify(list));
+                    } catch(e) {}
+                    renderServicesBento();
+                } else if (snap.exists() === false) {
+                    window.servicesStudioState.services = [];
+                    try {
+                        localStorage.setItem("multiideas_store_services", JSON.stringify([]));
                     } catch(e) {}
                     renderServicesBento();
                 }
