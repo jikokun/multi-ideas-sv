@@ -817,17 +817,21 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 method: "PUT"
             });
 
+            // Si no hay sesión activa (404), transferir reproducción y despertar el dispositivo
             if (apiRes.status === 404) {
                 const devId = await getFallbackDeviceId(user);
                 if (devId) {
-                    const retry = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(devId)}`, {
-                        method: "PUT"
+                    const retry = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player", {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ device_ids: [devId], play: true })
                     });
                     apiRes = retry.res;
                 }
             }
 
-            if (apiRes.status === 204 || apiRes.status === 200) {
+            // 200/204 o 403 (cuando ya está reproduciendo - Restriction violated)
+            if (apiRes.status === 204 || apiRes.status === 200 || apiRes.status === 403) {
                 db.ref("stream/spotify_live/last_action").set({
                     action: "play",
                     user: user,
@@ -844,17 +848,18 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 method: "PUT"
             });
 
+            // Si el dispositivo ya está inactivo o desconectado (404), ya está efectivamente en pausa
             if (apiRes.status === 404) {
-                const devId = await getFallbackDeviceId(user);
-                if (devId) {
-                    const retry = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/pause?device_id=${encodeURIComponent(devId)}`, {
-                        method: "PUT"
-                    });
-                    apiRes = retry.res;
-                }
+                db.ref("stream/spotify_live/last_action").set({
+                    action: "pause",
+                    user: user,
+                    timestamp: Date.now()
+                }).catch(() => {});
+                return res.status(200).send("Spotify playback paused.");
             }
 
-            if (apiRes.status === 204 || apiRes.status === 200) {
+            // 200/204 o 403 (cuando ya está en pausa - Restriction violated)
+            if (apiRes.status === 204 || apiRes.status === 200 || apiRes.status === 403) {
                 db.ref("stream/spotify_live/last_action").set({
                     action: "pause",
                     user: user,

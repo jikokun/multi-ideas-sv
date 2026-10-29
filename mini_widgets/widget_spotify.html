@@ -2081,7 +2081,7 @@
             var kickModerators = ["jikokun", "broadcaster", "streamer", "simuladorlab"];
             try {
                 var modsParam = urlParams.get("mods");
-                var savedMods = localStorage.getItem("kick_spotify_mods");
+                var savedMods = localStorage.getItem("kick_spotify_mods") || localStorage.getItem("kick_moderators_whitelist");
                 if (modsParam) {
                     kickModerators = modsParam.split(",").map(function (m) { return m.trim().toLowerCase().replace("@", ""); }).filter(Boolean);
                 } else if (savedMods) {
@@ -2440,8 +2440,9 @@
                         showFloatingAlert(e.data.text || "Error ejecutando comando", "warning", "Fetch Directo");
                     }
                 } else if (e.data.type === "UPDATE_MODS_WHITELIST") {
-                    if (Array.isArray(e.data.mods)) {
-                        kickModerators = e.data.mods.map(function (m) { return String(m).trim().toLowerCase().replace("@", ""); }).filter(Boolean);
+                    var list = e.data.mods || e.data.moderators;
+                    if (Array.isArray(list)) {
+                        kickModerators = list.map(function (m) { return String(m).trim().toLowerCase().replace("@", ""); }).filter(Boolean);
                         showFloatingAlert("Lista de moderadores actualizada (" + kickModerators.length + ")", "info", "Sistema");
                     }
                 } else if (e.data.type === "SET_POSITION") {
