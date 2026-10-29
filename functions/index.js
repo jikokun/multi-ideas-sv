@@ -871,22 +871,35 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 return res.status(400).send("Song name is missing");
             }
 
-            // Normalizar formato "Song by Artist"
-            let searchQ = songQuery.trim();
-            const byMatch = searchQ.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
-            if (byMatch) {
-                searchQ = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
-            }
-
-            // Buscar en Spotify API (con auto-retry en 401)
-            let { res: searchRes } = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQ)}&type=track&limit=15`);
+            // Buscar en Spotify API (limit debe ser <= 10 para evitar HTTP 400 'Invalid limit' de Spotify)
+            const cleanQuery = songQuery.trim();
+            let { res: searchRes } = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=10`);
             let searchData = searchRes.ok ? await searchRes.json() : null;
 
-            // Fallback a búsqueda simple si la estructurada no dio resultados
+            // Intento 2: Si no hubo resultados y tiene separador (by, de, -), buscar por campos estructurados
             if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
-                const fallbackSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(songQuery.trim())}&type=track&limit=15`);
-                searchRes = fallbackSearch.res;
-                searchData = searchRes.ok ? await searchRes.json() : null;
+                const byMatch = cleanQuery.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
+                if (byMatch) {
+                    const structuredQ = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
+                    const structSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(structuredQ)}&type=track&limit=10`);
+                    if (structSearch.res.ok) {
+                        const sData = await structSearch.res.json();
+                        if (sData && sData.tracks && sData.tracks.items.length > 0) {
+                            searchData = sData;
+                        }
+                    }
+                }
+            }
+
+            // Intento 3: Búsqueda simplificada eliminando caracteres especiales
+            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
+                const simplifiedQ = cleanQuery.replace(/[-_.,]/g, " ").replace(/\s+/g, " ").trim();
+                if (simplifiedQ !== cleanQuery) {
+                    const simpSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(simplifiedQ)}&type=track&limit=10`);
+                    if (simpSearch.res.ok) {
+                        searchData = await simpSearch.res.json();
+                    }
+                }
             }
 
             if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
