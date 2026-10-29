@@ -2142,14 +2142,29 @@
                         // 2. Fallback directo con el token local del navegador si existe
                         if (!state.spotifyToken) await refreshSpotifyTokenFromBackend();
                         if (state.spotifyToken) {
-                            var searchRes = await fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(queryParam) + "&type=track&limit=10", {
+                            var byMatchW = queryParam.match(/^(.+?)\s+(?:by|de|-)\s+(.+)$/i);
+                            var tPart = byMatchW ? byMatchW[1].trim() : queryParam.trim();
+                            var aPart = byMatchW ? byMatchW[2].trim() : "";
+                            var searchQW = byMatchW ? ("track:" + tPart + " artist:" + aPart) : queryParam;
+
+                            var searchRes = await fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(searchQW) + "&type=track&limit=10", {
                                 headers: { "Authorization": "Bearer " + state.spotifyToken }
                             });
                             if (searchRes.ok) {
                                 var sData = await searchRes.json();
                                 var items = (sData && sData.tracks && sData.tracks.items) || [];
                                 if (items.length > 0) {
-                                    items.sort(function (a, b) { return (b.popularity || 0) - (a.popularity || 0); });
+                                    items.sort(function (a, b) {
+                                        var sa = 0, sb = 0;
+                                        var na = (a.name || "").toLowerCase(), nb = (b.name || "").toLowerCase();
+                                        if (na === tPart.toLowerCase()) sa += 100;
+                                        if (nb === tPart.toLowerCase()) sb += 100;
+                                        if (a.album && a.album.album_type === "album") sa += 30;
+                                        if (b.album && b.album.album_type === "album") sb += 30;
+                                        if (na.includes("karaoke") || na.includes("tribute") || na.includes("cover")) sa -= 200;
+                                        if (nb.includes("karaoke") || nb.includes("tribute") || nb.includes("cover")) sb -= 200;
+                                        return sb - sa;
+                                    });
                                     var chosen = items[0];
                                     var artistName = (chosen.artists && chosen.artists[0] && chosen.artists[0].name) || "Artista";
                                     var qRes = await fetch("https://api.spotify.com/v1/me/player/queue?uri=" + encodeURIComponent(chosen.uri), {
@@ -2157,7 +2172,7 @@
                                         headers: { "Authorization": "Bearer " + state.spotifyToken }
                                     });
                                     if (qRes.status === 204 || qRes.ok) {
-                                        showFloatingAlert('Añadida a la cola: "' + chosen.name + '" (' + artistName + ')', "add", username);
+                                        showFloatingAlert('Añadida a la cola: "' + chosen.name + '" (' + artistName + ') 🎵', "add", username);
                                         isExecutingAddSong = false;
                                         return;
                                     }

@@ -876,27 +876,47 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 return res.status(400).send("Song name is missing");
             }
 
-            // Buscar en Spotify API (limit debe ser <= 10 para evitar HTTP 400 'Invalid limit' de Spotify)
+            // Búsqueda inteligente: detectar estructura "[canción] by/de/- [artista]"
             const cleanQuery = songQuery.trim();
-            let { res: searchRes } = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=10`);
-            let searchData = searchRes.ok ? await searchRes.json() : null;
+            const byMatch = cleanQuery.match(/^(.+?)\s+(?:by|de|-)\s+(.+)$/i);
+            const targetTrack = byMatch ? byMatch[1].trim() : cleanQuery;
+            const targetArtist = byMatch ? byMatch[2].trim() : "";
 
-            // Intento 2: Si no hubo resultados y tiene separador (by, de, -), buscar por campos estructurados
-            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
-                const byMatch = cleanQuery.match(/(.+?)\s+(?:by|de|-)\s+(.+)/i);
-                if (byMatch) {
-                    const structuredQ = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
-                    const structSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(structuredQ)}&type=track&limit=10`);
-                    if (structSearch.res.ok) {
-                        const sData = await structSearch.res.json();
-                        if (sData && sData.tracks && sData.tracks.items.length > 0) {
-                            searchData = sData;
-                        }
+            let searchData = null;
+
+            // Intento 1: Si especificaron artista con "by/de/-", buscar primero por campos estructurados oficiales
+            if (byMatch) {
+                const structuredQ = `track:${targetTrack} artist:${targetArtist}`;
+                const structSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(structuredQ)}&type=track&limit=10`);
+                if (structSearch.res.ok) {
+                    const sData = await structSearch.res.json();
+                    if (sData && sData.tracks && sData.tracks.items && sData.tracks.items.length > 0) {
+                        searchData = sData;
                     }
                 }
             }
 
-            // Intento 3: Búsqueda simplificada eliminando caracteres especiales
+            // Intento 2: Si no hubo coincidencia o no había "by", buscar con la consulta combinada limpia (sin el "by")
+            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
+                const queryToSearch = byMatch ? `${targetTrack} ${targetArtist}` : cleanQuery;
+                const naturalSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(queryToSearch)}&type=track&limit=10`);
+                if (naturalSearch.res.ok) {
+                    const nData = await naturalSearch.res.json();
+                    if (nData && nData.tracks && nData.tracks.items && nData.tracks.items.length > 0) {
+                        searchData = nData;
+                    }
+                }
+            }
+
+            // Intento 3: Búsqueda literal de respaldo
+            if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
+                const literalSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanQuery)}&type=track&limit=10`);
+                if (literalSearch.res.ok) {
+                    searchData = await literalSearch.res.json();
+                }
+            }
+
+            // Intento 4: Simplificada sin signos de puntuación
             if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
                 const simplifiedQ = cleanQuery.replace(/[-_.,]/g, " ").replace(/\s+/g, " ").trim();
                 if (simplifiedQ !== cleanQuery) {
@@ -911,20 +931,69 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 return res.status(404).send(`No song found for "${songQuery}"`);
             }
 
-            // Priorizar por popularidad y penalizar karaoke/tribute si no fue pedido
+            // 🏆 Algoritmo de Calificación y Relevancia Oficial: Selecciona siempre la versión más reconocida
+            function scoreTrackItem(track) {
+                let score = 0;
+                const qLower = cleanQuery.toLowerCase();
+                const nameLower = (track.name || "").toLowerCase();
+                const trackLower = (targetTrack || "").toLowerCase();
+                const artistLower = (targetArtist || "").toLowerCase();
+
+                // 1. Coincidencia de Artista
+                const artists = (track.artists || []).map(a => (a.name || "").toLowerCase());
+                if (artistLower) {
+                    const isExactArtist = artists.some(a => a === artistLower);
+                    const isPartialArtist = artists.some(a => a.includes(artistLower) || artistLower.includes(a));
+                    if (isExactArtist) score += 120;
+                    else if (isPartialArtist) score += 70;
+                    else score -= 80;
+                }
+
+                // 2. Coincidencia de Título
+                if (nameLower === trackLower) score += 100;
+                else if (nameLower.startsWith(trackLower)) score += 60;
+                else if (nameLower.includes(trackLower)) score += 30;
+
+                // 3. Tipo de Álbum (Priorizar Álbum de Estudio oficial vs compilaciones/tributos)
+                if (track.album) {
+                    if (track.album.album_type === "album") score += 35;
+                    else if (track.album.album_type === "single") score += 20;
+                    else if (track.album.album_type === "compilation") score -= 15;
+                }
+
+                // 4. Penalización severa de Junk / Covers / Karaoke / Tributes
+                const junkKeywords = [
+                    "karaoke", "tribute", "instrumental", "cover", "backing track",
+                    "made famous", "made popular", "in the style of", "originally performed",
+                    "remake", "parody", "sped up", "slowed", "nightcore", "8d",
+                    "bass boosted", "lo-fi", "lofi", "ringtone", "acapella"
+                ];
+                for (const kw of junkKeywords) {
+                    if (!qLower.includes(kw) && nameLower.includes(kw)) {
+                        score -= 200;
+                    }
+                }
+
+                // 5. Penalización de versiones Live / Remix / Acústicas si el usuario no las pidió explícitamente
+                if (!qLower.includes("live") && !qLower.includes("vivo") && (nameLower.includes("live") || nameLower.includes("en vivo") || nameLower.includes("directo"))) {
+                    score -= 40;
+                }
+                if (!qLower.includes("remix") && (nameLower.includes("remix") || nameLower.includes("rmx") || nameLower.includes("club mix"))) {
+                    score -= 45;
+                }
+                if (!qLower.includes("acoustic") && !qLower.includes("acustic") && (nameLower.includes("acoustic") || nameLower.includes("acústico"))) {
+                    score -= 30;
+                }
+
+                if (typeof track.popularity === "number") {
+                    score += track.popularity;
+                }
+
+                return score;
+            }
+
             const tracks = searchData.tracks.items;
-            const queryLower = songQuery.toLowerCase();
-            tracks.sort((a, b) => {
-                let popA = a.popularity || 0;
-                let popB = b.popularity || 0;
-                const nameA = (a.name || "").toLowerCase();
-                const nameB = (b.name || "").toLowerCase();
-                const isJunkA = !queryLower.includes("karaoke") && (nameA.includes("karaoke") || nameA.includes("tribute") || nameA.includes("instrumental"));
-                const isJunkB = !queryLower.includes("karaoke") && (nameB.includes("karaoke") || nameB.includes("tribute") || nameB.includes("instrumental"));
-                if (isJunkA) popA -= 50;
-                if (isJunkB) popB -= 50;
-                return popB - popA;
-            });
+            tracks.sort((a, b) => scoreTrackItem(b) - scoreTrackItem(a));
 
             const selectedTrack = tracks[0];
             const artistName = selectedTrack.artists ? selectedTrack.artists[0].name : "Artista";
