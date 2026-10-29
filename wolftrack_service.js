@@ -277,32 +277,35 @@ export class WolfTrackService {
      * @param {Object} params
      * @param {string} params.phone - Número de WhatsApp (ej: 50372300000)
      * @param {MaterialItem} params.item - Ítem que se desea comprar
+     * @param {string} [params.businessName] - Nombre del negocio
      * @param {Variant} [params.variant] - Variante seleccionada
      * @param {Extra[]} [params.extras] - Extras elegidos
+     * @param {number} [params.quantity] - Cantidad solicitada
      * @param {number} params.total - Precio total calculado
      * @returns {string} Enlace encodeado a WhatsApp
      */
-    static buildWhatsAppOrderLink({ phone, item, variant, extras = [], total }) {
-        const cleanPhone = (phone || "50372300000").replace(/[^0-9]/g, "");
-        let msg = `🐺 *Hola WolfTrack / Multi Ideas SV*, quiero ordenar el siguiente ítem:\n\n`;
-        msg += `📌 *${item.name}*\n`;
-        msg += `🏷️ *Tipo:* ${item.type}\n`;
+    static buildWhatsAppOrderLink({ phone, businessName = "Multi Ideas SV", item, variant, extras = [], quantity = 1, total }) {
+        const cleanPhone = (phone || "50372359113").replace(/[^0-9]/g, "");
+        
+        let msg = `Hola *${businessName}*, vi su catálogo en Sensun Shop 🧡\n\n`;
+        msg += `🛒 *Pedido:* ${item.name}\n`;
         
         if (variant) {
-            msg += `▫️ *Opción:* ${variant.name} ($${variant.price.toFixed(2)})\n`;
-        } else {
-            msg += `▫️ *Precio base:* $${item.sellingPrice.toFixed(2)}\n`;
+            msg += `🔹 *Opción seleccionada:* ${variant.name} ($${variant.price.toFixed(2)})\n`;
+        } else if (item.sellingPrice !== undefined) {
+            msg += `🔹 *Precio unitario:* $${item.sellingPrice.toFixed(2)}\n`;
         }
 
         if (extras && extras.length > 0) {
-            msg += `✨ *Complementos:*\n`;
+            msg += `➕ *Agregados/Extras:*\n`;
             extras.forEach(e => {
-                msg += `   + ${e.name} ($${e.price.toFixed(2)})\n`;
+                msg += `   • ${e.name} (+${e.price ? `$${e.price.toFixed(2)}` : '$0.00'})\n`;
             });
         }
 
-        msg += `\n💰 *Total Estimado:* $${total.toFixed(2)}\n`;
-        msg += `\n¿Me confirman disponibilidad y tiempo de entrega? ¡Gracias!`;
+        msg += `📦 *Cantidad:* ${quantity}\n`;
+        msg += `💰 *Total estimado:* $${total.toFixed(2)}\n\n`;
+        msg += `¿Me podrían brindar más información para completar el pedido?`;
 
         return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(msg)}`;
     }

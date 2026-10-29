@@ -3666,6 +3666,35 @@
                     </div>
                 </div>
 
+                <div class="toggle-group" style="margin-top: 10px;">
+                    <div>
+                        <div class="toggle-label">🛍️ Catálogo Digital WolfTrack (hasCatalog)</div>
+                        <div class="toggle-desc">Muestra el botón de catálogo interactivo sincronizado en vivo desde WolfTrack</div>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="bizHasCatalog" onchange="toggleCatalogFieldsVisibility(this.checked)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+
+                <div id="catalogDetailsContainer" style="display: none; background: rgba(245, 158, 11, 0.05); border: 1.5px dashed rgba(245, 158, 11, 0.35); border-radius: 14px; padding: 18px; margin-bottom: 20px;">
+                    <div style="font-weight: 700; color: #f59e0b; font-size: 0.9rem; margin-bottom: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span>🐺 Conexión en Vivo con WolfTrack Ecosystem</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">UID de WolfTrack (catalogUid)</label>
+                        <input type="text" class="form-input" id="bizCatalogUid" placeholder="Ej: PyVEtkbRXJgHyW3hEfjmMxS9e682" style="font-family: monospace; font-weight: 600;">
+                        <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">UID de Firebase Authentication del negocio en WolfTrack</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">URL Directa del Catálogo Web (catalogUrl)</label>
+                        <input type="url" class="form-input" id="bizCatalogUrl" placeholder="https://multiideassv.com/wolftrack.html?uid=PyVEtkbRXJgHyW3hEfjmMxS9e682">
+                        <small style="font-size: 0.73rem; color: #888; display: block; margin-top: 3px;">Enlace web directo que se abrirá o sincronizará</small>
+                    </div>
+                </div>
+
                 <div class="toggle-group">
                     <div>
                         <div class="toggle-label">✅ Negocio Activo</div>
@@ -4432,6 +4461,9 @@
                     locationUrl: item.locationUrl || "",
                     coords: coords,
                     websiteUrl: item.websiteUrl || "",
+                    hasCatalog: Boolean(item.hasCatalog !== undefined ? (item.hasCatalog === true || item.hasCatalog === "true" || item.hasCatalog === 1) : (item.id === "emp-002" || key === "emp-002")),
+                    catalogUid: item.catalogUid || (item.id === "emp-002" || key === "emp-002" ? "PyVEtkbRXJgHyW3hEfjmMxS9e682" : ""),
+                    catalogUrl: item.catalogUrl || (item.id === "emp-002" || key === "emp-002" ? "https://multiideassv.com/wolftrack.html?uid=PyVEtkbRXJgHyW3hEfjmMxS9e682" : ""),
                     hasOffer: Boolean(item.hasOffer),
                     offerMsg: item.offerMsg || "",
                     offerDiscount: item.offerDiscount || "-25%",
@@ -4537,6 +4569,7 @@
                                 <span class="business-rating">⭐ ${b.code || b.id}</span>
                                 <span>· ${b.type}</span>
                                 ${b.hasOffer ? `<span style="color: #ea580c; font-weight: 700; background: rgba(234, 88, 12, 0.1); padding: 2px 6px; border-radius: 4px;">🏷️ OFERTA (Estilo ${b.offerStyle || 1})</span>` : ''}
+                                ${(b.hasCatalog || b.catalogUid || b.id === 'emp-002') ? `<span style="color: #f59e0b; font-weight: 700; background: rgba(245, 158, 11, 0.1); padding: 2px 6px; border-radius: 4px;">🛍️ CATÁLOGO WOLFTRACK</span>` : ''}
                             </div>
                             <div>${locDisplay}</div>
                         </div>
@@ -4879,6 +4912,13 @@
             }
         };
 
+        window.toggleCatalogFieldsVisibility = function(isChecked) {
+            const container = document.getElementById("catalogDetailsContainer");
+            if (container) {
+                container.style.display = isChecked ? "block" : "none";
+            }
+        };
+
         // ==========================================================
         // MODALES CRUD: NEGOCIOS
         // ==========================================================
@@ -4931,6 +4971,12 @@
                 document.getElementById("bizOfferExpiry").value = b.offerExpiry || "";
                 toggleOfferFieldsVisibility(hasOffer);
 
+                const hasCatalog = Boolean(b.hasCatalog || (b.catalogUid && b.hasCatalog !== false) || (b.id === 'emp-002' && b.hasCatalog !== false));
+                document.getElementById("bizHasCatalog").checked = hasCatalog;
+                document.getElementById("bizCatalogUid").value = b.catalogUid || (b.id === 'emp-002' ? 'PyVEtkbRXJgHyW3hEfjmMxS9e682' : '');
+                document.getElementById("bizCatalogUrl").value = b.catalogUrl || (b.id === 'emp-002' ? 'https://multiideassv.com/wolftrack.html?uid=PyVEtkbRXJgHyW3hEfjmMxS9e682' : '');
+                toggleCatalogFieldsVisibility(hasCatalog);
+
                 document.getElementById("bizIsActive").checked = b.isActive;
                 updateImagePreviewFromUrl('biz');
             } else {
@@ -4974,6 +5020,11 @@
                 document.getElementById("bizOfferStyle").value = "1";
                 document.getElementById("bizOfferExpiry").value = "";
                 toggleOfferFieldsVisibility(false);
+
+                document.getElementById("bizHasCatalog").checked = false;
+                document.getElementById("bizCatalogUid").value = "";
+                document.getElementById("bizCatalogUrl").value = "";
+                toggleCatalogFieldsVisibility(false);
 
                 document.getElementById("bizIsActive").checked = true;
                 clearImagePreview('biz');
@@ -5048,6 +5099,9 @@
                 offerCode: document.getElementById("bizOfferCode").value.trim().toUpperCase(),
                 offerStyle: parseInt(document.getElementById("bizOfferStyle").value, 10) || 1,
                 offerExpiry: document.getElementById("bizOfferExpiry").value.trim(),
+                hasCatalog: document.getElementById("bizHasCatalog").checked,
+                catalogUid: document.getElementById("bizCatalogUid").value.trim(),
+                catalogUrl: document.getElementById("bizCatalogUrl").value.trim() || (document.getElementById("bizHasCatalog").checked && document.getElementById("bizCatalogUid").value.trim() ? `https://multiideassv.com/wolftrack.html?uid=${document.getElementById("bizCatalogUid").value.trim()}` : ""),
                 isActive: document.getElementById("bizIsActive").checked
             };
 
