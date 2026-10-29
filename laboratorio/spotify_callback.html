@@ -285,6 +285,7 @@
 
       // Recuperar code_verifier y redirect_uri guardados
       const codeVerifier = localStorage.getItem('spotify_code_verifier') || '';
+      const activeClientId = localStorage.getItem('spotify_client_id') || CLIENT_ID;
       let redirectUri = localStorage.getItem('spotify_auth_redirect_uri');
 
       if (!redirectUri) {
@@ -292,43 +293,98 @@
         redirectUri = window.location.origin + window.location.pathname;
       }
 
+      // Preparar candidatos de Redirect URI por si el servidor aplicó Clean URLs (con/sin .html)
+      const redirectCandidates = [redirectUri];
+      const currentCleanUrl = window.location.origin + window.location.pathname;
+      if (!redirectCandidates.includes(currentCleanUrl)) redirectCandidates.push(currentCleanUrl);
+      if (currentCleanUrl.endsWith('/spotify_callback') && !redirectCandidates.includes(currentCleanUrl + '.html')) {
+        redirectCandidates.push(currentCleanUrl + '.html');
+      }
+      if (!redirectCandidates.includes('https://multiideassv.com/laboratorio/spotify_callback.html')) {
+        redirectCandidates.push('https://multiideassv.com/laboratorio/spotify_callback.html');
+      }
+      if (!redirectCandidates.includes('http://127.0.0.1:8888/callback')) {
+        redirectCandidates.push('http://127.0.0.1:8888/callback');
+      }
+
       log('Intercambiando código con Spotify usando Redirect URI: ' + redirectUri);
 
       try {
-        const bodyParams = new URLSearchParams({
-          client_id: CLIENT_ID,
-          grant_type: 'authorization_code',
-          code: code,
-          redirect_uri: redirectUri
-        });
+        let tokenData = null;
+        let lastErrText = '';
 
-        if (codeVerifier) {
-          bodyParams.append('code_verifier', codeVerifier);
+        // 1. PRIMER INTENTO: Intercambio Confidencial vía Backend Firebase (Token Permanente sin rotación)
+        for (const candidateUri of redirectCandidates) {
+          try {
+            log('Probando canje seguro en servidor con URI: ' + candidateUri);
+            const backendUrl = 'https://sensunshopweb.web.app/spotify/exchange_code';
+            const backendParams = new URLSearchParams({
+              user: 'jikokun2',
+              code: code,
+              redirect_uri: candidateUri,
+              client_id: activeClientId
+            });
+            if (codeVerifier) backendParams.append('code_verifier', codeVerifier);
+            if (CLIENT_SECRET) backendParams.append('client_secret', CLIENT_SECRET);
+
+            const backendRes = await fetch(backendUrl + '?' + backendParams.toString(), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: backendParams.toString()
+            });
+            const backendJson = await backendRes.json();
+            if (backendRes.ok && backendJson && backendJson.access_token) {
+              tokenData = backendJson;
+              log('✅ Token permanente obtenido y guardado en Firebase vía Backend');
+              break;
+            } else {
+              lastErrText = (backendJson && (backendJson.error_description || backendJson.error)) || 'Redirect URI no coincidió';
+              // Si el código ya fue usado o expiró, no seguir probando URIs
+              if (lastErrText.toLowerCase().includes('expired') || lastErrText.toLowerCase().includes('invalid authorization code')) {
+                break;
+              }
+            }
+          } catch (eBack) {
+            log('Aviso backend: ' + eBack.message);
+          }
         }
 
-        const headers = {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        };
+        // 2. SEGUNDO INTENTO (Fallback directo contra Spotify API si el backend no respondió)
+        if (!tokenData) {
+          const bodyParams = new URLSearchParams({
+            client_id: activeClientId,
+            grant_type: 'authorization_code',
+            code: code,
+            redirect_uri: redirectUri
+          });
 
-        // Si tenemos el Client Secret, agregar Basic Auth para máxima compatibilidad
-        if (CLIENT_SECRET) {
-          headers['Authorization'] = 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET);
-        }
+          if (codeVerifier) {
+            bodyParams.append('code_verifier', codeVerifier);
+          }
 
-        const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
-          method: 'POST',
-          headers: headers,
-          body: bodyParams
-        });
+          const headers = {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          };
 
-        const tokenData = await tokenRes.json();
+          if (CLIENT_SECRET) {
+            headers['Authorization'] = 'Basic ' + btoa(activeClientId + ':' + CLIENT_SECRET);
+          }
 
-        if (tokenData.error) {
-          throw new Error(tokenData.error_description || tokenData.error || 'Error al obtener tokens de Spotify');
+          const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: headers,
+            body: bodyParams
+          });
+
+          const directData = await tokenRes.json();
+          if (directData.error) {
+            throw new Error(directData.error_description || directData.error || lastErrText || 'Error al obtener tokens de Spotify');
+          }
+          tokenData = directData;
         }
 
         log('Tokens obtenidos exitosamente');
-        saveTokens(tokenData.access_token, tokenData.refresh_token, tokenData.expires_in);
+        await saveTokens(tokenData.access_token, tokenData.refresh_token, tokenData.expires_in);
         await finishAuth(tokenData.access_token);
 
       } catch (err) {
@@ -341,22 +397,25 @@
       }
     }
 
-    function saveTokens(accessToken, refreshToken, expiresInSec = 3600) {
+    async function saveTokens(accessToken, refreshToken, expiresInSec = 3600) {
       const expiresAt = Date.now() + (expiresInSec * 1000);
       localStorage.setItem('spotify_access_token', accessToken);
-      if (refreshToken) {
+      if (refreshToken && refreshToken.length >= 40) {
         localStorage.setItem('spotify_refresh_token', refreshToken);
       }
       localStorage.setItem('spotify_token_expires', expiresAt.toString());
       localStorage.setItem('spotify_auth_timestamp', Date.now().toString());
 
-      // Sincronizar automáticamente con el backend de Firebase
-      fetch(`https://sensunshopweb.web.app/spotify/save_token?user=jikokun2&refresh_token=${encodeURIComponent(refreshToken || '')}&access_token=${encodeURIComponent(accessToken)}`).catch(() => {});
+      // Sincronizar automáticamente con el backend de Firebase esperando confirmación antes de cerrar el popup
+      try {
+        await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=jikokun2&from_login=1&refresh_token=${encodeURIComponent(refreshToken || '')}&access_token=${encodeURIComponent(accessToken)}`);
+        log('Sincronización con Firebase completada.');
+      } catch (e) {}
 
       // Notificar a otras ventanas vía BroadcastChannel
       try {
         const bc = new BroadcastChannel('spotify_auth_channel');
-        bc.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS', token: accessToken });
+        bc.postMessage({ type: 'SPOTIFY_AUTH_SUCCESS', token: accessToken, refreshToken: refreshToken || '' });
       } catch (e) {}
 
       // Notificar a ventana padre si fue abierta en popup

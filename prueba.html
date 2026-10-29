@@ -3163,52 +3163,37 @@
             const redirectUri = getSpotifyRedirectUri();
             saveSpotifyDeveloperSettings();
 
-            const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
-            let verifier = '';
-            for (let i = 0; i < 64; i++) {
-                verifier += possible.charAt(Math.floor(Math.random() * possible.length));
+            // Limpiar code_verifier previo para usar Authorization Code Flow Confidencial vía Backend (genera refresh_token permanente que NO caduca al rotar)
+            localStorage.removeItem('spotify_code_verifier');
+
+            const scopes = [
+                'user-read-playback-state',
+                'user-modify-playback-state',
+                'user-read-currently-playing',
+                'user-read-private',
+                'playlist-read-private',
+                'playlist-modify-public',
+                'playlist-modify-private'
+            ].join(' ');
+
+            const authUrl = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+                client_id: clientId,
+                response_type: 'code',
+                redirect_uri: redirectUri,
+                scope: scopes,
+                show_dialog: 'true'
+            }).toString();
+
+            log(`[Spotify OAuth] Abriendo autenticación confidencial hacia: ${redirectUri}`, "info");
+
+            const w = 550;
+            const h = 720;
+            const left = (window.screen.width / 2) - (w / 2);
+            const top = (window.screen.height / 2) - (h / 2);
+            const loginWin = window.open(authUrl, 'SpotifyOAuthLogin', `width=${w},height=${h},top=${top},left=${left}`);
+            if (!loginWin || loginWin.closed || typeof loginWin.closed === 'undefined') {
+                window.location.href = authUrl;
             }
-            localStorage.setItem('spotify_code_verifier', verifier);
-
-            const encoder = new TextEncoder();
-            const data = encoder.encode(verifier);
-            window.crypto.subtle.digest('SHA-256', data).then(hash => {
-                const challenge = btoa(String.fromCharCode(...new Uint8Array(hash)))
-                    .replace(/=/g, '')
-                    .replace(/\+/g, '-')
-                    .replace(/\//g, '_');
-
-                const scopes = [
-                    'user-read-playback-state',
-                    'user-modify-playback-state',
-                    'user-read-currently-playing',
-                    'user-read-private',
-                    'playlist-read-private',
-                    'playlist-modify-public',
-                    'playlist-modify-private'
-                ].join(' ');
-
-                const authUrl = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
-                    client_id: clientId,
-                    response_type: 'code',
-                    redirect_uri: redirectUri,
-                    scope: scopes,
-                    code_challenge_method: 'S256',
-                    code_challenge: challenge,
-                    show_dialog: 'true'
-                }).toString();
-
-                log(`[Spotify OAuth] Abriendo autenticación hacia: ${redirectUri}`, "info");
-
-                const w = 550;
-                const h = 720;
-                const left = (window.screen.width / 2) - (w / 2);
-                const top = (window.screen.height / 2) - (h / 2);
-                const loginWin = window.open(authUrl, 'SpotifyOAuthLogin', `width=${w},height=${h},top=${top},left=${left}`);
-                if (!loginWin || loginWin.closed || typeof loginWin.closed === 'undefined') {
-                    window.location.href = authUrl;
-                }
-            });
         };
 
         window.disconnectSpotifySession = function() {
@@ -3221,11 +3206,30 @@
         };
 
         window.checkCurrentSpotifyUserStatus = async function() {
-            const token = localStorage.getItem('spotify_access_token');
+            let token = localStorage.getItem('spotify_access_token');
             const badge = document.getElementById('spotifyLabSessionBadge');
             const text = document.getElementById('spotifyLabSessionText');
             const btnConnect = document.getElementById('btnConnectSpotifyLab');
             const btnDisconnect = document.getElementById('btnDisconnectSpotifyLab');
+
+            // Si no hay token en localStorage, intentar recuperarlo automáticamente desde el backend de Firebase
+            if (!token) {
+                try {
+                    const userInput = document.getElementById('spotifyUserLabInput');
+                    const user = (userInput && userInput.value ? userInput.value.trim() : 'jikokun2') || 'jikokun2';
+                    const backRes = await fetch(`https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(user)}&format=json`, { cache: 'no-store' });
+                    if (backRes.ok) {
+                        const backData = await backRes.json();
+                        if (backData && backData.access_token) {
+                            token = backData.access_token;
+                            localStorage.setItem('spotify_access_token', token);
+                            if (backData.refresh_token && backData.refresh_token.length >= 40) {
+                                localStorage.setItem('spotify_refresh_token', backData.refresh_token);
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
 
             if (!token) {
                 if (badge) {
@@ -3248,10 +3252,11 @@
                     const profile = await res.json();
                     localStorage.setItem('spotify_user_profile', JSON.stringify(profile));
 
-                    // Sincronizar automáticamente tokens con el backend de Firebase
-                    const activeRefreshToken = localStorage.getItem('spotify_refresh_token');
-                    if (activeRefreshToken || token) {
-                        fetch(`https://sensunshopweb.web.app/spotify/save_token?user=jikokun2&refresh_token=${encodeURIComponent(activeRefreshToken || '')}&access_token=${encodeURIComponent(token)}`).catch(() => {});
+                    // Sincronizar automáticamente tokens válidos con el backend de Firebase
+                    const activeRefreshToken = (localStorage.getItem('spotify_refresh_token') || '').trim();
+                    const validRefresh = (activeRefreshToken.length >= 40 && !activeRefreshToken.includes('$')) ? activeRefreshToken : '';
+                    if (validRefresh || (token && token.length >= 30)) {
+                        fetch(`https://sensunshopweb.web.app/spotify/save_token?user=jikokun2&refresh_token=${encodeURIComponent(validRefresh)}&access_token=${encodeURIComponent(token)}`).catch(() => {});
                     }
                     if (badge) {
                         badge.style.background = 'rgba(29, 185, 84, 0.18)';
@@ -3288,13 +3293,36 @@
         };
 
         async function refreshLabSpotifyToken() {
-            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            const refreshToken = (localStorage.getItem('spotify_refresh_token') || '').trim();
             const { clientId, clientSecret } = getSpotifyDevCredentials();
-            if (!refreshToken) {
+            const userInput = document.getElementById('spotifyUserLabInput');
+            const user = (userInput && userInput.value ? userInput.value.trim() : 'jikokun2') || 'jikokun2';
+
+            // 1. PRIMER INTENTO: Renovar de forma centralizada vía Backend de Firebase (evita desincronización de tokens)
+            try {
+                const validRefreshParam = (refreshToken.length >= 40 && !refreshToken.includes('$')) ? `&refresh_token=${encodeURIComponent(refreshToken)}` : '';
+                const backRes = await fetch(`https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(user)}&force=1&format=json${validRefreshParam}`, { cache: 'no-store' });
+                if (backRes.ok) {
+                    const backData = await backRes.json();
+                    if (backData && backData.access_token) {
+                        localStorage.setItem('spotify_access_token', backData.access_token);
+                        localStorage.setItem('spotify_token_expires', (Date.now() + 3600000).toString());
+                        if (backData.refresh_token && backData.refresh_token.length >= 40) {
+                            localStorage.setItem('spotify_refresh_token', backData.refresh_token);
+                        }
+                        log("[Spotify] Token renovado con éxito vía Servidor Firebase", "success");
+                        checkCurrentSpotifyUserStatus();
+                        return true;
+                    }
+                }
+            } catch (eBack) {}
+
+            if (!refreshToken || refreshToken.length < 40) {
                 disconnectSpotifySession();
                 return false;
             }
 
+            // 2. SEGUNDO INTENTO: Renovar directo contra Spotify API
             try {
                 const bodyParams = new URLSearchParams({
                     grant_type: 'refresh_token',
@@ -3317,7 +3345,7 @@
                 if (data.access_token) {
                     localStorage.setItem('spotify_access_token', data.access_token);
                     localStorage.setItem('spotify_token_expires', (Date.now() + (data.expires_in * 1000)).toString());
-                    if (data.refresh_token) {
+                    if (data.refresh_token && data.refresh_token.length >= 40) {
                         localStorage.setItem('spotify_refresh_token', data.refresh_token);
                     }
                     log("[Spotify] Token renovado con éxito en el Laboratorio", "success");
@@ -3843,12 +3871,13 @@
                 consoleEl.innerHTML = `<span style="color:#00f5d4;">⏳ Ejecutando Fetch silencioso:</span> ${label}...`;
             }
 
-            // Sincronizar token local activo si existe en localStorage antes de llamar
-            const localRefresh = localStorage.getItem('spotify_refresh_token');
-            const localAccess = localStorage.getItem('spotify_access_token');
-            if (localRefresh || localAccess) {
+            // Sincronizar token local activo si existe y es válido en localStorage antes de llamar
+            const localRefresh = (localStorage.getItem('spotify_refresh_token') || '').trim();
+            const localAccess = (localStorage.getItem('spotify_access_token') || '').trim();
+            const validRefresh = (localRefresh.length >= 40 && !localRefresh.includes('$')) ? localRefresh : '';
+            if (validRefresh || localAccess.length >= 30) {
                 try {
-                    await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(localRefresh || '')}&access_token=${encodeURIComponent(localAccess || '')}`);
+                    await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(validRefresh)}&access_token=${encodeURIComponent(localAccess)}`);
                 } catch(e) {}
             }
 
@@ -3863,12 +3892,13 @@
                 }
                 log(`[Spotify Native Fetch] Respuesta (${res.status}): ${cleanText}`, res.ok ? "success" : "warn");
 
-                // Notificar al iframe del widget para refrescar estado visual
+                // Notificar al iframe del widget para refrescar estado visual y mostrar alerta
                 const iframe = document.getElementById('preview-spotify-test');
                 if (iframe && iframe.contentWindow) {
+                    iframe.contentWindow.postMessage({ type: 'SHOW_FETCH_TOAST', action: action, text: cleanText, ok: res.ok }, '*');
                     setTimeout(() => {
                         iframe.contentWindow.postMessage({ type: 'REFRESH_PLAYBACK' }, '*');
-                    }, 1200);
+                    }, 1000);
                 }
             } catch (err) {
                 if (consoleEl) {
@@ -3880,12 +3910,13 @@
 
         window.syncSpotifyTokenWithServerDirect = async function() {
             const statusEl = document.getElementById('spotifyServerSyncStatus');
-            const token = localStorage.getItem('spotify_access_token');
-            const refreshToken = localStorage.getItem('spotify_refresh_token');
+            const token = (localStorage.getItem('spotify_access_token') || '').trim();
+            const refreshToken = (localStorage.getItem('spotify_refresh_token') || '').trim();
+            const validRefresh = (refreshToken.length >= 40 && !refreshToken.includes('$')) ? refreshToken : '';
             const userInput = document.getElementById('spotifyUserLabInput');
             const user = userInput && userInput.value ? userInput.value.trim() : 'jikokun2';
 
-            if (!token && !refreshToken) {
+            if (!token && !validRefresh) {
                 alert("⚠️ Primero debes hacer clic en 'Iniciar Sesión con Spotify' en la sección de arriba para autorizar tu cuenta.");
                 if (statusEl) statusEl.innerHTML = "<span style='color:#ef4444;'>❌ Sin sesión local: Inicia sesión arriba primero.</span>";
                 return;
@@ -3894,7 +3925,7 @@
             if (statusEl) statusEl.innerHTML = "<span style='color:#00f5d4;'>⏳ Sincronizando token con el backend...</span>";
 
             try {
-                const res = await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&refresh_token=${encodeURIComponent(refreshToken || '')}&access_token=${encodeURIComponent(token || '')}`);
+                const res = await fetch(`https://sensunshopweb.web.app/spotify/save_token?user=${encodeURIComponent(user)}&from_login=1&refresh_token=${encodeURIComponent(validRefresh)}&access_token=${encodeURIComponent(token)}`);
                 const text = await res.text();
                 if (res.ok) {
                     if (statusEl) statusEl.innerHTML = "<span style='color:#53fc18;'>✅ ¡Token propio sincronizado exitosamente en el servidor! Ya puedes usar tus enlaces de Fetch.</span>";
@@ -3917,10 +3948,17 @@
         // Escuchar autenticación de Spotify desde popup o BroadcastChannel
         window.addEventListener('message', (e) => {
             if (e.data && e.data.type === 'SPOTIFY_AUTH_SUCCESS') {
+                if (e.data.token) {
+                    localStorage.setItem('spotify_access_token', e.data.token);
+                    localStorage.setItem('spotify_token_expires', (Date.now() + 3600000).toString());
+                }
+                if (e.data.refreshToken && e.data.refreshToken.length >= 40) {
+                    localStorage.setItem('spotify_refresh_token', e.data.refreshToken);
+                }
                 log("[Spotify OAuth] ✅ Autenticación recibida en el Laboratorio", "success");
                 checkCurrentSpotifyUserStatus();
                 const spotifyIframe = document.getElementById('preview-spotify-test');
-                if (spotifyIframe) {
+                if (spotifyIframe && spotifyIframe.src && spotifyIframe.src !== 'about:blank') {
                     spotifyIframe.src = spotifyIframe.src;
                 }
             }
@@ -3930,10 +3968,16 @@
             const bc = new BroadcastChannel('spotify_auth_channel');
             bc.onmessage = (e) => {
                 if (e.data && e.data.type === 'SPOTIFY_AUTH_SUCCESS') {
+                    if (e.data.token) {
+                        localStorage.setItem('spotify_access_token', e.data.token);
+                    }
+                    if (e.data.refreshToken && e.data.refreshToken.length >= 40) {
+                        localStorage.setItem('spotify_refresh_token', e.data.refreshToken);
+                    }
                     log("[Spotify OAuth] ✅ Señal de token recibida vía BroadcastChannel", "success");
                     checkCurrentSpotifyUserStatus();
                     const spotifyIframe = document.getElementById('preview-spotify-test');
-                    if (spotifyIframe) {
+                    if (spotifyIframe && spotifyIframe.src && spotifyIframe.src !== 'about:blank') {
                         spotifyIframe.src = spotifyIframe.src;
                     }
                 }

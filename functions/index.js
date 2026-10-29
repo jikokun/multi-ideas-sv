@@ -421,6 +421,7 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
  * Compatible con llamadas GET simples (Fetch URL) desde Streamer.bot, Botrix, etc.
  * 
  * Endpoints:
+ *  - /api/spotify/exchange_code?user=jikokun2&code=...&redirect_uri=...
  *  - /api/spotify/add_to_queue?user=jikokun2&song_name=...
  *  - /api/spotify/skip?user=jikokun2
  *  - /api/spotify/play?user=jikokun2
@@ -432,90 +433,154 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
  */
 
 const SPOTIFY_CLIENT_ID = process.env.SPOTIFY_CLIENT_ID || "86895cd4fce24473b50586a16122bd22";
-const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || "";
+const SPOTIFY_CLIENT_SECRET = process.env.SPOTIFY_CLIENT_SECRET || "98f13b050abb432482d9c3b80c6babff";
 
-async function getValidSpotifyToken(userId) {
+function isValidRefreshTokenFormat(token) {
+    return typeof token === "string" && token.trim().length >= 40 && !token.includes("$") && !token.includes(" ");
+}
+
+async function tryRefreshWithSpotify(refreshToken, clientId, clientSecret) {
+    if (!isValidRefreshTokenFormat(refreshToken)) return null;
+
+    // 1. PRIMER INTENTO: Renovar con Basic Auth (Apps confidenciales con Client Secret)
+    if (clientSecret) {
+        try {
+            const basicAuth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
+            const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Authorization": `Basic ${basicAuth}`
+                },
+                body: new URLSearchParams({
+                    grant_type: "refresh_token",
+                    refresh_token: refreshToken.trim()
+                }).toString()
+            });
+            const data = await tokenRes.json();
+            if (tokenRes.ok && data.access_token) {
+                return data;
+            }
+        } catch (e) {}
+    }
+
+    // 2. SEGUNDO INTENTO: Renovar con PKCE puro (Apps públicas con Client ID en body)
+    try {
+        const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: new URLSearchParams({
+                grant_type: "refresh_token",
+                refresh_token: refreshToken.trim(),
+                client_id: clientId
+            }).toString()
+        });
+        const data = await tokenRes.json();
+        if (tokenRes.ok && data.access_token) {
+            return data;
+        }
+    } catch (e) {}
+
+    return null;
+}
+
+async function getValidSpotifyToken(userId, forceRefresh = false) {
     const db = admin.database();
     const user = (userId || "jikokun2").toLowerCase().trim();
     const snap = await db.ref(`stream/spotify_auth/${user}`).once("value");
-    let authData = snap.val() || {};
+    const authData = snap.val() || {};
 
     let accessToken = authData.access_token;
     let refreshToken = authData.refresh_token;
+    const backupRefreshToken = authData.last_valid_refresh_token;
     const expiresAt = Number(authData.token_expires) || 0;
+    const clientId = authData.client_id || SPOTIFY_CLIENT_ID;
+    const clientSecret = authData.client_secret || SPOTIFY_CLIENT_SECRET;
 
-    // Si el token de acceso aún es válido por más de 60 segundos, reutilizarlo directamente
-    if (accessToken && Date.now() < (expiresAt - 60000)) {
+    // Si el token de acceso aún es válido por más de 60 segundos y no se forzó el refresco, reutilizarlo directamente
+    if (!forceRefresh && accessToken && Date.now() < (expiresAt - 60000)) {
         return { accessToken, refreshToken, user };
     }
 
-    if (!refreshToken) {
-        if (accessToken) {
+    if (!isValidRefreshTokenFormat(refreshToken) && isValidRefreshTokenFormat(backupRefreshToken)) {
+        refreshToken = backupRefreshToken;
+    }
+
+    if (!isValidRefreshTokenFormat(refreshToken)) {
+        if (accessToken && !forceRefresh) {
             return { accessToken, refreshToken, user };
         }
         throw new Error(`No se encontró sesión activa de Spotify para '${user}'. Abre prueba.html y haz clic en 'Iniciar Sesión con Spotify' para vincular tu cuenta a tu App propia.`);
     }
 
-    let tokenData = null;
+    let tokenData = await tryRefreshWithSpotify(refreshToken, clientId, clientSecret);
 
-    // 1. PRIMER INTENTO: Renovar con Basic Auth (Apps confidenciales con Client Secret)
-    try {
-        const basicAuth = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString("base64");
-        const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-                "Authorization": `Basic ${basicAuth}`
-            },
-            body: new URLSearchParams({
-                grant_type: "refresh_token",
-                refresh_token: refreshToken
-            }).toString()
-        });
-        const data = await tokenRes.json();
-        if (tokenRes.ok && data.access_token) {
-            tokenData = data;
-        }
-    } catch(e) {}
-
-    // 2. SEGUNDO INTENTO: Renovar con PKCE puro (Apps públicas con Client ID en body)
-    if (!tokenData) {
-        try {
-            const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
-                method: "POST",
-                headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                body: new URLSearchParams({
-                    grant_type: "refresh_token",
-                    refresh_token: refreshToken,
-                    client_id: SPOTIFY_CLIENT_ID
-                }).toString()
-            });
-            const data = await tokenRes.json();
-            if (tokenRes.ok && data.access_token) {
-                tokenData = data;
-            } else {
-                throw new Error(data.error_description || data.error || "Fallo al renovar token de Spotify");
-            }
-        } catch(errPkce) {
-            throw new Error(`El token de Spotify expiró o no pertenece a tu App (${SPOTIFY_CLIENT_ID}). Por favor abre prueba.html y haz clic en 'Iniciar Sesión con Spotify' para vincular tu cuenta.`);
+    // Si el refresh_token principal falló pero existe last_valid_refresh_token distinto, intentar con el respaldo
+    if (!tokenData && isValidRefreshTokenFormat(backupRefreshToken) && backupRefreshToken !== refreshToken) {
+        console.log(`[getValidSpotifyToken] 🔄 Intentando recuperación con last_valid_refresh_token para '${user}'...`);
+        tokenData = await tryRefreshWithSpotify(backupRefreshToken, clientId, clientSecret);
+        if (tokenData) {
+            refreshToken = backupRefreshToken;
         }
     }
 
+    if (!tokenData) {
+        throw new Error(`El token de Spotify expiró o no pertenece a tu App (${clientId}). Por favor abre prueba.html y haz clic en 'Iniciar Sesión con Spotify' para vincular tu cuenta.`);
+    }
+
     accessToken = tokenData.access_token;
-    const newExpires = Date.now() + (tokenData.expires_in * 1000);
-    if (tokenData.refresh_token) {
-        refreshToken = tokenData.refresh_token;
+    const newExpires = Date.now() + ((Number(tokenData.expires_in) || 3600) * 1000);
+    if (tokenData.refresh_token && isValidRefreshTokenFormat(tokenData.refresh_token)) {
+        refreshToken = tokenData.refresh_token.trim();
     }
 
     // Guardar token renovado en Firebase Realtime Database
     await db.ref(`stream/spotify_auth/${user}`).update({
         access_token: accessToken,
         refresh_token: refreshToken,
+        last_valid_refresh_token: refreshToken,
         token_expires: newExpires,
         last_refreshed: Date.now()
     });
 
     return { accessToken, refreshToken, user };
+}
+
+/**
+ * Ejecuta una petición a Spotify Web API con auto-recuperación ante errores 401 (Token Expirado)
+ */
+async function spotifyApiFetch(user, url, options = {}) {
+    let { accessToken } = await getValidSpotifyToken(user, false);
+    const makeHeaders = (token) => Object.assign({}, options.headers || {}, {
+        "Authorization": `Bearer ${token}`
+    });
+
+    let res = await fetch(url, Object.assign({}, options, { headers: makeHeaders(accessToken) }));
+
+    if (res.status === 401) {
+        console.log(`[spotifyControl] 🔄 Token 401 detectado para '${user}', forzando renovación automática...`);
+        const renewed = await getValidSpotifyToken(user, true);
+        accessToken = renewed.accessToken;
+        res = await fetch(url, Object.assign({}, options, { headers: makeHeaders(accessToken) }));
+    }
+
+    return { res, accessToken };
+}
+
+/**
+ * Busca el primer dispositivo de Spotify disponible si no hay uno marcado como activo (error 404)
+ */
+async function getFallbackDeviceId(user) {
+    try {
+        const { res } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/devices");
+        if (res.ok) {
+            const data = await res.json();
+            const devices = (data && data.devices) || [];
+            const active = devices.find(d => d.is_active) || devices.find(d => !d.is_restricted) || devices[0];
+            if (active && active.id) return active.id;
+        }
+    } catch (e) {}
+    return null;
 }
 
 exports.spotifyControl = functions.https.onRequest(async (req, res) => {
@@ -528,33 +593,176 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
         return res.status(204).send("");
     }
 
+    const bodyObj = (req.body && typeof req.body === "object") ? req.body : {};
+
     // Extraer usuario y acción ya sea de la ruta (URL path) o de la query string
-    const user = (req.query.user || req.query.user_id || req.query.username || req.body.user || "jikokun2").toLowerCase().trim();
+    const user = (req.query.user || req.query.user_id || req.query.username || bodyObj.user || "jikokun2").toLowerCase().trim();
     const pathParts = req.path.split("/").filter(Boolean);
     const lastPart = pathParts.length > 0 ? pathParts[pathParts.length - 1].toLowerCase() : "";
 
-    let action = (req.query.action || req.query.cmd || (lastPart && !["spotify", "spotifycontrol", "api"].includes(lastPart) ? lastPart : "") || "").toLowerCase();
+    let action = (req.query.action || req.query.cmd || bodyObj.action || (lastPart && !["spotify", "spotifycontrol", "api"].includes(lastPart) ? lastPart : "") || "").toLowerCase();
     if (action.endsWith(".php")) action = action.replace(".php", "");
 
-    const songQuery = req.query.song_name || req.query.song || req.query.q || req.query.songname || req.body.song_name || req.body.song || "";
+    const songQuery = req.query.song_name || req.query.song || req.query.q || req.query.songname || bodyObj.song_name || bodyObj.song || "";
 
     const db = admin.database();
     const cooldownRef = db.ref(`stream/spotify_live/cooldowns/${user}`);
 
     try {
-        // ── 0. Guardar o vincular tokens directamente ──────────────────────────
+        // ── 0A. Intercambiar código OAuth directamente en el Backend (Token Permanente) ──
+        if (action === "exchange_code") {
+            const code = req.query.code || bodyObj.code;
+            const redirectUri = req.query.redirect_uri || bodyObj.redirect_uri;
+            const codeVerifier = req.query.code_verifier || bodyObj.code_verifier || "";
+            const customClientId = req.query.client_id || bodyObj.client_id || SPOTIFY_CLIENT_ID;
+            const customClientSecret = req.query.client_secret || bodyObj.client_secret || SPOTIFY_CLIENT_SECRET;
+
+            if (!code || !redirectUri) {
+                return res.status(400).json({ success: false, error: "Faltan parámetros 'code' o 'redirect_uri'" });
+            }
+
+            let tokenData = null;
+            let lastError = null;
+
+            // Intento 1: Intercambio Confidencial con Basic Auth (Genera refresh_token permanente que NO caduca al rotar)
+            if (customClientSecret) {
+                try {
+                    const basicAuth = Buffer.from(`${customClientId}:${customClientSecret}`).toString("base64");
+                    const params = new URLSearchParams({
+                        grant_type: "authorization_code",
+                        code: code,
+                        redirect_uri: redirectUri
+                    });
+                    if (codeVerifier) params.append("code_verifier", codeVerifier);
+
+                    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                            "Authorization": `Basic ${basicAuth}`
+                        },
+                        body: params.toString()
+                    });
+                    const data = await tokenRes.json();
+                    if (tokenRes.ok && data.access_token) {
+                        tokenData = data;
+                    } else {
+                        lastError = data;
+                    }
+                } catch (errBasic) {
+                    lastError = { error_description: errBasic.message };
+                }
+            }
+
+            // Intento 2: Intercambio con PKCE si se envió code_verifier y el intento 1 no aplicó
+            if (!tokenData && codeVerifier) {
+                try {
+                    const params = new URLSearchParams({
+                        grant_type: "authorization_code",
+                        code: code,
+                        redirect_uri: redirectUri,
+                        client_id: customClientId,
+                        code_verifier: codeVerifier
+                    });
+                    const tokenRes = await fetch("https://accounts.spotify.com/api/token", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                        body: params.toString()
+                    });
+                    const data = await tokenRes.json();
+                    if (tokenRes.ok && data.access_token) {
+                        tokenData = data;
+                    } else {
+                        lastError = data;
+                    }
+                } catch (errPkce) {
+                    lastError = { error_description: errPkce.message };
+                }
+            }
+
+            if (!tokenData || !tokenData.access_token) {
+                return res.status(400).json({
+                    success: false,
+                    error: (lastError && (lastError.error_description || lastError.error)) || "No se pudo canjear el código de autorización con Spotify"
+                });
+            }
+
+            const expiresAt = Date.now() + ((Number(tokenData.expires_in) || 3600) * 1000);
+            const savePayload = {
+                access_token: tokenData.access_token,
+                token_expires: expiresAt,
+                client_id: customClientId,
+                last_updated: Date.now(),
+                last_refreshed: Date.now()
+            };
+            if (tokenData.refresh_token && isValidRefreshTokenFormat(tokenData.refresh_token)) {
+                savePayload.refresh_token = tokenData.refresh_token.trim();
+                savePayload.last_valid_refresh_token = tokenData.refresh_token.trim();
+            }
+            if (customClientSecret) {
+                savePayload.client_secret = customClientSecret;
+            }
+
+            await db.ref(`stream/spotify_auth/${user}`).update(savePayload);
+
+            return res.status(200).json({
+                success: true,
+                user: user,
+                access_token: tokenData.access_token,
+                refresh_token: tokenData.refresh_token || "",
+                expires_in: tokenData.expires_in || 3600,
+                token_expires: expiresAt
+            });
+        }
+
+        // ── 0B. Guardar o vincular tokens directamente (Protegido contra sobreescrituras corruptas) ──
         if (action === "save_token" || action === "set_token") {
-            const rToken = req.query.refresh_token || req.body.refresh_token;
-            const aToken = req.query.access_token || req.body.access_token;
-            if (!rToken && !aToken) {
-                return res.status(400).send("Faltan parámetros refresh_token o access_token");
+            const rToken = (req.query.refresh_token || bodyObj.refresh_token || "").trim();
+            const aToken = (req.query.access_token || bodyObj.access_token || "").trim();
+            const fromLogin = req.query.from_login === "1" || bodyObj.from_login === true;
+
+            if (!isValidRefreshTokenFormat(rToken) && (!aToken || aToken.length < 30)) {
+                return res.status(400).send("Parámetros refresh_token o access_token inválidos o corruptos");
             }
+
+            const existingSnap = await db.ref(`stream/spotify_auth/${user}`).once("value");
+            const existingData = existingSnap.val() || {};
             const updateObj = { last_updated: Date.now() };
-            if (rToken) updateObj.refresh_token = rToken;
-            if (aToken) {
-                updateObj.access_token = aToken;
-                updateObj.token_expires = Date.now() + 3600000;
+
+            // Validar refresh_token antes de guardarlo
+            if (isValidRefreshTokenFormat(rToken)) {
+                if (fromLogin || !isValidRefreshTokenFormat(existingData.refresh_token)) {
+                    // Verificar que el refresh_token sea válido contra Spotify
+                    const testRefresh = await tryRefreshWithSpotify(rToken, existingData.client_id || SPOTIFY_CLIENT_ID, existingData.client_secret || SPOTIFY_CLIENT_SECRET);
+                    if (testRefresh && testRefresh.access_token) {
+                        const finalRefresh = (testRefresh.refresh_token && isValidRefreshTokenFormat(testRefresh.refresh_token))
+                            ? testRefresh.refresh_token.trim()
+                            : rToken;
+                        updateObj.refresh_token = finalRefresh;
+                        updateObj.last_valid_refresh_token = finalRefresh;
+                        updateObj.access_token = testRefresh.access_token;
+                        updateObj.token_expires = Date.now() + ((Number(testRefresh.expires_in) || 3600) * 1000);
+                        updateObj.last_refreshed = Date.now();
+                    } else if (fromLogin) {
+                        updateObj.refresh_token = rToken;
+                        updateObj.last_valid_refresh_token = rToken;
+                    }
+                }
             }
+
+            // Si aún no se actualizó access_token y viene un access_token válido, verificarlo con /v1/me
+            if (!updateObj.access_token && aToken && aToken.length >= 30 && !aToken.includes("$")) {
+                if (fromLogin || !existingData.access_token || Date.now() >= Number(existingData.token_expires || 0)) {
+                    const checkMe = await fetch("https://api.spotify.com/v1/me", {
+                        headers: { "Authorization": `Bearer ${aToken}` }
+                    }).catch(() => null);
+                    if (checkMe && checkMe.ok) {
+                        updateObj.access_token = aToken;
+                        updateObj.token_expires = Date.now() + 2400000;
+                    }
+                }
+            }
+
             await db.ref(`stream/spotify_auth/${user}`).update(updateObj);
             return res.status(200).send(`Tokens actualizados exitosamente para el usuario ${user}`);
         }
@@ -562,9 +770,6 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
         // Obtener datos de cooldown atómico para prevenir duplicados rápidos de Streamer.bot / Botrix
         const cooldownSnap = await cooldownRef.once("value");
         const cooldowns = cooldownSnap.val() || {};
-
-        // Obtener token de acceso activo y válido (renovado en servidor si expiró)
-        const { accessToken } = await getValidSpotifyToken(user);
 
         // ── 1. Acción: SALTAR CANCIÓN (Skip / Next) ─────────────────────────────
         if (action === "skip" || action === "next" || action === "skipsong") {
@@ -578,10 +783,19 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
             await cooldownRef.update({ last_skip_time: now });
 
-            const apiRes = await fetch("https://api.spotify.com/v1/me/player/next", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${accessToken}` }
+            let { res: apiRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/next", {
+                method: "POST"
             });
+
+            if (apiRes.status === 404) {
+                const devId = await getFallbackDeviceId(user);
+                if (devId) {
+                    const retry = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/next?device_id=${encodeURIComponent(devId)}`, {
+                        method: "POST"
+                    });
+                    apiRes = retry.res;
+                }
+            }
 
             if (apiRes.status === 204 || apiRes.status === 200) {
                 db.ref("stream/spotify_live/last_action").set({
@@ -599,12 +813,26 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
         // ── 2. Acción: REANUDAR MÚSICA (Play / Resume) ─────────────────────────
         if (action === "play" || action === "resume" || action === "reanudar") {
-            const apiRes = await fetch("https://api.spotify.com/v1/me/player/play", {
-                method: "PUT",
-                headers: { "Authorization": `Bearer ${accessToken}` }
+            let { res: apiRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/play", {
+                method: "PUT"
             });
 
+            if (apiRes.status === 404) {
+                const devId = await getFallbackDeviceId(user);
+                if (devId) {
+                    const retry = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(devId)}`, {
+                        method: "PUT"
+                    });
+                    apiRes = retry.res;
+                }
+            }
+
             if (apiRes.status === 204 || apiRes.status === 200) {
+                db.ref("stream/spotify_live/last_action").set({
+                    action: "play",
+                    user: user,
+                    timestamp: Date.now()
+                }).catch(() => {});
                 return res.status(200).send("Spotify playback resumed.");
             }
             return res.status(apiRes.status).send("Failed to resume Spotify playback.");
@@ -612,12 +840,26 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
         // ── 3. Acción: PAUSAR MÚSICA (Pause) ───────────────────────────────────
         if (action === "pause" || action === "pausa") {
-            const apiRes = await fetch("https://api.spotify.com/v1/me/player/pause", {
-                method: "PUT",
-                headers: { "Authorization": `Bearer ${accessToken}` }
+            let { res: apiRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/pause", {
+                method: "PUT"
             });
 
+            if (apiRes.status === 404) {
+                const devId = await getFallbackDeviceId(user);
+                if (devId) {
+                    const retry = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/pause?device_id=${encodeURIComponent(devId)}`, {
+                        method: "PUT"
+                    });
+                    apiRes = retry.res;
+                }
+            }
+
             if (apiRes.status === 204 || apiRes.status === 200) {
+                db.ref("stream/spotify_live/last_action").set({
+                    action: "pause",
+                    user: user,
+                    timestamp: Date.now()
+                }).catch(() => {});
                 return res.status(200).send("Spotify playback paused.");
             }
             return res.status(apiRes.status).send("Failed to pause Spotify playback.");
@@ -636,27 +878,36 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 searchQ = `track:${byMatch[1].trim()} artist:${byMatch[2].trim()}`;
             }
 
-            // Buscar en Spotify API
-            let searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQ)}&type=track&limit=10`, {
-                headers: { "Authorization": `Bearer ${accessToken}` }
-            });
-            let searchData = await searchRes.json();
+            // Buscar en Spotify API (con auto-retry en 401)
+            let { res: searchRes } = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(searchQ)}&type=track&limit=15`);
+            let searchData = searchRes.ok ? await searchRes.json() : null;
 
             // Fallback a búsqueda simple si la estructurada no dio resultados
             if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
-                searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(songQuery)}&type=track&limit=10`, {
-                    headers: { "Authorization": `Bearer ${accessToken}` }
-                });
-                searchData = await searchRes.json();
+                const fallbackSearch = await spotifyApiFetch(user, `https://api.spotify.com/v1/search?q=${encodeURIComponent(songQuery.trim())}&type=track&limit=15`);
+                searchRes = fallbackSearch.res;
+                searchData = searchRes.ok ? await searchRes.json() : null;
             }
 
             if (!searchData || !searchData.tracks || searchData.tracks.items.length === 0) {
                 return res.status(404).send(`No song found for "${songQuery}"`);
             }
 
-            // Priorizar por popularidad
+            // Priorizar por popularidad y penalizar karaoke/tribute si no fue pedido
             const tracks = searchData.tracks.items;
-            tracks.sort((a, b) => (b.popularity || 0) - (a.popularity || 0));
+            const queryLower = songQuery.toLowerCase();
+            tracks.sort((a, b) => {
+                let popA = a.popularity || 0;
+                let popB = b.popularity || 0;
+                const nameA = (a.name || "").toLowerCase();
+                const nameB = (b.name || "").toLowerCase();
+                const isJunkA = !queryLower.includes("karaoke") && (nameA.includes("karaoke") || nameA.includes("tribute") || nameA.includes("instrumental"));
+                const isJunkB = !queryLower.includes("karaoke") && (nameB.includes("karaoke") || nameB.includes("tribute") || nameB.includes("instrumental"));
+                if (isJunkA) popA -= 50;
+                if (isJunkB) popB -= 50;
+                return popB - popA;
+            });
+
             const selectedTrack = tracks[0];
             const artistName = selectedTrack.artists ? selectedTrack.artists[0].name : "Artista";
 
@@ -672,16 +923,27 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
             });
 
             // Encolar canción en Spotify
-            const queueRes = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(selectedTrack.uri)}`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${accessToken}` }
+            let { res: queueRes } = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(selectedTrack.uri)}`, {
+                method: "POST"
             });
+
+            // Si no hay dispositivo activo (404), buscar el dispositivo abierto y reintentar
+            if (queueRes.status === 404) {
+                const devId = await getFallbackDeviceId(user);
+                if (devId) {
+                    const retryQueue = await spotifyApiFetch(user, `https://api.spotify.com/v1/me/player/queue?uri=${encodeURIComponent(selectedTrack.uri)}&device_id=${encodeURIComponent(devId)}`, {
+                        method: "POST"
+                    });
+                    queueRes = retryQueue.res;
+                }
+            }
 
             if (queueRes.status === 204 || queueRes.status === 200) {
                 db.ref("stream/spotify_live/last_action").set({
                     action: "add",
                     song: selectedTrack.name,
                     artist: artistName,
+                    uri: selectedTrack.uri,
                     user: user,
                     timestamp: now
                 }).catch(() => {});
@@ -710,13 +972,25 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
             return res.status(queueRes.status).send(`Failed to add song to queue: ${queueErr || "Device inactive"}`);
         }
 
-        // ── 5. Acción: PROXY DE RENOVACIÓN DE TOKEN (Para Widgets en OBS) ──────
+        // ── 5. Acción: PROXY DE RENOVACIÓN DE TOKEN (Para Widgets en OBS y Laboratorio) ──
         if (action === "refresh_token") {
-            const passedRefreshToken = req.query.refresh_token || req.body.refresh_token;
-            if (passedRefreshToken) {
-                await db.ref(`stream/spotify_auth/${user}`).update({
-                    refresh_token: passedRefreshToken,
-                    last_updated: Date.now()
+            const passedRefreshToken = (req.query.refresh_token || bodyObj.refresh_token || "").trim();
+            if (isValidRefreshTokenFormat(passedRefreshToken)) {
+                const snapCur = await db.ref(`stream/spotify_auth/${user}/refresh_token`).once("value");
+                if (!isValidRefreshTokenFormat(snapCur.val())) {
+                    await db.ref(`stream/spotify_auth/${user}`).update({
+                        refresh_token: passedRefreshToken,
+                        last_updated: Date.now()
+                    });
+                }
+            }
+            const force = req.query.force === "1" || bodyObj.force === true;
+            const { accessToken, refreshToken } = await getValidSpotifyToken(user, force);
+            if ((req.query.format || "").toLowerCase() === "json") {
+                return res.status(200).json({
+                    success: true,
+                    access_token: accessToken,
+                    refresh_token: refreshToken || ""
                 });
             }
             return res.status(200).send(accessToken);
@@ -724,9 +998,7 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
         // ── 6. Acción: ESTADO EN VIVO Y COLA ──────────────────────────────────
         if (action === "status" || action === "display_queue" || action === "displayqueue") {
-            const playerRes = await fetch("https://api.spotify.com/v1/me/player", {
-                headers: { "Authorization": `Bearer ${accessToken}` }
-            });
+            const { res: playerRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player");
 
             if (playerRes.status === 204) {
                 return res.status(200).json({ is_playing: false, tracks: [] });
@@ -742,20 +1014,7 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
         // ── 7. Acción: CANCIÓN ACTUAL (Song / Current Song / Canción en Vivo) ──
         if (action === "song" || action === "current_song" || action === "currentsong" || action === "cancion" || action === "current") {
-            let playerRes = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-                headers: { "Authorization": `Bearer ${accessToken}` }
-            });
-
-            // Si el token expiró (401), auto-renovar silenciosamente
-            if (playerRes.status === 401) {
-                try {
-                    const renewed = await getValidSpotifyToken(user, true);
-                    accessToken = renewed.accessToken;
-                    playerRes = await fetch("https://api.spotify.com/v1/me/player/currently-playing", {
-                        headers: { "Authorization": `Bearer ${accessToken}` }
-                    });
-                } catch(e) {}
-            }
+            const { res: playerRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/currently-playing");
 
             if (playerRes.status === 204) {
                 if (req.query.format === "json") {
@@ -811,11 +1070,10 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
         }
 
         // Si la acción no coincide con ninguna
-        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: add_to_queue, skip, play, pause, song, status, refresh_token.`);
+        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: exchange_code, save_token, add_to_queue, skip, play, pause, song, status, refresh_token.`);
 
     } catch (err) {
         console.error(`[spotifyControl] ❌ Error ejecutando acción '${action}':`, err);
         return res.status(500).send(`Error en servidor: ${err.message}`);
     }
 });
-

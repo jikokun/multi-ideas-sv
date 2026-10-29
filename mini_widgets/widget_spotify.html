@@ -2075,7 +2075,273 @@
             setInterval(pollSpotifyPlayback, 3000);
 
             // =========================================================
-            // CONEXIÓN WEBSOCKET STREAMER.BOT (ALERTAS EN OBS SIN DUPLICADOS)
+            // CONTROLADOR NATIVO DE COMANDOS KICK / STREAMER.BOT / LABORATORIO
+            // =========================================================
+            var controlMode = (urlParams.get("control_mode") || urlParams.get("skip_mode") || "hybrid").toLowerCase();
+            var kickModerators = ["jikokun", "broadcaster", "streamer", "simuladorlab"];
+            try {
+                var modsParam = urlParams.get("mods");
+                var savedMods = localStorage.getItem("kick_spotify_mods");
+                if (modsParam) {
+                    kickModerators = modsParam.split(",").map(function (m) { return m.trim().toLowerCase().replace("@", ""); }).filter(Boolean);
+                } else if (savedMods) {
+                    kickModerators = JSON.parse(savedMods).map(function (m) { return String(m).trim().toLowerCase().replace("@", ""); }).filter(Boolean);
+                }
+            } catch (e) {}
+
+            function checkIsModerator(username, badges, explicitModFlag) {
+                if (explicitModFlag === true) return true;
+                var norm = String(username || "").toLowerCase().replace("@", "").trim();
+                if (norm === "jikokun" || norm === "broadcaster" || norm === "streamer" || norm === "simuladorlab") return true;
+                if (kickModerators.indexOf(norm) !== -1) return true;
+                if (Array.isArray(badges)) {
+                    for (var i = 0; i < badges.length; i++) {
+                        var b = badges[i];
+                        var bType = typeof b === "string" ? b.toLowerCase() : String((b && (b.type || b.id || b.name)) || "").toLowerCase();
+                        if (bType.indexOf("mod") !== -1 || bType.indexOf("broadcaster") !== -1 || bType.indexOf("owner") !== -1 || bType.indexOf("creator") !== -1) {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+
+            // Candados anti-duplicado para evitar doble salto o doble encolado
+            var recentChatKeys = new Set();
+            var lastSkipExecTime = 0;
+            var isExecutingAddSong = false;
+            var lastSeenFirebaseActionTime = Date.now() - 2000;
+
+            // Ejecutar comando contra Backend Nativo con Fallback directo a Spotify Web API
+            async function executeSpotifyAction(action, queryParam, username) {
+                var user = state.spotifyUser || "jikokun2";
+
+                if (action === "add") {
+                    if (!queryParam) {
+                        showFloatingAlert("Escribe el nombre de la canción: !addsong <canción>", "warning", username);
+                        return;
+                    }
+                    if (isExecutingAddSong) return;
+                    isExecutingAddSong = true;
+                    showFloatingAlert('Buscando "' + queryParam + '" en Spotify...', "info", username);
+
+                    try {
+                        // 1. Intentar vía Backend Cloud Function (maneja token refresh, popularidad y anti-spam)
+                        var addUrl = "https://sensunshopweb.web.app/spotify/add_to_queue?user=" + encodeURIComponent(user) + "&song_name=" + encodeURIComponent(queryParam) + "&format=json";
+                        var res = await fetch(addUrl, { cache: "no-store" });
+                        if (res.ok) {
+                            var data = await res.json();
+                            if (data && data.song) {
+                                lastSeenFirebaseActionTime = Date.now() + 3000;
+                                showFloatingAlert('Añadida a la cola: "' + data.song + '" (' + (data.artist || "Spotify") + ')', "add", username);
+                                isExecutingAddSong = false;
+                                return;
+                            }
+                        }
+
+                        // 2. Fallback directo con el token local del navegador si existe
+                        if (!state.spotifyToken) await refreshSpotifyTokenFromBackend();
+                        if (state.spotifyToken) {
+                            var searchRes = await fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(queryParam) + "&type=track&limit=10", {
+                                headers: { "Authorization": "Bearer " + state.spotifyToken }
+                            });
+                            if (searchRes.ok) {
+                                var sData = await searchRes.json();
+                                var items = (sData && sData.tracks && sData.tracks.items) || [];
+                                if (items.length > 0) {
+                                    items.sort(function (a, b) { return (b.popularity || 0) - (a.popularity || 0); });
+                                    var chosen = items[0];
+                                    var artistName = (chosen.artists && chosen.artists[0] && chosen.artists[0].name) || "Artista";
+                                    var qRes = await fetch("https://api.spotify.com/v1/me/player/queue?uri=" + encodeURIComponent(chosen.uri), {
+                                        method: "POST",
+                                        headers: { "Authorization": "Bearer " + state.spotifyToken }
+                                    });
+                                    if (qRes.status === 204 || qRes.ok) {
+                                        showFloatingAlert('Añadida a la cola: "' + chosen.name + '" (' + artistName + ')', "add", username);
+                                        isExecutingAddSong = false;
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        showFloatingAlert('No se pudo encolar "' + queryParam + '". Verifica que Spotify esté activo.', "warning", username);
+                    } catch (errAdd) {
+                        showFloatingAlert('Error al añadir "' + queryParam + '"', "warning", username);
+                    }
+                    isExecutingAddSong = false;
+                    return;
+                }
+
+                if (action === "skip") {
+                    var now = Date.now();
+                    if (now - lastSkipExecTime < 3500) {
+                        showFloatingAlert("Espera unos segundos antes de volver a saltar", "warning", username);
+                        return;
+                    }
+                    lastSkipExecTime = now;
+                    lastSeenFirebaseActionTime = now + 3000;
+                    showFloatingAlert("Saltando a la siguiente pista...", "skip", username);
+
+                    try {
+                        var skipRes = await fetch("https://sensunshopweb.web.app/spotify/skip?user=" + encodeURIComponent(user), { cache: "no-store" });
+                        if (!skipRes.ok && state.spotifyToken) {
+                            await fetch("https://api.spotify.com/v1/me/player/next", {
+                                method: "POST",
+                                headers: { "Authorization": "Bearer " + state.spotifyToken }
+                            });
+                        }
+                    } catch (eSkip) {
+                        if (state.spotifyToken) {
+                            fetch("https://api.spotify.com/v1/me/player/next", {
+                                method: "POST",
+                                headers: { "Authorization": "Bearer " + state.spotifyToken }
+                            }).catch(function () {});
+                        }
+                    }
+                    setTimeout(pollSpotifyPlayback, 900);
+                    setTimeout(pollSpotifyPlayback, 2200);
+                    return;
+                }
+
+                if (action === "play") {
+                    lastSeenFirebaseActionTime = Date.now() + 3000;
+                    showFloatingAlert("Música reanudada ▶️", "play", username);
+                    state.isPlaying = true;
+                    applyVisualStyles();
+                    try {
+                        var playRes = await fetch("https://sensunshopweb.web.app/spotify/play?user=" + encodeURIComponent(user), { cache: "no-store" });
+                        if (!playRes.ok && state.spotifyToken) {
+                            await fetch("https://api.spotify.com/v1/me/player/play", {
+                                method: "PUT",
+                                headers: { "Authorization": "Bearer " + state.spotifyToken }
+                            });
+                        }
+                    } catch (ePlay) {}
+                    setTimeout(pollSpotifyPlayback, 900);
+                    return;
+                }
+
+                if (action === "pause") {
+                    lastSeenFirebaseActionTime = Date.now() + 3000;
+                    showFloatingAlert("Música pausada ⏸️", "pause", username);
+                    state.isPlaying = false;
+                    applyVisualStyles();
+                    try {
+                        var pauseRes = await fetch("https://sensunshopweb.web.app/spotify/pause?user=" + encodeURIComponent(user), { cache: "no-store" });
+                        if (!pauseRes.ok && state.spotifyToken) {
+                            await fetch("https://api.spotify.com/v1/me/player/pause", {
+                                method: "PUT",
+                                headers: { "Authorization": "Bearer " + state.spotifyToken }
+                            });
+                        }
+                    } catch (ePause) {}
+                    setTimeout(pollSpotifyPlayback, 900);
+                    return;
+                }
+            }
+
+            async function handleKickChatCommand(rawText, username, badges, isSimulated, explicitModFlag) {
+                var clean = String(rawText || "").trim();
+                if (!clean.startsWith("!")) return;
+
+                var parts = clean.split(/\s+/);
+                var cmd = parts[0].toLowerCase();
+                var argText = parts.slice(1).join(" ").trim();
+                var shouldExecuteApi = isSimulated || controlMode !== "streamerbot";
+
+                if (cmd === "!song" || cmd === "!cancion" || cmd === "!currentsong") {
+                    await pollSpotifyPlayback();
+                    var curTitle = trackTitle.getAttribute("data-raw") || trackTitle.textContent || "Spotify";
+                    var curArtist = trackArtist.textContent || "";
+                    showFloatingAlert("Sonando: " + curTitle + (curArtist ? " - " + curArtist : ""), "info", username);
+                    return;
+                }
+
+                if (cmd === "!addsong" || cmd === "!songrequest" || cmd === "!sr" || cmd === "!pedir") {
+                    if (shouldExecuteApi) {
+                        await executeSpotifyAction("add", argText, username);
+                    } else {
+                        showFloatingAlert(argText ? 'Añadiendo a la cola: "' + argText + '" 🎵' : "Canción agregada a la cola 🎵", "add", username);
+                    }
+                    return;
+                }
+
+                if (cmd === "!skipsong" || cmd === "!skip" || cmd === "!next") {
+                    if (!checkIsModerator(username, badges, explicitModFlag)) {
+                        showFloatingAlert("Solo moderadores autorizados pueden usar !skipsong", "warning", username);
+                        return;
+                    }
+                    if (shouldExecuteApi) {
+                        await executeSpotifyAction("skip", "", username);
+                    } else {
+                        showFloatingAlert("Saltando a la siguiente pista...", "skip", username);
+                        setTimeout(pollSpotifyPlayback, 1200);
+                    }
+                    return;
+                }
+
+                if (cmd === "!play" || cmd === "!resume" || cmd === "!reanudar") {
+                    if (!checkIsModerator(username, badges, explicitModFlag)) {
+                        showFloatingAlert("Solo moderadores autorizados pueden usar !play", "warning", username);
+                        return;
+                    }
+                    if (shouldExecuteApi) {
+                        await executeSpotifyAction("play", "", username);
+                    } else {
+                        showFloatingAlert("Música reanudada", "play", username);
+                        state.isPlaying = true;
+                        applyVisualStyles();
+                    }
+                    return;
+                }
+
+                if (cmd === "!pausa" || cmd === "!pause") {
+                    if (!checkIsModerator(username, badges, explicitModFlag)) {
+                        showFloatingAlert("Solo moderadores autorizados pueden usar !pausa", "warning", username);
+                        return;
+                    }
+                    if (shouldExecuteApi) {
+                        await executeSpotifyAction("pause", "", username);
+                    } else {
+                        showFloatingAlert("Música pausada", "pause", username);
+                        state.isPlaying = false;
+                        applyVisualStyles();
+                    }
+                    return;
+                }
+            }
+
+            // Sincronizar alertas cuando Streamer.bot o el Laboratorio ejecutan Fetch directo al Backend
+            async function checkFirebaseLastAction() {
+                try {
+                    var res = await fetch("https://sensunshopweb-default-rtdb.firebaseio.com/stream/spotify_live/last_action.json", { cache: "no-store" });
+                    if (!res.ok) return;
+                    var act = await res.json();
+                    if (!act || !act.timestamp) return;
+                    var ts = Number(act.timestamp) || 0;
+                    if (ts > lastSeenFirebaseActionTime && (Date.now() - ts) < 8000) {
+                        lastSeenFirebaseActionTime = ts;
+                        if (act.action === "add" && act.song) {
+                            showFloatingAlert('Añadida a la cola: "' + act.song + '" (' + (act.artist || "Spotify") + ')', "add", act.user || "Chat");
+                        } else if (act.action === "skip") {
+                            showFloatingAlert("Saltando a la siguiente pista...", "skip", act.user || "Moderador");
+                            setTimeout(pollSpotifyPlayback, 800);
+                        } else if (act.action === "play") {
+                            showFloatingAlert("Música reanudada ▶️", "play", act.user || "Moderador");
+                            state.isPlaying = true;
+                            applyVisualStyles();
+                        } else if (act.action === "pause") {
+                            showFloatingAlert("Música pausada ⏸️", "pause", act.user || "Moderador");
+                            state.isPlaying = false;
+                            applyVisualStyles();
+                        }
+                    }
+                } catch (e) {}
+            }
+            setInterval(checkFirebaseLastAction, 3500);
+
+            // =========================================================
+            // CONEXIÓN WEBSOCKET STREAMER.BOT (EJECUCIÓN + ALERTAS SIN DUPLICADOS)
             // =========================================================
             var streamerbotWs = null;
             function initStreamerbotWS() {
@@ -2108,25 +2374,18 @@
                                 var content = typeof messageObj === "string" ? messageObj : (messageObj.message || data.messageText || data.text || "");
                                 var userObj = data.user || data.sender || {};
                                 var username = typeof userObj === "string" ? userObj : (userObj.username || userObj.name || data.userName || "Usuario");
+                                var badges = userObj.badges || data.badges || [];
+                                var isModFlag = Boolean(userObj.isModerator || userObj.is_moderator || data.isModerator);
 
                                 if (content && content.startsWith("!")) {
-                                    var lower = content.toLowerCase().trim();
-                                    if (lower.startsWith("!song") || lower.startsWith("!cancion")) {
-                                        showFloatingAlert("Canción: " + (trackTitle.textContent || "Spotify"), "info", username);
-                                    } else if (lower.startsWith("!skipsong") || lower.startsWith("!skip")) {
-                                        showFloatingAlert("Saltando a la siguiente pista...", "skip", username);
-                                        setTimeout(pollSpotifyPlayback, 1200);
-                                    } else if (lower.startsWith("!addsong") || lower.startsWith("!songrequest")) {
-                                        showFloatingAlert("Canción agregada a la cola 🎵", "add", username);
-                                    } else if (lower.startsWith("!play")) {
-                                        showFloatingAlert("Música reanudada", "play", username);
-                                        state.isPlaying = true;
-                                        applyVisualStyles();
-                                    } else if (lower.startsWith("!pausa") || lower.startsWith("!pause")) {
-                                        showFloatingAlert("Música pausada", "pause", username);
-                                        state.isPlaying = false;
-                                        applyVisualStyles();
-                                    }
+                                    var rawMsgId = (data.message && data.message.id) || data.id || data.messageId || "";
+                                    var bucket = Math.floor(Date.now() / 3000);
+                                    var dedupeKey = rawMsgId ? ("id_" + rawMsgId) : ("msg_" + username + "_" + content.toLowerCase().trim() + "_" + bucket);
+                                    if (recentChatKeys.has(dedupeKey)) return;
+                                    recentChatKeys.add(dedupeKey);
+                                    setTimeout(function () { recentChatKeys.delete(dedupeKey); }, 12000);
+
+                                    handleKickChatCommand(content, username, badges, false, isModFlag);
                                 }
                             } catch (e) {}
                         };
@@ -2164,6 +2423,43 @@
                 if (!e.data || typeof e.data !== "object") return;
                 if (e.data.type === "REFRESH_PLAYBACK") {
                     pollSpotifyPlayback();
+                } else if (e.data.type === "SIMULATE_KICK_COMMAND") {
+                    var simCmd = e.data.command || "";
+                    var simUser = e.data.user || "SimuladorLab";
+                    var simIsMod = e.data.isMod !== false;
+                    handleKickChatCommand(simCmd, simUser, simIsMod ? ["moderator"] : [], true, simIsMod);
+                } else if (e.data.type === "SHOW_FETCH_TOAST") {
+                    if (e.data.ok) {
+                        var act = e.data.action;
+                        if (act === "add") showFloatingAlert(e.data.text || "Canción añadida a la cola 🎵", "add", "Fetch Directo");
+                        else if (act === "skip") showFloatingAlert("Saltando canción...", "skip", "Fetch Directo");
+                        else if (act === "play") showFloatingAlert("Música reanudada ▶️", "play", "Fetch Directo");
+                        else if (act === "pause") showFloatingAlert("Música pausada ⏸️", "pause", "Fetch Directo");
+                        else if (act === "song") showFloatingAlert(e.data.text || "Canción actual", "info", "Fetch Directo");
+                    } else {
+                        showFloatingAlert(e.data.text || "Error ejecutando comando", "warning", "Fetch Directo");
+                    }
+                } else if (e.data.type === "UPDATE_MODS_WHITELIST") {
+                    if (Array.isArray(e.data.mods)) {
+                        kickModerators = e.data.mods.map(function (m) { return String(m).trim().toLowerCase().replace("@", ""); }).filter(Boolean);
+                        showFloatingAlert("Lista de moderadores actualizada (" + kickModerators.length + ")", "info", "Sistema");
+                    }
+                } else if (e.data.type === "SET_POSITION") {
+                    var pos = e.data.position;
+                    if (pos === "tl") { state.x = 60; state.y = 60; }
+                    else if (pos === "tr") { state.x = 1920 - state.cardWidth - 80; state.y = 60; }
+                    else if (pos === "bl") { state.x = 60; state.y = 1080 - state.cardHeight - 80; }
+                    else if (pos === "br") { state.x = 1920 - state.cardWidth - 80; state.y = 1080 - state.cardHeight - 80; }
+                    applyVisualStyles();
+                    saveState();
+                } else if (e.data.type === "SET_THEME") {
+                    var th = e.data.theme;
+                    if (th === "spotify") { state.color1 = "#1DB954"; state.color2 = "#0f5c2b"; state.autoColor = false; }
+                    else if (th === "kick") { state.color1 = "#53fc18"; state.color2 = "#0a3612"; state.autoColor = false; }
+                    else if (th === "aqua") { state.color1 = "#00f5d4"; state.color2 = "#7b2cbf"; state.autoColor = false; }
+                    else if (th === "cyberpunk") { state.color1 = "#ff2fd0"; state.color2 = "#3b0764"; state.autoColor = false; }
+                    applyVisualStyles();
+                    saveState();
                 } else if (e.data.type === "SET_STYLE") {
                     state.style = e.data.style;
                     applyVisualStyles();
