@@ -3737,7 +3737,7 @@
 
   <!-- ═══════════ 3. MODAL: EDITAR USUARIO ═══════════ -->
   <div class="app-modal-overlay" id="modal-edit-user" onclick="if(event.target===this) cerrarModalEditarUsuario()">
-    <div class="app-modal-card" style="max-width: 540px;">
+    <div class="app-modal-card" style="max-width: 640px;">
       <div class="app-modal-header">
         <div class="app-modal-title">
           <span>✏️</span> EDITAR ESPECTADOR: <span id="edit-modal-target-nick" style="color:var(--kick);">@user</span>
@@ -3749,8 +3749,25 @@
         <input type="hidden" id="edit-u-username">
 
         <div class="modal-form-group">
-          <label class="modal-form-lbl">Nombre para Mostrar (DisplayName)</label>
+          <label class="modal-form-lbl">Nombre mostrado en el panel y otros widgets</label>
           <input type="text" id="edit-u-display" class="modal-form-input" required>
+        </div>
+
+        <div class="modal-admin-section" style="border-color:rgba(0,242,254,0.35);">
+          <div class="modal-admin-title" style="color:var(--cyan);">🎴 Datos de la tarjeta de perfil (!perfil)</div>
+          <div class="modal-form-group">
+            <label class="modal-form-lbl" for="edit-u-card-name">Nombre que aparece en la tarjeta</label>
+            <input type="text" id="edit-u-card-name" class="modal-form-input" maxlength="32" placeholder="Vacío = nombre de usuario de Kick">
+          </div>
+          <div class="modal-form-group">
+            <label class="modal-form-lbl" for="edit-u-card-title">Título principal de la tarjeta</label>
+            <input type="text" id="edit-u-card-title" class="modal-form-input" maxlength="48" placeholder="Ej.: Creador y Dueño">
+          </div>
+          <div class="modal-form-group" style="margin-bottom:0;">
+            <label class="modal-form-lbl" for="edit-u-card-achievements">Títulos adicionales (máximo 4 en la tarjeta)</label>
+            <textarea id="edit-u-card-achievements" class="modal-form-input" rows="4" maxlength="200" placeholder="Ej.: Bebedor Empedernido"></textarea>
+            <small style="display:block; margin-top:6px; color:var(--text-muted); font-size:0.82rem; line-height:1.45;">Un título por línea. Los reconocimientos por consumo se agregan automáticamente; los escritos aquí aparecen primero, con un máximo de 4 títulos visibles.</small>
+          </div>
         </div>
 
         <div class="modal-form-grid-2">
@@ -3782,8 +3799,8 @@
         </div>
 
         <div class="modal-form-group">
-          <label class="modal-form-lbl">Título a Criterio Personal (Opcional)</label>
-          <input type="text" id="edit-u-custom-title" class="modal-form-input" placeholder="Vacío = Título automático según nivel">
+          <label class="modal-form-lbl">Título de rango a criterio personal (opcional)</label>
+          <input type="text" id="edit-u-custom-title" class="modal-form-input" placeholder="Vacío = título de rango automático según nivel">
         </div>
 
         <div class="modal-form-grid-2">
@@ -4089,7 +4106,7 @@
       formatearTiempoVisto, 
       formatearHorasDecimal, 
       calcularNivelUsuario 
-    } from './js/stream_firebase.js?v=20261029_6';
+    } from './js/stream_firebase.js?v=20261029_7';
 
     window.StreamDB = StreamDB;
     window.norm = norm;
@@ -6252,6 +6269,9 @@
       document.getElementById('edit-u-username').value = u.username;
       document.getElementById('edit-modal-target-nick').textContent = '@' + (u.displayName || u.username);
       document.getElementById('edit-u-display').value = u.displayName || u.username;
+      document.getElementById('edit-u-card-name').value = u.nombreTarjeta || u.username;
+      document.getElementById('edit-u-card-title').value = u.tituloTarjeta || '';
+      document.getElementById('edit-u-card-achievements').value = Array.isArray(u.titulosTarjeta) ? u.titulosTarjeta.join('\n') : '';
       
       const rolSelect = document.getElementById('edit-u-rol');
       rolSelect.value = u.rol || 'espectador';
@@ -6308,6 +6328,10 @@
       const experiencia = (xpVal !== '' && !isNaN(parseInt(xpVal, 10))) ? parseInt(xpVal, 10) : ((asistenciasCount || 0) * 200);
       
       const customTitle = (document.getElementById('edit-u-custom-title')?.value || '').trim() || null;
+      const nombreTarjeta = (document.getElementById('edit-u-card-name')?.value || '').trim();
+      const tituloTarjeta = (document.getElementById('edit-u-card-title')?.value || '').trim();
+      const titulosRaw = (document.getElementById('edit-u-card-achievements')?.value || '').split(/\r?\n/).map(t => t.trim()).filter(Boolean);
+      const titulosTarjeta = [...new Set(titulosRaw.map(t => t.slice(0, 40)))].slice(0, 4);
       
       const hrs = parseInt(document.getElementById('edit-u-hours')?.value, 10) || 0;
       const mins = parseInt(document.getElementById('edit-u-mins')?.value, 10) || 0;
@@ -6323,6 +6347,9 @@
           avatar,
           experiencia,
           tituloPersonalizado: customTitle,
+          nombreTarjeta,
+          tituloTarjeta,
+          titulosTarjeta,
           tiempoVistoMinutos,
           marcoPerfil
         });

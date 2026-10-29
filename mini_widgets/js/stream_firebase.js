@@ -683,6 +683,20 @@ class StreamFirebaseService {
     if (updates.displayName !== undefined) {
       cleanUpdates.displayName = String(updates.displayName).trim() || current.displayName || key;
     }
+    if (updates.nombreTarjeta !== undefined) {
+      const nombreTarjeta = String(updates.nombreTarjeta || '').trim().slice(0, 32);
+      cleanUpdates.nombreTarjeta = nombreTarjeta || null;
+    }
+    if (updates.tituloTarjeta !== undefined) {
+      const tituloTarjeta = String(updates.tituloTarjeta || '').trim().slice(0, 48);
+      cleanUpdates.tituloTarjeta = tituloTarjeta || null;
+    }
+    if (updates.titulosTarjeta !== undefined) {
+      const titulos = Array.isArray(updates.titulosTarjeta) ? updates.titulosTarjeta : [];
+      cleanUpdates.titulosTarjeta = [...new Set(titulos
+        .map(titulo => String(titulo || '').trim().slice(0, 40))
+        .filter(Boolean))].slice(0, 4);
+    }
     if (updates.avatar !== undefined) {
       cleanUpdates.avatar = normalizarAvatarKickUrl(updates.avatar);
     }
