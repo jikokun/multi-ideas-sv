@@ -1398,36 +1398,6 @@ class StreamFirebaseService {
         });
         console.log(`[StreamDB] ℹ️ Sesión existente ${streamId} mantenida con sus ${existingData.totalAsistentes || Object.keys(existingData.asistentes || {}).length} asistentes intactos.`);
       } else {
-        // Absorber asistentes que hayan registrado asistencia en las últimas 3 horas (pre-stream)
-        const asistentesIniciales = {};
-        let totalAsist = 0;
-        let ptsRepartidos = 0;
-
-        try {
-          const ventanaReciente = ahora - (3 * 3600 * 1000);
-          const asisRecientesSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
-          if (asisRecientesSnap.exists()) {
-            asisRecientesSnap.forEach(child => {
-              const a = child.val();
-              if (a.timestamp >= ventanaReciente && a.usuarioNorm && !asistentesIniciales[a.usuarioNorm]) {
-                asistentesIniciales[a.usuarioNorm] = {
-                  username: a.usuario || a.usuarioNorm,
-                  usuarioNorm: a.usuarioNorm,
-                  hora: a.fechaLegible ? a.fechaLegible.split(',')[1]?.trim() : new Date(a.timestamp).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
-                  timestamp: a.timestamp,
-                  experiencia: a.experienciaTotal || 200,
-                  nivel: a.nivelUsuario || 1,
-                  rangoTitulo: a.rangoTitulo || 'Cachorro',
-                  insigniaEmoji: a.insigniaEmoji || '🐾',
-                  puntosOtorgados: a.puntosOtorgados || 500
-                };
-                totalAsist++;
-                ptsRepartidos += (a.puntosOtorgados || 500);
-              }
-            });
-          }
-        } catch(e) {}
-
         await set(transRef, {
           id: streamId,
           numeroStream: numeroStream,
@@ -1442,11 +1412,11 @@ class StreamFirebaseService {
           titulo: live.session_title || 'Transmisión en Vivo',
           categoria: live.categories?.[0]?.name || 'Just Chatting',
           viewersPico: live.viewer_count || 0,
-          totalAsistentes: totalAsist,
-          puntosRepartidos: ptsRepartidos,
-          asistentes: asistentesIniciales
+          totalAsistentes: 0,
+          puntosRepartidos: 0,
+          asistentes: {}
         });
-        console.log(`[StreamDB] 🆕 Nueva sesión ${streamId} creada vinculando ${totalAsist} asistentes recientes.`);
+        console.log(`[StreamDB] 🆕 Nueva sesión ${streamId} creada con la lista de asistentes vacía.`);
       }
 
       this.kickIsLive = true;
@@ -2430,7 +2400,12 @@ class StreamFirebaseService {
       if (!streamSnap.exists()) return null;
 
       const streamData = streamSnap.val();
-      const asistentesMap = streamData.asistentes || {};
+      const inicioStream = Number(streamData.inicioTimestamp) || 0;
+      const finStream = Number(streamData.finTimestamp) || Date.now();
+      const asistentesMap = Object.fromEntries(Object.entries(streamData.asistentes || {}).filter(([, asistencia]) => {
+        const timestamp = Number(asistencia?.timestamp);
+        return !timestamp || timestamp >= inicioStream && timestamp <= finStream;
+      }));
       const asistentesKeys = new Set(Object.keys(asistentesMap));
 
       // Auto-reconciliación: Integrar cualquier asistencia registrada para este stream en NODE_ATTENDANCE
@@ -2440,9 +2415,7 @@ class StreamFirebaseService {
           asisSnap.forEach(child => {
             const a = child.val();
             if (a.usuarioNorm && !asistentesKeys.has(a.usuarioNorm)) {
-              const ventanaMin = streamData.inicioTimestamp ? (streamData.inicioTimestamp - 3 * 3600 * 1000) : 0;
-              const ventanaMax = streamData.finTimestamp ? (streamData.finTimestamp + 3600 * 1000) : (Date.now() + 3600 * 1000);
-              if (a.streamId === streamId || (a.timestamp >= ventanaMin && a.timestamp <= ventanaMax)) {
+              if (a.streamId === streamId) {
                 asistentesKeys.add(a.usuarioNorm);
                 asistentesMap[a.usuarioNorm] = {
                   username: a.usuario || a.usuarioNorm,

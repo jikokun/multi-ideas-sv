@@ -4378,6 +4378,18 @@
       // 11. Escuchar inicio de nuevo directo para reiniciar estadísticas limpias
       StreamDB.onStreamStarted((streamId) => {
         reiniciarCombustibleNuevoStream(streamId);
+        streamSeleccionadoId = streamId;
+        const sessionSelect = document.getElementById('select-stream-session');
+        if (sessionSelect) sessionSelect.value = streamId;
+        cargarContrasteStream(streamId);
+      });
+
+      // Mantener el registro guardado, pero dejar vacía la vista activa al terminar el directo.
+      StreamDB.onStreamStopped(() => {
+        streamSeleccionadoId = null;
+        const sessionSelect = document.getElementById('select-stream-session');
+        if (sessionSelect) sessionSelect.value = '';
+        limpiarContrasteEnEspera();
       });
 
       // 12. Escuchar auto-acreditación por fin de directo
@@ -4988,36 +5000,47 @@
     function actualizarListaTransmisiones(streams = []) {
       transmisionesHistorialCache = streams;
       const select = document.getElementById('select-stream-session');
+      if (!select) return;
       document.getElementById('badge-streams-count').textContent = `${streams.length} streams`;
 
       if (!streams || streams.length === 0) {
-        select.innerHTML = '<option value="">No hay transmisiones registradas aún</option>';
+        select.innerHTML = '<option value="">En espera de la próxima transmisión</option>';
+        streamSeleccionadoId = null;
+        limpiarContrasteEnEspera();
         return;
       }
 
       const prevSelected = streamSeleccionadoId;
-      select.innerHTML = streams.map((s, idx) => {
+      const streamActivo = streams.find(s => s.estado === 'en_vivo');
+      const options = streams.map((s, idx) => {
         const num = s.numeroStream || (streams.length - idx);
         const fecha = s.inicioFechaLegible || new Date(s.inicioTimestamp || Date.now()).toLocaleDateString();
         const estadoTag = s.estado === 'en_vivo' ? '🔴 EN VIVO' : '⏹️ Finalizado';
         return `<option value="${s.id}">Stream #${num} • ${fecha} [${estadoTag}]</option>`;
-      }).join('');
+      });
+      select.innerHTML = `${streamActivo ? '' : '<option value="">En espera de la próxima transmisión</option>'}${options.join('')}`;
 
-      // Mantener selección o elegir la primera (más reciente)
+      // Durante un directo abrir la sesión activa. Entre streams, esperar en una vista vacía;
+      // las sesiones finalizadas siguen disponibles para consulta desde este selector.
       if (prevSelected && streams.some(s => s.id === prevSelected)) {
         select.value = prevSelected;
+      } else if (streamActivo) {
+        select.value = streamActivo.id;
+        streamSeleccionadoId = streamActivo.id;
       } else {
-        select.value = streams[0].id;
-        streamSeleccionadoId = streams[0].id;
+        select.value = '';
+        streamSeleccionadoId = null;
       }
 
-      cargarContrasteStream(select.value);
+      if (select.value) cargarContrasteStream(select.value);
+      else limpiarContrasteEnEspera();
     }
 
     window.cambiarStreamSeleccionado = function() {
       const select = document.getElementById('select-stream-session');
       streamSeleccionadoId = select.value;
-      cargarContrasteStream(streamSeleccionadoId);
+      if (streamSeleccionadoId) cargarContrasteStream(streamSeleccionadoId);
+      else limpiarContrasteEnEspera();
     };
 
     // ═══════════ GESTIÓN DE PESTAÑAS Y REGISTRO DE ASISTENCIAS ═══════════
@@ -5289,11 +5312,44 @@
       }).join('');
     }
 
+    function limpiarContrasteEnEspera() {
+      contrasteActualCache = null;
+      const estadoBadge = document.getElementById('ssb-badge-estado');
+      if (estadoBadge) {
+        estadoBadge.className = 'kmb-status-tag offline';
+        estadoBadge.textContent = 'EN ESPERA';
+      }
+      const titulo = document.getElementById('ssb-stream-titulo');
+      if (titulo) titulo.textContent = 'Esperando la próxima transmisión';
+      const fechas = document.getElementById('ssb-stream-fechas');
+      if (fechas) fechas.textContent = 'El registro de transmisiones anteriores se conserva en el selector y el historial.';
+      const tasa = document.getElementById('ssb-rate-val');
+      if (tasa) tasa.textContent = '0%';
+      const barra = document.getElementById('ssb-rate-bar');
+      if (barra) barra.style.width = '0%';
+      const conteo = document.getElementById('ssb-rate-counts');
+      if (conteo) conteo.textContent = '0 presentes / 0 total';
+      const presentes = document.getElementById('badge-presentes-count');
+      if (presentes) presentes.textContent = '0';
+      const ausentes = document.getElementById('badge-ausentes-count');
+      if (ausentes) ausentes.textContent = '0';
+      const kpiTasa = document.getElementById('kpi-tasa-asistencia');
+      if (kpiTasa) kpiTasa.textContent = '0%';
+      const waitingMarkup = '<div style="text-align:center; color:var(--text-muted); padding:30px 10px; font-family:var(--f-tech);">En espera de los asistentes de la próxima transmisión.</div>';
+      const listaPresentes = document.getElementById('contrast-presentes-list');
+      const listaAusentes = document.getElementById('contrast-ausentes-list');
+      if (listaPresentes) listaPresentes.innerHTML = waitingMarkup;
+      if (listaAusentes) listaAusentes.innerHTML = waitingMarkup;
+    }
+
     // Cargar y mostrar contraste de la sesión seleccionada
     async function cargarContrasteStream(streamId) {
-      if (!streamId) return;
+      if (!streamId) {
+        limpiarContrasteEnEspera();
+        return;
+      }
       const res = await StreamDB.contrastarAsistenciasTransmision(streamId);
-      if (!res) return;
+      if (!res || streamSeleccionadoId !== streamId) return;
       contrasteActualCache = res;
 
       // Banner resumen del stream
