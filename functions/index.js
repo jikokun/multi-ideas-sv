@@ -983,7 +983,12 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                     });
                 }
 
-                return res.status(200).send(`Added to queue: "${selectedTrack.name}" (${artistName})`);
+                if (format === "full" || format === "msg") {
+                    return res.status(200).send(`Añadida a la cola: "${selectedTrack.name}" de ${artistName}`);
+                }
+
+                // Por defecto: Devolver título y artista limpio (sin prefijos en inglés) para que Streamer.bot o el chat no repitan "Added to queue"
+                return res.status(200).send(`"${selectedTrack.name}" de ${artistName}`);
             }
 
             const queueErr = await queueRes.text();
