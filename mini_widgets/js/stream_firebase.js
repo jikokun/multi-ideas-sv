@@ -114,8 +114,9 @@ export function extraerUsuarioDeBienvenidaGlobal(texto) {
 }
 
 // ==========================================================================
-// 🐺 ESCALAFÓN Y SISTEMA DE 200 NIVELES DE EXPERIENCIA (XP) Y RANGOS
+// 🐺 ESCALAFÓN Y SISTEMA DE 500 NIVELES DE EXPERIENCIA (XP) Y RANGOS
 // ==========================================================================
+export const MAX_NIVEL = 500;
 export const RANGOS_BASE_TITULOS = [
   { minNivel: 1,   maxNivel: 10,  titulo: 'Cachorro',                   emoji: '🐾', bonoExtra: 0,   descripcion: 'Recién llegado a la manada (Niveles 1 a 10)' },
   { minNivel: 11,  maxNivel: 25,  titulo: 'Explorador del Stream',      emoji: '🧭', bonoExtra: 50,  descripcion: 'Sintoniza con frecuencia (Niveles 11 a 25)' },
@@ -126,38 +127,54 @@ export const RANGOS_BASE_TITULOS = [
   { minNivel: 136, maxNivel: 165, titulo: 'Manada VIP',                 emoji: '👑', bonoExtra: 300, descripcion: 'Líder respetado de la comunidad (Niveles 136 a 165)' },
   { minNivel: 166, maxNivel: 185, titulo: 'Lobo Ancestral',             emoji: '🌌', bonoExtra: 350, descripcion: 'Veterano legendario con alma cósmica (Niveles 166 a 185)' },
   { minNivel: 186, maxNivel: 199, titulo: 'Leyenda Mítica',             emoji: '🔮', bonoExtra: 400, descripcion: 'Fuerza casi insuperable del stream (Niveles 186 a 199)' },
-  { minNivel: 200, maxNivel: 200, titulo: 'Señor de la Manada Suprema', emoji: '🏆', bonoExtra: 500, descripcion: 'Máximo Rango Absoluto alcanzado (Nivel 200)' }
+  { minNivel: 200, maxNivel: 249, titulo: 'Señor de la Manada Suprema', emoji: '🏆', bonoExtra: 500, descripcion: 'Rango legendario de la manada (Niveles 200 a 249)' },
+  { minNivel: 250, maxNivel: 324, titulo: 'Lobo Cósmico',               emoji: '🌠', bonoExtra: 550, descripcion: 'Veterano de largo recorrido (Niveles 250 a 324)' },
+  { minNivel: 325, maxNivel: 399, titulo: 'Guardián Supremo',           emoji: '🛡️', bonoExtra: 600, descripcion: 'Protector de la comunidad (Niveles 325 a 399)' },
+  { minNivel: 400, maxNivel: 499, titulo: 'Leyenda Eterna',             emoji: '💎', bonoExtra: 650, descripcion: 'Una leyenda del canal (Niveles 400 a 499)' },
+  { minNivel: 500, maxNivel: 500, titulo: 'Señor de la Manada Suprema', emoji: '🏆', bonoExtra: 700, descripcion: 'Máximo rango absoluto alcanzado (Nivel 500)' }
 ];
 
-// Curva progresiva de XP requerida para subir de nivel hasta 200
+// Curva progresiva de XP: mantiene el recorrido histórico hasta 200 y eleva el costo hasta 500.
 export function getXpParaSubirNivel(nivel) {
-  if (nivel >= 200) return 0;
+  if (nivel >= MAX_NIVEL) return 0;
   if (nivel <= 10) return 1000 + (nivel - 1) * 60;
   if (nivel <= 30) return 1600 + (nivel - 10) * 110;
   if (nivel <= 60) return 3800 + (nivel - 30) * 170;
   if (nivel <= 100) return 8900 + (nivel - 60) * 260;
   if (nivel <= 150) return 19300 + (nivel - 100) * 380;
-  return 38300 + (nivel - 150) * 550;
+  if (nivel <= 200) return 38300 + (nivel - 150) * 550;
+  if (nivel <= 300) return 65800 + (nivel - 200) * 800;
+  if (nivel <= 400) return 145800 + (nivel - 300) * 1200;
+  return 265800 + (nivel - 400) * 1800;
 }
 
-// Multiplicador de obtención de XP: entre más arriba el nivel, menos puntos se obtienen para dificultar la subida
+// Multiplicador de obtención de XP: disminuye por tramos y llega a cero en el nivel máximo.
 export function calcularFactorXpNivel(nivel = 1) {
-  const n = Math.max(1, Math.min(200, parseInt(nivel, 10) || 1));
-  if (n >= 200) return 0;       // Nivel 200 máximo ya no requiere XP
-  if (n <= 10) return 1.0;      // 100% de XP
-  if (n <= 25) return 0.90;     // 90%
-  if (n <= 50) return 0.80;     // 80%
-  if (n <= 80) return 0.65;     // 65%
-  if (n <= 120) return 0.50;    // 50%
-  if (n <= 165) return 0.35;    // 35%
-  return 0.20;                  // 20% en niveles de élite (166 a 199)
+  const n = Math.max(1, Math.min(MAX_NIVEL, parseInt(nivel, 10) || 1));
+  if (n >= MAX_NIVEL) return 0;
+  if (n <= 10) return 1.0;
+  if (n <= 25) return 0.80;
+  if (n <= 50) return 0.65;
+  if (n <= 100) return 0.50;
+  if (n <= 150) return 0.35;
+  if (n <= 200) return 0.25;
+  if (n <= 300) return 0.15;
+  if (n <= 400) return 0.10;
+  return 0.05;
 }
 
-export const TABLA_200_NIVELES = [];
+export function calcularXpCompra(costoPuntos = 0, nivel = 1) {
+  const n = Math.max(1, parseInt(nivel, 10) || 1);
+  if (n >= MAX_NIVEL) return 0;
+  const base = Math.max(0, Math.round((parseInt(costoPuntos, 10) || 0) * 0.10));
+  return Math.round(base * calcularFactorXpNivel(n));
+}
+
+export const TABLA_500_NIVELES = [];
 let _acumuladoXp = 0;
-for (let n = 1; n <= 200; n++) {
+for (let n = 1; n <= MAX_NIVEL; n++) {
   const req = getXpParaSubirNivel(n);
-  TABLA_200_NIVELES.push({
+  TABLA_500_NIVELES.push({
     nivel: n,
     xpMinima: _acumuladoXp,
     xpParaSubir: req
@@ -166,7 +183,8 @@ for (let n = 1; n <= 200; n++) {
 }
 
 // Compatibilidad con código previo que usaba TABLA_50_NIVELES
-export const TABLA_50_NIVELES = TABLA_200_NIVELES;
+export const TABLA_200_NIVELES = TABLA_500_NIVELES;
+export const TABLA_50_NIVELES = TABLA_500_NIVELES;
 
 // Compatibilidad con código previo que usaba NIVELES_ASISTENCIA
 export const NIVELES_ASISTENCIA = RANGOS_BASE_TITULOS.map((r, idx) => ({
@@ -224,17 +242,17 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
     }
   }
 
-  let nivelInfo = TABLA_200_NIVELES[0];
-  for (let i = 0; i < TABLA_200_NIVELES.length; i++) {
-    if (xp >= TABLA_200_NIVELES[i].xpMinima) {
-      nivelInfo = TABLA_200_NIVELES[i];
+  let nivelInfo = TABLA_500_NIVELES[0];
+  for (let i = 0; i < TABLA_500_NIVELES.length; i++) {
+    if (xp >= TABLA_500_NIVELES[i].xpMinima) {
+      nivelInfo = TABLA_500_NIVELES[i];
     } else {
       break;
     }
   }
 
   const nivel = nivelInfo.nivel;
-  const esMaximo = nivel >= 200;
+  const esMaximo = nivel >= MAX_NIVEL;
   const xpEnNivel = xp - nivelInfo.xpMinima;
   const xpParaSubir = nivelInfo.xpParaSubir;
   const faltantes = esMaximo ? 0 : Math.max(0, xpParaSubir - xpEnNivel);
@@ -264,9 +282,11 @@ export function calcularNivelUsuario(arg1 = 0, arg2 = 0, arg3 = null) {
   }
 
   const tituloFinal = esPersonalizado ? String(tituloPersonalizado).trim() : rango.titulo;
-  const siguienteNivel = (nivel < 200) ? (nivel + 1) : 200;
-  const siguienteInfo = (nivel < 200) ? (TABLA_200_NIVELES[siguienteNivel - 1] || null) : null;
-  const siguienteRango = siguienteInfo ? siguienteInfo.rangoTitulo : '¡Rango Máximo!';
+  const siguienteNivel = (nivel < MAX_NIVEL) ? (nivel + 1) : MAX_NIVEL;
+  const siguienteInfo = (nivel < MAX_NIVEL) ? (TABLA_500_NIVELES[siguienteNivel - 1] || null) : null;
+  const siguienteRango = siguienteInfo
+    ? (RANGOS_BASE_TITULOS.find(r => siguienteNivel >= r.minNivel && siguienteNivel <= r.maxNivel)?.titulo || 'Rango siguiente')
+    : '¡Rango Máximo!';
 
   return {
     nivel,
@@ -737,10 +757,50 @@ class StreamFirebaseService {
     const key = norm(username);
     if (!key) return null;
     const delta = parseInt(deltaXp, 10) || 0;
-    const user = await this.getUser(username);
-    const prevXp = user?.experiencia !== undefined ? user.experiencia : ((user?.asistenciasCount || 0) * 200);
-    const nuevoXp = Math.max(0, prevXp + delta);
-    return this.actualizarUsuario(key, { experiencia: nuevoXp });
+    let resultado = null;
+    try {
+      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
+      const tx = await runTransaction(userRef, (user) => {
+        const u = user || {
+          username: key,
+          displayName: username,
+          jikopuntos: USER_DEFAULT_POINTS,
+          asistenciasCount: 0,
+          tituloPersonalizado: null
+        };
+        const prevXp = (u.experiencia !== undefined && u.experiencia !== null)
+          ? (parseInt(u.experiencia, 10) || 0)
+          : ((u.asistenciasCount || 0) * 200);
+        const nuevoXp = Math.max(0, prevXp + delta);
+        const nivelInfo = calcularNivelUsuario({
+          experiencia: nuevoXp,
+          asistenciasCount: u.asistenciasCount || 0,
+          tituloPersonalizado: u.tituloPersonalizado || null
+        });
+        Object.assign(u, {
+          experiencia: nuevoXp,
+          nivel: nivelInfo.nivel,
+          rangoTitulo: nivelInfo.rangoTitulo,
+          tituloAutomatico: nivelInfo.tituloAutomatico,
+          insigniaEmoji: nivelInfo.insigniaEmoji,
+          bonoAsistencia: nivelInfo.puntosPorAsistencia,
+          porcentajeProgreso: nivelInfo.porcentajeProgreso,
+          xpEnNivel: nivelInfo.xpEnNivel,
+          xpParaSubir: nivelInfo.xpParaSubir,
+          xpFaltante: nivelInfo.xpFaltante,
+          ultimaActividad: Date.now()
+        });
+        resultado = { ...nivelInfo, experiencia: nuevoXp, jikopuntos: u.jikopuntos ?? USER_DEFAULT_POINTS };
+        return u;
+      });
+      if (!tx.committed) return null;
+      const userActualizado = tx.snapshot.val();
+      if (userActualizado) this.usersCache.set(key, userActualizado);
+      return resultado;
+    } catch (err) {
+      console.warn(`[StreamDB] Error al actualizar XP de @${key} (${motivo}):`, err);
+      return null;
+    }
   }
 
   async setExperiencia(username, totalXp, motivo = 'ajuste_xp') {
@@ -1842,7 +1902,7 @@ class StreamFirebaseService {
       const factorNivel = calcularFactorXpNivel(userNvl);
 
       const xpBase = 10 * minutosDelta;
-      const xpGanada = Math.max(1, Math.round(xpBase * factor * factorNivel));
+      const xpGanada = userNvl >= MAX_NIVEL ? 0 : Math.max(1, Math.round(xpBase * factor * factorNivel));
 
       // Otorgar combustible de permanencia (+5 Jikopuntos por minuto activo de stream)
       const ptsGanados = 5 * minutosDelta;
@@ -2094,7 +2154,7 @@ class StreamFirebaseService {
       // Calcular XP según nivel: curva progresiva donde niveles altos reciben menos puntos de XP
       const nvlPrev = user?.nivel || 1;
       const factorNvl = calcularFactorXpNivel(nvlPrev);
-      const xpGanadaAsistencia = Math.max(20, Math.round(200 * factorNvl));
+      const xpGanadaAsistencia = nvlPrev >= MAX_NIVEL ? 0 : Math.max(1, Math.round(200 * factorNvl));
 
       const prevXp = (user && user.experiencia !== undefined && user.experiencia !== null)
         ? user.experiencia
@@ -2199,7 +2259,7 @@ class StreamFirebaseService {
           const userXp = (u.experiencia !== undefined && u.experiencia !== null)
             ? u.experiencia
             : ((u.asistenciasCount - 1) * 200);
-          const finalXp = userXp + 200;
+          const finalXp = userXp + xpGanadaAsistencia;
           u.experiencia = finalXp;
           userXpFinal = finalXp;
 
@@ -2514,12 +2574,8 @@ class StreamFirebaseService {
     const ahora = Date.now();
     const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
 
-    // ⭐ REGLA DE EXPERIENCIA: Otorgar 50% equivalente de los Jikopuntos gastados como XP al comprador
-    // Ejemplo: gasta 500 jikopuntos -> recibe 250 puntos de experiencia
     const gastoPuntos = Math.max(0, parseInt(costoTotal, 10) || 0);
-    const xpOtorgada = (xpGanada !== null && xpGanada !== undefined)
-      ? Math.max(0, parseInt(xpGanada, 10) || 0)
-      : Math.round(gastoPuntos * 0.5);
+    let xpOtorgada = 0;
 
     let nivelPrevio = 1;
     let nuevoNivel = 1;
@@ -2554,6 +2610,16 @@ class StreamFirebaseService {
 
       const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
       await runTransaction(userRef, (u) => {
+        const prevXpReal = (u?.experiencia !== undefined && u?.experiencia !== null)
+          ? Math.max(0, parseInt(u.experiencia, 10) || 0)
+          : ((u?.asistenciasCount || 0) * 200);
+        const nivelActual = calcularNivelUsuario({
+          experiencia: prevXpReal,
+          asistenciasCount: u?.asistenciasCount || 0,
+          tituloPersonalizado: u?.tituloPersonalizado || null
+        }).nivel;
+        xpOtorgada = calcularXpCompra(gastoPuntos, nivelActual);
+
         if (!u) {
           totalXpUsuario = xpOtorgada;
           const nivelInfo = calcularNivelUsuario({ experiencia: totalXpUsuario, asistenciasCount: 0 });
@@ -2584,12 +2650,9 @@ class StreamFirebaseService {
           u.totalCompras = (u.totalCompras || 0) + 1;
           u.ultimaActividad = ahora;
 
-          // ⭐ RECOMPENSA DE EXPERIENCIA: 50% de lo gastado acumulado
-          nivelPrevio = u.nivel || 1;
-          const prevXp = (u.experiencia !== undefined && u.experiencia !== null)
-            ? Math.max(0, parseInt(u.experiencia, 10) || 0)
-            : ((u.asistenciasCount || 0) * 200);
-          totalXpUsuario = prevXp + xpOtorgada;
+          // XP de compra: 10% del gasto, reducida además por el nivel actual.
+          nivelPrevio = nivelActual;
+          totalXpUsuario = prevXpReal + xpOtorgada;
           u.experiencia = totalXpUsuario;
 
           const nivelInfo = calcularNivelUsuario({
@@ -2636,12 +2699,22 @@ class StreamFirebaseService {
         return u;
       });
 
+      transaccion.experienciaGanada = xpOtorgada;
       transaccion.experienciaTotal = totalXpUsuario;
       transaccion.nivelPrevio = nivelPrevio;
       transaccion.nuevoNivel = nuevoNivel;
       transaccion.subioNivel = subioNivel;
       transaccion.rangoTitulo = rangoTituloNuevo;
       transaccion.insigniaEmoji = insigniaEmojiNueva;
+      await update(txRef, {
+        experienciaGanada: xpOtorgada,
+        experienciaTotal: totalXpUsuario,
+        nivelPrevio,
+        nuevoNivel,
+        subioNivel,
+        rangoTitulo: rangoTituloNuevo,
+        insigniaEmoji: insigniaEmojiNueva
+      });
 
       const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
       await runTransaction(resumenRef, (res) => {
@@ -2699,7 +2772,7 @@ class StreamFirebaseService {
         cached.insigniaEmoji = insigniaEmojiNueva;
       }
 
-      console.log(`[StreamDB] 🛒 Compra registrada para @${comprador}: -${gastoPuntos} pts | +${xpOtorgada} XP (50% de compra) -> Total XP: ${totalXpUsuario} (Nvl ${nuevoNivel})`);
+      console.log(`[StreamDB] 🛒 Compra registrada para @${comprador}: -${gastoPuntos} pts | +${xpOtorgada} XP (10% base, ajustado por nivel) -> Total XP: ${totalXpUsuario} (Nvl ${nuevoNivel})`);
       return transaccion;
     } catch (err) {
       console.error('[StreamDB] Error al registrar compra:', err);
@@ -4537,7 +4610,9 @@ export const StreamDB = new StreamFirebaseService();
 
 if (typeof window !== 'undefined') {
   window.StreamDB = StreamDB;
+  window.MAX_NIVEL = MAX_NIVEL;
   window.RANGOS_BASE_TITULOS = RANGOS_BASE_TITULOS;
+  window.TABLA_500_NIVELES = TABLA_500_NIVELES;
   window.TABLA_200_NIVELES = TABLA_200_NIVELES;
   window.TABLA_50_NIVELES = TABLA_50_NIVELES;
   window.NIVELES_ASISTENCIA = NIVELES_ASISTENCIA;
@@ -4545,6 +4620,7 @@ if (typeof window !== 'undefined') {
   window.formatearHorasDecimal = formatearHorasDecimal;
   window.calcularNivelUsuario = calcularNivelUsuario;
   window.calcularFactorXpNivel = calcularFactorXpNivel;
+  window.calcularXpCompra = calcularXpCompra;
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
 }
 

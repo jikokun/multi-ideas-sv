@@ -2063,7 +2063,7 @@
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
-  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261016_5';
+  import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_6';
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
@@ -2529,7 +2529,7 @@
 
     const calcFunc = window.calcularNivelUsuario || ((a) => {
       const xp = (a && a.experiencia !== undefined) ? parseInt(a.experiencia, 10) : (asistencias * 200);
-      const n = Math.min(200, Math.max(1, Math.floor(xp / 1000) + 1));
+      const n = Math.min(500, Math.max(1, Math.floor(xp / 1000) + 1));
       return { nivel: n, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', porcentajeProgreso: 45, xpParaSubir: 1000 };
     });
 
@@ -2599,7 +2599,7 @@
         }
       } else {
         if (isJiko) consumerTitle = '👑 Dueño y Creador del Canal';
-        else if (nivel >= 200) consumerTitle = '🏆 Señor de la Manada Suprema';
+        else if (nivel >= 500) consumerTitle = '🏆 Señor de la Manada Suprema';
         else if (nivel >= 186) consumerTitle = '🔮 Leyenda Mítica';
         else if (nivel >= 166) consumerTitle = '🌌 Lobo Ancestral';
         else if (nivel >= 136) consumerTitle = '👑 Manada VIP';
@@ -2615,7 +2615,7 @@
     // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
     // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard:
     // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
-    // 3. Fallback jerárquico estándar hasta Nivel 200
+    // 3. Fallback jerárquico estándar hasta Nivel 500
     let themeClass = 'theme-silver';
     let themeLabel = '🐾 CACHORRO';
 
@@ -2652,9 +2652,9 @@
     } else if (isSub) {
       themeClass = 'theme-gold';
       themeLabel = '🪙 SUB GOLD';
-    } else if (nivel >= 200) {
+    } else if (nivel >= 500) {
       themeClass = 'theme-gold';
-      themeLabel = '🏆 MÁXIMO RANGO (LVL 200)';
+      themeLabel = '🏆 MÁXIMO RANGO (LVL 500)';
     } else if (nivel >= 166) {
       themeClass = 'theme-purple';
       themeLabel = '🌌 LOBO ANCESTRAL';
@@ -2692,8 +2692,8 @@
       displayName: displayName,
       avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarCache[normUser] || (normUser === 'jikokun' ? avatarCache['jikokun'] : null),
       nivel: nivel,
-      rangoTitulo: (u._forceLevel && nivel >= 200) ? 'Señor de la Manada Suprema' : ((u._forceLevel && nivel >= 101) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 71) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro'))),
-      insigniaEmoji: (u._forceLevel && nivel >= 200) ? '🏆' : ((u._forceLevel && nivel >= 101) ? '🐺' : ((u._forceLevel && nivel >= 71) ? '⚡' : (nivelInfo.insigniaEmoji || '🐾'))),
+      rangoTitulo: (u._forceLevel && nivel >= 500) ? 'Señor de la Manada Suprema' : ((u._forceLevel && nivel >= 101) ? 'Lobo Alfa' : ((u._forceLevel && nivel >= 71) ? 'Lobo Beta' : (nivelInfo.rangoTitulo || 'Cachorro'))),
+      insigniaEmoji: (u._forceLevel && nivel >= 500) ? '🏆' : ((u._forceLevel && nivel >= 101) ? '🐺' : ((u._forceLevel && nivel >= 71) ? '⚡' : (nivelInfo.insigniaEmoji || '🐾'))),
       pts: pts,
       asistencias: asistencias,
       xpTotal: xpTotal,
@@ -3809,8 +3809,11 @@
     animarPuntos(saldoActual);
     playSfx('buy');
 
-    // ⭐ Recompensa de Experiencia (XP): 50% equivalente de los Jikopuntos gastados
-    const xpGanada = Math.round(total * 0.5);
+    // ⭐ Recompensa de Experiencia (XP): 10% base del gasto, reducido según el nivel
+    const nivelUsuario = window.StreamDB?.usersCache?.get(norm(user))?.nivel || 1;
+    const xpGanada = window.calcularXpCompra
+      ? window.calcularXpCompra(total, nivelUsuario)
+      : Math.round(total * 0.1 * (window.calcularFactorXpNivel?.(nivelUsuario) ?? 1));
 
     // Registrar en Firebase Realtime Database (stream/tienda/transacciones y estadísticas)
     if (window.StreamDB) {
@@ -3857,7 +3860,7 @@
       }));
     }
 
-    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${platosAServir.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡ (50%)</span>`);
+    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${platosAServir.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡</span>`);
 
     vaciarOrden();
 

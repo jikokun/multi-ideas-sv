@@ -99,6 +99,37 @@
     text-shadow: 0 0 8px rgba(251, 191, 36, 0.7);
   }
 
+  .slot-alert-panel {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    width: min(440px, calc(100% - 48px));
+    display: flex;
+    align-items: flex-start;
+    gap: 13px;
+    padding: 16px 18px;
+    border: 2px solid rgba(251, 191, 36, 0.85);
+    border-radius: 16px;
+    background: rgba(9, 13, 22, 0.97);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.78), 0 0 24px rgba(251, 191, 36, 0.3);
+    backdrop-filter: blur(14px);
+    color: #fff;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px) scale(0.98);
+    transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
+    pointer-events: none;
+  }
+  .slot-alert-panel.visible { opacity: 1; visibility: visible; transform: translateY(0) scale(1); }
+  .slot-alert-panel.queue { border-color: #38bdf8; box-shadow: 0 12px 36px rgba(0,0,0,.78), 0 0 24px rgba(56,189,248,.34); }
+  .slot-alert-panel.limit { border-color: #fb923c; box-shadow: 0 12px 36px rgba(0,0,0,.78), 0 0 24px rgba(251,146,60,.38); }
+  .slot-alert-panel.success { border-color: #4ade80; box-shadow: 0 12px 36px rgba(0,0,0,.78), 0 0 24px rgba(74,222,128,.28); }
+  .slot-alert-icon { font-size: 26px; line-height: 1; }
+  .slot-alert-copy { min-width: 0; }
+  .slot-alert-title { font-family: var(--font-display); font-size: 15px; font-weight: 900; letter-spacing: .5px; }
+  .slot-alert-detail { margin-top: 4px; color: rgba(255,255,255,.82); font-size: 13px; line-height: 1.4; }
+
   @keyframes queuePulse {
     0%, 100% { transform: scale(1); opacity: 0.9; }
     50% { transform: scale(1.2); opacity: 1; }
@@ -1454,6 +1485,14 @@
 
 <div id="obs-stage">
 
+  <div id="slot-alert-panel" class="slot-alert-panel" role="status" aria-live="polite">
+    <span class="slot-alert-icon" id="slot-alert-icon">⏳</span>
+    <div class="slot-alert-copy">
+      <div class="slot-alert-title" id="slot-alert-title"></div>
+      <div class="slot-alert-detail" id="slot-alert-detail"></div>
+    </div>
+  </div>
+
   <!-- =====================================================
        CONTENEDOR PRINCIPAL DE LA MÁQUINA TRAGAMONEDAS
        (INICIA OCULTO Y SE DESPLIEGA CON !tragamonedas o !tragamoneda)
@@ -1746,41 +1785,41 @@
         <div class="control-group">
           <div class="control-label">
             <span>❌ Perder en su Mayoría</span>
-            <span class="val-badge" id="lbl-prob-lose">62%</span>
+            <span class="val-badge" id="lbl-prob-lose">90%</span>
           </div>
-          <input type="range" id="rng-prob-lose" min="20" max="90" value="62">
+          <input type="range" id="rng-prob-lose" min="75" max="99" value="90">
         </div>
 
         <div class="control-group">
           <div class="control-label">
             <span>🍒 Ganar Poco (Cereza, Limón, Naranja)</span>
-            <span class="val-badge" id="lbl-prob-small">23%</span>
+            <span class="val-badge" id="lbl-prob-small">8%</span>
           </div>
-          <input type="range" id="rng-prob-small" min="5" max="60" value="23">
+          <input type="range" id="rng-prob-small" min="1" max="20" value="8">
         </div>
 
         <div class="control-group">
           <div class="control-label">
             <span>🍉 Ganar Intermedio (Uva, Campana, Sandía)</span>
-            <span class="val-badge" id="lbl-prob-med">11%</span>
+            <span class="val-badge" id="lbl-prob-med">1.5%</span>
           </div>
-          <input type="range" id="rng-prob-med" min="2" max="40" value="11">
+          <input type="range" id="rng-prob-med" min="0" max="10" step="0.1" value="1.5">
         </div>
 
         <div class="control-group">
           <div class="control-label">
             <span>💎 Ganar Mucho / Jackpot (Diamante, 777)</span>
-            <span class="val-badge" id="lbl-prob-big">4%</span>
+            <span class="val-badge" id="lbl-prob-big">0.4%</span>
           </div>
-          <input type="range" id="rng-prob-big" min="1" max="25" value="4">
+          <input type="range" id="rng-prob-big" min="0" max="5" step="0.1" value="0.4">
         </div>
 
         <div class="control-group">
           <div class="control-label">
             <span>👑 Pantalla Completa x100 (9 Frutas Iguales)</span>
-            <span class="val-badge" id="lbl-prob-full">2%</span>
+            <span class="val-badge" id="lbl-prob-full">0.1%</span>
           </div>
-          <input type="range" id="rng-prob-full" min="0" max="15" value="2">
+          <input type="range" id="rng-prob-full" min="0" max="2" step="0.1" value="0.1">
         </div>
 
         <div class="control-group">
@@ -1925,6 +1964,17 @@
       <!-- PESTAÑA 5: CRÉDITOS Y AUTO-GIRO -->
       <div class="tab-pane" id="tab-credits">
         <div class="control-group">
+          <div class="control-label">
+            <span>🎯 Apuesta máxima por giro</span>
+            <span class="val-badge" id="lbl-max-bet">1,000 JP</span>
+          </div>
+          <input type="number" id="inp-max-bet" min="5" max="50000" step="5" value="1000">
+          <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
+            Este límite se aplica a los controles y al monto de <code>!girar</code>.
+          </div>
+        </div>
+
+        <div class="control-group">
           <div class="control-label"><span>💰 Recargar o Ajustar Créditos Locales</span></div>
           <div class="btn-grid-2">
             <button class="action-btn" id="btn-add-500">+500 JP</button>
@@ -2005,20 +2055,22 @@
   var state = {
     credits: 1000,
     bet: 10,
+    maxBet: 1000,
     betOptions: [5, 10, 25, 50, 100, 250, 500, 1000],
     betIndex: 1,
     isSpinning: false,
+    spinStartPending: false,
     autoRefill: true,
     autoSpin: false,
     volume: 0.75,
     tiempoInactividad: 30,
     tiempoAparicion: 8,
     weights: {
-      lose: 62,
-      small: 23,
-      medium: 11,
-      big: 4,
-      full: 2
+      lose: 90,
+      small: 8,
+      medium: 1.5,
+      big: 0.4,
+      full: 0.1
     },
     // Posición predeterminada: Abajo a la derecha, idéntica al cajero JikoBank
     pos: { x: 1390, y: 360, scale: 0.95 },
@@ -2035,6 +2087,7 @@
     // Jugador actualmente en turno
     activePlayer: {
       username: 'Jikokun',
+      userKey: 'jikokun',
       displayName: 'Jikokun',
       avatar: '../imagenes/iconos_generales/multiideassv_ico.webp',
       saldo: 1000,
@@ -2074,6 +2127,8 @@
       var nApar = parseInt(savedApar, 10);
       if (!isNaN(nApar) && nApar >= 3 && nApar <= 60) state.tiempoAparicion = nApar;
     }
+    var savedMaxBet = parseInt(localStorage.getItem('jiko_slot_max_bet'), 10);
+    if (!isNaN(savedMaxBet) && savedMaxBet >= 5 && savedMaxBet <= 50000) state.maxBet = savedMaxBet;
 
     // Parámetros URL directos para OBS
     if (urlParams.has('inactividad') || urlParams.has('timeout')) {
@@ -2091,6 +2146,118 @@
     if (!s || s === 'undefined' || s === 'null') return '';
     return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
   }
+
+  var SPIN_LIMIT = 10;
+  var SPIN_WINDOW_MS = 15 * 60 * 1000;
+  var SPIN_HISTORY_KEY = 'jiko_slot_spin_history_v1';
+  var spinHistoryMemory = {};
+  var activeSlotAlert = null;
+  var slotAlertHideTimer = null;
+
+  function loadSpinHistory() {
+    try {
+      var saved = JSON.parse(localStorage.getItem(SPIN_HISTORY_KEY) || '{}');
+      if (saved && typeof saved === 'object') return saved;
+    } catch(e) {}
+    return spinHistoryMemory;
+  }
+
+  function saveSpinHistory(history) {
+    spinHistoryMemory = history;
+    try { localStorage.setItem(SPIN_HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
+  }
+
+  function getSpinQuota(username, now) {
+    var userKey = norm(username) || 'desconocido';
+    var timeNow = (typeof now === 'number') ? now : Date.now();
+    var history = loadSpinHistory();
+    var cutoff = timeNow - SPIN_WINDOW_MS;
+    Object.keys(history).forEach(function(key) {
+      var kept = Array.isArray(history[key]) ? history[key].map(Number).filter(function(ts) { return isFinite(ts) && ts > cutoff && ts <= timeNow; }).sort(function(a, b) { return a - b; }) : [];
+      if (kept.length > 0) history[key] = kept;
+      else delete history[key];
+    });
+    var entries = Array.isArray(history[userKey]) ? history[userKey] : [];
+    if (!history[userKey]) history[userKey] = entries;
+    saveSpinHistory(history);
+    var nextAt = entries.length >= SPIN_LIMIT ? entries[0] + SPIN_WINDOW_MS : 0;
+    return {
+      userKey: userKey,
+      used: entries.length,
+      remaining: Math.max(0, SPIN_LIMIT - entries.length),
+      nextAt: nextAt,
+      waitMs: nextAt ? Math.max(0, nextAt - timeNow) : 0
+    };
+  }
+
+  function registerSpin(username) {
+    var quota = getSpinQuota(username);
+    if (quota.remaining <= 0) return { allowed: false, quota: quota };
+    var history = loadSpinHistory();
+    history[quota.userKey].push(Date.now());
+    saveSpinHistory(history);
+    quota = getSpinQuota(username);
+    return { allowed: true, quota: quota };
+  }
+
+  function formatWaitTime(milliseconds) {
+    var seconds = Math.max(0, Math.ceil(milliseconds / 1000));
+    var minutes = Math.floor(seconds / 60);
+    var remainingSeconds = seconds % 60;
+    return minutes > 0 ? minutes + ' min ' + remainingSeconds + ' s' : remainingSeconds + ' s';
+  }
+
+  function renderSlotAlert(type, title, detail) {
+    var panel = document.getElementById('slot-alert-panel');
+    if (!panel) return;
+    var icons = { queue: '⏳', limit: '⌛', success: '🎰', warning: '⚠️' };
+    panel.className = 'slot-alert-panel visible ' + type;
+    document.getElementById('slot-alert-icon').textContent = icons[type] || 'ℹ️';
+    document.getElementById('slot-alert-title').textContent = title;
+    document.getElementById('slot-alert-detail').textContent = detail;
+  }
+
+  function clearSlotAlert() {
+    activeSlotAlert = null;
+    if (slotAlertHideTimer) clearTimeout(slotAlertHideTimer);
+    slotAlertHideTimer = null;
+    var panel = document.getElementById('slot-alert-panel');
+    if (panel) panel.classList.remove('visible');
+  }
+
+  function showSlotAlert(type, title, detail, autoHideMs) {
+    activeSlotAlert = { type: type, title: title, detail: detail };
+    renderSlotAlert(type, title, detail);
+    if (slotAlertHideTimer) clearTimeout(slotAlertHideTimer);
+    slotAlertHideTimer = autoHideMs ? setTimeout(clearSlotAlert, autoHideMs) : null;
+  }
+
+  function showQuotaAlert(username) {
+    var quota = getSpinQuota(username);
+    if (quota.remaining > 0) return;
+    if (state.autoSpin) {
+      state.autoSpin = false;
+      var autoSpinBtn = document.getElementById('btn-toggle-autospin');
+      if (autoSpinBtn) {
+        autoSpinBtn.textContent = 'Auto-Giro Demo: OFF';
+        autoSpinBtn.classList.remove('primary');
+      }
+    }
+    activeSlotAlert = { type: 'limit', username: username, title: 'Límite de giros alcanzado' };
+    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 10 de 10 giros. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
+    if (slotAlertHideTimer) clearTimeout(slotAlertHideTimer);
+    slotAlertHideTimer = null;
+  }
+
+  setInterval(function() {
+    if (!activeSlotAlert || activeSlotAlert.type !== 'limit') return;
+    var quota = getSpinQuota(activeSlotAlert.username);
+    if (quota.remaining > 0) {
+      clearSlotAlert();
+      return;
+    }
+    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 10 de 10 giros. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
+  }, 1000);
 
   // Caché y resolvedor en tiempo real de fotos de perfil de Kick
   var avatarCache = {
@@ -2396,6 +2563,7 @@
   function actualizarDatosUsuario(datos) {
     if (!datos) return;
     state.activePlayer = Object.assign(state.activePlayer, datos);
+    if (datos.userKey) state.activePlayer.userKey = norm(datos.userKey);
     if (datos.user) state.activePlayer.username = datos.user;
     if (datos.user) state.activePlayer.displayName = datos.user;
 
@@ -2639,11 +2807,22 @@
     }
   }
 
-  function triggerSpin(forcedMode, callbackOnFinish) {
+  function triggerSpin(forcedMode, callbackOnFinish, quotaAlreadyRegistered) {
     if (state.isSpinning) {
       // Si el usuario hace clic o manda comando en ráfaga mientras giran los rodillos, encolar el giro
-      state.pendingNextSpin = { action: 'GIRAR', sender: state.activePlayer.username, params: [state.bet], forcedMode: forcedMode };
+      state.pendingNextSpin = { action: 'GIRAR', sender: state.activePlayer.userKey || state.activePlayer.username, params: [state.bet], forcedMode: forcedMode };
       return;
+    }
+
+    if (state.spinStartPending && !quotaAlreadyRegistered) return;
+
+    if (!quotaAlreadyRegistered) {
+      var spinUserKey = state.activePlayer.userKey || state.activePlayer.username || state.activePlayer.displayName;
+      if (getSpinQuota(spinUserKey).remaining <= 0) {
+        showQuotaAlert(spinUserKey);
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+        return;
+      }
     }
 
     cancelarTemporizadorInactividad();
@@ -2655,8 +2834,20 @@
         updateDashboardUI();
       } else {
         mostrarResultadoStatus('insufficient', state.credits);
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
         return;
       }
+    }
+
+    if (!quotaAlreadyRegistered) {
+      var spinUserKeyAfterBalance = state.activePlayer.userKey || state.activePlayer.username || state.activePlayer.displayName;
+      var registration = registerSpin(spinUserKeyAfterBalance);
+      if (!registration.allowed) {
+        showQuotaAlert(spinUserKeyAfterBalance);
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+        return;
+      }
+      if (registration.quota.remaining <= 0) showQuotaAlert(spinUserKeyAfterBalance);
     }
 
     mostrarRuleta();
@@ -2928,6 +3119,58 @@
     document.getElementById('bet-display').textContent = state.bet.toLocaleString();
     var playerSaldoEl = document.getElementById('player-stat-saldo');
     if (playerSaldoEl) playerSaldoEl.textContent = state.credits.toLocaleString();
+    var playerBetEl = document.getElementById('player-stat-bet');
+    if (playerBetEl) playerBetEl.textContent = '🎯 APUESTA: ' + state.bet.toLocaleString() + ' JP';
+    var playerSubCmdEl = document.getElementById('player-sub-cmd');
+    if (playerSubCmdEl) playerSubCmdEl.textContent = 'Comando: !girar ' + state.bet.toLocaleString();
+    state.activePlayer.apuesta = state.bet;
+  }
+
+  function getAvailableBetOptions() {
+    var options = state.betOptions.filter(function(amount) { return amount <= state.maxBet; });
+    if (options.length === 0 || options[options.length - 1] < state.maxBet) options.push(state.maxBet);
+    return options;
+  }
+
+  function setBetAmount(amount) {
+    var requested = Math.floor(Number(amount));
+    if (!isFinite(requested)) return;
+    state.bet = Math.max(5, Math.min(state.maxBet, requested));
+    var options = getAvailableBetOptions();
+    state.betIndex = 0;
+    for (var i = 0; i < options.length; i++) {
+      if (options[i] <= state.bet) state.betIndex = i;
+    }
+    updateDashboardUI();
+  }
+
+  function stepBetAmount(direction) {
+    var options = getAvailableBetOptions();
+    var index = 0;
+    for (var i = 0; i < options.length; i++) {
+      if (options[i] <= state.bet) index = i;
+    }
+    if (direction > 0) {
+      if (index < options.length - 1) setBetAmount(options[index + 1]);
+    } else if (index > 0) {
+      setBetAmount(options[index - 1]);
+    }
+  }
+
+  var maxBetInput = document.getElementById('inp-max-bet');
+  var maxBetLabel = document.getElementById('lbl-max-bet');
+  if (maxBetInput) maxBetInput.value = state.maxBet;
+  if (maxBetLabel) maxBetLabel.textContent = state.maxBet.toLocaleString() + ' JP';
+  if (maxBetInput) {
+    maxBetInput.addEventListener('change', function() {
+      var newMax = parseInt(this.value, 10);
+      if (isNaN(newMax)) newMax = state.maxBet;
+      state.maxBet = Math.max(5, Math.min(50000, newMax));
+      this.value = state.maxBet;
+      if (maxBetLabel) maxBetLabel.textContent = state.maxBet.toLocaleString() + ' JP';
+      try { localStorage.setItem('jiko_slot_max_bet', String(state.maxBet)); } catch(e) {}
+      if (state.bet > state.maxBet) setBetAmount(state.maxBet);
+    });
   }
 
   /* =====================================================
@@ -3121,16 +3364,12 @@
 
   document.getElementById('bet-down-btn').addEventListener('click', function() {
     if (state.isSpinning) return;
-    state.betIndex = Math.max(0, state.betIndex - 1);
-    state.bet = state.betOptions[state.betIndex];
-    updateDashboardUI();
+    stepBetAmount(-1);
   });
 
   document.getElementById('bet-up-btn').addEventListener('click', function() {
     if (state.isSpinning) return;
-    state.betIndex = Math.min(state.betOptions.length - 1, state.betIndex + 1);
-    state.bet = state.betOptions[state.betIndex];
-    updateDashboardUI();
+    stepBetAmount(1);
   });
 
   var settingsModal = document.getElementById('settings-modal');
@@ -3232,11 +3471,15 @@
     state.weights.big = b;
     state.weights.full = f;
 
-    document.getElementById('lbl-prob-lose').textContent = Math.round((l / total) * 100) + '%';
-    document.getElementById('lbl-prob-small').textContent = Math.round((s / total) * 100) + '%';
-    document.getElementById('lbl-prob-med').textContent = Math.round((m / total) * 100) + '%';
-    document.getElementById('lbl-prob-big').textContent = Math.round((b / total) * 100) + '%';
-    document.getElementById('lbl-prob-full').textContent = Math.round((f / total) * 100) + '%';
+    function toPercent(weight) {
+      return (Math.round((weight / total) * 1000) / 10).toLocaleString('en-US', { maximumFractionDigits: 1 }) + '%';
+    }
+
+    document.getElementById('lbl-prob-lose').textContent = toPercent(l);
+    document.getElementById('lbl-prob-small').textContent = toPercent(s);
+    document.getElementById('lbl-prob-med').textContent = toPercent(m);
+    document.getElementById('lbl-prob-big').textContent = toPercent(b);
+    document.getElementById('lbl-prob-full').textContent = toPercent(f);
   }
 
   var probSliderIds = ['rng-prob-lose', 'rng-prob-small', 'rng-prob-med', 'rng-prob-big', 'rng-prob-full'];
@@ -3477,7 +3720,7 @@
     var forcedMode = opciones.forcedMode || null;
 
     var sNorm = norm(sender);
-    var activeNorm = (state.activePlayer && state.activePlayer.username) ? norm(state.activePlayer.username) : '';
+    var activeNorm = (state.activePlayer && (state.activePlayer.userKey || state.activePlayer.username)) ? norm(state.activePlayer.userKey || state.activePlayer.username) : '';
 
     console.log('[Tragamonedas] 🎰 Petición [' + action + '] de @' + sender + ' (Activo: @' + activeNorm + ', params: ' + params.join(' ') + ')');
 
@@ -3491,6 +3734,7 @@
         if (statusText) statusText.textContent = '👋 ¡SESIÓN FINALIZADA!';
         setTimeout(function() {
           ocultarRuleta();
+          if (activeSlotAlert && activeSlotAlert.username && norm(activeSlotAlert.username) === sNorm) clearSlotAlert();
           if (window.JikoWidgetSync) {
             window.JikoWidgetSync.release('tragamonedas');
             window.JikoWidgetSync.release('ruleta');
@@ -3509,7 +3753,7 @@
         if (params.length > 0) {
           var initialBetRe = parsearMonto(params[0]);
           if (!isNaN(initialBetRe) && initialBetRe > 0) {
-            state.bet = Math.min(50000, Math.max(5, initialBetRe));
+            setBetAmount(initialBetRe);
             var elBet = document.getElementById('player-stat-bet');
             if (elBet) elBet.textContent = '🎯 APUESTA: ' + Number(state.bet).toLocaleString() + ' JP';
             var elSubCmd = document.getElementById('player-sub-cmd');
@@ -3529,6 +3773,7 @@
 
       if (debeEncolar) {
         console.log('[Tragamonedas] ⏳ Pantalla ocupada. Encolando apertura para @' + sender);
+        showSlotAlert('queue', 'Espera tu turno', 'La máquina está ocupada. Enviamos tu solicitud a la cola, @' + sender + '.');
         if (window.JikoWidgetSync) {
           window.JikoWidgetSync.enqueue({
             widget: 'tragamonedas',
@@ -3569,7 +3814,7 @@
       if (params.length > 0) {
         var apuestaInicial = parsearMonto(params[0]);
         if (!isNaN(apuestaInicial) && apuestaInicial > 0) {
-          state.bet = Math.min(50000, Math.max(5, apuestaInicial));
+          setBetAmount(apuestaInicial);
         }
       }
 
@@ -3583,12 +3828,20 @@
         rango: nivelInfo.rangoTitulo,
         emoji: nivelInfo.insigniaEmoji,
         saldo: saldoActual,
-        apuesta: state.bet
+        apuesta: state.bet,
+        userKey: sNorm
       });
 
       updateDashboardUI();
 
       mostrarResultadoStatus('ready');
+
+      var quotaAtOpen = getSpinQuota(sNorm);
+      if (quotaAtOpen.remaining <= 0) {
+        showQuotaAlert(sNorm);
+      } else {
+        showSlotAlert('success', '¡Tu turno está listo!', 'Tienes ' + quotaAtOpen.remaining + ' de 10 giros disponibles.', 4000);
+      }
 
       // Iniciar ventana de 30 segundos (o configurada) de inactividad para que el usuario use !girar
       iniciarTemporizadorInactividad(state.tiempoInactividad);
@@ -3603,12 +3856,14 @@
       // El comando !girar sólo debe funcionar si el usuario previamente activó con !tragamonedas o !slot.
       if (!ruletaVisible) {
         console.log('[Tragamonedas] ℹ️ Ignorando comando !girar porque la tragamonedas no está activa.');
+        showSlotAlert('queue', 'Solicita tu turno primero', 'Envía !tragamonedas para abrir una sesión. Si la máquina está ocupada, tu solicitud esperará en la cola.', 6000);
         return;
       }
 
       // Si la máquina está visible pero es OTRO usuario intentando girar:
       if (ruletaVisible && activeNorm !== sNorm) {
         console.log('[Tragamonedas] ⚠️ Giro rechazado: pertenece al turno de @' + activeNorm + '. Para jugar envía !tragamonedas');
+        showSlotAlert('queue', 'Espera tu turno', 'La máquina está en uso por @' + (state.activePlayer.displayName || state.activePlayer.username) + '. Envía !tragamonedas para entrar en la cola.');
         return;
       }
 
@@ -3620,6 +3875,8 @@
         }
         return;
       }
+      if (state.spinStartPending) return;
+      state.spinStartPending = true;
 
       // Cancelar temporizador de inactividad mientras se prepara el giro
       cancelarTemporizadorInactividad();
@@ -3628,7 +3885,10 @@
       if (params.length > 0) {
         var nuevaApuesta = parsearMonto(params[0]);
         if (!isNaN(nuevaApuesta) && nuevaApuesta > 0) {
-          state.bet = Math.min(50000, Math.max(5, nuevaApuesta));
+          setBetAmount(nuevaApuesta);
+          if (nuevaApuesta > state.maxBet) {
+            showSlotAlert('warning', 'Apuesta limitada', 'El máximo actual es ' + state.maxBet.toLocaleString() + ' JP; se usará ese monto.', 4500);
+          }
         }
       }
 
@@ -3646,6 +3906,7 @@
 
       // Validar Saldo
       if (saldoActualizado < state.bet) {
+        state.spinStartPending = false;
         playLoseSound();
         mostrarResultadoStatus('insufficient', saldoActualizado);
 
@@ -3653,6 +3914,15 @@
         iniciarTemporizadorInactividad(15);
         return;
       }
+
+      var spinRegistration = registerSpin(sNorm);
+      if (!spinRegistration.allowed) {
+        state.spinStartPending = false;
+        showQuotaAlert(sNorm);
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+        return;
+      }
+      if (spinRegistration.quota.remaining <= 0) showQuotaAlert(sNorm);
 
       // Extender Lock de exclusión mutua para cubrir este giro + nueva ventana de inactividad
       var ttlExtension = (state.tiempoInactividad + state.tiempoAparicion + 20) * 1000;
@@ -3670,6 +3940,7 @@
       }
 
       // Iniciar el giro (al terminar el tiempo de aparición, se reactiva el timer sin cooldown)
+      state.spinStartPending = false;
       triggerSpin(forcedMode || null, async function(resultado) {
         if (resultado.win && resultado.amount > 0) {
           console.log('[Tragamonedas] 🏆 Usuario @' + sNorm + ' ganó ' + resultado.amount + ' JP!');
@@ -3681,7 +3952,7 @@
             }
           }
         }
-      });
+      }, true);
     }
   }
 
