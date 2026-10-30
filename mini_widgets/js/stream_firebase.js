@@ -730,6 +730,14 @@ class StreamFirebaseService {
         ? String(updates.marcoPerfil).trim()
         : null;
     }
+    if (updates.colorTarjeta !== undefined) {
+      const coloresTarjeta = new Set([
+        'theme-silver', 'theme-green', 'theme-cyan', 'theme-purple', 'theme-orange',
+        'theme-red', 'theme-gold', 'theme-unicorn', 'theme-owner'
+      ]);
+      const colorTarjeta = String(updates.colorTarjeta || 'auto').trim();
+      cleanUpdates.colorTarjeta = coloresTarjeta.has(colorTarjeta) ? colorTarjeta : null;
+    }
 
     let recalculateLevel = false;
     let nextAsist = current.asistenciasCount || 0;

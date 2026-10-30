@@ -4100,6 +4100,20 @@
             <small style="display:block; margin-top:6px; color:var(--text-muted); font-size:0.82rem; line-height:1.45;">Un título por línea; hasta 4 visibles. La tarjeta también genera un título principal por compras y actividad de chat (250, 1,000 y 5,000 mensajes válidos; el conteo comienza al activar esta versión).</small>
           </div>
           <div class="modal-form-group" id="profile-card-bg-section" style="display:none;margin-top:16px; margin-bottom:0;">
+            <label class="modal-form-lbl" for="edit-u-card-color">Color de la tarjeta gamer</label>
+            <select id="edit-u-card-color" class="modal-form-select" style="margin-bottom:12px;">
+              <option value="auto">Automático por nivel o rol</option>
+              <option value="theme-silver">Plata / Gris</option>
+              <option value="theme-green">Verde Esmeralda</option>
+              <option value="theme-cyan">Cyan Eléctrico</option>
+              <option value="theme-purple">Morado Neón</option>
+              <option value="theme-orange">Naranja Fuego</option>
+              <option value="theme-red">Rojo Carmesí</option>
+              <option value="theme-gold">Dorado</option>
+              <option value="theme-unicorn">Rosa Unicornio</option>
+              <option value="theme-owner">Corona del Creador</option>
+            </select>
+            <small style="display:block;margin:-6px 0 12px;color:var(--text-muted);font-size:.8rem;line-height:1.4;">Automático conserva el color asignado por nivel o rol. La selección manual cambia el brillo, borde y acentos de esta carta.</small>
             <label class="modal-form-lbl" for="profile-card-bg-file">Fondo personal de esta carta gamer</label>
             <input type="file" id="profile-card-bg-file" accept="image/jpeg,image/png,image/webp" class="modal-form-input" onchange="subirFondoCartaPerfil(this.files)">
             <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
@@ -6951,6 +6965,8 @@
         bgPreview.style.display = u.fondoTarjetaUrl ? 'block' : 'none';
       }
       if (bgFileInput) bgFileInput.value = '';
+      const cardColorSelect = document.getElementById('edit-u-card-color');
+      if (cardColorSelect) cardColorSelect.value = u.colorTarjeta || 'auto';
       if (bgStatus) bgStatus.textContent = u.fondoTarjetaUrl
         ? 'Fondo personal cargado. Sugerido: 1200 × 600 px (proporción 2:1).'
         : 'Sugerido: 1200 × 600 px (proporción 2:1). Solo cambia la carta de este usuario.';
@@ -6998,6 +7014,7 @@
       const mins = parseInt(document.getElementById('edit-u-mins')?.value, 10) || 0;
       const tiempoVistoMinutos = Math.max(0, (hrs * 60) + mins);
       const marcoPerfil = document.getElementById('edit-u-frame')?.value || 'auto';
+      const colorTarjeta = document.getElementById('edit-u-card-color')?.value || 'auto';
 
       try {
         const updated = await StreamDB.actualizarUsuario(username, {
@@ -7012,7 +7029,8 @@
           tituloTarjeta,
           titulosTarjeta,
           tiempoVistoMinutos,
-          marcoPerfil
+          marcoPerfil,
+          colorTarjeta
         });
         showToast(`✅ Datos de <b>@${updated.displayName}</b> actualizados correctamente.`);
         cerrarModalEditarUsuario();
