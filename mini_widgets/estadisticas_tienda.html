@@ -1069,6 +1069,15 @@
       margin-bottom: 20px;
       flex-wrap: wrap;
     }
+    #modal-user-profile .app-modal-card { max-width: 1040px; }
+    .modal-profile-layout { display:grid; grid-template-columns:minmax(0,1fr) 200px; gap:16px; align-items:start; }
+    .modal-profile-data { min-width:0; }
+    .modal-card-preview { position:sticky; top:0; display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px; border:1px solid rgba(255,255,255,.1); border-radius:14px; background:rgba(0,0,0,.2); }
+    .modal-card-preview-title { color:var(--text-muted); font:700 .76rem var(--f-tech); text-transform:uppercase; letter-spacing:.06em; }
+    .modal-card-preview-frame { width:180px; height:275px; overflow:hidden; border:1px solid rgba(255,255,255,.12); border-radius:12px; background:#111519; }
+    .modal-card-preview-frame iframe { display:block; width:400px; height:610px; border:0; transform:scale(.45); transform-origin:top left; }
+    .modal-card-preview-caption { color:var(--text-dim); font:600 .72rem var(--f-tech); text-align:center; }
+    @media(max-width:600px) { .modal-profile-layout { grid-template-columns:1fr; } .modal-card-preview { position:static; border-top:1px solid var(--border-card-subtle); } }
     .modal-hero-left {
       display: flex;
       align-items: center;
@@ -3759,6 +3768,8 @@
         <button type="button" class="app-modal-close-btn" onclick="cerrarModalFicha()">✕</button>
       </div>
 
+      <div class="modal-profile-layout">
+      <div class="modal-profile-data">
       <div class="modal-profile-hero">
         <div class="modal-hero-left">
           <div class="modal-hero-avatar" id="m-upc-avatar">?</div>
@@ -3849,6 +3860,15 @@
         <div class="modal-info-item">Platillo Favorito: <b id="m-upc-fav">--</b></div>
         <div class="modal-info-item">Primer Registro: <b id="m-upc-first">--</b></div>
         <div class="modal-info-item">Última Actividad: <b id="m-upc-last">--</b></div>
+      </div>
+      </div>
+      <aside class="modal-card-preview">
+        <div class="modal-card-preview-title">Vista previa de !perfil</div>
+        <div class="modal-card-preview-frame">
+          <iframe id="m-upc-card-preview-frame" title="Tarjeta de perfil del espectador" loading="lazy"></iframe>
+        </div>
+        <div class="modal-card-preview-caption" id="m-upc-card-preview-caption">Cargando tarjeta...</div>
+      </aside>
       </div>
 
       <!-- 1. Administración de Experiencia (XP) -->
@@ -6622,6 +6642,19 @@
         // Marco cibernético de perfil en el select del modal
         const frameSelect = document.getElementById('m-frame-theme-select');
         if (frameSelect) frameSelect.value = u.marcoPerfil || 'auto';
+
+        // Vista previa real de !perfil: el widget elige automáticamente la tarjeta clásica o gamer.
+        const profileCardFrame = document.getElementById('m-upc-card-preview-frame');
+        const profileCardCaption = document.getElementById('m-upc-card-preview-caption');
+        if (profileCardFrame && u.username) {
+          profileCardFrame.src = `widget_perfil.html?overlay=true&mute=true&previewUser=${encodeURIComponent(u.username)}&v=${Date.now()}`;
+          profileCardFrame.dataset.username = norm(u.username);
+        }
+        if (profileCardCaption) {
+          profileCardCaption.textContent = u.marcoPerfil && u.marcoPerfil !== 'auto'
+            ? `Marco: ${obtenerNombreMarco(u.marcoPerfil)}`
+            : `Marco automático · Nivel ${nivelInfo.nivel}`;
+        }
 
         const btnDel = document.getElementById('btn-eliminar-usuario-modal');
         if (btnDel) {
