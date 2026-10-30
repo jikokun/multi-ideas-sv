@@ -700,6 +700,12 @@ class StreamFirebaseService {
     if (updates.mensajesChat !== undefined) {
       cleanUpdates.mensajesChat = Math.max(0, parseInt(updates.mensajesChat, 10) || 0);
     }
+    if (updates.fondoTarjetaUrl !== undefined) {
+      cleanUpdates.fondoTarjetaUrl = updates.fondoTarjetaUrl ? String(updates.fondoTarjetaUrl).trim() : null;
+    }
+    if (updates.fondoTarjetaFileId !== undefined) {
+      cleanUpdates.fondoTarjetaFileId = updates.fondoTarjetaFileId ? String(updates.fondoTarjetaFileId).trim() : null;
+    }
     if (updates.avatar !== undefined) {
       cleanUpdates.avatar = normalizarAvatarKickUrl(updates.avatar);
     }

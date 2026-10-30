@@ -4079,13 +4079,13 @@
             <textarea id="edit-u-card-achievements" class="modal-form-input" rows="4" maxlength="200" placeholder="Ej.: Bebedor Empedernido"></textarea>
             <small style="display:block; margin-top:6px; color:var(--text-muted); font-size:0.82rem; line-height:1.45;">Un título por línea; hasta 4 visibles. La tarjeta también genera un título principal por compras y actividad de chat (250, 1,000 y 5,000 mensajes válidos; el conteo comienza al activar esta versión).</small>
           </div>
-          <div class="modal-form-group" style="margin-top:16px; margin-bottom:0;">
-            <label class="modal-form-lbl" for="profile-card-bg-file">Fondo compartido de la carta gamer</label>
+          <div class="modal-form-group" id="profile-card-bg-section" style="display:none;margin-top:16px; margin-bottom:0;">
+            <label class="modal-form-lbl" for="profile-card-bg-file">Fondo personal de esta carta gamer</label>
             <input type="file" id="profile-card-bg-file" accept="image/jpeg,image/png,image/webp" class="modal-form-input" onchange="subirFondoCartaPerfil(this.files)">
             <div style="display:flex;align-items:center;gap:12px;margin-top:10px;">
               <img id="profile-card-bg-preview" alt="Vista previa del fondo" style="display:none;width:150px;height:76px;object-fit:cover;border:1px solid rgba(0,242,254,.35);border-radius:8px;">
               <button type="button" class="modal-btn-cancel" onclick="quitarFondoCartaPerfil()">Quitar fondo</button>
-              <span id="profile-card-bg-status" style="color:var(--text-muted);font-size:.82rem;">Sugerido: 1200 × 600 px (proporción 2:1). Se aplica a todas las cartas gamer.</span>
+              <span id="profile-card-bg-status" style="color:var(--text-muted);font-size:.82rem;">Sugerido: 1200 × 600 px (proporción 2:1). Solo cambia la carta de este usuario.</span>
             </div>
           </div>
         </div>
@@ -4141,7 +4141,7 @@
 
         <div class="modal-form-group">
           <label class="modal-form-lbl">Marco Cibernético de Perfil (!perfil)</label>
-          <select id="edit-u-frame" class="modal-form-select">
+          <select id="edit-u-frame" class="modal-form-select" onchange="actualizarVisibilidadFondoCartaPerfil()">
             <option value="auto">⚡ Automático (Según Nivel o Rol de Kick)</option>
             <option value="theme-card-test">🃏 Carta Gamer (Prueba)</option>
             <option value="theme-silver">⚪ Plata / Gris (Niveles 1 a 5 - Cachorro)</option>
@@ -4472,15 +4472,6 @@
     // Inicializar StreamDB
     StreamDB.init().then(async () => {
       document.getElementById('firebase-status-txt').textContent = 'FIREBASE RTDB CONECTADO';
-      StreamDB.onWidgetState('perfil', state => {
-        window.perfilCardAdminConfig = state || {};
-        const preview = document.getElementById('profile-card-bg-preview');
-        if (preview) {
-          preview.src = state?.backgroundUrl || '';
-          preview.style.display = state?.backgroundUrl ? 'block' : 'none';
-        }
-      });
-
       // 1. Iniciar detector interno de Kick (Pusher WebSocket + API polling)
       StreamDB.startKickStreamMonitor('jikokun');
 
@@ -6919,9 +6910,27 @@
 
       const frameEdit = document.getElementById('edit-u-frame');
       if (frameEdit) frameEdit.value = u.marcoPerfil || 'auto';
+      const bgPreview = document.getElementById('profile-card-bg-preview');
+      const bgFileInput = document.getElementById('profile-card-bg-file');
+      const bgStatus = document.getElementById('profile-card-bg-status');
+      if (bgPreview) {
+        bgPreview.src = u.fondoTarjetaUrl || '';
+        bgPreview.style.display = u.fondoTarjetaUrl ? 'block' : 'none';
+      }
+      if (bgFileInput) bgFileInput.value = '';
+      if (bgStatus) bgStatus.textContent = u.fondoTarjetaUrl
+        ? 'Fondo personal cargado. Sugerido: 1200 × 600 px (proporción 2:1).'
+        : 'Sugerido: 1200 × 600 px (proporción 2:1). Solo cambia la carta de este usuario.';
+      window.actualizarVisibilidadFondoCartaPerfil();
 
       const modal = document.getElementById('modal-edit-user');
       if (modal) modal.classList.add('active');
+    };
+
+    window.actualizarVisibilidadFondoCartaPerfil = function() {
+      const section = document.getElementById('profile-card-bg-section');
+      const frame = document.getElementById('edit-u-frame')?.value;
+      if (section) section.style.display = frame === 'theme-card-test' ? 'block' : 'none';
     };
 
     window.abrirModalEditarDesdeFicha = function() {
@@ -7170,6 +7179,10 @@
     window.subirFondoCartaPerfil = async function(files) {
       const file = files?.[0];
       if (!file) return;
+      if (document.getElementById('edit-u-frame')?.value !== 'theme-card-test') {
+        showToast('Selecciona primero el estilo Carta Gamer (Prueba).');
+        return;
+      }
       if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
         showToast('Selecciona una imagen JPG, PNG o WebP.');
         return;
@@ -7192,7 +7205,7 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify({
             base64: String(dataUrl).split(',')[1],
-            userName: 'Perfil_Gamer_Jiko',
+            userName: document.getElementById('edit-u-username')?.value || 'Perfil_Gamer_Jiko',
             userEmail: 'perfil@multi-ideas-sv',
             filename: file.name,
             mimeType: file.type,
@@ -7203,12 +7216,13 @@
         const result = await response.json();
         if (result?.status !== 'success' || !result.fileId) throw new Error(result?.message || 'Respuesta inválida de Drive.');
         const backgroundUrl = `https://lh3.googleusercontent.com/d/${result.fileId}`;
-        const saved = await StreamDB.setWidgetState('perfil', { backgroundUrl, backgroundFileId: result.fileId });
-        if (!saved) throw new Error('No se pudo guardar la configuración en Firebase.');
+        const username = document.getElementById('edit-u-username')?.value;
+        if (!username) throw new Error('No hay un usuario seleccionado para asignar el fondo.');
+        await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: backgroundUrl, fondoTarjetaFileId: result.fileId });
         const preview = document.getElementById('profile-card-bg-preview');
         if (preview) { preview.src = backgroundUrl; preview.style.display = 'block'; }
-        if (status) status.textContent = 'Fondo actualizado para todas las cartas gamer.';
-        showToast('Fondo de la carta gamer subido a Drive y sincronizado.');
+        if (status) status.textContent = `Fondo personal de @${username} actualizado.`;
+        showToast(`Fondo de la carta de @${username} actualizado.`);
       } catch (error) {
         if (status) status.textContent = `Error al subir el fondo: ${error.message}`;
         showToast(`No se pudo actualizar el fondo: ${error.message}`);
@@ -7217,13 +7231,14 @@
 
     window.quitarFondoCartaPerfil = async function() {
       try {
-        const saved = await StreamDB.setWidgetState('perfil', { backgroundUrl: null, backgroundFileId: null });
-        if (!saved) throw new Error('No se pudo guardar la configuración en Firebase.');
+        const username = document.getElementById('edit-u-username')?.value;
+        if (!username) throw new Error('No hay un usuario seleccionado.');
+        await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: null, fondoTarjetaFileId: null });
         const preview = document.getElementById('profile-card-bg-preview');
         if (preview) { preview.removeAttribute('src'); preview.style.display = 'none'; }
         const status = document.getElementById('profile-card-bg-status');
-        if (status) status.textContent = 'Fondo quitado. Sugerido: 1200 × 600 px (proporción 2:1).';
-        showToast('Fondo de la carta gamer quitado.');
+        if (status) status.textContent = `Fondo quitado para @${username}. Sugerido: 1200 × 600 px.`;
+        showToast(`Fondo de @${username} quitado.`);
       } catch (error) {
         showToast(`No se pudo quitar el fondo: ${error.message}`);
       }
