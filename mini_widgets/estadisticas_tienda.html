@@ -2780,6 +2780,18 @@
       .toolbar-filters > * { flex: 1 1 140px; justify-content: center; }
       .levels-table-wrap.users-table-scroll { max-height: 62vh; }
     }
+
+    .upc-profile-layout { display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 18px; align-items: center; }
+    .upc-profile-details { min-width: 0; }
+    .upc-card-preview { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
+    .upc-preview-heading { color: var(--text-muted); font: 700 .76rem var(--f-tech); text-transform: uppercase; letter-spacing: .06em; }
+    .upc-preview-frame { width: 228px; height: 348px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); border-radius: 12px; background: #111519; }
+    .upc-preview-frame iframe { display: block; width: 400px; height: 610px; border: 0; transform: scale(.57); transform-origin: top left; }
+    .upc-preview-caption { color: var(--text-dim); font: 600 .72rem var(--f-tech); text-align: center; }
+    @media (max-width: 760px) {
+      .upc-profile-layout { grid-template-columns: 1fr; }
+      .upc-card-preview { padding-top: 12px; border-top: 1px solid var(--border-card-subtle); }
+    }
   </style>
 </head>
 <body>
@@ -2966,6 +2978,85 @@
         <div class="kpi-sub"><span id="kpi-items-activos-tienda">0</span> activos • <span id="kpi-items-agotados-tienda">0</span> agotados (Click)</div>
       </div>
     </section>
+
+
+
+    <div class="section-card" id="seccion-ficha-espectador">
+        <div class="section-header">
+          <h2 class="section-title">
+            🔍 Ficha de Espectador
+          </h2>
+          <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--f-tech);">stream/usuarios/{id}</span>
+        </div>
+
+        <div class="search-box-row">
+          <input type="text" class="search-input" id="search-username" placeholder="Escribe un usuario (ej: LunaGamer, elpana_juan)..." onkeydown="if(event.key==='Enter') buscarUsuario()">
+          <button class="action-btn btn-primary" onclick="buscarUsuario()">Buscar</button>
+        </div>
+
+        <div class="user-profile-card" id="user-profile-box">
+          <div class="upc-profile-layout">
+            <div class="upc-profile-details">
+          <div class="upc-header">
+            <div class="upc-user-info">
+              <div class="upc-avatar" id="upc-avatar">?</div>
+              <div class="upc-details">
+                <h3 id="upc-name">@usuario</h3>
+                <span class="upc-badge-role" id="upc-role">Espectador</span>
+                <span class="level-badge-pill" id="upc-level-badge" style="margin-left: 6px;">🐾 Nvl 1</span>
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Saldo Actual:</span>
+              <span style="font-family: var(--f-tech); font-weight: 800; font-size: 1.25rem; color: var(--oro);" id="upc-balance">0 pts</span>
+            </div>
+          </div>
+
+          <div class="upc-stats-grid">
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-spent">0</div>
+              <div class="upc-stat-lbl">Puntos Gastados</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-orders">0</div>
+              <div class="upc-stat-lbl">Pedidos Hechos</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-attend">0</div>
+              <div class="upc-stat-lbl">Asistencias Stream</div>
+            </div>
+            <div class="upc-stat-box">
+              <div class="upc-stat-val" id="upc-bonus">500 pts</div>
+              <div class="tier-chip-detail" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Bono Asistencia</div>
+            </div>
+          </div>
+
+          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
+            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">ADMINISTRAR JIKOPUNTOS:</div>
+            <div class="upc-action-row">
+              <input type="number" id="pts-delta-input" value="500" step="1" min="1">
+              <button class="action-btn btn-primary" onclick="ajustarPuntosEncontrado(true)" style="padding: 7px 12px; font-size: 0.82rem;">➕ Sumar</button>
+              <button class="action-btn btn-secondary" onclick="ajustarPuntosEncontrado(false)" style="padding: 7px 12px; font-size: 0.82rem; color: var(--rojo); border-color: rgba(255,92,108,0.4);">➖ Restar</button>
+              <button class="action-btn btn-secondary" onclick="migrarLocalStorageAUsuario()" style="padding: 7px 12px; font-size: 0.82rem;" title="Sincronizar solo este usuario">🔄 Sincronizar Usuario</button>
+              <button class="action-btn btn-secondary" onclick="sincronizarDatosLocalesConFirebase()" style="padding: 7px 12px; font-size: 0.82rem; border-color: rgba(0,242,254,0.45); color: var(--cyan);" title="Sincronizar todos los usuarios locales con Firebase">🔄 Sincronizar Todo</button>
+              <button class="action-btn btn-primary" onclick="marcarAsistenciaDesdeFicha()" style="padding: 7px 12px; font-size: 0.82rem; background:linear-gradient(135deg, #a855f7, #6366f1); color:#fff;">🐺 Pasar Lista</button>
+            </div>
+          </div>
+            </div>
+            <aside class="upc-card-preview">
+              <div class="upc-preview-heading">Vista previa de !perfil</div>
+              <div class="upc-preview-frame">
+                <iframe id="upc-card-preview-frame" title="Vista previa de la tarjeta de perfil" loading="lazy"></iframe>
+              </div>
+              <div class="upc-preview-caption" id="upc-card-preview-theme">Selecciona un usuario para ver su marco.</div>
+            </aside>
+          </div>
+        </div>
+
+        <div id="search-empty-hint" style="text-align: center; color: var(--text-dim); padding: 30px 10px; font-family: var(--f-tech);">
+          💡 Ingresa el nombre de cualquier espectador para ver su balance, platillos favoritos y estadísticas detalladas.
+        </div>
+      </div>
 
     <!-- ═══════════ SECCIÓN: SESIONES DE STREAM Y CONTRASTE DE ASISTENCIAS ═══════════ -->
     <section class="section-card" id="seccion-asistencias-panel" style="margin-bottom: 28px;">
@@ -3520,72 +3611,7 @@
         </div>
       </div>
 
-      <!-- COLUMNA INFERIOR 2: BUSCADOR & FICHA DE ESPECTADOR -->
-      <div class="section-card">
-        <div class="section-header">
-          <h2 class="section-title">
-            🔍 Ficha de Espectador
-          </h2>
-          <span style="font-size: 0.8rem; color: var(--text-muted); font-family: var(--f-tech);">stream/usuarios/{id}</span>
-        </div>
 
-        <div class="search-box-row">
-          <input type="text" class="search-input" id="search-username" placeholder="Escribe un usuario (ej: LunaGamer, elpana_juan)..." onkeydown="if(event.key==='Enter') buscarUsuario()">
-          <button class="action-btn btn-primary" onclick="buscarUsuario()">Buscar</button>
-        </div>
-
-        <div class="user-profile-card" id="user-profile-box">
-          <div class="upc-header">
-            <div class="upc-user-info">
-              <div class="upc-avatar" id="upc-avatar">?</div>
-              <div class="upc-details">
-                <h3 id="upc-name">@usuario</h3>
-                <span class="upc-badge-role" id="upc-role">Espectador</span>
-                <span class="level-badge-pill" id="upc-level-badge" style="margin-left: 6px;">🐾 Nvl 1</span>
-              </div>
-            </div>
-            <div style="text-align: right;">
-              <span style="font-size: 0.8rem; color: var(--text-muted); display: block;">Saldo Actual:</span>
-              <span style="font-family: var(--f-tech); font-weight: 800; font-size: 1.25rem; color: var(--oro);" id="upc-balance">0 pts</span>
-            </div>
-          </div>
-
-          <div class="upc-stats-grid">
-            <div class="upc-stat-box">
-              <div class="upc-stat-val" id="upc-spent">0</div>
-              <div class="upc-stat-lbl">Puntos Gastados</div>
-            </div>
-            <div class="upc-stat-box">
-              <div class="upc-stat-val" id="upc-orders">0</div>
-              <div class="upc-stat-lbl">Pedidos Hechos</div>
-            </div>
-            <div class="upc-stat-box">
-              <div class="upc-stat-val" id="upc-attend">0</div>
-              <div class="upc-stat-lbl">Asistencias Stream</div>
-            </div>
-            <div class="upc-stat-box">
-              <div class="upc-stat-val" id="upc-bonus">500 pts</div>
-              <div class="tier-chip-detail" style="font-size:0.72rem; color:var(--text-muted); margin-top:2px;">Bono Asistencia</div>
-            </div>
-          </div>
-
-          <div style="border-top: 1px solid rgba(255,255,255,0.08); padding-top: 14px;">
-            <div style="font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">ADMINISTRAR JIKOPUNTOS:</div>
-            <div class="upc-action-row">
-              <input type="number" id="pts-delta-input" value="500" step="50" min="10">
-              <button class="action-btn btn-primary" onclick="ajustarPuntosEncontrado(true)" style="padding: 7px 12px; font-size: 0.82rem;">➕ Sumar</button>
-              <button class="action-btn btn-secondary" onclick="ajustarPuntosEncontrado(false)" style="padding: 7px 12px; font-size: 0.82rem; color: var(--rojo); border-color: rgba(255,92,108,0.4);">➖ Restar</button>
-              <button class="action-btn btn-secondary" onclick="migrarLocalStorageAUsuario()" style="padding: 7px 12px; font-size: 0.82rem;" title="Sincronizar solo este usuario">🔄 Sincronizar Usuario</button>
-              <button class="action-btn btn-secondary" onclick="sincronizarDatosLocalesConFirebase()" style="padding: 7px 12px; font-size: 0.82rem; border-color: rgba(0,242,254,0.45); color: var(--cyan);" title="Sincronizar todos los usuarios locales con Firebase">🔄 Sincronizar Todo</button>
-              <button class="action-btn btn-primary" onclick="marcarAsistenciaDesdeFicha()" style="padding: 7px 12px; font-size: 0.82rem; background:linear-gradient(135deg, #a855f7, #6366f1); color:#fff;">🐺 Pasar Lista</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="search-empty-hint" style="text-align: center; color: var(--text-dim); padding: 30px 10px; font-family: var(--f-tech);">
-          💡 Ingresa el nombre de cualquier espectador para ver su balance, platillos favoritos y estadísticas detalladas.
-        </div>
-      </div>
 
     </div>
 
@@ -6015,7 +6041,7 @@
       }).join('');
     }
 
-    // Buscar usuario en vivo y abrir modal
+    // Buscar usuario y mostrar su ficha inline, sin abrir el modal de administración.
     window.buscarUsuario = async function() {
       const input = document.getElementById('search-username');
       const val = (input ? input.value : '').trim();
@@ -6027,11 +6053,16 @@
         return;
       }
 
-      window.abrirModalFicha(user.username);
+      if (input) input.value = user.username || val.replace(/^@/, '');
+      renderizarFichaUsuario(user);
     };
 
-    window.cargarUsuarioEnBuscador = function(username) {
-      window.abrirModalFicha(username);
+    window.cargarUsuarioEnBuscador = async function(username) {
+      if (!username) return;
+      const input = document.getElementById('search-username');
+      if (input) input.value = String(username).replace(/^@/, '');
+      const user = await StreamDB.getUser(username);
+      if (user) renderizarFichaUsuario(user);
     };
 
     let usuarioEncontradoActual = null;
@@ -6043,6 +6074,18 @@
       if (box) box.classList.add('active');
       const hint = document.getElementById('search-empty-hint');
       if (hint) hint.style.display = 'none';
+
+      const previewFrame = document.getElementById('upc-card-preview-frame');
+      const previewTheme = document.getElementById('upc-card-preview-theme');
+      const previewUsername = String(u.username || u.displayName || '').replace(/^@/, '').trim();
+      if (previewFrame && previewUsername) {
+        previewFrame.dataset.username = norm(previewUsername);
+        previewFrame.src = `widget_perfil.html?overlay=true&mute=true&previewUser=${encodeURIComponent(previewUsername)}&v=${Date.now()}`;
+      }
+      if (previewTheme) {
+        const manualFrame = u.marcoPerfil && u.marcoPerfil !== 'auto' ? obtenerNombreMarco(u.marcoPerfil) : '';
+        previewTheme.textContent = manualFrame ? `Marco asignado: ${manualFrame}` : `Marco automático · Nivel ${u.nivel || calcularNivelUsuario(u).nivel}`;
+      }
 
       const inicial = (u.displayName?.[0] || u.username?.[0] || '?').toUpperCase();
       const av = document.getElementById('upc-avatar');
@@ -6562,7 +6605,8 @@
         });
         showToast(`✅ Datos de <b>@${updated.displayName}</b> actualizados correctamente.`);
         cerrarModalEditarUsuario();
-        window.abrirModalFicha(username);
+        const refreshed = await StreamDB.getUser(username);
+        if (refreshed) renderizarFichaUsuario(refreshed);
       } catch (err) {
         showToast(`❌ Error al actualizar: ${err.message}`);
       }

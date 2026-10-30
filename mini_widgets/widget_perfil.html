@@ -1484,6 +1484,11 @@ body {
     background: var(--accent, #53fc18);
     color: #000;
 }
+body.admin-profile-preview { width: 400px; height: 610px; overflow: hidden; background: transparent; }
+body.admin-profile-preview #test-panel { display: none !important; }
+body.admin-profile-preview #card-root { display: block !important; opacity: 1 !important; }
+body.admin-profile-preview #card-root.visible { animation: none !important; }
+body.admin-profile-preview #card-root { transform: none !important; filter: none !important; }
 </style>
 </head>
 <body>
@@ -1660,6 +1665,10 @@ body {
   const DURATION_SEC = parseInt(urlParams.get('duration'), 10) || 12; // 12 segundos visible
   const isMuted = urlParams.get('mute') === 'true';
   const isOverlay = urlParams.has('overlay') || urlParams.get('overlay') === 'true';
+  const adminPreviewUser = urlParams.get('previewUser');
+  const isAdminPreview = Boolean(adminPreviewUser);
+
+  if (isAdminPreview) document.body.classList.add('admin-profile-preview');
 
   if (isOverlay) {
     const tp = document.getElementById('test-panel');
@@ -1823,12 +1832,13 @@ body {
   function calcularDatosTarjeta(u) {
     if (!u) u = {};
     const normUser = String(u.username || u.displayName || 'usuario').replace(/^@/, '').trim().toLowerCase();
-    const displayName = u.displayName || u.username || 'Usuario';
+    const displayName = u.nombreTarjeta || u.displayName || u.username || 'Usuario';
+    const cardTitle = String(u.tituloTarjeta || '').trim();
     const asistencias = Math.max(0, parseInt(u.asistenciasCount, 10) || 0);
 
     const calcFunc = window.calcularNivelUsuario || ((a) => {
       const xp = (a && a.experiencia !== undefined && a.experiencia !== null) ? (parseInt(a.experiencia, 10) || 0) : ((parseInt(a?.asistenciasCount, 10) || 0) * 200);
-      const n = (a && a.nivel) ? (parseInt(a.nivel, 10) || 1) : Math.min(200, Math.max(1, Math.floor(xp / 1000) + 1));
+      const n = (a && a.nivel) ? (parseInt(a.nivel, 10) || 1) : Math.min(500, Math.max(1, Math.floor(xp / 1000) + 1));
       return { nivel: n, rangoTitulo: a?.rangoTitulo || 'Cachorro', insigniaEmoji: a?.insigniaEmoji || '🐾', porcentajeProgreso: 45, xpEnNivel: xp % 1000, xpParaSubir: 1000 };
     });
 
@@ -1900,8 +1910,9 @@ body {
         }
       } else {
         if (isJiko) consumerTitle = '👑 Dueño y Creador del Canal';
-        else if (nivel >= 200) consumerTitle = '🏆 Supremo de la Manada';
-        else if (nivel >= 166) consumerTitle = '🌌 Lobo Ancestral Mítico';
+        else if (nivel >= 500) consumerTitle = '🏆 Supremo de la Manada';
+        else if (nivel >= 186) consumerTitle = '🌌 Lobo Ancestral Mítico';
+        else if (nivel >= 166) consumerTitle = '🌌 Lobo Ancestral';
         else if (nivel >= 136) consumerTitle = '👑 Leyenda de la Manada';
         else if (nivel >= 101) consumerTitle = '🐺 Guerrero Alfa';
         else if (nivel >= 71) consumerTitle = '⚡ Lobo Beta Élite';
@@ -1915,7 +1926,7 @@ body {
     // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
     // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard
     // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
-    // 3. Fallback jerárquico estándar hasta Nivel 200
+    // 3. Fallback jerárquico estándar hasta Nivel 500
     let themeClass = 'theme-silver';
     let themeLabel = '🐾 CACHORRO';
 
@@ -1952,9 +1963,9 @@ body {
     } else if (isSub) {
       themeClass = 'theme-gold';
       themeLabel = '🪙 SUB GOLD';
-    } else if (nivel >= 200) {
+    } else if (nivel >= 500) {
       themeClass = 'theme-gold';
-      themeLabel = '🏆 SEÑOR SUPREMO (LVL 200)';
+      themeLabel = '🏆 SEÑOR SUPREMO (LVL 500)';
     } else if (nivel >= 166) {
       themeClass = 'theme-purple';
       themeLabel = '🌌 LOBO ANCESTRAL';
@@ -1993,8 +2004,8 @@ body {
       displayName: displayName,
       avatar: normalizarAvatarKickUrlLocal(u.avatar) || avatarMemCache[normUser] || (normUser === 'jikokun' ? avatarMemCache['jikokun'] : null),
       nivel: nivel,
-      rangoTitulo: u.rangoTitulo || nivelInfo.rangoTitulo || ((nivel >= 200) ? 'Señor de la Manada Suprema' : ((nivel >= 101) ? 'Lobo Alfa' : ((nivel >= 71) ? 'Lobo Beta' : 'Cachorro'))),
-      insigniaEmoji: u.insigniaEmoji || nivelInfo.insigniaEmoji || ((nivel >= 200) ? '🏆' : ((nivel >= 101) ? '🐺' : ((nivel >= 71) ? '⚡' : '🐾'))),
+      rangoTitulo: u.rangoTitulo || nivelInfo.rangoTitulo || ((nivel >= 500) ? 'Señor de la Manada Suprema' : ((nivel >= 101) ? 'Lobo Alfa' : ((nivel >= 71) ? 'Lobo Beta' : 'Cachorro'))),
+      insigniaEmoji: u.insigniaEmoji || nivelInfo.insigniaEmoji || ((nivel >= 500) ? '🏆' : ((nivel >= 101) ? '🐺' : ((nivel >= 71) ? '⚡' : '🐾'))),
       pts: pts,
       asistencias: asistencias,
       xpTotal: xpTotal,
@@ -2006,7 +2017,7 @@ body {
       consumerTitle: consumerTitle,
       consumerBadge: consumerBadge,
       themeClass: themeClass,
-      themeLabel: themeLabel,
+      themeLabel: cardTitle || themeLabel,
       favDishEmoji: favDishEmoji,
       favDishKey: favDishKey,
       totalCompras: u.totalCompras || 0
@@ -2029,7 +2040,7 @@ body {
     }
 
     // Proteger pantalla adquiriendo lock de exclusión mutua inmediatamente antes de cualquier llamada asíncrona
-    if (window.JikoWidgetSync) {
+    if (!isAdminPreview && window.JikoWidgetSync) {
       window.JikoWidgetSync.acquire('perfil', clean, (DURATION_SEC + 1) * 1000);
     }
 
@@ -2132,16 +2143,16 @@ body {
     // Mostrar en pantalla con animación
     root.classList.remove('saliendo');
     root.classList.add('visible');
-    playSciFiSound();
+    if (!isAdminPreview) playSciFiSound();
 
     // Proteger tarjeta de perfil adquiriendo lock de exclusión mutua
-    if (window.JikoWidgetSync) {
+    if (!isAdminPreview && window.JikoWidgetSync) {
       window.JikoWidgetSync.acquire('perfil', d.displayName, DURATION_SEC * 1000 + 1000);
     }
 
     // Barra de tiempo y autocierre
     const timerBar = document.getElementById('card-timer-bar');
-    if (timerBar) {
+    if (timerBar && !isAdminPreview) {
       timerBar.style.transition = 'none';
       timerBar.style.width = '100%';
       void timerBar.offsetWidth;
@@ -2149,10 +2160,12 @@ body {
       timerBar.style.width = '0%';
     }
 
-    if (cardHideTimer) clearTimeout(cardHideTimer);
-    cardHideTimer = setTimeout(() => {
-      ocultarTarjetaPerfil();
-    }, DURATION_SEC * 1000);
+    if (!isAdminPreview) {
+      if (cardHideTimer) clearTimeout(cardHideTimer);
+      cardHideTimer = setTimeout(() => {
+        ocultarTarjetaPerfil();
+      }, DURATION_SEC * 1000);
+    }
   }
 
   function ocultarTarjetaPerfil() {
@@ -2314,7 +2327,7 @@ body {
   }
 
   // ── Sincronización Inter-Widgets: Registro de Perfil y Handler de Cola ──
-  if (window.JikoWidgetSync) {
+  if (!isAdminPreview && window.JikoWidgetSync) {
     window.JikoWidgetSync.registerStandalonePerfil(true);
     setInterval(() => {
       window.JikoWidgetSync.registerStandalonePerfil(true);
@@ -2326,7 +2339,7 @@ body {
     });
   }
 
-  conectarWS();
+  if (!isAdminPreview) conectarWS();
 
   /* ═══════════ FUNCIONES DE PRUEBA / DEMO ═══════════ */
   window.testPerfilUsuario = function(username) {
@@ -2365,6 +2378,19 @@ body {
   // Exponer a ventana global
   window.mostrarTarjetaPerfil = mostrarTarjetaPerfil;
   window.ocultarTarjetaPerfil = ocultarTarjetaPerfil;
+
+  if (isAdminPreview) {
+    const mostrarPreview = () => {
+      if (window.StreamDB && typeof window.mostrarTarjetaPerfil === 'function') {
+        window.StreamDB.init().then(() => window.mostrarTarjetaPerfil(adminPreviewUser)).catch(err => {
+          console.error('[WidgetPerfil] No se pudo cargar la vista previa:', err);
+        });
+      } else {
+        setTimeout(mostrarPreview, 100);
+      }
+    };
+    mostrarPreview();
+  }
 </script>
 </body>
 </html>
