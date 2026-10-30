@@ -2750,6 +2750,14 @@
     .dashboard-container > #seccion-chat-combustible { order:10; }
     .dashboard-container > .section-card:not(#seccion-ficha-espectador):not(#seccion-asistencias-panel):not(#seccion-chat-combustible):not(#seccion-jikobank-dashboard),.dashboard-container > #seccion-jikobank-dashboard { grid-column:1/-1; order:11; }
     .dashboard-container > .content-layout { order:12; }
+    #search-empty-hint { padding:10px 4px 0 !important; font-size:.76rem; }
+    #seccion-ficha-espectador.profile-modal-open { position:fixed !important; inset:0 !important; z-index:1200; display:flex; align-items:center; justify-content:center; box-sizing:border-box; width:100vw; height:100vh; height:100dvh; max-width:none; margin:0 !important; padding:20px !important; overflow:auto; border:0; border-radius:0; background:rgba(5,8,10,.78); backdrop-filter:blur(7px); }
+    #seccion-ficha-espectador.profile-modal-open > .section-header,#seccion-ficha-espectador.profile-modal-open > .search-box-row,#seccion-ficha-espectador.profile-modal-open > #search-empty-hint { display:none !important; }
+    #user-profile-box { position:relative; width:min(100%,1000px); max-height:calc(100vh - 40px); max-height:calc(100dvh - 40px); margin:auto; overflow:auto; }
+    #user-profile-box.active { display:block !important; }
+    #user-profile-box .upc-header { padding-right:42px; }
+    .upc-quick-close { position:absolute; top:10px; right:10px; z-index:3; display:grid; place-items:center; width:36px; height:36px; border:1px solid rgba(255,255,255,.16); border-radius:10px; background:#20272b; color:#f1f4f2; font-size:1rem; cursor:pointer; }
+    .upc-quick-close:hover { background:#303a40; }
     .dash-header { padding: 18px 22px; margin-bottom: 16px; border-radius: 16px; gap: 14px; background: rgba(25,31,36,.96); box-shadow: 0 8px 24px rgba(0,0,0,.2); backdrop-filter: none; }
     .dash-header::before { height: 2px; opacity: .55; }
     .header-icon-box { width: 48px; height: 48px; font-size: 25px; border-radius: 13px; box-shadow: none; }
@@ -3118,6 +3126,7 @@
         </div>
 
         <div class="user-profile-card" id="user-profile-box">
+          <button type="button" class="upc-quick-close" onclick="cerrarModalFicha()" aria-label="Cerrar ficha">✕</button>
           <div class="upc-profile-layout">
             <div class="upc-profile-details">
           <div class="upc-header">
@@ -5237,8 +5246,10 @@
           const button = event.target.closest('[data-chart-username]');
           if (!button || typeof window.cargarUsuarioEnBuscador !== 'function') return;
           window.cargarUsuarioEnBuscador(button.dataset.chartUsername);
-          document.getElementById('seccion-ficha-espectador')?.scrollIntoView({ behavior:'smooth', block:'start' });
         });
+      });
+      document.getElementById('seccion-ficha-espectador')?.addEventListener('click', event => {
+        if (event.target.id === 'seccion-ficha-espectador') window.cerrarModalFicha();
       });
 
       const targets = {
@@ -6149,7 +6160,7 @@
       await window.pasarListaManual(usuarioEncontradoActual.username);
       // Recargar ficha
       const u = await StreamDB.getUser(usuarioEncontradoActual.username);
-      if (u) renderizarFichaUsuario(u);
+      if (u) await refrescarFichaEmergenteSiAbierta(u);
     };
 
     // Simular Live Stream Kick
@@ -6334,14 +6345,13 @@
       const input = document.getElementById('search-username');
       const val = (input ? input.value : '').trim();
       if (!val) return;
-
-      const user = await StreamDB.getUser(val);
+      const username = val.replace(/^@/, '');
+      const user = await StreamDB.getUser(username);
       if (!user) {
-        showToast(`❌ Usuario <b>@${val}</b> no encontrado`);
+        showToast(`❌ Usuario <b>@${username}</b> no encontrado`);
         return;
       }
-
-      if (input) input.value = user.username || val.replace(/^@/, '');
+      if (input) input.value = user.username || username;
       renderizarFichaUsuario(user);
     };
 
@@ -6349,7 +6359,7 @@
       if (!username) return;
       const input = document.getElementById('search-username');
       if (input) input.value = String(username).replace(/^@/, '');
-      const user = await StreamDB.getUser(username);
+      const user = await StreamDB.getUser(String(username).replace(/^@/, ''));
       if (user) renderizarFichaUsuario(user);
     };
 
@@ -6358,8 +6368,11 @@
     // Ficha inline de respaldo
     function renderizarFichaUsuario(u) {
       usuarioEncontradoActual = u;
+      const searchSection = document.getElementById('seccion-ficha-espectador');
+      if (searchSection) searchSection.classList.add('profile-modal-open');
       const box = document.getElementById('user-profile-box');
       if (box) box.classList.add('active');
+      document.body.style.overflow = 'hidden';
       const hint = document.getElementById('search-empty-hint');
       if (hint) hint.style.display = 'none';
 
@@ -6406,6 +6419,16 @@
       if (att) att.textContent = u.asistenciasCount || 0;
       const bon = document.getElementById('upc-bonus');
       if (bon) bon.textContent = `+${nivelInfo.puntosPorAsistencia} pts`;
+    }
+
+    async function refrescarFichaEmergenteSiAbierta(user) {
+      const profileModal = document.getElementById('modal-user-profile');
+      const quickModal = document.getElementById('seccion-ficha-espectador');
+      if (user?.username && quickModal?.classList.contains('profile-modal-open')) {
+        renderizarFichaUsuario(user);
+      } else if (user?.username && profileModal?.classList.contains('active')) {
+        await window.abrirModalFicha(user.username);
+      }
     }
 
     // ═══════════ FUNCIONES DEL MODAL DE FICHA DE USUARIO ═══════════
@@ -6557,10 +6580,9 @@
           btnDel.style.display = (u.username === 'jikokun') ? 'none' : 'inline-flex';
         }
 
-        // Abrir modal y actualizar ficha inline de respaldo
+        // Abrir la ficha sobre el dashboard.
         modal.classList.add('active');
         document.body.style.overflow = 'hidden';
-        renderizarFichaUsuario(u);
       } catch (err) {
         console.error('[Dashboard] Error abriendo ficha de usuario:', err);
         showToast(`⚠️ Error al cargar ficha: ${err.message}`);
@@ -6575,6 +6597,8 @@
     window.cerrarModalFicha = function() {
       const modal = document.getElementById('modal-user-profile');
       if (modal) modal.classList.remove('active');
+      document.getElementById('seccion-ficha-espectador')?.classList.remove('profile-modal-open');
+      document.getElementById('user-profile-box')?.classList.remove('active');
       document.body.style.overflow = '';
     };
 
@@ -6894,7 +6918,7 @@
         showToast(`✅ Datos de <b>@${updated.displayName}</b> actualizados correctamente.`);
         cerrarModalEditarUsuario();
         const refreshed = await StreamDB.getUser(username);
-        if (refreshed) renderizarFichaUsuario(refreshed);
+        if (refreshed) await refrescarFichaEmergenteSiAbierta(refreshed);
       } catch (err) {
         showToast(`❌ Error al actualizar: ${err.message}`);
       }
@@ -6978,7 +7002,7 @@
         // Si hay una ficha de usuario abierta actualmente, refrescarla en vivo
         if (usuarioEncontradoActual && usuarioEncontradoActual.username) {
           const updatedUser = await StreamDB.getUser(usuarioEncontradoActual.username);
-          if (updatedUser) renderizarFichaUsuario(updatedUser);
+          if (updatedUser) await refrescarFichaEmergenteSiAbierta(updatedUser);
         }
       } catch (err) {
         console.error('[Sync Error]:', err);
