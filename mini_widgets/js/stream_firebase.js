@@ -697,6 +697,9 @@ class StreamFirebaseService {
         .map(titulo => String(titulo || '').trim().slice(0, 40))
         .filter(Boolean))].slice(0, 4);
     }
+    if (updates.mensajesChat !== undefined) {
+      cleanUpdates.mensajesChat = Math.max(0, parseInt(updates.mensajesChat, 10) || 0);
+    }
     if (updates.avatar !== undefined) {
       cleanUpdates.avatar = normalizarAvatarKickUrl(updates.avatar);
     }
