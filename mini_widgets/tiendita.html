@@ -2622,7 +2622,10 @@
   let socket, saldoActual=USER_DEFAULT_POINTS, usuarioActual='cliente';
   let itemSeleccionado = null;
 
-  const norm = s=>String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  function norm(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  }
+  window.norm = norm;
 
   /* ═══════════ ABSORCIÓN Y CACHÉ DE AVATARS KICK ═══════════ */
   function normalizarAvatarKickUrlLocal(url) {
@@ -2685,9 +2688,9 @@
     }
 
     // 0. Si ya tenemos avatar en Firebase RTDB
-    if(window.StreamDB && typeof StreamDB.getUser === 'function'){
+    if(window.StreamDB && typeof window.StreamDB.getUser === 'function'){
       try {
-        const fbUser = await StreamDB.getUser(userKey);
+        const fbUser = await window.StreamDB.getUser(userKey);
         if(fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')){
           const normPic = normalizarAvatarKickUrlLocal(fbUser.avatar);
           if(normPic){
@@ -2715,8 +2718,8 @@
           if(rawPic && typeof rawPic === 'string' && rawPic.startsWith('http')){
             const pic = normalizarAvatarKickUrlLocal(rawPic);
             avatarCache[userKey] = pic;
-            if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
-              StreamDB.actualizarUsuario(userKey, { avatar: pic }).catch(()=>{});
+            if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
+              window.StreamDB.actualizarUsuario(userKey, { avatar: pic }).catch(()=>{});
             }
             return pic;
           }
@@ -2740,8 +2743,8 @@
 
     if(urlDirecto && typeof urlDirecto === 'string' && urlDirecto.startsWith('http')){
       avatarCache[userKey] = urlDirecto;
-      if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
-        StreamDB.actualizarUsuario(userKey, { avatar: urlDirecto }).catch(()=>{});
+      if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
+        window.StreamDB.actualizarUsuario(userKey, { avatar: urlDirecto }).catch(()=>{});
       }
     }
 
@@ -3030,6 +3033,35 @@
     const savedExtraTitles = savedCardTitles.filter(title => title !== consumerTitle);
     const cardTitles = [...new Set([...savedExtraTitles, ...automaticExtraTitles])].slice(0, totalTitleSlots);
 
+    // ══════ LABELS Y COLORES VÁLIDOS ══════
+    const MARCO_LABELS = {
+      'theme-card-test': 'CARTA GAMER PRUEBA',
+      'theme-owner': '👑 CREADOR & DUEÑO',
+      'theme-creador': '👑 CREADOR & DUEÑO',
+      'theme-unicorn': '⭐ MANADA VIP',
+      'theme-unicornio': '⭐ MANADA VIP',
+      'theme-gold': '🪙 SUB GOLD',
+      'theme-dorado': '🪙 SUB GOLD',
+      'theme-red': '🔴 LOBO ALFA',
+      'theme-rojo': '🔴 LOBO ALFA',
+      'theme-orange': '🐺 MIEMBRO OG',
+      'theme-naranja': '🐺 MIEMBRO OG',
+      'theme-purple': '🛡️ MODERADOR',
+      'theme-morado': '🛡️ MODERADOR',
+      'theme-cyan': '🔵 CAZADOR FIEL',
+      'theme-azul': '🔵 CAZADOR FIEL',
+      'theme-green': '🧭 EXPLORADOR',
+      'theme-verde': '🧭 EXPLORADOR',
+      'theme-silver': '🐾 SEGUIDOR',
+      'theme-gris': '🐾 SEGUIDOR'
+    };
+
+    const coloresTarjetaValidos = new Set([
+      'theme-silver', 'theme-green', 'theme-cyan', 'theme-purple', 'theme-orange',
+      'theme-red', 'theme-gold', 'theme-unicorn', 'theme-owner'
+    ]);
+    const coloresValidos = coloresTarjetaValidos;
+
     // ══════ JERARQUÍA AUTOMÁTICA DE TEMAS Y COLORES ══════
     let themeClass = 'theme-silver';
     let themeLabel = '🐾 SEGUIDOR';
@@ -3229,9 +3261,9 @@
     if (typeof targetUser === 'object' && targetUser !== null) {
       uData = targetUser;
     } else {
-      if (window.StreamDB) {
+      if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
         try {
-          uData = await StreamDB.getUser(userNorm, true);
+          uData = await window.StreamDB.getUser(userNorm, true);
         } catch(e){}
       }
       if (!uData) {
@@ -3249,6 +3281,16 @@
       }
     }
 
+    if (options && options.meta) {
+      if (options.meta.badges && (!uData.badges || uData.badges.length === 0)) uData.badges = options.meta.badges;
+      if (options.meta.roles && (!uData.roles || uData.roles.length === 0)) uData.roles = options.meta.roles;
+      if (options.meta.esSub) uData.esSub = true;
+      if (options.meta.esMod) uData.esMod = true;
+      if (options.meta.esVip) uData.esVip = true;
+      if (options.meta.rol && options.meta.rol !== 'espectador' && (!uData.rol || uData.rol === 'espectador')) uData.rol = options.meta.rol;
+      if (options.meta.avatar && !uData.avatar) uData.avatar = options.meta.avatar;
+    }
+
     // Cancelar si otro comando !perfil se ejecutó mientras se obtenían datos
     if (currentToken !== perfilRenderToken) return;
 
@@ -3257,7 +3299,38 @@
       window.JikoWidgetSync.acquire('perfil', cleanUser, (PERFIL_DURATION_SEC + 1) * 1000);
     }
 
-    const d = calcularDatosPerfilTiendita(uData);
+    let d;
+    try {
+      d = calcularDatosPerfilTiendita(uData);
+    } catch(errCalc) {
+      console.error('[Tiendita] ⚠️ Error en calcularDatosPerfilTiendita:', errCalc);
+      d = {
+        username: userNorm,
+        displayName: cleanUser,
+        avatar: avatarCache[userNorm] || null,
+        nivel: 1,
+        rangoTitulo: 'Cachorro',
+        insigniaEmoji: '🐾',
+        pts: 1000,
+        asistencias: 0,
+        xpTotal: 0,
+        xpEnNivel: 0,
+        xpParaSubir: 1000,
+        xpPct: 0,
+        roleTag: '🐾 SEGUIDOR',
+        isOg: false,
+        consumerTitle: '🐾 Cachorro Curioso',
+        consumerBadge: 'RANGO',
+        earnedTitles: [],
+        themeClass: 'theme-silver',
+        themeLabel: '🐾 SEGUIDOR',
+        useTestDesign: true,
+        favDishEmoji: '🫓',
+        favDishKey: 'pupusas',
+        totalCompras: 0,
+        mensajesChat: 0
+      };
+    }
 
     const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarCache[d.username] || (d.username === 'jikokun' ? avatarCache['jikokun'] : null);
     const artUrl = (d.useTestDesign && uData.fondoTarjetaUrl) ? String(uData.fondoTarjetaUrl).trim() : '';
@@ -3731,8 +3804,8 @@
             }));
           }
 
-          if (typeof StreamDB.registrarInteraccionStream === 'function') {
-            StreamDB.registrarInteraccionStream({ usuario: cleanUser, tipo: 'bienvenida_lobito' }).catch(()=>{});
+          if (window.StreamDB && typeof window.StreamDB.registrarInteraccionStream === 'function') {
+            window.StreamDB.registrarInteraccionStream({ usuario: cleanUser, tipo: 'bienvenida_lobito' }).catch(()=>{});
           }
 
           if($cardPl && $cardPl.classList.contains('visible')){
@@ -4137,10 +4210,11 @@
   const scrollSpeed = 0.55; // velocidad de deslizamiento suave
 
   function getHalfWidth(){
-    const cards = $track.querySelectorAll('.item-card');
+    const cards = $track ? $track.querySelectorAll('.item-card') : [];
     let w = 0;
-    for(let i=0; i<ITEMS.length; i++){
-      w += cards[i].offsetWidth + 14; // card + gap
+    const len = Math.min(cards.length, ITEMS.length);
+    for(let i=0; i<len; i++){
+      if(cards[i]) w += (cards[i].offsetWidth || 0) + 14; // card + gap
     }
     return w;
   }
@@ -4831,7 +4905,7 @@
     return { usuario: user, cantidad: cant, esValido: !!user && !isNaN(cant) && cant > 0 };
   }
 
-  function ejecutarTexto(raw, user=usuarioActual){
+  function ejecutarTexto(raw, user=usuarioActual, meta=null){
     const t = norm(raw);
     if(!t) return;
 
@@ -4875,6 +4949,10 @@
         targetUser = partes[1].replace(/^@/, '').trim();
       }
 
+      // Si el objetivo es el mismo usuario emisor, asociar la metadata de chat
+      const isSenderTarget = (normSender === norm(targetUser));
+      const targetMeta = isSenderTarget ? meta : null;
+
       // Comprobar si hay otro widget activo en pantalla (Tiendita abierta, perfil actual mostrándose o Cajero JikoBank en uso)
       const cardLocalShowing = $cardPerfil && $cardPerfil.classList.contains('visible');
       const tiendaEstaAbierta = $menu && $menu.classList.contains('visible');
@@ -4887,14 +4965,15 @@
             command: '!perfil',
             sender: user,
             target: targetUser,
-            raw: raw
+            raw: raw,
+            meta: targetMeta
           });
         }
         return;
       }
 
       perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
-      mostrarCardPerfilTiendita(targetUser);
+      mostrarCardPerfilTiendita(targetUser, { meta: targetMeta });
       return;
     }
 
@@ -5407,16 +5486,16 @@
                               null;
         if(avatarDirecto && typeof avatarDirecto === 'string' && avatarDirecto.startsWith('http')){
           avatarCache[norm(user)] = avatarDirecto;
-          if(window.StreamDB && typeof StreamDB.actualizarUsuario === 'function'){
-            StreamDB.actualizarUsuario(user, { avatar: avatarDirecto }).catch(()=>{});
+          if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
+            window.StreamDB.actualizarUsuario(user, { avatar: avatarDirecto }).catch(()=>{});
           }
         } else {
           obtenerAvatarDeKick(user);
         }
 
         // Registrar interacción activa en el directo (XP proporcional por tiempo de stream)
-        if(window.StreamDB && typeof StreamDB.registrarInteraccionStream === 'function'){
-          StreamDB.registrarInteraccionStream({ usuario: user, tipo: 'chat' }).catch(()=>{});
+        if(window.StreamDB && typeof window.StreamDB.registrarInteraccionStream === 'function'){
+          window.StreamDB.registrarInteraccionStream({ usuario: user, tipo: 'chat' }).catch(()=>{});
         }
 
         // Comprobar si el contenido es un comando o ítem de la tiendita (con soporte de cantidades / bloques)
@@ -5451,8 +5530,20 @@
         // Si es un mensaje ordinario del chat (conversación normal de viewers), se ignora
         if(!esComandoTienda) return;
 
+        const liveUserMeta = (typeof userObj === 'object' && userObj !== null) ? {
+          username: user,
+          displayName: userObj.displayName || userObj.username || user,
+          avatar: avatarDirecto,
+          badges: userObj.badges || data.badges || data.sender?.identity?.badges || [],
+          roles: userObj.roles || data.roles || [],
+          esSub: Boolean(userObj.subscribed || userObj.subscriber || userObj.is_subscriber || userObj.isSub),
+          esMod: Boolean(userObj.mod || userObj.moderator || userObj.is_moderator || userObj.isMod),
+          esVip: Boolean(userObj.vip || userObj.is_vip || userObj.isVip),
+          rol: userObj.rol || (userObj.mod ? 'moderador' : (userObj.subscribed ? 'suscriptor' : (userObj.vip ? 'vip' : 'espectador')))
+        } : null;
+
         console.log(`[Tiendita] 💬 Comando recibido de [@${user}]: "${contenido}"`);
-        ejecutarTexto(contenido, user);
+        ejecutarTexto(contenido, user, liveUserMeta);
       }
     };
     socket.onclose=()=>{ setStatus('warn','Reconectando…'); setTimeout(conectarWS,3000); };
@@ -6060,7 +6151,7 @@
 
     window.JikoWidgetSync.onExecute('perfil', (item) => {
       console.log('[Tiendita] 🪪 Despachando perfil encolado para @' + (item.target || item.sender));
-      mostrarCardPerfilTiendita(item.target || item.sender);
+      mostrarCardPerfilTiendita(item.target || item.sender, { meta: item.meta });
     });
   }
 
