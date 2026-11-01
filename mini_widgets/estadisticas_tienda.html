@@ -6735,7 +6735,8 @@
       }
 
       try {
-        await StreamDB.setTituloPersonalizado(usuarioEncontradoActual.username, nuevoTitulo);
+        const updated = await StreamDB.setTituloPersonalizado(usuarioEncontradoActual.username, nuevoTitulo);
+        window.notificarActualizacionPerfilAWidgets(usuarioEncontradoActual.username, updated);
         showToast(`🎖️ Título <b>"${nuevoTitulo}"</b> otorgado a <b>@${usuarioEncontradoActual.displayName || usuarioEncontradoActual.username}</b> a criterio personal.`);
         await window.abrirModalFicha(usuarioEncontradoActual.username);
       } catch (err) {
@@ -6746,7 +6747,8 @@
     window.restablecerTituloModal = async function() {
       if (!usuarioEncontradoActual) return;
       try {
-        await StreamDB.setTituloPersonalizado(usuarioEncontradoActual.username, null);
+        const updated = await StreamDB.setTituloPersonalizado(usuarioEncontradoActual.username, null);
+        window.notificarActualizacionPerfilAWidgets(usuarioEncontradoActual.username, updated);
         showToast(`🔄 Título restablecido al cálculo automático por nivel para <b>@${usuarioEncontradoActual.displayName || usuarioEncontradoActual.username}</b>.`);
         await window.abrirModalFicha(usuarioEncontradoActual.username);
       } catch (err) {
@@ -6820,13 +6822,36 @@
       }
     };
 
+    // ── Helper Global de Sincronización en Tiempo Real a OBS y Widgets ──
+    window.notificarActualizacionPerfilAWidgets = function(username, datos = null) {
+      if (!username) return;
+      const cleanUser = String(username).replace(/^@/, '').trim().toLowerCase();
+      if (window.StreamDB && typeof StreamDB.notificarActualizacionPerfil === 'function') {
+        StreamDB.notificarActualizacionPerfil(cleanUser, datos);
+      }
+      try {
+        const previewFrame = document.getElementById('upc-card-preview-frame');
+        if (previewFrame && previewFrame.contentWindow) {
+          previewFrame.contentWindow.postMessage({ type: 'PERFIL_UPDATED', username: cleanUser, data: datos }, '*');
+        }
+      } catch(e){}
+      try {
+        const mProfileFrame = document.getElementById('m-upc-card-preview-frame');
+        if (mProfileFrame && mProfileFrame.contentWindow) {
+          mProfileFrame.contentWindow.postMessage({ type: 'PERFIL_UPDATED', username: cleanUser, data: datos }, '*');
+        }
+      } catch(e){}
+    };
+
     // ── 5. Administrar Marco Cibernético de Perfil (!perfil) desde Modal ──
     window.guardarMarcoModal = async function() {
       if (!usuarioEncontradoActual) return;
       const select = document.getElementById('m-frame-theme-select');
       const marcoVal = select ? select.value : 'auto';
       try {
-        await StreamDB.setMarcoPerfil(usuarioEncontradoActual.username, marcoVal);
+        const updated = await StreamDB.setMarcoPerfil(usuarioEncontradoActual.username, marcoVal);
+        usuarioEncontradoActual.marcoPerfil = marcoVal;
+        window.notificarActualizacionPerfilAWidgets(usuarioEncontradoActual.username, updated || usuarioEncontradoActual);
         const nomMarco = select ? select.options[select.selectedIndex]?.text : marcoVal;
         showToast(`🎨 Marco de perfil actualizado para <b>@${usuarioEncontradoActual.displayName || usuarioEncontradoActual.username}</b>: <b>${nomMarco}</b>`);
         await window.abrirModalFicha(usuarioEncontradoActual.username);
@@ -6838,7 +6863,9 @@
     window.restablecerMarcoModal = async function() {
       if (!usuarioEncontradoActual) return;
       try {
-        await StreamDB.setMarcoPerfil(usuarioEncontradoActual.username, 'auto');
+        const updated = await StreamDB.setMarcoPerfil(usuarioEncontradoActual.username, 'auto');
+        usuarioEncontradoActual.marcoPerfil = 'auto';
+        window.notificarActualizacionPerfilAWidgets(usuarioEncontradoActual.username, updated || usuarioEncontradoActual);
         const select = document.getElementById('m-frame-theme-select');
         if (select) select.value = 'auto';
         showToast(`🔄 Marco restablecido al modo automático para <b>@${usuarioEncontradoActual.displayName || usuarioEncontradoActual.username}</b>.`);
@@ -7035,9 +7062,10 @@
           marcoPerfil,
           colorTarjeta
         });
+        window.notificarActualizacionPerfilAWidgets(username, updated);
         showToast(`✅ Datos de <b>@${updated.displayName}</b> actualizados correctamente.`);
         cerrarModalEditarUsuario();
-        const refreshed = await StreamDB.getUser(username);
+        const refreshed = await StreamDB.getUser(username, true);
         if (refreshed) await refrescarFichaEmergenteSiAbierta(refreshed);
       } catch (err) {
         showToast(`❌ Error al actualizar: ${err.message}`);
@@ -7272,7 +7300,8 @@
         const backgroundUrl = `https://lh3.googleusercontent.com/d/${result.fileId}`;
         const username = document.getElementById('edit-u-username')?.value;
         if (!username) throw new Error('No hay un usuario seleccionado para asignar el fondo.');
-        await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: backgroundUrl, fondoTarjetaFileId: result.fileId });
+        const updated = await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: backgroundUrl, fondoTarjetaFileId: result.fileId });
+        window.notificarActualizacionPerfilAWidgets(username, updated);
         const preview = document.getElementById('profile-card-bg-preview');
         if (preview) { preview.src = backgroundUrl; preview.style.display = 'block'; }
         if (status) status.textContent = `Fondo personal de @${username} actualizado.`;
@@ -7287,7 +7316,8 @@
       try {
         const username = document.getElementById('edit-u-username')?.value;
         if (!username) throw new Error('No hay un usuario seleccionado.');
-        await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: null, fondoTarjetaFileId: null });
+        const updated = await StreamDB.actualizarUsuario(username, { fondoTarjetaUrl: null, fondoTarjetaFileId: null });
+        window.notificarActualizacionPerfilAWidgets(username, updated);
         const preview = document.getElementById('profile-card-bg-preview');
         if (preview) { preview.removeAttribute('src'); preview.style.display = 'none'; }
         const status = document.getElementById('profile-card-bg-status');

@@ -1721,10 +1721,27 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     StreamDB.onUsers((users) => {
       if (Array.isArray(users)) {
         users.forEach(u => {
-          if (u && u.username && u.avatar) {
-            avatarMemCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
+          if (u && u.username) {
+            const uKey = u.username.toLowerCase();
+            if (u.avatar) {
+              avatarMemCache[uKey] = normalizarAvatarKickUrl(u.avatar);
+            }
           }
         });
+
+        // Si la tarjeta está visible en OBS, verificar si el usuario en pantalla fue actualizado
+        const root = document.getElementById('card-root');
+        if (root && root.classList.contains('visible') && typeof window.mostrarTarjetaPerfil === 'function') {
+          const userEl = document.getElementById('card-display-name') || document.getElementById('test-card-username');
+          const currentShowing = userEl ? userEl.textContent.replace(/^@/, '').trim().toLowerCase() : '';
+          if (currentShowing) {
+            const matchUser = users.find(u => u && u.username && (u.username.toLowerCase() === currentShowing || (u.displayName && u.displayName.toLowerCase() === currentShowing)));
+            if (matchUser) {
+              console.log(`[WidgetPerfil] 🔄 Sincronizando tarjeta en vivo desde Firebase RTDB para @${matchUser.username}`);
+              window.mostrarTarjetaPerfil(matchUser);
+            }
+          }
+        }
       }
     });
   });
@@ -2152,11 +2169,11 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
     if (!uData) {
       if (window.StreamDB) {
-        try { uData = await StreamDB.getUser(clean); } catch(e){}
+        try { uData = await StreamDB.getUser(clean, true); } catch(e){}
       }
       if (!uData || (!uData.experiencia && !uData.jikopuntos && clean !== 'anon')) {
         try {
-          const res = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/stream/usuarios/${clean}.json`);
+          const res = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/stream/usuarios/${clean}.json?t=${Date.now()}`, { cache: 'no-store' });
           if (res.ok) {
             const remote = await res.json();
             if (remote) uData = remote;
@@ -2488,6 +2505,56 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     socket.onclose = () => setTimeout(conectarWS, 3000);
     socket.onerror = () => {};
   }
+
+  // ── Sincronizador Reactivo de Perfiles en Vivo (0ms de latencia) ──
+  function aplicarActualizacionPerfilEnVivo(username, datosFrescos) {
+    const cleanUser = String(username || '').replace(/^@/, '').trim().toLowerCase();
+    if (!cleanUser) return;
+    if (window.StreamDB && typeof StreamDB.invalidarCacheUsuario === 'function') {
+      StreamDB.invalidarCacheUsuario(cleanUser);
+    }
+    // Si la tarjeta visible en OBS pertenece al usuario modificado, actualizarla en vivo
+    const root = document.getElementById('card-root');
+    const isShowing = root && root.classList.contains('visible');
+    const currentUserEl = document.getElementById('card-display-name') || document.getElementById('test-card-username');
+    const currentName = currentUserEl ? currentUserEl.textContent.replace(/^@/, '').trim().toLowerCase() : '';
+
+    if (isShowing && (currentName === cleanUser || currentName.includes(cleanUser))) {
+      console.log(`[WidgetPerfil] 🔄 Sincronizando tarjeta en vivo para @${cleanUser}`);
+      mostrarTarjetaPerfil(datosFrescos || cleanUser);
+    }
+  }
+
+  // 1. BroadcastChannel dedicado
+  try {
+    if ('BroadcastChannel' in window) {
+      const perfilSyncBc = new BroadcastChannel('jiko_perfil_sync_v1');
+      perfilSyncBc.onmessage = (ev) => {
+        if (ev.data && ev.data.type === 'PERFIL_UPDATED' && ev.data.username) {
+          aplicarActualizacionPerfilEnVivo(ev.data.username, ev.data.data);
+        }
+      };
+    }
+  } catch(e){}
+
+  // 2. Storage Event (para diferentes ventanas y procesos en la misma PC)
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === 'jiko_perfil_sync_signal' && ev.newValue) {
+      try {
+        const payload = JSON.parse(ev.newValue);
+        if (payload && payload.username) {
+          aplicarActualizacionPerfilEnVivo(payload.username, payload.data);
+        }
+      } catch(e){}
+    }
+  });
+
+  // 3. postMessage (para iframes del panel admin o pruebas)
+  window.addEventListener('message', (ev) => {
+    if (ev.data && (ev.data.type === 'PERFIL_UPDATED' || ev.data.type === 'UPDATE_PROFILE')) {
+      aplicarActualizacionPerfilEnVivo(ev.data.username, ev.data.data);
+    }
+  });
 
   // ── Sincronización Inter-Widgets: Registro de Perfil y Handler de Cola ──
   if (!isAdminPreview && window.JikoWidgetSync) {

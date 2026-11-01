@@ -372,8 +372,12 @@ class StreamFirebaseService {
               } else if (u.username === 'jikokun') {
                 u.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
               }
+              const normKey = norm(u.username);
+              if (normKey) {
+                this.usersCache.set(normKey, u);
+                this._updateLocalCache(normKey, u.jikopuntos);
+              }
               this.usersCache.set(u.username, u);
-              this._updateLocalCache(u.username, u.jikopuntos);
               if (!u.avatar || !String(u.avatar).startsWith('http')) {
                 this.absorberAvatarKick(u.username).catch(() => {});
               }
@@ -381,6 +385,43 @@ class StreamFirebaseService {
           });
         }
       });
+
+      // Sincronización reactiva inter-ventanas e inter-procesos (OBS / Panel Admin)
+      if (typeof window !== 'undefined') {
+        try {
+          if ('BroadcastChannel' in window) {
+            const perfilBc = new BroadcastChannel('jiko_perfil_sync_v1');
+            perfilBc.onmessage = (ev) => {
+              if (ev.data && ev.data.username) {
+                const k = norm(ev.data.username);
+                if (k) {
+                  this.invalidarCacheUsuario(k);
+                  if (ev.data.data) {
+                    this.usersCache.set(k, ev.data.data);
+                  }
+                }
+              }
+            };
+          }
+        } catch(e){}
+
+        window.addEventListener('storage', (ev) => {
+          if (ev.key === 'jiko_perfil_sync_signal' && ev.newValue) {
+            try {
+              const payload = JSON.parse(ev.newValue);
+              if (payload && payload.username) {
+                const k = norm(payload.username);
+                if (k) {
+                  this.invalidarCacheUsuario(k);
+                  if (payload.data) {
+                    this.usersCache.set(k, payload.data);
+                  }
+                }
+              }
+            } catch(e){}
+          }
+        });
+      }
 
       // Sincronizar estado inicial de stream en vivo desde Firebase RTDB
       try {
@@ -446,12 +487,12 @@ class StreamFirebaseService {
     return q;
   }
 
-  async getUser(username) {
+  async getUser(username, forceFresh = false) {
     const rawKey = norm(username);
     const key = this.resolverUsuarioReal(rawKey);
     if (!key) return null;
 
-    if (this.usersCache.has(key)) {
+    if (!forceFresh && this.usersCache.has(key)) {
       return this.usersCache.get(key);
     }
 
@@ -779,8 +820,54 @@ class StreamFirebaseService {
     await update(userRef, cleanUpdates);
     const merged = { ...current, ...cleanUpdates };
     this.usersCache.set(key, merged);
+    this.notificarActualizacionPerfil(key, merged);
 
     return merged;
+  }
+
+  // Invalidar caché de un usuario para forzar lectura fresca
+  invalidarCacheUsuario(username) {
+    const rawKey = norm(username);
+    const key = this.resolverUsuarioReal(rawKey) || rawKey;
+    if (key && this.usersCache) {
+      this.usersCache.delete(key);
+      this.usersCache.delete(rawKey);
+    }
+  }
+
+  // Notificar actualización de perfil en tiempo real a OBS y demás widgets
+  notificarActualizacionPerfil(username, datos = null) {
+    const rawKey = norm(username);
+    const key = this.resolverUsuarioReal(rawKey) || rawKey;
+    if (!key) return;
+    this.invalidarCacheUsuario(key);
+    if (datos && this.usersCache) {
+      this.usersCache.set(key, datos);
+      this.usersCache.set(rawKey, datos);
+    }
+    if (typeof window !== 'undefined') {
+      const payload = {
+        type: 'PERFIL_UPDATED',
+        username: key,
+        data: datos,
+        timestamp: Date.now()
+      };
+      try {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('jiko_perfil_sync_v1');
+          bc.postMessage(payload);
+          bc.close();
+        }
+      } catch(e){}
+      try {
+        if (window.JikoWidgetSync && typeof window.JikoWidgetSync.broadcast === 'function') {
+          window.JikoWidgetSync.broadcast(payload);
+        }
+      } catch(e){}
+      try {
+        localStorage.setItem('jiko_perfil_sync_signal', JSON.stringify(payload));
+      } catch(e){}
+    }
   }
 
   // Métodos de Experiencia (XP), Título Personalizado y Tiempo Visto
