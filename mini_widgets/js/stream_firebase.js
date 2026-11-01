@@ -942,6 +942,13 @@ class StreamFirebaseService {
     return this.actualizarUsuario(key, { marcoPerfil: cleanMarco });
   }
 
+  async setTipoTarjeta(username, tipoTarjeta) {
+    const key = norm(username);
+    if (!key) return null;
+    const cleanTipo = (tipoTarjeta && tipoTarjeta !== 'auto' && String(tipoTarjeta).trim()) ? String(tipoTarjeta).trim() : null;
+    return this.actualizarUsuario(key, { tipoTarjeta: cleanTipo });
+  }
+
   async addTiempoVisto(username, minutosDelta) {
     const key = norm(username);
     if (!key) return null;

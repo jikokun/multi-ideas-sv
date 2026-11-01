@@ -2104,13 +2104,21 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       'theme-silver', 'theme-green', 'theme-cyan', 'theme-purple', 'theme-orange',
       'theme-red', 'theme-gold', 'theme-unicorn', 'theme-owner'
     ]);
-    if (u.marcoPerfil === 'theme-card-test' && coloresTarjetaValidos.has(u.colorTarjeta)) {
+
+    const tipoTarjetaConfig = (u.tipoTarjeta || '').toLowerCase();
+    const useTestDesign = (tipoTarjetaConfig === 'gamer') ||
+      (tipoTarjetaConfig !== 'clasica' && (
+        u.marcoPerfil === 'theme-card-test' ||
+        ((!u.marcoPerfil || u.marcoPerfil === 'auto') && !isJiko && !esManadaVip && !isSub && !isVip)
+      ));
+
+    if (useTestDesign && coloresTarjetaValidos.has(u.colorTarjeta)) {
       themeClass = u.colorTarjeta;
     }
 
-    const useTestDesign = u.marcoPerfil === 'theme-card-test' ||
-      ((!u.marcoPerfil || u.marcoPerfil === 'auto') && !isJiko && !esManadaVip && !isSub && !isVip);
-    if (useTestDesign) themeLabel = 'CARTA GAMER · PRUEBA';
+    if (useTestDesign && !cardTitle) {
+      themeLabel = isJiko ? '👑 CREADOR & DUEÑO' : 'CARTA GAMER';
+    }
 
     // Slots de Habilidades / Medallas
     const favDishKey = u.widgets?.tiendita?.platoFavorito || 'pupusas';
@@ -2269,7 +2277,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     const cardArt = document.getElementById('test-card-art');
     const gamerCard = document.getElementById('test-profile-card');
     if (cardArt && gamerCard) {
-      const artUrl = uData.marcoPerfil === 'theme-card-test' ? (uData.fondoTarjetaUrl || '') : '';
+      const artUrl = d.useTestDesign ? (uData.fondoTarjetaUrl || '') : '';
       if (artUrl) { cardArt.src = artUrl; gamerCard.classList.add('has-art'); }
       else { cardArt.removeAttribute('src'); gamerCard.classList.remove('has-art'); }
     }
