@@ -1088,8 +1088,23 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
             return res.status(200).send(accessToken);
         }
 
-        // ── 6. Acción: ESTADO EN VIVO Y COLA ──────────────────────────────────
-        if (action === "status" || action === "display_queue" || action === "displayqueue") {
+        // ── 6. Acción: ESTADO EN VIVO Y COLA DE REPRODUCCIÓN (Queue / Display Queue) ─
+        if (action === "queue" || action === "display_queue" || action === "displayqueue" || action === "cola") {
+            const { res: queueRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player/queue");
+            if (queueRes.ok) {
+                const queueData = await queueRes.json();
+                return res.status(200).json(queueData);
+            }
+            // Si /queue devuelve 204 o error, intentar con estado del reproductor
+            const { res: playerRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player");
+            if (playerRes.ok) {
+                const playerData = await playerRes.json();
+                return res.status(200).json(playerData);
+            }
+            return res.status(200).json({ is_playing: false, queue: [], tracks: [] });
+        }
+
+        if (action === "status" || action === "player") {
             const { res: playerRes } = await spotifyApiFetch(user, "https://api.spotify.com/v1/me/player");
 
             if (playerRes.status === 204) {

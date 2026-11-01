@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cola Spotify 4K - Tema Acua (Jikokun Standalone Widget)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap');
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        html, body { 
+            width: 100%;
+            height: 100%;
+            font-family: 'Montserrat', sans-serif; 
+            color: #ffffff; 
+            background: transparent !important; 
+            overflow: hidden; 
+            margin: 0; 
+            padding: 12px; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+        
+        /* Contenedor principal con centrado, auto-adaptable y responsivo */
+        .widget-container { 
+            background: rgba(15, 15, 15, 0.92); 
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-radius: 24px; 
+            width: min(520px, 100%); 
+            max-height: calc(100vh - 24px);
+            box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6);
+            border: 2px solid rgba(255, 255, 255, 0.08);
+            position: relative; 
+            margin: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: opacity 0.8s ease, transform 0.4s ease;
+            opacity: 1;
+            transform-origin: center center;
+        }
+
+        /* Clase dinámica que se activa a los 10s de pausa */
+        .widget-container.hidden {
+            opacity: 0;
+            pointer-events: none;
+            transform: scale(0.96);
+        }
+
+        .widget-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 6px; 
+            background: linear-gradient(90deg, #00cfa1 0%, #00cfa1 40%, #b3ffeb 50%, #00cfa1 60%, #00cfa1 100%);
+            background-size: 200% 100%;
+            animation: shineBar 2.5s linear infinite;
+            z-index: 10;
+        }
+
+        @keyframes shineBar {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .header { 
+            background: rgba(255, 255, 255, 0.03);
+            padding: 20px 26px;
+            font-size: 18px; 
+            color: #b3b3b3; 
+            font-weight: 700; 
+            text-transform: uppercase; 
+            letter-spacing: 2px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.05);
+            flex-shrink: 0;
+        }
+
+        .live-indicator {
+            display: inline-block;
+            width: 14px; 
+            height: 14px;
+            background: #00cfa1;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #00cfa1;
+            animation: pulse 2s infinite;
+        }
+        
+        .queue-list {
+            padding: 18px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; 
+            overflow-y: auto;
+            max-height: 480px;
+        }
+
+        /* Estilo sutil de barra de desplazamiento si hay muchos ítems */
+        .queue-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .queue-list::-webkit-scrollbar-thumb {
+            background: rgba(0, 207, 161, 0.4);
+            border-radius: 4px;
+        }
+
+        .track-item { 
+            display: flex;
+            flex-direction: column;
+            padding: 10px 16px;
+            border-left: 5px solid transparent;
+            transition: all 0.35s ease-in-out;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.015);
+        }
+        
+        .track-item:first-child {
+            background: linear-gradient(90deg, rgba(0, 207, 161, 0.16) 0%, rgba(0,0,0,0) 100%);
+            border-left: 5px solid #00cfa1;
+            padding: 16px 20px;
+            transform: scale(1.01);
+            transform-origin: left center;
+            margin-bottom: 6px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+        }
+        
+        .track-item:first-child .track-title {
+            color: #00cfa1; 
+            font-size: 22px; 
+            text-shadow: 0 0 12px rgba(0, 207, 161, 0.5);
+        }
+
+        .track-title {
+            font-size: 18px; 
+            font-weight: 700; 
+            color: #ffffff;
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+            transition: color 0.3s ease;
+        }
+
+        .track-artist {
+            font-size: 14.5px;
+            color: #b3b3b3;
+            font-weight: 400;
+            margin-top: 4px;
+            white-space: nowrap; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+        }
+
+        .new-item {
+            animation: slideInRight 0.5s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+        }
+
+        @keyframes slideInRight {
+            0% { opacity: 0; transform: translateX(120px); } 
+            100% { opacity: 1; transform: translateX(0); }
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 207, 161, 0.6); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 207, 161, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 207, 161, 0); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="main-widget" class="widget-container">
+        <div class="header">
+            <i class="live-indicator"></i> Próximas en la cola
+        </div>
+        <div id="queue-list" class="queue-list">
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CREDENCIALES PRIVADAS & SPOTIFY DEVELOPER API
+        // ==========================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const usuario = urlParams.get('user') || localStorage.getItem('spotify_user') || "jikokun2";
+        const cantidadMostrar = 5; 
+        let access_token = urlParams.get('token') || localStorage.getItem('spotify_access_token') || 'BQCLkihh1c6hAuLEuR7aWBlBVRiWc48vnq7Gc6EZplicJZ5Zlsu8B2YO03rEFpIYb3hjCumlwbSLr83G6XYwIGEJEyiboDD3vc058Z9ML8V3LjAI-RxVM917-5kq9H3OuNHorDgNa8QGpD__uWN1Nc2OmwoSvV0lHEvmMjevCJsZgTVvzyx1D0f-6byuFLpkgSBKWWjEhmDKoI7u362VzHqdL6-HgeO305AUk0a5FQW-Z_BiZ52GbQp9gShTAxabUFMIuqE5FPaqd6dOImxvqvYuZKYZq8acXlyikBe4NI5-RkwXj1-I3g';
+        const refresh_token = urlParams.get('refresh') || localStorage.getItem('spotify_refresh_token') || 'AQDTO6kUDxZFrHeEg9BNOQYdLSyVjYfuWj1wRWIjoMZF5dhvA2hgL2I_6_RMXNVImEyoR2Dy-gkNQGzzkZNykcueqA7lrofKaH8AjaeaaoRQ6z4_kuiFCw3LvaKdzSEEt0E';
+
+        // Sincronización en vivo con Login de Spotify en el sitio web (BroadcastChannel)
+        try {
+            const spotifyBc = new BroadcastChannel("spotify_auth_channel");
+            spotifyBc.onmessage = (e) => {
+                if (e.data && e.data.access_token) {
+                    access_token = e.data.access_token;
+                    localStorage.setItem("spotify_access_token", access_token);
+                    checkSpotifyPlayer();
+                    fetchQueueAPI();
+                }
+            };
+        } catch (e) {}
+
+        let ultimaColaString = ""; 
+        let isWidgetVisible = true;
+        let pauseTimeout = null;
+        let isDemoMode = false;
+
+        // ==========================================
+        // AUTO-ESCALADO RESPONSIVO PARA OBS STUDIO
+        // Permite mover o cambiar de tamaño la fuente sin romperse
+        // ==========================================
+        function autoScaleQueue() {
+            const el = document.getElementById('main-widget');
+            if (!el) return;
+            const targetW = 520;
+            const targetH = 460;
+            const scaleX = window.innerWidth / targetW;
+            const scaleY = window.innerHeight / targetH;
+            const scale = Math.min(scaleX, scaleY, 1);
+            if (scale < 0.98) {
+                el.style.transform = `scale(${scale})`;
+            } else {
+                el.style.transform = '';
+            }
+        }
+        window.addEventListener('resize', autoScaleQueue);
+        autoScaleQueue();
+
+        // ==========================================
+        // LÓGICA DE AUTO-OCULTADO (10 SEGUNDOS)
+        // ==========================================
+        function handlePause() {
+            if (isDemoMode) return;
+            if (!pauseTimeout && isWidgetVisible) {
+                pauseTimeout = setTimeout(() => {
+                    document.getElementById('main-widget').classList.add('hidden');
+                    isWidgetVisible = false;
+                }, 10000); 
+            }
+        }
+
+        function handlePlay() {
+            if (pauseTimeout) {
+                clearTimeout(pauseTimeout);
+                pauseTimeout = null;
+            }
+            if (!isWidgetVisible) {
+                document.getElementById('main-widget').classList.remove('hidden');
+                isWidgetVisible = true;
+                if (!isDemoMode) fetchQueueAPI();
+            }
+        }
+
+        // ==========================================
+        // MODO DEMO / PRUEBA PARA OBS
+        // Permite verificar y mover el widget con ?test=1 o presionando 'T'
+        // ==========================================
+        function showDemoQueue() {
+            isDemoMode = true;
+            handlePlay();
+            const listDiv = document.getElementById('queue-list');
+            listDiv.innerHTML = `
+                <div class="track-item new-item">
+                    <span class="track-title">I Really Want to Stay at Your House</span>
+                    <span class="track-artist">Rosa Walton, Hallie Coggins</span>
+                </div>
+                <div class="track-item new-item">
+                    <span class="track-title">Blinding Lights</span>
+                    <span class="track-artist">The Weeknd</span>
+                </div>
+                <div class="track-item new-item">
+                    <span class="track-title">Midnight City</span>
+                    <span class="track-artist">M83</span>
+                </div>
+                <div class="track-item new-item">
+                    <span class="track-title">Starboy</span>
+                    <span class="track-artist">The Weeknd ft. Daft Punk</span>
+                </div>
+            `;
+        }
+
+        if (urlParams.get('test') === '1' || urlParams.get('preview') === '1' || urlParams.get('demo') === '1') {
+            showDemoQueue();
+        }
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 't' || e.key === 'T' || e.key === 'p' || e.key === 'P') {
+                showDemoQueue();
+            }
+        });
+        window.addEventListener('dblclick', showDemoQueue);
+
+        // ==========================================
+        // CONEXIÓN DIRECTA A SPOTIFY API
+        // ==========================================
+        async function checkSpotifyPlayer() {
+            if (isDemoMode) return;
+            try {
+                const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
+                    headers: { 'Authorization': `Bearer ${access_token}` }
+                });
+
+                if (res.status === 401) {
+                    await refreshSpotifyToken();
+                    return;
+                }
+
+                if (res.status === 204) {
+                    handlePause();
+                    return;
+                }
+
+                if (res.status === 200) {
+                    const data = await res.json();
+                    if (!data.is_playing) {
+                        handlePause();
+                    } else {
+                        handlePlay();
+                    }
+                }
+            } catch (e) {
+                // Silencioso ante errores temporales
+            }
+        }
+
+        let isRefreshing = false;
+        async function refreshSpotifyToken() {
+            if (isRefreshing) return false;
+            isRefreshing = true;
+            try {
+                const res = await fetch(`https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(usuario)}`, { cache: 'no-store' });
+                if (res.ok) {
+                    const newToken = (await res.text()).trim();
+                    if (newToken && !newToken.includes("<") && newToken.length > 20) { 
+                        access_token = newToken;
+                        localStorage.setItem("spotify_access_token", newToken);
+                        checkSpotifyPlayer(); 
+                        isRefreshing = false;
+                        return true;
+                    }
+                }
+            } catch (error) {
+                console.error("[Spotify Queue] Error renovando token desde backend propio:", error);
+            } finally {
+                isRefreshing = false;
+            }
+            return false;
+        }
+
+        // ==========================================
+        // OBTENCIÓN DE LA LISTA DE COLA (SPOTIFY DEVELOPER API & BACKEND)
+        // ==========================================
+        async function fetchQueueAPI() {
+            if (isDemoMode) return;
+            if (!isWidgetVisible) return;
+
+            let queueTracks = null;
+
+            // 1. Intentar consultar directamente la API oficial de Spotify Player Queue
+            if (access_token) {
+                try {
+                    const spRes = await fetch('https://api.spotify.com/v1/me/player/queue', {
+                        headers: { 'Authorization': `Bearer ${access_token}` }
+                    });
+
+                    if (spRes.status === 401) {
+                        const refreshed = await refreshSpotifyToken();
+                        if (refreshed) {
+                            const retryRes = await fetch('https://api.spotify.com/v1/me/player/queue', {
+                                headers: { 'Authorization': `Bearer ${access_token}` }
+                            });
+                            if (retryRes.ok) {
+                                const spData = await retryRes.json();
+                                if (spData && Array.isArray(spData.queue)) {
+                                    queueTracks = spData.queue;
+                                }
+                            }
+                        }
+                    } else if (spRes.ok) {
+                        const spData = await spRes.json();
+                        if (spData && Array.isArray(spData.queue)) {
+                            queueTracks = spData.queue;
+                        }
+                    }
+                } catch (e) {
+                    // Continuar al respaldo propio de backend
+                }
+            }
+
+            // 2. Si la API directa de Spotify no responde o está vacía, consultar backend propio
+            if (!queueTracks) {
+                try {
+                    const timestamp = new Date().getTime();
+                    const endpoint = `https://sensunshopweb.web.app/spotify/queue?user=${encodeURIComponent(usuario)}&t=${timestamp}`;
+                    const response = await fetch(endpoint, { cache: "no-store" });
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && Array.isArray(data.queue)) {
+                            queueTracks = data.queue;
+                        } else if (data && Array.isArray(data.tracks)) {
+                            queueTracks = data.tracks;
+                        }
+                    }
+                } catch (err) {
+                    // Silencioso
+                }
+            }
+
+            const listDiv = document.getElementById('queue-list');
+            if (!listDiv) return;
+
+            if (!queueTracks || queueTracks.length === 0) {
+                if (ultimaColaString !== "vacia") {
+                    listDiv.innerHTML = '<div class="track-item empty-state"><span class="track-title" style="color:#b3b3b3; font-size:16px;">No hay canciones en cola</span></div>';
+                    ultimaColaString = "vacia";
+                }
+                return;
+            }
+
+            // Normalizar lista de canciones
+            const normalizedTracks = queueTracks.slice(0, cantidadMostrar).map(track => {
+                if (Array.isArray(track)) {
+                    return { title: track[0] || "Desconocido", artist: track[1] || "Artista" };
+                }
+                const title = track.name || "Desconocido";
+                const artist = (track.artists && Array.isArray(track.artists)) 
+                    ? track.artists.map(a => a.name).join(", ") 
+                    : (track.artist || "Artista");
+                return { title, artist };
+            });
+
+            const colaActualString = JSON.stringify(normalizedTracks);
+            
+            if (colaActualString !== ultimaColaString) {
+                if (ultimaColaString === "vacia") {
+                    listDiv.innerHTML = '';
+                }
+
+                const currentIdsInDom = [];
+
+                normalizedTracks.forEach((track) => {
+                    const title = track.title;  
+                    const artist = track.artist; 
+                    
+                    const safeId = "track-" + btoa(encodeURIComponent(artist + title)).replace(/[^a-zA-Z0-9]/g, '');
+                    currentIdsInDom.push(safeId);
+
+                    let el = document.getElementById(safeId);
+                    
+                    if (!el) {
+                        el = document.createElement('div');
+                        el.id = safeId;
+                        el.className = 'track-item new-item';
+                        el.innerHTML = `
+                            <span class="track-title">${title}</span>
+                            <span class="track-artist">${artist}</span>
+                        `;
+                    }
+                    
+                    listDiv.appendChild(el);
+                });
+
+                Array.from(listDiv.children).forEach(child => {
+                    if (!currentIdsInDom.includes(child.id) && !child.classList.contains('empty-state')) {
+                        child.remove();
+                    }
+                });
+
+                ultimaColaString = colaActualString;
+            }
+        }
+
+        // ==========================================
+        // INICIALIZACIÓN DE BUCLES
+        // ==========================================
+        fetchQueueAPI();
+        checkSpotifyPlayer();
+        
+        setInterval(fetchQueueAPI, 5000); 
+        setInterval(checkSpotifyPlayer, 3000); 
+
+    </script>
+</body>
+</html>

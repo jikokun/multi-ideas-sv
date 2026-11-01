@@ -1,0 +1,3509 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jikokun - Overlay "Modo Chat / Just Chatting" (Aqua Electric)</title>
+  
+  <!-- Tipografías de Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Dela+Gothic+One&family=Luckiest+Guy&family=Orbitron:wght@700;900&family=Permanent+Marker&family=Rajdhani:wght@600;700;900&family=Sedgwick+Ave+Display&family=Frijole&display=swap" rel="stylesheet">
+  
+  <!-- Extracción Dinámica de Colores para Spotify -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/node-vibrant/3.1.6/vibrant.min.js"></script>
+  
+  <!-- Estilos CSS -->
+  <style>
+/* ==========================================================================
+   OVERLAY: JIKOKUN - ESTAMOS POR EMPEZAR (AQUA ELECTRIC THEME 1920x1080 NATIVO)
+   ========================================================================== */
+
+/* Variables de Color y Diseño */
+:root {
+  --bg-deep: #02090f;
+  --bg-card: rgba(4, 20, 32, 0.75);
+
+  --aqua-dark: #003644;
+  --aqua-medium: #0077b6;
+  --aqua-bright: #00f5d4;
+  --aqua-electric: #00e5ff;
+  --aqua-glow: rgba(0, 245, 212, 0.6);
+  --electric-white: #f0ffff;
+
+  --dark-metallic: #0a151d;
+  --metallic-accent: #162a38;
+
+  --font-brush: 'Luckiest Guy', 'Bangers', 'Frijole', cursive, sans-serif;
+  --font-tech: 'Orbitron', sans-serif;
+  --font-sans: 'Rajdhani', sans-serif;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body, html {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #010407;
+  font-family: var(--font-sans);
+  color: var(--electric-white);
+  user-select: none;
+}
+
+/* Contenedor Principal Full HD Centrado */
+.overlay-wrapper {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  background-color: #010407;
+}
+
+/* ESCENARIO OBS NATIVO 1920x1080 (PROPORCIÓN NATIVA 16:9 AUTO-ESCALABLE) */
+.overlay-stage {
+  position: relative;
+  width: 1920px;
+  height: 1080px;
+  overflow: hidden;
+  background: radial-gradient(circle at center, #061c2b 0%, #02090f 70%, #010407 100%);
+  transform-origin: center center;
+  flex-shrink: 0;
+  box-shadow: 0 0 60px rgba(0, 0, 0, 0.9);
+}
+
+/* Capas de Video y Canvas */
+.bg-video {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.85;
+}
+
+#bg-canvas, #electric-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+}
+
+#bg-canvas {
+  z-index: 1;
+}
+
+#electric-canvas {
+  z-index: 3;
+}
+
+/* ==========================================================================
+   MARCOS GEOMÉTRICOS ANGULARES (INSPIRADOS EN LA IMAGEN DE REFERENCIA)
+   ========================================================================== */
+.frame-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* Esquina Superior Derecha - Cortes Diagonales */
+.slash-shape {
+  position: absolute;
+  transform-origin: center;
+  transition: all 0.5s ease;
+}
+
+.top-right-main {
+  top: -20px;
+  right: -20px;
+  width: 950px;
+  height: 270px;
+  background: linear-gradient(135deg, var(--aqua-bright) 0%, var(--aqua-medium) 40%, var(--dark-metallic) 100%);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 35% 85%, 20% 40%);
+  filter: drop-shadow(-5px 10px 20px rgba(0, 245, 212, 0.4));
+  animation: floatSlashRight 6s ease-in-out infinite alternate;
+}
+
+.top-right-accent1 {
+  top: 0;
+  right: 0;
+  width: 820px;
+  height: 200px;
+  background: linear-gradient(135deg, var(--dark-metallic) 0%, var(--metallic-accent) 60%, var(--aqua-dark) 100%);
+  clip-path: polygon(15% 0, 100% 0, 100% 80%, 45% 65%);
+  opacity: 0.9;
+}
+
+.top-right-accent2 {
+  top: 150px;
+  right: -10px;
+  width: 550px;
+  height: 65px;
+  background: var(--aqua-bright);
+  clip-path: polygon(40% 0, 100% 0, 95% 100%, 0% 100%);
+  box-shadow: 0 0 25px var(--aqua-bright);
+  opacity: 0.85;
+  animation: pulseGlow 3s infinite alternate;
+}
+
+.top-right-blade {
+  top: 195px;
+  right: 100px;
+  width: 320px;
+  height: 22px;
+  background: linear-gradient(90deg, transparent, var(--aqua-electric));
+  clip-path: polygon(30% 0, 100% 0, 70% 100%, 0 100%);
+}
+
+/* Esquina Inferior Izquierda - Cortes Diagonales */
+.bottom-left-main {
+  bottom: -20px;
+  left: -20px;
+  width: 950px;
+  height: 280px;
+  background: linear-gradient(315deg, var(--aqua-bright) 0%, var(--aqua-medium) 35%, var(--dark-metallic) 100%);
+  clip-path: polygon(0 0, 65% 15%, 80% 60%, 100% 100%, 0 100%);
+  filter: drop-shadow(5px -10px 20px rgba(0, 245, 212, 0.4));
+  animation: floatSlashLeft 6s ease-in-out infinite alternate;
+}
+
+.bottom-left-accent1 {
+  bottom: 0;
+  left: 0;
+  width: 800px;
+  height: 210px;
+  background: linear-gradient(315deg, var(--dark-metallic) 0%, var(--metallic-accent) 60%, var(--aqua-dark) 100%);
+  clip-path: polygon(0 20%, 55% 35%, 85% 100%, 0 100%);
+  opacity: 0.9;
+}
+
+.bottom-left-accent2 {
+  bottom: 160px;
+  left: -10px;
+  width: 520px;
+  height: 60px;
+  background: var(--aqua-electric);
+  clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%);
+  box-shadow: 0 0 25px var(--aqua-electric);
+  opacity: 0.85;
+  animation: pulseGlow 3s 1.5s infinite alternate;
+}
+
+.bottom-left-blade {
+  bottom: 200px;
+  left: 120px;
+  width: 350px;
+  height: 20px;
+  background: linear-gradient(270deg, transparent, var(--aqua-bright));
+  clip-path: polygon(0 0, 100% 0, 70% 100%, 30% 100%);
+}
+
+/* Líneas de Borde con Neón */
+.border-glow-line {
+  position: absolute;
+  background: linear-gradient(90deg, transparent, var(--aqua-bright), transparent);
+  box-shadow: 0 0 15px var(--aqua-bright);
+}
+
+.border-glow-line.top { top: 0; left: 20%; width: 60%; height: 4px; }
+.border-glow-line.bottom { bottom: 0; left: 20%; width: 60%; height: 4px; }
+.border-glow-line.left { top: 20%; left: 0; width: 4px; height: 60%; background: linear-gradient(180deg, transparent, var(--aqua-bright), transparent); }
+.border-glow-line.right { top: 20%; right: 0; width: 4px; height: 60%; background: linear-gradient(180deg, transparent, var(--aqua-bright), transparent); }
+
+/* ==========================================================================
+   MARCOS FUTURISTAS TRANSPARENTES (ESQUINAS CORTADAS EN POSICIÓN NATIVA 1920x1080)
+   ========================================================================== */
+.futuristic-frames {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cam-frame {
+  position: absolute;
+  background: rgba(3, 16, 26, 0.22);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  border: 2.5px solid var(--aqua-bright);
+  box-shadow: 
+    0 0 22px rgba(0, 245, 212, 0.35),
+    inset 0 0 18px rgba(0, 245, 212, 0.18);
+  clip-path: polygon(
+    28px 0, 
+    100% 0, 
+    100% calc(100% - 28px), 
+    calc(100% - 28px) 100%, 
+    0 100%, 
+    0 28px
+  );
+  transition: all 0.4s ease;
+}
+
+/* Marco Superior Izquierdo - Extendido hacia abajo casi llegando al nivel del título */
+.frame-top-left {
+  top: 70px;
+  left: 70px;
+  width: 460px;
+  height: 440px;
+  animation: framePulse 4s ease-in-out infinite alternate;
+}
+
+/* Marco Inferior Derecho (Chat / Eventos) - Tamaño Original */
+.frame-bottom-right {
+  bottom: 80px;
+  right: 80px;
+  width: 440px;
+  height: 250px;
+  animation: framePulse 4s 2s ease-in-out infinite alternate;
+}
+
+/* Soportes de Esquina Neón */
+.frame-corner-bracket {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border: 3px solid var(--aqua-electric);
+  box-shadow: 0 0 12px var(--aqua-electric);
+}
+
+.frame-corner-bracket.top-l { top: -2px; left: -2px; border-right: none; border-bottom: none; }
+.frame-corner-bracket.top-r { top: -2px; right: -2px; border-left: none; border-bottom: none; }
+.frame-corner-bracket.bot-l { bottom: -2px; left: -2px; border-right: none; border-top: none; }
+.frame-corner-bracket.bot-r { bottom: -2px; right: -2px; border-left: none; border-top: none; }
+
+/* Etiqueta Tech de Marco */
+.frame-tag {
+  position: absolute;
+  top: 0;
+  left: 35px;
+  background: var(--aqua-dark);
+  border: 1.5px solid var(--aqua-bright);
+  color: var(--aqua-bright);
+  font-family: var(--font-tech);
+  font-size: 0.75rem;
+  letter-spacing: 2px;
+  padding: 4px 14px;
+  clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%);
+  box-shadow: 0 0 12px rgba(0, 245, 212, 0.45);
+}
+
+/* ==========================================================================
+   CONTENIDO CENTRAL (POSICIONADO EN EL CENTRO EXACTO DE 1920x1080)
+   ========================================================================== */
+.center-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 1050px;
+}
+
+.electric-box {
+  position: relative;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  overflow: visible;
+}
+
+/* Chispas Flotantes CSS */
+.spark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: var(--aqua-bright);
+  border-radius: 50%;
+  box-shadow: 0 0 12px var(--aqua-bright), 0 0 20px #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.spark-1 { top: 15%; left: 8%; animation: sparkFly 2.5s infinite 0.2s; }
+.spark-2 { top: 80%; left: 90%; animation: sparkFly 3.1s infinite 0.8s; }
+.spark-3 { top: 20%; right: 10%; animation: sparkFly 2.8s infinite 1.4s; }
+.spark-4 { bottom: 15%; left: 12%; animation: sparkFly 3.5s infinite 0.5s; }
+
+/* LOGO ANIMADO WEBM DE CLOUDINARY (MASIVO & IMPONENTE) */
+.logo-wrapper {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 5px;
+  z-index: 5;
+}
+
+.animated-logo {
+  width: 420px;
+  height: 420px;
+  max-width: 420px;
+  max-height: 420px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 30px rgba(0, 245, 212, 0.7));
+  animation: logoFloat 4s ease-in-out infinite alternate;
+}
+
+/* TÍTULO EN 1 SOLA FILA CONTINUA - LUCKIEST GUY NATIVO 1920x1080 (MÁS GRANDE & NOTORIO) */
+.brush-title {
+  font-family: var(--font-brush);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 15px 0;
+  position: relative;
+  z-index: 6;
+}
+
+.title-row.single-row {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 5.6rem;
+  line-height: 1.1;
+  text-transform: uppercase;
+  letter-spacing: 6px;
+  white-space: nowrap;
+  transform: rotate(-1deg);
+  animation: floatRow1 5s ease-in-out infinite alternate;
+}
+
+/* Letras Animables - Relleno de Gradiente Profundo & Sombra de Relieve Bajo el Borde Blanco */
+.char {
+  display: inline-block;
+  background: linear-gradient(180deg, #ffffff 0%, #d4f8ff 22%, #00e5ff 45%, #0077b6 75%, #002836 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 4.5px #ffffff;
+  paint-order: stroke fill markers;
+  
+  filter: 
+    drop-shadow(6px 8px 0px rgba(1, 8, 14, 0.98))
+    drop-shadow(0 0 16px rgba(0, 245, 212, 0.6));
+
+  animation: charWave 3s ease-in-out infinite calc(var(--i) * 0.1s);
+}
+
+.char.space {
+  width: 0.45em;
+}
+
+/* Temporizador Posicionado Más Abajo */
+.timer-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  margin-top: 35px;
+}
+
+.timer-label {
+  font-family: var(--font-tech);
+  font-size: 1.3rem;
+  letter-spacing: 7px;
+  color: rgba(240, 255, 255, 0.85);
+}
+
+.timer-display {
+  font-family: var(--font-tech);
+  font-size: 5.4rem;
+  font-weight: 900;
+  color: var(--electric-white);
+  text-shadow: 
+    0 0 14px var(--aqua-bright),
+    0 0 32px var(--aqua-electric);
+  letter-spacing: 7px;
+}
+
+/* Barra de Progreso de Inicio Adaptada al Estilo Neón Actual */
+.progress-bar-container {
+  width: 620px;
+  height: 18px;
+  background: rgba(2, 12, 20, 0.85);
+  border-radius: 20px;
+  border: 2.5px solid var(--aqua-bright);
+  overflow: hidden;
+  box-shadow: 
+    0 0 25px rgba(0, 245, 212, 0.45),
+    inset 0 0 14px rgba(0, 0, 0, 0.9);
+  margin-top: 22px;
+}
+
+.progress-bar-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #005f73 0%, var(--aqua-bright) 60%, #e0ffff 100%);
+  box-shadow: 0 0 20px var(--aqua-bright);
+  border-radius: 20px;
+  transition: width 1s linear;
+}
+
+/* ==========================================================================
+   ANIMACIONES KEYFRAMES
+   ========================================================================== */
+@keyframes floatSlashRight {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-15px, 10px) rotate(-1deg); }
+}
+
+@keyframes floatSlashLeft {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(15px, -10px) rotate(1deg); }
+}
+
+@keyframes pulseGlow {
+  0% { opacity: 0.6; filter: drop-shadow(0 0 10px var(--aqua-bright)); }
+  100% { opacity: 1; filter: drop-shadow(0 0 30px var(--aqua-bright)); }
+}
+
+@keyframes sparkFly {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(-40px) scale(1.2); opacity: 0; }
+}
+
+@keyframes charWave {
+  0%, 100% {
+    transform: translateY(0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) scale(1.05) rotate(calc((var(--i) - 9) * 0.7deg));
+    filter: 
+      drop-shadow(6px 9px 0px rgba(2, 12, 20, 0.95))
+      drop-shadow(0 0 16px rgba(0, 245, 212, 0.6));
+  }
+}
+
+@keyframes floatRow1 {
+  0% { transform: translateY(0) rotate(-2.5deg); }
+  100% { transform: translateY(-7px) rotate(-1.5deg); }
+}
+
+@keyframes logoFloat {
+  0% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 14px rgba(0, 245, 212, 0.4)); }
+  100% { transform: translateY(-7px) scale(1.03); filter: drop-shadow(0 0 24px rgba(0, 245, 212, 0.7)); }
+}
+
+@keyframes rotateNeonStream {
+  0% {
+    transform: translate(-50%, -50%) rotate(0deg);
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+@keyframes framePulse {
+  0% {
+    box-shadow: 0 0 18px rgba(0, 245, 212, 0.25), inset 0 0 12px rgba(0, 245, 212, 0.1);
+    border-color: rgba(0, 245, 212, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 35px rgba(0, 245, 212, 0.45), inset 0 0 22px rgba(0, 245, 212, 0.25);
+    border-color: var(--aqua-bright);
+  }
+}
+
+/* ==========================================================================
+   MARCOS MODO CHAT / JUST CHATTING (NATIVO 1920x1080)
+   ========================================================================== */
+.chatmode-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* Estilo Base de Marcos Modo Chat y Cámara con Fondo Semi-Transparente Limpio */
+.cam-frame, .chatmode-frame {
+  position: absolute;
+  background: rgba(3, 16, 26, 0.28);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 2px solid rgba(0, 245, 212, 0.45);
+  box-shadow: 
+    0 0 20px rgba(0, 245, 212, 0.3),
+    inset 0 0 15px rgba(0, 245, 212, 0.12);
+  transition: all 0.4s ease;
+  overflow: visible;
+}
+
+/* SVG DE CORRIENTE NEÓN QUE RECORRE ÚNICAMENTE EL CONTORNO/STROKE (SIN AFECTAR EL FONDO) */
+.frame-border-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+  overflow: visible;
+}
+
+.svg-border-base {
+  fill: none;
+  stroke: rgba(0, 245, 212, 0.3);
+  stroke-width: 2.5;
+  vector-effect: non-scaling-stroke;
+}
+
+/* MOTOR ESPECTRO MUSICAL 60FPS: FLUIDEZ ULTRA SUAVE + PULSACIÓN AL BEAT EXACTO */
+.svg-border-stream {
+  fill: none;
+  stroke: var(--dynamic-color, #ffffff);
+  stroke-width: 3.5;
+  vector-effect: non-scaling-stroke;
+  stroke-dasharray: 220 680;
+  stroke-dashoffset: 0;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 12px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 20px var(--aqua-electric));
+  animation: 
+    electricBorderFlow var(--stream-speed, 3.5s) linear infinite,
+    bpmBeatPulse var(--beat-duration, 0.5s) cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+}
+
+@keyframes electricBorderFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -900px;
+  }
+}
+
+/* PULSACIÓN DE RITMO ORGÁNICO AL BEAT EXACTO (ESTILO SUBWOOFER / ESPECTRO) */
+@keyframes bpmBeatPulse {
+  0% {
+    stroke-width: 3.2;
+    filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright)));
+    opacity: 0.82;
+  }
+  100% {
+    stroke-width: 5.5;
+    filter: drop-shadow(0 0 22px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 35px var(--aqua-electric));
+    opacity: 1;
+  }
+}
+
+/* 1. Marco Principal de Cámara Web / Contenido (Top Left) */
+.frame-camera {
+  top: 70px;
+  left: 70px;
+  width: 1180px;
+  height: 670px;
+  clip-path: polygon(
+    30px 0, 
+    100% 0, 
+    100% calc(100% - 30px), 
+    calc(100% - 30px) 100%, 
+    0 100%, 
+    0 30px
+  );
+  animation: framePulse 4s ease-in-out infinite alternate;
+}
+
+/* 2. Marco Alargado Derecho para Chat en Pantalla (Right Tall Box) */
+.frame-chat {
+  top: 70px;
+  right: 70px;
+  width: 560px;
+  height: 940px;
+  clip-path: polygon(
+    30px 0, 
+    100% 0, 
+    100% calc(100% - 30px), 
+    calc(100% - 30px) 100%, 
+    0 100%, 
+    0 30px
+  );
+  animation: framePulse 4s 1.5s ease-in-out infinite alternate;
+}
+
+/* 3. Espacio Dedicado para Alertas (Bottom Left Box) */
+.frame-alerts {
+  bottom: 70px;
+  left: 70px;
+  width: 440px;
+  height: 240px;
+  clip-path: polygon(
+    25px 0, 
+    100% 0, 
+    100% calc(100% - 25px), 
+    calc(100% - 25px) 100%, 
+    0 100%, 
+    0 25px
+  );
+  animation: framePulse 4s 2.5s ease-in-out infinite alternate;
+}
+
+/* ENCABEZADO CENTRADO PARA EL MARCO DE ALERTAS */
+.alerts-frame-header {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-tech);
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--dynamic-color, var(--aqua-bright));
+  text-shadow: 0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.alerts-frame-header .alerts-icon {
+  font-size: 0.95rem;
+}
+
+.alerts-frame-content {
+  position: absolute;
+  top: 36px;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.botrix-alerts-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* 4. Grid de Espacios Varios para Eventos / Stream Labels (Bottom Center) */
+.chatmode-events-grid {
+  position: absolute;
+  bottom: 70px;
+  left: 540px;
+  width: 710px;
+  height: 240px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+}
+
+.event-box {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  clip-path: polygon(
+    18px 0, 
+    100% 0, 
+    100% calc(100% - 18px), 
+    calc(100% - 18px) 100%, 
+    0 100%, 
+    0 18px
+  );
+  animation: framePulse 4s 3s ease-in-out infinite alternate;
+}
+
+.event-box-header {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-tech);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--dynamic-color, var(--aqua-bright));
+  text-shadow: 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.event-box-header .event-icon {
+  font-size: 0.88rem;
+}
+
+.event-box-content {
+  position: absolute;
+  top: 36px;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.botrix-label-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+/* Muescas Tech Laterales Decorativas */
+.frame-tech-notches {
+  position: absolute;
+  top: 50%;
+  right: -3px;
+  transform: translateY(-50%);
+  width: 5px;
+  height: 80px;
+  background: var(--aqua-bright);
+  box-shadow: 0 0 10px var(--aqua-bright);
+  clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%);
+}
+
+.frame-tech-notches.vertical {
+  top: auto;
+  bottom: -3px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 100px;
+  height: 5px;
+  clip-path: polygon(15% 0, 85% 0, 100% 100%, 0 100%);
+}
+
+/* ==========================================================================
+   WIDGET INTEGRADO: CHAT EN VIVO DE KICK + SPOTIFY DYNAMIC ISLAND
+   ========================================================================== */
+
+/* Contenedor del Chat en Vivo dentro del Marco Derecho */
+.chat-area {
+  position: absolute;
+  top: 90px;
+  bottom: 25px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.chat-area::-webkit-scrollbar {
+  display: none;
+  width: 0px;
+}
+
+.botrix-chat-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+}
+
+/* ==========================================================================
+   NUEVO EFECTO DE CHAT EN NUBES DETALLADAS 3D (PUFFS, SHINE, SHADOW, SMOKE)
+   ========================================================================== */
+
+@keyframes riseUp {
+  0% {
+    opacity: 0;
+    transform: translateY(80px) scale(0.2) rotate(-5deg);
+    filter: blur(30px) brightness(1.8);
+  }
+  30% {
+    opacity: 0.4;
+    filter: blur(15px) brightness(1.3);
+  }
+  60% {
+    opacity: 0.8;
+    filter: blur(5px) brightness(1.05);
+    transform: translateY(-15px) scale(1.08) rotate(1deg);
+  }
+  80% {
+    transform: translateY(3px) scale(0.98) rotate(-0.5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1) rotate(0deg);
+    filter: blur(0) brightness(1);
+  }
+}
+
+@keyframes cloudFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  max-width: 96%;
+  animation: riseUp 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  opacity: 0;
+  position: relative;
+  margin-top: 18px;
+  align-self: flex-start;
+}
+
+.message-row.me,
+.message-row.them {
+  align-self: flex-start;
+  flex-direction: row;
+}
+
+.message-row .avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 12px var(--user-color-dim, rgba(0, 245, 212, 0.4));
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  z-index: 3;
+}
+
+.message-row.them .avatar {
+  background: linear-gradient(135deg, #ffd4a8 0%, #ffb8d4 100%);
+}
+
+.message-row.me .avatar {
+  background: linear-gradient(135deg, #a8d0ff 0%, #b8ffd4 100%);
+}
+
+.cloud-bubble {
+  position: relative;
+  padding: 12px 18px 14px;
+  min-width: 150px;
+  max-width: 500px;
+  color: #2b3a55;
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 600;
+  z-index: 1;
+  animation: cloudFloat 5s ease-in-out infinite;
+}
+
+.message-row:nth-child(odd) .cloud-bubble { animation-delay: -1s; }
+.message-row:nth-child(even) .cloud-bubble { animation-delay: -3s; }
+
+.cloud-body {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 40%, #eaf0fb 100%);
+  border-radius: 28px;
+  padding: 14px 22px;
+  box-shadow:
+    0 8px 32px rgba(140, 180, 230, 0.35),
+    0 2px 8px rgba(140, 180, 230, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -3px 8px rgba(180, 200, 240, 0.2);
+  z-index: 2;
+}
+
+.message-row.me .cloud-body {
+  background: linear-gradient(180deg, #e8f4ff 0%, #d8ecff 40%, #c8e0ff 100%);
+  box-shadow:
+    0 8px 32px rgba(100, 160, 230, 0.4),
+    0 2px 8px rgba(100, 160, 230, 0.25),
+    inset 0 2px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -3px 8px rgba(140, 180, 230, 0.25);
+}
+
+.cloud-puff {
+  position: absolute;
+  border-radius: 50%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.cloud-puff.p1 {
+  width: 55px;
+  height: 50px;
+  top: -20px;
+  left: 15px;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+  box-shadow: 0 -4px 15px rgba(140, 180, 230, 0.2), inset 0 3px 0 rgba(255, 255, 255, 0.9);
+}
+
+.cloud-puff.p2 {
+  width: 70px;
+  height: 58px;
+  top: -28px;
+  left: 45px;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f6ff 100%);
+  box-shadow: 0 -6px 20px rgba(140, 180, 230, 0.25), inset 0 4px 0 rgba(255, 255, 255, 0.95);
+}
+
+.cloud-puff.p3 {
+  width: 48px;
+  height: 44px;
+  top: -16px;
+  right: 20px;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3ff 100%);
+  box-shadow: 0 -3px 12px rgba(140, 180, 230, 0.2), inset 0 3px 0 rgba(255, 255, 255, 0.9);
+}
+
+.cloud-puff.p4 {
+  width: 35px;
+  height: 32px;
+  top: -10px;
+  left: 0px;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+  box-shadow: 0 -2px 10px rgba(140, 180, 230, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.cloud-puff.p5 {
+  width: 30px;
+  height: 28px;
+  top: -8px;
+  right: 5px;
+  background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 100%);
+  box-shadow: 0 -2px 8px rgba(140, 180, 230, 0.15), inset 0 2px 0 rgba(255, 255, 255, 0.85);
+}
+
+.message-row.me .cloud-puff.p1,
+.message-row.me .cloud-puff.p4,
+.message-row.me .cloud-puff.p5 {
+  background: linear-gradient(180deg, #e8f4ff 0%, #d8ecff 100%);
+}
+.message-row.me .cloud-puff.p2 {
+  background: linear-gradient(180deg, #eaf6ff 0%, #daedff 100%);
+}
+.message-row.me .cloud-puff.p3 {
+  background: linear-gradient(180deg, #e5f2ff 0%, #d5e8ff 100%);
+}
+
+.cloud-shine {
+  position: absolute;
+  top: -22px;
+  left: 50px;
+  width: 40px;
+  height: 15px;
+  background: radial-gradient(ellipse, rgba(255, 255, 255, 0.85) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.cloud-shadow {
+  position: absolute;
+  bottom: -8px;
+  left: 10%;
+  width: 80%;
+  height: 12px;
+  background: radial-gradient(ellipse, rgba(140, 180, 230, 0.25) 0%, transparent 70%);
+  border-radius: 50%;
+  z-index: 0;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.cloud-body .username {
+  font-family: var(--font-sans, 'Nunito', sans-serif);
+  font-size: 1.32rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #041c34 !important;
+}
+
+.cloud-body .content {
+  font-family: var(--font-sans, 'Nunito', sans-serif);
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.38;
+  color: #06203a !important;
+  word-break: break-word;
+  margin-top: 3px;
+}
+
+.smoke-particle {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 15;
+  animation: smokeRise 2.5s ease-out forwards;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.85) 0%, rgba(200, 225, 255, 0.4) 50%, transparent 70%);
+}
+
+@keyframes smokeRise {
+  0% {
+    transform: translateY(0) scale(0.3) rotate(0deg);
+    opacity: 0.95;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(-120px) scale(2.5) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+/* Burbuja de Mensaje Cristal Líquido Aqua Neón (Modo Chat Estándar) */
+.glass-message {
+  position: relative;
+  align-self: flex-start;
+  width: 100%;
+  background: rgba(4, 20, 32, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1.5px solid var(--user-color, var(--aqua-bright));
+  border-radius: 12px;
+  border-top-left-radius: 3px;
+  padding: 10px 14px;
+  box-shadow: 0 0 16px var(--user-color-dim, rgba(0, 245, 212, 0.3));
+  animation: messageSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transition: all 0.5s ease;
+}
+
+.message-row.glass-message {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  animation: riseUp 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  width: auto;
+}
+
+@keyframes messageSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes glassEvaporate {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+}
+
+.glass-message.evaporating {
+  animation: glassEvaporate 0.7s forwards ease-in-out;
+}
+
+.message-row.glass-message.evaporating {
+  animation: neonCloudMistEvaporate 0.85s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.glass-message .username {
+  font-family: var(--font-sans);
+  font-size: 1.28rem;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: var(--user-color, var(--aqua-bright));
+}
+
+.glass-message .content {
+  font-family: var(--font-sans);
+  font-size: 1.22rem;
+  font-weight: 600;
+  line-height: 1.4;
+  margin-top: 4px;
+  color: #f0ffff;
+}
+
+.glass-message.follow-alert {
+  background: rgba(30, 25, 5, 0.88);
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.45);
+  text-align: center;
+  width: 100%;
+}
+
+/* Insignias de Roles (Broadcaster, Mod, Sub, VIP, OG) */
+.glass-message .badge {
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 1.2rem;
+}
+
+/* Emotes de Kick */
+.kick-emote {
+  height: 32px !important;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 3px;
+}
+
+/* WIDGET SPOTIFY ISLA DINÁMICA - POLIGONAL SCI-FI AGRANDADO CON EFECTO DE INFLADO */
+.spotify-island-container {
+  position: absolute;
+  top: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: auto;
+}
+
+.island-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.6s ease;
+}
+
+.island-wrapper.hidden {
+  transform: translateY(-90px) scale(0.7);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.now-playing-label {
+  position: absolute;
+  top: -18px;
+  font-family: var(--font-tech);
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: var(--dynamic-color, var(--aqua-bright));
+  text-shadow: 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+  transition: all 0.5s ease;
+}
+
+/* LA ISLA POLIGONAL AGRANDADA (EXPANDIDA) CON EFECTO DE INFLADO */
+.island {
+  background: rgba(3, 16, 26, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 2px solid var(--dynamic-color, var(--aqua-bright));
+  border-radius: 0;
+  clip-path: polygon(
+    22px 0, 
+    100% 0, 
+    100% calc(100% - 22px), 
+    calc(100% - 22px) 100%, 
+    0 100%, 
+    0 22px
+  );
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 10px 16px;
+  width: 440px;
+  height: 90px;
+  box-shadow: 
+    0 0 30px rgba(var(--dynamic-rgb, 0, 245, 212), 0.5),
+    inset 0 0 18px rgba(var(--dynamic-rgb, 0, 245, 212), 0.18);
+  transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: center top;
+}
+
+.island.expanding {
+  animation: islandInflate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ESTADO CERRADO / MINIMALISTA POLIGONAL */
+.island.closed {
+  width: 240px;
+  height: 44px;
+  padding: 4px 12px;
+  clip-path: polygon(
+    14px 0, 
+    100% 0, 
+    100% calc(100% - 14px), 
+    calc(100% - 14px) 100%, 
+    0 100%, 
+    0 14px
+  );
+  animation: none;
+}
+
+.island .cover {
+  flex-shrink: 0;
+  border-radius: 10px;
+  border: 2px solid var(--dynamic-color, var(--aqua-bright));
+  overflow: hidden;
+  width: 68px;
+  height: 68px;
+  margin-right: 14px;
+  box-shadow: 0 0 14px rgba(var(--dynamic-rgb, 0, 245, 212), 0.5);
+  transition: all 0.6s ease;
+}
+
+.island.closed .cover {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  margin-right: 8px;
+  border: none;
+}
+
+.island .cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.island .info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.island .song-name {
+  color: var(--dynamic-color, var(--aqua-bright));
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 1.25rem;
+  letter-spacing: 0.5px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.island.closed .song-name {
+  color: #ffffff;
+  font-size: 0.82rem;
+}
+
+.island .artist-name {
+  color: rgba(240, 255, 255, 0.85);
+  font-family: var(--font-sans);
+  font-size: 0.98rem;
+  font-weight: 600;
+  margin-top: 3px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  transition: all 0.4s ease;
+}
+
+.spotify-bpm-badge {
+  font-family: var(--font-tech);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--dynamic-color, var(--aqua-bright));
+  background: rgba(0, 245, 212, 0.12);
+  border: 1px solid var(--dynamic-color, var(--aqua-bright));
+  padding: 2px 8px;
+  border-radius: 6px;
+  box-shadow: 0 0 10px rgba(var(--dynamic-rgb, 0, 245, 212), 0.35);
+  margin-left: 8px;
+  flex-shrink: 0;
+  transition: all 0.4s ease;
+}
+
+.island.closed .spotify-bpm-badge {
+  display: none;
+}
+
+.island.closed .artist-name {
+  opacity: 0;
+  max-height: 0;
+  margin-top: 0;
+}
+
+/* Ícono Neón de Play (▶) */
+.spotify-play-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-right: 8px;
+  color: var(--dynamic-color, var(--aqua-bright));
+  filter: drop-shadow(0 0 8px var(--dynamic-color, var(--aqua-bright)));
+  flex-shrink: 0;
+  transition: all 0.4s ease;
+}
+
+.play-icon {
+  width: 14px;
+  height: 14px;
+  animation: playPulse 2s ease-in-out infinite alternate;
+}
+
+@keyframes playPulse {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(1.18); opacity: 1; filter: drop-shadow(0 0 10px var(--dynamic-color, var(--aqua-bright))); }
+}
+
+/* Ecualizador Soundwave Neón */
+.soundwave-equalizer {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 20px;
+  margin-left: 10px;
+  transition: all 0.4s ease;
+}
+
+.island.closed .soundwave-equalizer {
+  display: none;
+}
+
+.soundwave-equalizer span {
+  width: 3px;
+  height: 100%;
+  background: var(--dynamic-color, var(--aqua-bright));
+  box-shadow: 0 0 8px var(--dynamic-color, var(--aqua-bright));
+  border-radius: 2px;
+  animation: soundwaveBeat 1.2s ease-in-out infinite alternate;
+}
+
+.soundwave-equalizer span:nth-child(1) { animation-delay: 0.1s; }
+.soundwave-equalizer span:nth-child(2) { animation-delay: 0.3s; }
+.soundwave-equalizer span:nth-child(3) { animation-delay: 0.5s; }
+.soundwave-equalizer span:nth-child(4) { animation-delay: 0.2s; }
+
+@keyframes soundwaveBeat {
+  0% { height: 25%; }
+  100% { height: 100%; }
+}
+
+@keyframes islandInflate {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scale(1.06);
+    filter: drop-shadow(0 0 35px var(--dynamic-color, var(--aqua-bright)));
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Keyframes de Mensajes */
+@keyframes messageSlideIn {
+  0% { transform: translateY(20px) scale(0.95); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes glassEvaporate {
+  0% { transform: translateY(0) scale(1); opacity: 1; filter: blur(0); }
+  100% { transform: translateY(-25px) scale(0.9); opacity: 0; filter: blur(10px); }
+}
+
+/* REPRODUCTOR SPOTIFY AGRANDADO EN MARCO INFERIOR DERECHO (escena_inicial.html) */
+.initial-spotify-player {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  padding: 24px 28px;
+  gap: 22px;
+  background: rgba(3, 16, 26, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.player-cover {
+  width: 170px;
+  height: 170px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  border: 2.5px solid var(--dynamic-color, var(--aqua-bright));
+  overflow: hidden;
+  box-shadow: 0 0 22px rgba(var(--dynamic-rgb, 0, 245, 212), 0.55);
+  transition: all 0.5s ease;
+}
+
+.player-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.player-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+.player-header-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.player-header-row .player-icon {
+  font-size: 1.25rem;
+  color: var(--dynamic-color, var(--aqua-bright));
+  filter: drop-shadow(0 0 10px var(--dynamic-color, var(--aqua-bright)));
+}
+
+.player-song-name {
+  font-family: var(--font-sans);
+  font-size: 1.55rem;
+  font-weight: 900;
+  color: var(--dynamic-color, var(--aqua-bright));
+  text-shadow: 0 0 16px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.5px;
+  transition: all 0.4s ease;
+}
+
+.player-artist-name {
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: rgba(240, 255, 255, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 4px;
+  transition: all 0.4s ease;
+}
+
+.soundwave-equalizer.initial-equalizer {
+  margin-top: 14px;
+  height: 28px;
+  gap: 6px;
+}
+
+.soundwave-equalizer.initial-equalizer span {
+  width: 4px;
+}
+
+/* PLACEHOLDER DE MÚSICA EN REPOSO EN MARCO DERECHO (escena_inicial.html) */
+.initial-music-idle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(3, 16, 26, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.5s ease;
+  z-index: 3;
+}
+
+.initial-music-idle.hidden,
+.initial-spotify-player.hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0.95);
+}
+
+.idle-music-icon {
+  font-size: 3.5rem;
+  color: var(--aqua-bright);
+  filter: drop-shadow(0 0 16px var(--aqua-bright)) drop-shadow(0 0 25px var(--aqua-electric));
+  animation: floatMusicIcon 3s ease-in-out infinite alternate;
+}
+
+.idle-music-tag {
+  font-family: var(--font-tech);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(240, 255, 255, 0.6);
+  text-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
+}
+
+@keyframes floatMusicIcon {
+  0% { transform: translateY(0) scale(1); filter: drop-shadow(0 0 14px var(--aqua-bright)); }
+  100% { transform: translateY(-8px) scale(1.08); filter: drop-shadow(0 0 22px var(--aqua-bright)) drop-shadow(0 0 35px var(--aqua-electric)); }
+}
+
+/* ==========================================================================
+   OVERLAY MODO JUEGOS (modojuegos.html - TRANSPARENCIA ABSOLUTA IN-GAME)
+   ========================================================================== */
+html:has(body.ingame-body),
+body.ingame-body {
+  background: transparent !important;
+  background-color: transparent !important;
+  overflow: hidden;
+}
+
+body.ingame-body .overlay-wrapper,
+body.ingame-body .overlay-stage,
+.overlay-stage.ingame-stage {
+  background: transparent !important;
+  background-color: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+}
+
+/* 1. Marco Luminoso Suave de Pantalla Completa (1920x1080) */
+.ingame-screen-border-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.ingame-screen-border-bg {
+  fill: none;
+  stroke: rgba(0, 245, 212, 0.12);
+  stroke-width: 1.5px;
+  transition: stroke-width 0.6s ease, stroke 0.6s ease;
+}
+
+/* MODO SIN MÚSICA (POR DEFECTO): Delgado (1.5px), sutil e inofensivo para no distraer durante el juego */
+.ingame-screen-stream {
+  fill: none;
+  stroke: var(--dynamic-color, #ffffff);
+  stroke-width: var(--screen-stream-width, 1.5px);
+  stroke-linecap: round;
+  stroke-dasharray: 700 2284;
+  stroke-dashoffset: 0;
+  opacity: var(--screen-stream-opacity, 0.45);
+  filter: drop-shadow(0 0 6px var(--dynamic-color, rgba(0, 245, 212, 0.35)));
+  transition: stroke-width 0.6s ease, opacity 0.6s ease, filter 0.6s ease;
+  animation: screenBorderFlow var(--stream-speed, 6.0s) linear infinite;
+}
+
+.ingame-screen-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  box-shadow: inset 0 0 12px rgba(var(--dynamic-rgb, 0, 245, 212), 0.12);
+  pointer-events: none;
+  z-index: 9;
+  transition: box-shadow 0.6s ease;
+}
+
+/* MODO CON MÚSICA ACTIVA: Se engruesa (4.5px), brilla intensamente y palpita en tiempo real al ritmo de los BPM */
+html.music-playing .ingame-screen-stream {
+  stroke-width: var(--screen-stream-width, 4.5px);
+  opacity: 1;
+  filter: drop-shadow(0 0 16px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 28px rgba(var(--dynamic-rgb, 0, 245, 212), 0.8));
+  animation: 
+    screenBorderFlow var(--stream-speed, 6.0s) var(--spectral-easing, linear) infinite,
+    bpmBeatPulse var(--beat-duration, 1.5s) cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+}
+
+html.music-playing .ingame-screen-glow {
+  box-shadow: inset 0 0 32px rgba(var(--dynamic-rgb, 0, 245, 212), 0.35);
+  animation: bpmBeatPulse var(--beat-duration, 1.5s) ease-in-out infinite alternate;
+}
+
+/* 2. Marco Futurista de Cámara (Esquina Superior Derecha 16:9 - 460px x 259px) */
+.ingame-cam-frame {
+  position: absolute;
+  top: 50px;
+  right: 50px;
+  width: 460px;
+  height: 259px;
+  background: transparent;
+  clip-path: polygon(
+    25px 0, 
+    100% 0, 
+    100% calc(100% - 25px), 
+    calc(100% - 25px) 100%, 
+    0 100%, 
+    0 25px
+  );
+  box-shadow: 
+    0 0 30px rgba(var(--dynamic-rgb, 0, 245, 212), 0.55),
+    inset 0 0 20px rgba(var(--dynamic-rgb, 0, 245, 212), 0.22);
+  z-index: 12;
+  transition: all 0.4s ease;
+  animation: bpmBeatPulse var(--beat-duration, 1.5s) ease-in-out infinite alternate;
+}
+
+.cam-border-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cam-border-bg {
+  fill: none;
+  stroke: rgba(0, 245, 212, 0.3);
+  stroke-width: 2px;
+}
+
+.cam-border-stream {
+  fill: none;
+  stroke: var(--dynamic-color, var(--aqua-bright));
+  stroke-width: 5px;
+  stroke-linecap: round;
+  stroke-dasharray: 320 1118;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 14px var(--dynamic-color, var(--aqua-bright))) drop-shadow(0 0 22px rgba(var(--dynamic-rgb, 0, 245, 212), 0.75));
+  animation: 
+    camBorderFlow var(--stream-speed, 6.0s) var(--spectral-easing, linear) infinite,
+    bpmBeatPulse var(--beat-duration, 1.5s) cubic-bezier(0.175, 0.885, 0.32, 1.275) infinite alternate;
+}
+
+/* 3. Etiqueta Nombre "Jikokun" (Ubicada fuera del clip-path para 100% de visibilidad) */
+.ingame-cam-tag-container {
+  position: absolute;
+  top: 295px;
+  right: 50px;
+  width: 460px;
+  display: flex;
+  justify-content: center;
+  z-index: 25;
+  pointer-events: none;
+}
+
+.ingame-cam-tag {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(3, 16, 26, 0.95);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 2px solid var(--dynamic-color, var(--aqua-bright));
+  padding: 6px 28px;
+  clip-path: polygon(14px 0, 100% 0, calc(100% - 14px) 100%, 0 100%);
+  box-shadow: 0 0 22px rgba(var(--dynamic-rgb, 0, 245, 212), 0.7);
+  transition: all 0.4s ease;
+}
+
+.ingame-cam-tag .cam-tag-icon {
+  font-size: 1.05rem;
+  color: var(--dynamic-color, var(--aqua-bright));
+  filter: drop-shadow(0 0 10px var(--dynamic-color, var(--aqua-bright)));
+}
+
+.ingame-cam-tag .cam-tag-name {
+  font-family: var(--font-tech);
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 
+    0 0 14px var(--dynamic-color, var(--aqua-bright)),
+    0 0 24px rgba(var(--dynamic-rgb, 0, 245, 212), 0.9);
+  transition: all 0.4s ease;
+}
+
+/* Keyframe de flujo de borde de pantalla de 1920x1080 (Perímetro 5968px) */
+@keyframes screenBorderFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -5968px;
+  }
+}
+
+/* Keyframe de flujo de borde de cámara (Perímetro 1438px) */
+@keyframes camBorderFlow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1438px;
+  }
+}
+
+/* ==========================================================================
+/* 1. Widget Clima & Reloj (Sin Marco Contenedor - Flotante Transparente) */
+.mimir-weather-widget {
+  position: absolute;
+  top: 45px;
+  right: 70px;
+  width: auto;
+  height: auto;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  z-index: 10;
+}
+
+.weather-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.weather-location {
+  font-family: var(--font-tech);
+  font-size: 0.95rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--aqua-bright);
+  text-transform: uppercase;
+  text-shadow: 0 0 10px rgba(0, 245, 212, 0.8);
+}
+
+.weather-clock {
+  font-family: var(--font-tech);
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--electric-white);
+  text-shadow: 
+    0 0 16px var(--aqua-bright),
+    0 0 32px var(--aqua-electric);
+  letter-spacing: 3px;
+  line-height: 1;
+}
+
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.weather-icon-box {
+  font-size: 3rem;
+  filter: drop-shadow(0 0 18px var(--aqua-bright));
+  animation: pulseWeatherIcon 3s ease-in-out infinite alternate;
+  line-height: 1;
+}
+
+@keyframes pulseWeatherIcon {
+  0% { transform: scale(1); filter: drop-shadow(0 0 10px var(--aqua-bright)); }
+  100% { transform: scale(1.08); filter: drop-shadow(0 0 22px var(--aqua-bright)); }
+}
+
+.weather-temp-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.weather-temp {
+  font-family: var(--font-tech);
+  font-size: 2.2rem;
+  font-weight: 900;
+  color: #ffffff;
+  text-shadow: 0 0 14px var(--aqua-bright);
+  line-height: 1.1;
+}
+
+.weather-desc {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 800;
+  color: rgba(240, 255, 255, 0.95);
+  text-shadow: 0 0 10px rgba(0, 245, 212, 0.6);
+  letter-spacing: 0.5px;
+}
+
+/* 2. Área del Chat en Nubes Simuladas Ampliadas (Glassmorphism Suave 100% Nativo 1920x1080) */
+.mimir-chat-card {
+  position: absolute;
+  top: 60px;
+  left: 70px;
+  width: 580px;
+  height: 750px;
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  overflow: visible;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.mimir-chat-card .chat-area {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  gap: 16px;
+  overflow-y: auto;
+  scroll-behavior: smooth;
+  padding: 10px;
+}
+
+/* Envoltorio General de Nube Simulada con Bultos y Sombras 3D en Modo Mimir */
+.mimir-chat-card .message-row {
+  position: relative;
+  width: 100%;
+  margin-top: 14px;
+}
+
+.mimir-chat-card .cloud-bubble {
+  max-width: 500px;
+}
+
+/* Animación de Entrada: Aparece desde abajo empujando suavemente hacia arriba */
+@keyframes neonCloudRising {
+  0% {
+    opacity: 0;
+    transform: translateY(55px) scale(0.85);
+    filter: blur(8px);
+  }
+  65% {
+    opacity: 0.95;
+    transform: translateY(-5px) scale(1.02);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* Animación de Salida: Se eleva hacia arriba disolviéndose en el cielo */
+@keyframes neonCloudMistEvaporate {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-75px) scale(0.85);
+    filter: blur(14px);
+  }
+}
+
+/* 4. Luna Simulada Agrandada con Resplandor Leve y Logo Animado del Lobo */
+.mimir-logo-circle {
+  position: absolute;
+  top: 70px;
+  left: 650px;
+  width: 620px;
+  height: 620px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ffffff 0%, #e0f8ff 22%, #a5f0fc 50%, #1594b8 78%, #043f5e 100%);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 
+    0 0 45px rgba(255, 255, 255, 0.7),
+    0 0 90px rgba(0, 245, 212, 0.45),
+    0 0 140px rgba(0, 229, 255, 0.25),
+    inset 0 0 45px rgba(255, 255, 255, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  overflow: visible;
+  animation: moonGlowPulse 4s ease-in-out infinite alternate;
+}
+
+/* Textura sutil de cráteres lunares */
+.mimir-logo-circle::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 50%;
+  background: 
+    radial-gradient(circle at 25% 45%, rgba(4, 50, 80, 0.16) 0%, transparent 18%),
+    radial-gradient(circle at 65% 25%, rgba(4, 50, 80, 0.14) 0%, transparent 16%),
+    radial-gradient(circle at 72% 62%, rgba(4, 50, 80, 0.2) 0%, transparent 24%),
+    radial-gradient(circle at 40% 78%, rgba(4, 50, 80, 0.12) 0%, transparent 15%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Logo Animado del Lobo Agrandado en el Centro de la Luna (Efecto 3D Sobresaliente) */
+.mimir-logo-circle .animated-logo {
+  position: relative;
+  z-index: 5;
+  width: 120%;
+  height: 120%;
+  object-fit: contain;
+  transform: scale(1.6);
+  filter: 
+    drop-shadow(0 15px 35px rgba(2, 10, 20, 0.95))
+    drop-shadow(0 0 40px rgba(0, 245, 212, 0.9));
+  animation: wolfFloatInMoon 4s ease-in-out infinite alternate;
+}
+
+@keyframes moonGlowPulse {
+  0% {
+    box-shadow: 
+      0 0 30px rgba(255, 255, 255, 0.55),
+      0 0 60px rgba(0, 245, 212, 0.35),
+      0 0 100px rgba(0, 229, 255, 0.2),
+      inset 0 0 25px rgba(255, 255, 255, 0.65);
+  }
+  100% {
+    box-shadow: 
+      0 0 45px rgba(255, 255, 255, 0.8),
+      0 0 90px rgba(0, 245, 212, 0.5),
+      0 0 140px rgba(0, 229, 255, 0.3),
+      inset 0 0 45px rgba(255, 255, 255, 0.85);
+  }
+}
+
+@keyframes wolfFloatInMoon {
+  0% { transform: scale(1.45) translateY(0); }
+  100% { transform: scale(1.48) translateY(-6px); }
+}
+
+/* 5. Texto Llamativo Inferior (Gracias por disfrutar / Vamos a mimir) */
+.mimir-bottom-title-container {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1600px;
+  text-align: center;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.mimir-main-text {
+  font-family: 'Bangers', 'Luckiest Guy', 'Chewy', 'Fredoka', cursive, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0px;
+}
+
+.mimir-line {
+  display: block;
+  font-size: 5.6rem;
+  line-height: 1.05;
+  text-transform: uppercase;
+  color: #ffffff;
+  letter-spacing: 4px;
+  white-space: nowrap;
+  -webkit-text-stroke: 4.5px #02090f;
+  paint-order: stroke fill;
+  text-shadow: 6px 8px 0px #01050a;
+  filter: 
+    drop-shadow(0 0 15px rgba(255, 255, 255, 0.9))
+    drop-shadow(0 0 35px rgba(0, 245, 212, 0.65));
+}
+
+.mimir-line.line-2 {
+  font-size: 6.8rem;
+  color: #e2f7ff !important;
+  -webkit-text-fill-color: #e2f7ff !important;
+  -webkit-text-stroke: 5px #02090f;
+  paint-order: stroke fill;
+  text-shadow: 6px 8px 0px #01050a;
+  filter: 
+    drop-shadow(0 0 20px rgba(226, 247, 255, 0.95))
+    drop-shadow(0 0 45px rgba(0, 229, 255, 0.75)) !important;
+}
+
+/* Animación Letra por Letra Ondulante Flotante Suave */
+.mimir-line .mimir-char {
+  display: inline-block;
+  animation: mimirLetterWave 3.2s ease-in-out infinite alternate;
+  will-change: transform, filter;
+}
+
+@keyframes mimirLetterWave {
+  0% {
+    transform: translateY(0px) rotate(0deg) scale(1);
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.5));
+  }
+  50% {
+    transform: translateY(-9px) rotate(-1.5deg) scale(1.04);
+    filter: drop-shadow(0 0 20px rgba(210, 245, 255, 0.95));
+  }
+  100% {
+    transform: translateY(2px) rotate(1deg) scale(0.99);
+    filter: drop-shadow(0 0 10px rgba(180, 230, 255, 0.6));
+  }
+}
+
+/* ==========================================================================
+   EFECTO MÁGICO DE CAÍDA DE ESTRELLAS FUGACES (SHOOTING STARS)
+   ========================================================================== */
+.shooting-stars-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.shooting-star {
+  position: absolute;
+  width: 220px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 1) 0%, rgba(0, 245, 212, 0.85) 35%, rgba(0, 229, 255, 0.4) 65%, transparent 100%);
+  border-radius: 50%;
+  filter: drop-shadow(0 0 10px #ffffff) drop-shadow(0 0 20px rgba(0, 245, 212, 0.95));
+  transform: rotate(-35deg);
+  transform-origin: left center;
+  opacity: 0;
+  animation: shootingStarAnim 2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+}
+
+.shooting-star::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 7px;
+  height: 7px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 0 14px #ffffff, 0 0 22px #00f5d4, 0 0 35px #00e5ff;
+}
+
+@keyframes shootingStarAnim {
+  0% {
+    transform: translate(0, 0) rotate(-35deg) scaleX(0.1);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-60px, 42px) rotate(-35deg) scaleX(1);
+  }
+  75% {
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-750px, 525px) rotate(-35deg) scaleX(0.4);
+    opacity: 0;
+  }
+}
+</style>
+</head>
+<body>
+  <div class="overlay-wrapper">
+    <!-- Escenario OBS Nativo 1920x1080 (Auto-escalable a cualquier resolución) -->
+    <div class="overlay-stage" id="overlay-stage">
+      
+      <!-- Capa 1: Canvas de Fondo (Partículas y Aura Radial Aqua) -->
+      <canvas id="bg-canvas"></canvas>
+
+      <!-- Capa 2: Marcos Geométricos Angulares en Esquinas -->
+      <div class="frame-container">
+        <!-- Esquina Superior Derecha -->
+        <div class="slash-shape top-right-main"></div>
+        <div class="slash-shape top-right-accent1"></div>
+        <div class="slash-shape top-right-accent2"></div>
+        <div class="slash-shape top-right-blade"></div>
+
+        <!-- Esquina Inferior Izquierda -->
+        <div class="slash-shape bottom-left-main"></div>
+        <div class="slash-shape bottom-left-accent1"></div>
+        <div class="slash-shape bottom-left-accent2"></div>
+        <div class="slash-shape bottom-left-blade"></div>
+
+        <!-- Líneas de Energía en Bordes -->
+        <div class="border-glow-line top"></div>
+        <div class="border-glow-line bottom"></div>
+        <div class="border-glow-line left"></div>
+        <div class="border-glow-line right"></div>
+      </div>
+
+      <!-- Capa 3: Canvas de Rayos Eléctricos y Chispas -->
+      <canvas id="electric-canvas"></canvas>
+
+      <!-- Capa 4: Marcos de Estructura Modo Chat (Sin Textos) -->
+      <div class="chatmode-container">
+        <!-- 1. Marco Principal de Cámara Web / Contenido -->
+        <div class="chatmode-frame frame-camera">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches"></div>
+        </div>
+
+        <!-- 2. Marco Alargado Derecho para Chat en Pantalla + Widget Spotify -->
+        <div class="chatmode-frame frame-chat">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches vertical"></div>
+
+          <!-- Widget Spotify Isla Dinámica Integrada (Estilo Poligonal Sci-Fi Agrandado) -->
+          <div class="spotify-island-container">
+            <div id="spotify-wrapper" class="island-wrapper hidden">
+              <div id="spotify-island" class="island closed chatmode-frame">
+                <!-- Ícono Neón de Play (▶) -->
+                <div class="spotify-play-badge">
+                  <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="6,4 20,12 6,20" />
+                  </svg>
+                </div>
+                <div class="cover">
+                  <img id="albumCover" src="" crossorigin="anonymous" alt="Portada" />
+                </div>
+                <div class="info">
+                  <div id="spotify-song-name" class="song-name">Cargando...</div>
+                  <div class="artist-bpm-row" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div id="spotify-artist-name" class="artist-name">Spotify</div>
+                    <div id="spotify-bpm" class="spotify-bpm-badge">-- BPM</div>
+                  </div>
+                </div>
+                <!-- Ecualizador de Barras Neón Soundwave -->
+                <div class="soundwave-equalizer">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Área del Chat en Vivo (Kick / Streamer.bot) -->
+          <!-- OPCIÓN A: WebSocket Streamer.bot (Burbujas Neón Aqua en Tiempo Real - Activo por defecto) -->
+          <div class="chat-area" id="chat-container"></div>
+
+          <!-- OPCIÓN B: Widget iFrame de Botrix Live (Si prefieres usar el Chat Widget Oficial de Botrix) -->
+          <!-- 
+          <div class="chat-area">
+            <iframe 
+              src="https://botrix.live/widgets/chat?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-chat-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+          -->
+        </div>
+
+        <!-- 3. Espacio Dedicado para Alertas -->
+        <div class="chatmode-frame frame-alerts">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+
+          <!-- Encabezado Sci-Fi Centrado para Alertas -->
+          <div class="alerts-frame-header">
+            <span class="alerts-icon">⚡</span>
+            <span class="alerts-title">ALERTAS</span>
+          </div>
+
+          <!-- Contenido Widget Alertas Botrix Live -->
+          <div class="alerts-frame-content">
+            <iframe 
+              src="https://botrix.live/alerts?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-alerts-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+        </div>
+
+        <!-- 4. Contenedor de Espacios Varios para Eventos (4 Cajas de Eventos) -->
+        <div class="chatmode-events-grid">
+          <!-- Caja 1: Último Seguidor (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-1">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">✨</span>
+              <span class="event-title">ÚLTIMO SEGUIDOR</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoFollow&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- Caja 2: Último Donador de Sub / Sub Regalado (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-2">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">🎁</span>
+              <span class="event-title">ÚLTIMO SUB REGALADO</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoGift) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoGift&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+          <!-- Caja 3: Último Suscriptor (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-3">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">⭐</span>
+              <span class="event-title">ÚLTIMO SUSCRIPTOR</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoSub) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoSub&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+          <!-- Caja 4: Últimos Kicks Regalados (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-4">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">💚</span>
+              <span class="event-title">ÚLTIMOS KICKS REGALADOS</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoKicks) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bname%7D+-+%7Bamount%7D&font=Arial&type=ultimoKicks&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Script Principal JS -->
+  <script>
+/* ==========================================================================
+   OVERLAY: JIKOKUN - SCRIPT DE ANIMACIÓN (ESCENARIO 1920x1080 + PARTÍCULAS + RAYOS)
+   ========================================================================== */
+
+document.addEventListener('DOMContentLoaded', () => {
+  initAutoScaling();
+  initBackgroundCanvas();
+  initElectricCanvas();
+  initFrameBorders();
+  initCountdownTimer(5 * 60); // 5 minutos por defecto
+  initKickChat();
+  initSpotifyWidget();
+  initMimirWeatherClock();
+  initMimirLetterAnimation();
+  initShootingStars();
+});
+
+/* ==========================================================================
+   0. AUTO-ESCALADO PROPORCIONAL DEL ESCENARIO 1920x1080 (RELACIÓN 16:9)
+   ========================================================================== */
+function initAutoScaling() {
+  const stage = document.getElementById('overlay-stage');
+  if (!stage) return;
+
+  function resizeStage() {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+
+    const scaleX = windowWidth / 1920;
+    const scaleY = windowHeight / 1080;
+    const scale = Math.min(scaleX, scaleY);
+
+    stage.style.transform = `scale(${scale})`;
+  }
+
+  window.addEventListener('resize', resizeStage);
+  resizeStage();
+}
+
+/* ==========================================================================
+   0.5. INYECCIÓN DE CORRIENTE NEÓN SVG EN EL CONTORNO (STROKE) DE MARCOS
+   ========================================================================== */
+function initFrameBorders() {
+  const frames = document.querySelectorAll('.chatmode-frame, .cam-frame');
+  frames.forEach(frame => {
+    if (frame.querySelector('.frame-border-svg')) return;
+
+    const svgNS = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("class", "frame-border-svg");
+    svg.setAttribute("viewBox", "0 0 1000 1000");
+    svg.setAttribute("preserveAspectRatio", "none");
+
+    const basePolygon = document.createElementNS(svgNS, "polygon");
+    basePolygon.setAttribute("points", "30,0 1000,0 1000,970 970,1000 0,1000 0,30");
+    basePolygon.setAttribute("class", "svg-border-base");
+
+    const streamPolygon = document.createElementNS(svgNS, "polygon");
+    streamPolygon.setAttribute("points", "30,0 1000,0 1000,970 970,1000 0,1000 0,30");
+    streamPolygon.setAttribute("class", "svg-border-stream");
+
+    svg.appendChild(basePolygon);
+    svg.appendChild(streamPolygon);
+    frame.appendChild(svg);
+  });
+}
+
+/* ==========================================================================
+   1. CANVAS DE FONDO NATIVO 1920x1080
+   ========================================================================== */
+function initBackgroundCanvas() {
+  const canvas = document.getElementById('bg-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const width = canvas.width = 1920;
+  const height = canvas.height = 1080;
+  let particles = [];
+  const particleCount = 80;
+
+  // Clase Partícula
+  class Particle {
+    constructor() {
+      this.reset();
+    }
+
+    reset() {
+      this.x = Math.random() * width;
+      this.y = Math.random() * height;
+      this.radius = Math.random() * 3 + 0.8;
+      this.vx = (Math.random() - 0.5) * 0.4;
+      this.vy = -Math.random() * 0.9 - 0.3; // Ascenso suave
+      this.alpha = Math.random() * 0.7 + 0.2;
+      this.maxAlpha = this.alpha;
+      this.color = Math.random() > 0.4 ? '#00f5d4' : '#00e5ff';
+      this.pulseSpeed = Math.random() * 0.02 + 0.005;
+    }
+
+    update() {
+      this.x += this.vx + Math.sin(this.y * 0.01) * 0.2;
+      this.y += this.vy;
+
+      this.alpha += Math.sin(Date.now() * this.pulseSpeed) * 0.05;
+      if (this.alpha < 0.1) this.alpha = 0.1;
+      if (this.alpha > this.maxAlpha) this.alpha = this.maxAlpha;
+
+      if (this.y < -10 || this.x < -10 || this.x > width + 10) {
+        this.y = height + 10;
+        this.x = Math.random() * width;
+      }
+    }
+
+    draw() {
+      ctx.save();
+      ctx.globalAlpha = this.alpha;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fillStyle = this.color;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = this.color;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  for (let i = 0; i < particleCount; i++) {
+    particles.push(new Particle());
+  }
+
+  function drawConnections() {
+    for (let i = 0; i < particles.length; i++) {
+      for (let j = i + 1; j < particles.length; j++) {
+        const dx = particles[i].x - particles[j].x;
+        const dy = particles[i].y - particles[j].y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 130) {
+          ctx.save();
+          ctx.globalAlpha = (1 - dist / 130) * 0.22;
+          ctx.beginPath();
+          ctx.moveTo(particles[i].x, particles[i].y);
+          ctx.lineTo(particles[j].x, particles[j].y);
+          ctx.strokeStyle = '#00f5d4';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+          ctx.restore();
+        }
+      }
+    }
+  }
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+
+    particles.forEach(p => {
+      p.update();
+      p.draw();
+    });
+
+    drawConnections();
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+}
+
+/* ==========================================================================
+   2. MOTOR DE RAYOS Y CHISPAS EN CANVAS NATIVO 1920x1080
+   ========================================================================== */
+function initElectricCanvas() {
+  const canvas = document.getElementById('electric-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  const width = canvas.width = 1920;
+  const height = canvas.height = 1080;
+  let bolts = [];
+  let sparks = [];
+
+  function getTitleBounds() {
+    const title = document.querySelector('.brush-title');
+    if (!title) return null;
+    const stage = document.getElementById('overlay-stage');
+    const titleRect = title.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+
+    // Convertir coordenadas del título a la escala nativa 1920x1080
+    const scale = stageRect.width / 1920 || 1;
+    return {
+      left: (titleRect.left - stageRect.left) / scale,
+      top: (titleRect.top - stageRect.top) / scale,
+      width: titleRect.width / scale,
+      height: titleRect.height / scale,
+      right: (titleRect.right - stageRect.left) / scale,
+      bottom: (titleRect.bottom - stageRect.top) / scale
+    };
+  }
+
+  function createLightningPath(x1, y1, x2, y2, displacement) {
+    if (displacement < 4) {
+      return [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+    }
+
+    const midX = (x1 + x2) / 2;
+    const midY = (y1 + y2) / 2;
+
+    const normalX = -(y2 - y1);
+    const normalY = x2 - x1;
+    const len = Math.sqrt(normalX * normalX + normalY * normalY);
+
+    const offsetX = (Math.random() - 0.5) * displacement * (normalX / (len || 1));
+    const offsetY = (Math.random() - 0.5) * displacement * (normalY / (len || 1));
+
+    const path1 = createLightningPath(x1, y1, midX + offsetX, midY + offsetY, displacement / 2);
+    const path2 = createLightningPath(midX + offsetX, midY + offsetY, x2, y2, displacement / 2);
+
+    return path1.concat(path2.slice(1));
+  }
+
+  class LightningBolt {
+    constructor(x1, y1, x2, y2) {
+      this.x1 = x1;
+      this.y1 = y1;
+      this.x2 = x2;
+      this.y2 = y2;
+      this.path = createLightningPath(x1, y1, x2, y2, 45);
+      this.life = 1.0;
+      this.decay = Math.random() * 0.15 + 0.1;
+      this.width = Math.random() * 2 + 1.5;
+    }
+
+    draw() {
+      if (this.life <= 0) return;
+
+      ctx.save();
+      ctx.globalAlpha = this.life;
+      ctx.beginPath();
+      ctx.moveTo(this.path[0].x, this.path[0].y);
+
+      for (let i = 1; i < this.path.length; i++) {
+        ctx.lineTo(this.path[i].x, this.path[i].y);
+      }
+
+      ctx.strokeStyle = '#00f5d4';
+      ctx.lineWidth = this.width + 2;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#00f5d4';
+      ctx.stroke();
+
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = this.width;
+      ctx.shadowBlur = 3;
+      ctx.shadowColor = '#ffffff';
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    update() {
+      this.life -= this.decay;
+    }
+  }
+
+  class ElectricSpark {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = Math.random() * 6 + 2;
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+      this.life = 1.0;
+      this.decay = Math.random() * 0.08 + 0.04;
+      this.size = Math.random() * 3 + 1;
+    }
+
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.life -= this.decay;
+    }
+
+    draw() {
+      if (this.life <= 0) return;
+      ctx.save();
+      ctx.globalAlpha = this.life;
+      ctx.fillStyle = '#00f5d4';
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = '#00f5d4';
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function spawnBoxLightning() {
+    const bounds = getTitleBounds();
+    if (!bounds) return;
+
+    const sides = ['top', 'bottom', 'left', 'right'];
+    const side = sides[Math.floor(Math.random() * sides.length)];
+
+    let p1 = { x: 0, y: 0 }, p2 = { x: 0, y: 0 };
+    const offset = 10;
+
+    if (side === 'top') {
+      p1.x = bounds.left + Math.random() * bounds.width * 0.5;
+      p1.y = bounds.top - offset;
+      p2.x = p1.x + Math.random() * 180 + 40;
+      p2.y = bounds.top - offset;
+    } else if (side === 'bottom') {
+      p1.x = bounds.left + Math.random() * bounds.width * 0.5;
+      p1.y = bounds.bottom + offset;
+      p2.x = p1.x + Math.random() * 180 + 40;
+      p2.y = bounds.bottom + offset;
+    } else if (side === 'left') {
+      p1.x = bounds.left - offset;
+      p1.y = bounds.top + Math.random() * bounds.height * 0.5;
+      p2.x = bounds.left - offset;
+      p2.y = p1.y + Math.random() * 100 + 30;
+    } else {
+      p1.x = bounds.right + offset;
+      p1.y = bounds.top + Math.random() * bounds.height * 0.5;
+      p2.x = bounds.right + offset;
+      p2.y = p1.y + Math.random() * 100 + 30;
+    }
+
+    bolts.push(new LightningBolt(p1.x, p1.y, p2.x, p2.y));
+
+    for (let i = 0; i < 6; i++) {
+      sparks.push(new ElectricSpark((p1.x + p2.x) / 2, (p1.y + p2.y) / 2));
+    }
+  }
+
+  function spawnCornerLightning() {
+    if (Math.random() > 0.4) return;
+    const p1 = { x: width * 0.7, y: 30 };
+    const p2 = { x: width * 0.95, y: 150 };
+    bolts.push(new LightningBolt(p1.x, p1.y, p2.x, p2.y));
+
+    const p3 = { x: width * 0.05, y: height - 150 };
+    const p4 = { x: width * 0.3, y: height - 30 };
+    bolts.push(new LightningBolt(p3.x, p3.y, p4.x, p4.y));
+  }
+
+  let frameCount = 0;
+  function animateElectric() {
+    ctx.clearRect(0, 0, width, height);
+    frameCount++;
+
+    if (frameCount % 18 === 0 || Math.random() < 0.08) {
+      spawnBoxLightning();
+    }
+    if (frameCount % 45 === 0) {
+      spawnCornerLightning();
+    }
+
+    for (let i = bolts.length - 1; i >= 0; i--) {
+      bolts[i].update();
+      bolts[i].draw();
+      if (bolts[i].life <= 0) {
+        bolts.splice(i, 1);
+      }
+    }
+
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      sparks[i].update();
+      sparks[i].draw();
+      if (sparks[i].life <= 0) {
+        sparks.splice(i, 1);
+      }
+    }
+
+    requestAnimationFrame(animateElectric);
+  }
+
+  animateElectric();
+}
+
+/* ==========================================================================
+   3. CONTADOR REGRESIVO Y BARRA DE PROGRESO
+   ========================================================================== */
+function initCountdownTimer(totalSeconds) {
+  let secondsRemaining = totalSeconds;
+  const timerDisplay = document.getElementById('timer');
+  const progressFill = document.getElementById('progress-fill');
+
+  function updateTimer() {
+    const mins = Math.floor(secondsRemaining / 60);
+    const secs = secondsRemaining % 60;
+
+    const formattedMins = String(mins).padStart(2, '0');
+    const formattedSecs = String(secs).padStart(2, '0');
+
+    if (timerDisplay) {
+      timerDisplay.textContent = `${formattedMins}:${formattedSecs}`;
+    }
+
+    if (progressFill) {
+      const percentage = ((totalSeconds - secondsRemaining) / totalSeconds) * 100;
+      progressFill.style.width = `${percentage}%`;
+    }
+
+    if (secondsRemaining > 0) {
+      secondsRemaining--;
+    } else {
+      if (timerDisplay) timerDisplay.textContent = "00:00";
+      if (progressFill) progressFill.style.width = "100%";
+      clearInterval(interval);
+    }
+  }
+
+  updateTimer();
+  const interval = setInterval(updateTimer, 1000);
+}
+
+/* ==========================================================================
+   4. CONECTOR DE KICK CHAT EN VIVO (STREAMER.BOT WEBSOCKET PORT 4445)
+   ========================================================================== */
+function initKickChat() {
+  const chatContainer = document.getElementById('chat-container');
+  if (!chatContainer) return;
+
+  const SERVER_IP = "127.0.0.1";
+  const SERVER_PORT = "4445";
+  const botsIgnorados = ['botrix', 'kickbot', 'nightbot', 'lobito_mensajero', 'jikobot'];
+  let isConnected = false;
+
+  function conectarConStreamerBot() {
+    console.log(`[Jikokun Chat] Intentando conectar a Streamer.bot WebSocket (ws://${SERVER_IP}:${SERVER_PORT})...`);
+    
+    let ws;
+    try {
+      ws = new WebSocket(`ws://${SERVER_IP}:${SERVER_PORT}/`);
+    } catch (e) {
+      console.warn("[Jikokun Chat] No se pudo abrir WebSocket a Streamer.bot. Reintentando en 5s...", e);
+      setTimeout(conectarConStreamerBot, 5000);
+      return;
+    }
+
+    ws.onopen = () => {
+      isConnected = true;
+      console.log("✅ ¡Conexión local a Streamer.bot establecida con éxito!");
+      const payloadSuscripcion = {
+        "request": "Subscribe",
+        "id": "jikokun-glass-chat",
+        "events": {
+          "Kick": [
+            "ChatMessage",
+            "Message",
+            "Follow"
+          ]
+        }
+      };
+      ws.send(JSON.stringify(payloadSuscripcion));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const rawPayload = JSON.parse(event.data);
+        const payload = rawPayload.data || rawPayload;
+
+        const eventObj = rawPayload.event || payload.event || {};
+        const eventName = (
+          (typeof eventObj === 'object' ? (eventObj.type || eventObj.name || '') : eventObj) ||
+          rawPayload.type || rawPayload.eventType || rawPayload.name ||
+          payload.type || payload.eventType || payload.name || ''
+        ).toString().toLowerCase();
+
+        const payloadText = JSON.stringify(payload).toLowerCase();
+        const isFollowEvent = eventName.includes('follow') || eventName.includes('follower') || payloadText.includes('followed');
+
+        if (isFollowEvent && !payload.message && !payload.text && !payload.messageText) {
+          showFollowAlert(payload);
+          return;
+        }
+
+        if (payload.message || rawPayload.message || payload.text || payload.messageText || payload.content) {
+          processMessage(payload);
+          return;
+        }
+      } catch (error) {
+        console.error("Fallo procesando mensaje de Streamer.bot:", error);
+      }
+    };
+
+    ws.onerror = (err) => {
+      console.warn("[Jikokun Chat] WebSocket Streamer.bot error o servidor no disponible.", err);
+    };
+
+    ws.onclose = () => {
+      isConnected = false;
+      console.warn("[Jikokun Chat] Desconectado de Streamer.bot. Reintentando en 5 segundos...");
+      setTimeout(conectarConStreamerBot, 5000);
+    };
+  }
+
+  function processMessage(data) {
+    if (!data) return;
+
+    let messageObj = data.message || data;
+    let userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
+
+    let usernameRaw = "Usuario";
+    if (typeof userObj === 'string') {
+      usernameRaw = userObj;
+    } else if (typeof userObj === 'object') {
+      usernameRaw = userObj.username || userObj.name || userObj.displayName || userObj.user_name || data.user_name || data.username || data.userName || "Usuario";
+    }
+    const usernameLower = usernameRaw.trim().toLowerCase();
+
+    if (botsIgnorados.includes(usernameLower) || userObj.is_bot || data.is_bot) return;
+
+    let contentRaw = "";
+    if (typeof data.messageText === 'string') {
+      contentRaw = data.messageText;
+    } else if (typeof messageObj === 'string') {
+      contentRaw = messageObj;
+    } else if (typeof messageObj === 'object' && messageObj !== null) {
+      if (typeof messageObj.message === 'string') contentRaw = messageObj.message;
+      else if (typeof messageObj.text === 'string') contentRaw = messageObj.text;
+      else if (typeof messageObj.content === 'string') contentRaw = messageObj.content;
+    }
+    if (!contentRaw && typeof data.message === 'string') contentRaw = data.message;
+    if (!contentRaw && typeof data.text === 'string') contentRaw = data.text;
+    if (!contentRaw && typeof data.content === 'string') contentRaw = data.content;
+
+    if (!contentRaw || typeof contentRaw !== 'string') return;
+
+    let safeContent = escapeHTML(contentRaw);
+
+    // Renderizar Emotes de Kick [emote:id:nombre]
+    safeContent = safeContent.replace(/\[emote:(\d+):([^\]]+)\]/g, function(match, emoteId, emoteName) {
+      return `<img src="https://files.kick.com/emotes/${emoteId}/fullsize" alt="${emoteName}" class="kick-emote" style="height: 32px; width: auto; vertical-align: middle; margin: 0 2px;">`;
+    });
+
+    let userColor = userObj.color || data.color || "#00f5d4";
+    if (userColor === '#000000' || userColor === '#FFFFFF') {
+      userColor = generarColorElegante(usernameLower);
+    }
+    const userColorDim = userColor + '40';
+
+    let badgesHtml = '';
+    const isBroadcaster = (usernameLower === 'jikokun') || data.isBroadcaster || userObj.isBroadcaster || messageObj.isBroadcaster || data.isOwner || userObj.isOwner || false;
+    const isModerator = data.isModerator || userObj.isModerator || messageObj.isModerator || data.isMod || userObj.isMod || false;
+    const isSubscriber = data.isSubscriber || userObj.isSubscriber || messageObj.isSubscriber || data.isSub || userObj.isSub || false;
+    const isVip = data.isVip || userObj.isVip || messageObj.isVip || data.vip || userObj.vip || false;
+    const isOg = data.isOg || userObj.isOg || data.og || userObj.og || false;
+
+    if (isBroadcaster) badgesHtml += '<span class="badge streamer">👑</span>';
+    else if (isModerator) badgesHtml += '<span class="badge mod">🛡️</span>';
+    else if (isVip) badgesHtml += '<span class="badge vip">💎</span>';
+    if (isSubscriber && !isBroadcaster) badgesHtml += '<span class="badge sub">⭐</span>';
+    if (isOg && !isBroadcaster) badgesHtml += '<span class="badge og">🔥</span>';
+
+    const isMimir = !!chatContainer.closest('.mimir-chat-card');
+    const isMe = isBroadcaster || data.isMe || (data.sender === 'me');
+    const senderClass = isMe ? 'me' : 'them';
+    const avatarEmoji = data.emoji || (isBroadcaster ? '👑' : (isModerator ? '🛡️' : (isVip ? '💎' : (isSubscriber ? '⭐' : '☁️'))));
+
+    const msgElement = document.createElement('div');
+    msgElement.style.setProperty('--user-color', userColor);
+    msgElement.style.setProperty('--user-color-dim', userColorDim);
+
+    if (isMimir) {
+      // Exclusivo para Modo Mimir: Chat tipo Nube 3D Flotante con Partículas
+      msgElement.className = `message-row glass-message ${senderClass}`;
+      msgElement.innerHTML = `
+        <div class="avatar ${senderClass}">
+          <span>${avatarEmoji}</span>
+        </div>
+        <div class="cloud-bubble">
+          <div class="cloud-puff p1"></div>
+          <div class="cloud-puff p2"></div>
+          <div class="cloud-puff p3"></div>
+          <div class="cloud-puff p4"></div>
+          <div class="cloud-puff p5"></div>
+          <div class="cloud-shine"></div>
+          <div class="cloud-body">
+            <div class="message-header" style="display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
+              <span class="badges" style="display: flex; align-items: center; gap: 2px;">${badgesHtml}</span>
+              <span class="username" style="font-weight: 800; color: var(--user-color, #041c34);">${escapeHTML(usernameRaw)}</span>
+            </div>
+            <div class="content" style="word-break: break-word;">${safeContent}</div>
+          </div>
+          <div class="cloud-shadow"></div>
+        </div>
+      `;
+      chatContainer.appendChild(msgElement);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+
+      // Animación de partículas de humo al aparecer la nube en Modo Mimir
+      spawnSmokeParticles(msgElement, chatContainer);
+    } else {
+      // Estándar para Modo Chat y demás escenas: Cristal Líquido Aqua Neón original
+      msgElement.className = 'glass-message';
+      msgElement.innerHTML = `
+        <div class="message-header" style="display: flex; align-items: center; margin-bottom: 4px;">
+          <span class="badges" style="display: flex; align-items: center;">${badgesHtml}</span>
+          <span class="username" style="font-weight: bold; color: var(--user-color); margin-left: 2px;">${escapeHTML(usernameRaw)}</span>
+        </div>
+        <div class="content" style="word-break: break-word; color: #f0ffff;">${safeContent}</div>
+      `;
+      chatContainer.appendChild(msgElement);
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    setTimeout(() => {
+      msgElement.classList.add('evaporating');
+      setTimeout(() => {
+        if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
+      }, 700);
+    }, 30000);
+  }
+
+  function spawnSmokeParticles(element, containerArea) {
+    if (!element || !containerArea) return;
+    setTimeout(() => {
+      const rect = element.getBoundingClientRect();
+      const areaRect = containerArea.getBoundingClientRect();
+      if (areaRect.width === 0 || areaRect.height === 0) return;
+
+      const cx = rect.left - areaRect.left + rect.width / 2;
+      const cy = rect.top - areaRect.top + rect.height / 2;
+
+      for (let i = 0; i < 8; i++) {
+        setTimeout(() => {
+          if (!containerArea) return;
+          const particle = document.createElement('div');
+          particle.className = 'smoke-particle';
+          const size = 12 + Math.random() * 20;
+          particle.style.width = size + 'px';
+          particle.style.height = size + 'px';
+          particle.style.left = (cx + (Math.random() - 0.5) * 80) + 'px';
+          particle.style.top = (cy + (Math.random() - 0.5) * 30) + 'px';
+          containerArea.appendChild(particle);
+          setTimeout(() => particle.remove(), 2500);
+        }, i * 80);
+      }
+    }, 50);
+  }
+
+  function showFollowAlert(data) {
+    const username = data.user?.username || data.user?.name || data.user?.displayName || data.username || data.name || data.displayName || data.user_name || data.userName || 'Nuevo seguidor';
+    const msgElement = document.createElement('div');
+    msgElement.className = 'glass-message follow-alert';
+    msgElement.innerHTML = `
+      <div class="message-header" style="display: flex; align-items: center; justify-content: center; margin-bottom: 4px;">
+        <span class="username" style="font-weight: 800; color: #ffd700; font-size: 15px; text-shadow: 0 0 12px rgba(255, 215, 0, 0.95);">${escapeHTML(username)}</span>
+      </div>
+      <div class="content" style="word-break: break-word; color: #fff8d2; text-align: center; font-weight: 700;">¡Gracias por seguir el canal! ✨</div>
+    `;
+    chatContainer.appendChild(msgElement);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    setTimeout(() => {
+      msgElement.classList.add('evaporating');
+      setTimeout(() => {
+        if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
+      }, 700);
+    }, 8000);
+  }
+
+  function generarColorElegante(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    const colores = ['#FF5E7E', '#00f5d4', '#FFD166', '#00e5ff', '#B185DB', '#FF9F1C'];
+    return colores[Math.abs(hash) % colores.length];
+  }
+
+  function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+  }
+
+  // Ayudante Global para Simular Mensajes de Prueba en Consola o Atajo Tecla
+  let simCount = 0;
+  window.simularMensajeKick = (texto, usuario) => {
+    simCount++;
+    const senders = [
+      { name: "Luna", emoji: "🌙", isMe: false, text: "¡Hola! ¿Cómo estás hoy? ☁️" },
+      { name: "Jikokun", emoji: "👑", isMe: true, text: "¡Hola chat! Las nubes flotan genial 🌤️" },
+      { name: "Sol", emoji: "☀️", isMe: false, text: "Cada mensaje aparece como magia suave ✨" },
+      { name: "Estrella", emoji: "⭐", isMe: false, text: "¡Me encanta el nuevo chat de nubes neón! ☁️" }
+    ];
+    const item = senders[simCount % senders.length];
+    processMessage({
+      user: { username: usuario || item.name, isSubscriber: true, color: item.isMe ? "#00e5ff" : "#FF5E7E" },
+      messageText: texto || item.text,
+      isMe: item.isMe,
+      emoji: item.emoji,
+      isBroadcaster: item.isMe
+    });
+  };
+
+  // Atajo de teclado: presionar Ctrl + Shift + C inserta un mensaje de prueba
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey && e.shiftKey && e.code === 'KeyC') {
+      window.simularMensajeKick();
+    }
+  });
+
+  conectarConStreamerBot();
+}
+
+/* ==========================================================================
+   5. WIDGET DE SPOTIFY DYNAMIC ISLAND (API PLAYER + VIBRANT.JS)
+   ========================================================================== */
+function initSpotifyWidget() {
+  const wrapper = document.getElementById('spotify-wrapper');
+  const urlParams = new URLSearchParams(window.location.search);
+  const usuario = urlParams.get('user') || localStorage.getItem('spotify_user') || 'jikokun2';
+  let access_token = urlParams.get('token') || localStorage.getItem('spotify_access_token') || 'BQCLkihh1c6hAuLEuR7aWBlBVRiWc48vnq7Gc6EZplicJZ5Zlsu8B2YO03rEFpIYb3hjCumlwbSLr83G6XYwIGEJEyiboDD3vc058Z9ML8V3LjAI-RxVM917-5kq9H3OuNHorDgNa8QGpD__uWN1Nc2OmwoSvV0lHEvmMjevCJsZgTVvzyx1D0f-6byuFLpkgSBKWWjEhmDKoI7u362VzHqdL6-HgeO305AUk0a5FQW-Z_BiZ52GbQp9gShTAxabUFMIuqE5FPaqd6dOImxvqvYuZKYZq8acXlyikBe4NI5-RkwXj1-I3g';
+  const refresh_token = urlParams.get('refresh') || localStorage.getItem('spotify_refresh_token') || 'AQDTO6kUDxZFrHeEg9BNOQYdLSyVjYfuWj1wRWIjoMZF5dhvA2hgL2I_6_RMXNVImEyoR2Dy-gkNQGzzkZNykcueqA7lrofKaH8AjaeaaoRQ6z4_kuiFCw3LvaKdzSEEt0E';
+
+  // Sincronización en vivo con Login de Spotify (BroadcastChannel)
+  try {
+    const spotifyBc = new BroadcastChannel("spotify_auth_channel");
+    spotifyBc.onmessage = (e) => {
+      if (e.data && e.data.access_token) {
+        access_token = e.data.access_token;
+        localStorage.setItem("spotify_access_token", access_token);
+        checkSpotifyPlayer();
+      }
+    };
+  } catch (e) {}
+
+  let lastSongId = "";
+  let isWidgetVisible = false;
+  let pauseTimeout = null;
+  let islandShrinkTimeout = null;
+  let currentTrackId = null;
+
+  function handlePause() {
+    // Restablecer al giro neón blanco tradicional a tiempo estándar constante
+    document.documentElement.style.setProperty('--dynamic-color', '#ffffff');
+    document.documentElement.style.setProperty('--dynamic-rgb', '255, 255, 255');
+    document.documentElement.style.setProperty('--stream-speed', '6.0s');
+    document.documentElement.style.setProperty('--beat-duration', '1.5s');
+    document.documentElement.style.setProperty('--spectral-easing', 'linear');
+    document.documentElement.style.setProperty('--screen-stream-width', '1.5px');
+    document.documentElement.style.setProperty('--screen-stream-opacity', '0.45');
+    document.documentElement.classList.remove('music-playing');
+    document.documentElement.classList.add('music-paused');
+    currentTrackId = null;
+
+    if (wrapper && !pauseTimeout && isWidgetVisible) {
+      pauseTimeout = setTimeout(() => {
+        wrapper.classList.add('hidden');
+        isWidgetVisible = false;
+      }, 10000);
+    }
+
+    // En escena_inicial.html: Ocultar el reproductor y mostrar el placeholder de música en reposo
+    const initialPlayer = document.getElementById('initial-spotify-player');
+    const initialIdle = document.getElementById('initial-music-idle');
+    if (initialPlayer) initialPlayer.classList.add('hidden');
+    if (initialIdle) initialIdle.classList.remove('hidden');
+  }
+
+  function handlePlay(data) {
+    document.documentElement.classList.remove('music-paused');
+    document.documentElement.classList.add('music-playing');
+    document.documentElement.style.setProperty('--screen-stream-width', '4.5px');
+    document.documentElement.style.setProperty('--screen-stream-opacity', '1.0');
+
+    if (pauseTimeout) {
+      clearTimeout(pauseTimeout);
+      pauseTimeout = null;
+    }
+    if (wrapper && !isWidgetVisible) {
+      wrapper.classList.remove('hidden');
+      isWidgetVisible = true;
+    }
+
+    // En escena_inicial.html: Mostrar el reproductor de música y ocultar el placeholder
+    const initialPlayer = document.getElementById('initial-spotify-player');
+    const initialIdle = document.getElementById('initial-music-idle');
+    if (initialPlayer) initialPlayer.classList.remove('hidden');
+    if (initialIdle) initialIdle.classList.add('hidden');
+
+    // Al reanudar reproducción, reactivar el color y ritmo dinámico de la música activa
+    if (data && data.item && currentTrackId !== data.item.id) {
+      currentTrackId = data.item.id;
+      const songName = data.item.name || "";
+      const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "";
+      const albumCoverUrl = (data.item.album && data.item.album.images) ? data.item.album.images[0].url : "";
+      if (albumCoverUrl) applyDynamicColors(albumCoverUrl);
+      syncTrackRhythm(data.item.id, songName, artistName);
+    }
+  }
+
+  async function syncTrackRhythm(songId, songName = "", artistName = "") {
+    let bpm = 120;
+    let apiSuccess = false;
+
+    // 1. Intentar consultar Spotify API Audio Features
+    if (songId) {
+      try {
+        const res = await fetch(`https://api.spotify.com/v1/audio-features/${songId}`, {
+          headers: { 'Authorization': `Bearer ${access_token}` }
+        });
+        if (res.status === 200) {
+          const features = await res.json();
+          if (features && features.tempo && features.tempo > 0) {
+            bpm = Math.round(features.tempo);
+            apiSuccess = true;
+          }
+        }
+      } catch (e) {
+        console.warn("[Jikokun Spotify] Estimando BPM por firmas acústicas...", e);
+      }
+    }
+
+    // 2. Si la API de Spotify devuelve 403/no-200 o sin tempo, estimar el BPM real por firmas y keywords del tema
+    if (!apiSuccess && (songName || artistName)) {
+      bpm = estimarBPMAcustico(songName, artistName);
+    }
+
+    // 3. Aplicar velocidad y pulsación basadas en el BPM REAL
+    const beatSeconds = 60 / bpm;
+    let beatMultiplier = 3.5;
+    let pulseMultiplier = 1.0;
+
+    if (bpm >= 155) {
+      // Metal, Power Metal, DnB, Hardstyle (155+ BPM): Ráfaga ultra-rápida y doble bombo
+      beatMultiplier = 1.8;
+      pulseMultiplier = 0.5;
+    } else if (bpm >= 125) {
+      // Rock, EDM, Fast Dance (125 - 154 BPM): Rápido energético
+      beatMultiplier = 2.4;
+      pulseMultiplier = 1.0;
+    } else if (bpm >= 95) {
+      // Pop, Hip-Hop (95 - 124 BPM): Ritmo medio
+      beatMultiplier = 3.4;
+      pulseMultiplier = 1.0;
+    } else {
+      // Baladas Lentas, Lo-Fi, Acústicos (< 95 BPM): Flujo suave y pausado
+      beatMultiplier = 4.8;
+      pulseMultiplier = 1.0;
+    }
+
+    const streamSpeed = (beatSeconds * beatMultiplier).toFixed(3);
+    const beatDuration = (beatSeconds * pulseMultiplier).toFixed(3);
+
+    document.documentElement.style.setProperty('--stream-speed', `${streamSpeed}s`);
+    document.documentElement.style.setProperty('--beat-duration', `${beatDuration}s`);
+
+    const bpmEl = document.getElementById('spotify-bpm');
+    if (bpmEl) bpmEl.textContent = `${bpm} BPM`;
+
+    const initialBpmEl = document.getElementById('initial-spotify-bpm');
+    if (initialBpmEl) initialBpmEl.textContent = `${bpm} BPM`;
+
+    console.log(`[Jikokun Spotify] 🎵 Canción: "${songName}" | BPM Real Detectado: ${bpm} | Velocidad Contorno: ${streamSpeed}s`);
+  }
+
+  function estimarBPMAcustico(songName, artistName) {
+    const text = `${songName} ${artistName}`.toLowerCase();
+
+    // Baladas Lentas, Lo-Fi, Acústicos (65 - 85 BPM)
+    if (/(ballad|balada|slow|lenta|acoustic|acustico|chill|lofi|lo-fi|piano|sad|triste|love|soft|unplugged|quiet|sleep|ambient|night)/i.test(text)) {
+      return 74;
+    }
+    // Rock Rápido, Power Metal, Speed Metal, DnB, Hardcore (155 - 195 BPM)
+    if (/(metal|power|speed|thrash|dnb|drum|hard|fast|rapido|solo|heavy|rock|electro|edm|remix|dance|punk|fire|lightning|storm)/i.test(text)) {
+      return 172;
+    }
+    // Estimación Hash Determinista realista entre 82 y 145 BPM
+    let hash = 0;
+    for (let i = 0; i < text.length; i++) hash = text.charCodeAt(i) + ((hash << 5) - hash);
+    return 82 + (Math.abs(hash) % 65);
+  }
+
+  function triggerIslandAnimation() {
+    const island = document.getElementById('spotify-island');
+    if (!island) return;
+    island.classList.remove('closed');
+    island.classList.add('expanding');
+    setTimeout(() => island.classList.remove('expanding'), 650);
+
+    if (islandShrinkTimeout) clearTimeout(islandShrinkTimeout);
+    islandShrinkTimeout = setTimeout(() => {
+      island.classList.add('closed');
+    }, 8000);
+  }
+
+  function applyDynamicColors(imageUrl) {
+    if (typeof Vibrant === 'undefined') return;
+    Vibrant.from(imageUrl).getPalette().then(palette => {
+      let colorHex = palette.Vibrant ? palette.Vibrant.getHex() : '#00f5d4';
+      document.documentElement.style.setProperty('--dynamic-color', colorHex);
+
+      let r = parseInt(colorHex.slice(1, 3), 16),
+          g = parseInt(colorHex.slice(3, 5), 16),
+          b = parseInt(colorHex.slice(5, 7), 16);
+      document.documentElement.style.setProperty('--dynamic-rgb', `${r}, ${g}, ${b}`);
+    }).catch(() => {
+      document.documentElement.style.setProperty('--dynamic-color', '#00f5d4');
+      document.documentElement.style.setProperty('--dynamic-rgb', '0, 245, 212');
+    });
+  }
+
+  async function checkSpotifyPlayer() {
+    try {
+      const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing?additional_types=episode', {
+        headers: { 'Authorization': `Bearer ${access_token}` }
+      });
+
+      if (res.status === 401) {
+        await refreshSpotifyToken();
+        return;
+      }
+
+      if (res.status === 204) {
+        handlePause();
+        return;
+      }
+
+      if (res.status === 200) {
+        const data = await res.json();
+        if (!data.is_playing) {
+          handlePause();
+        } else {
+          handlePlay(data);
+          if (data.item && data.item.id !== lastSongId) {
+            lastSongId = data.item.id;
+            const songName = data.item.name || "Desconocido";
+            const artistName = (data.item.artists && data.item.artists[0]) ? data.item.artists[0].name : "Artista";
+            const albumCoverUrl = (data.item.album && data.item.album.images) ? data.item.album.images[0].url : "";
+
+            const songEl = document.getElementById('spotify-song-name');
+            const artistEl = document.getElementById('spotify-artist-name');
+            const coverEl = document.getElementById('albumCover');
+
+            const initialSongEl = document.getElementById('initial-song-name');
+            const initialArtistEl = document.getElementById('initial-artist-name');
+            const initialCoverEl = document.getElementById('initialAlbumCover');
+
+            if (songEl) songEl.textContent = songName;
+            if (artistEl) artistEl.textContent = artistName;
+            if (coverEl && albumCoverUrl) coverEl.src = albumCoverUrl;
+
+            if (initialSongEl) initialSongEl.textContent = songName;
+            if (initialArtistEl) initialArtistEl.textContent = artistName;
+            if (initialCoverEl && albumCoverUrl) initialCoverEl.src = albumCoverUrl;
+
+            if (albumCoverUrl) applyDynamicColors(albumCoverUrl);
+            syncTrackRhythm(data.item.id, songName, artistName);
+            triggerIslandAnimation();
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error consultando API Spotify:", e);
+    }
+  }
+
+  let isRefreshing = false;
+  async function refreshSpotifyToken() {
+    if (isRefreshing) return false;
+    isRefreshing = true;
+    try {
+      const res = await fetch(`https://sensunshopweb.web.app/spotify/refresh_token?user=${encodeURIComponent(usuario)}`, { cache: 'no-store' });
+      if (res.ok) {
+        const newToken = (await res.text()).trim();
+        if (newToken && !newToken.includes("<") && newToken.length > 20) {
+          access_token = newToken;
+          localStorage.setItem("spotify_access_token", newToken);
+          checkSpotifyPlayer();
+          isRefreshing = false;
+          return true;
+        }
+      }
+    } catch (error) {
+      console.error("[Modo Chat] Error renovando token de Spotify:", error);
+    } finally {
+      isRefreshing = false;
+    }
+    return false;
+  }
+
+  checkSpotifyPlayer();
+  setInterval(checkSpotifyPlayer, 3000);
+}
+
+/* ==========================================================================
+   6. WIDGET DE CLIMA EN EL SALVADOR + RELOJ EN TIEMPO REAL (MODO MIMIR)
+   ========================================================================== */
+function initMimirWeatherClock() {
+  const clockEl = document.getElementById('mimir-clock');
+  const tempEl = document.getElementById('mimir-temp');
+  const descEl = document.getElementById('mimir-desc');
+  const iconEl = document.getElementById('mimir-weather-icon');
+
+  if (!clockEl && !tempEl) return;
+
+  function updateClock() {
+    const now = new Date();
+    // Zona horaria de El Salvador (UTC-6) - Solo Hora, Minuto y PM/AM
+    const optionsTime = { timeZone: 'America/El_Salvador', hour: '2-digit', minute: '2-digit', hour12: true };
+    let timeStr = now.toLocaleTimeString('es-SV', optionsTime).toUpperCase();
+    if (clockEl) clockEl.textContent = timeStr;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Consulta en vivo del Clima en San Salvador, El Salvador (Open-Meteo API sin API key)
+  async function fetchElSalvadorWeather() {
+    try {
+      const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=13.6929&longitude=-89.2182&current_weather=true');
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.current_weather) {
+          const temp = Math.round(data.current_weather.temperature);
+          const weatherCode = data.current_weather.weathercode;
+          const isDay = data.current_weather.is_day === 1;
+
+          if (tempEl) tempEl.textContent = `${temp}°C`;
+
+          let desc = isDay ? "Día SolyDespejado" : "Noche Estrellada";
+          let icon = isDay ? "☀️" : "🌙";
+
+          if (weatherCode === 0) {
+            desc = isDay ? "Soleado / Despejado" : "Noche Despejada";
+            icon = isDay ? "☀️" : "🌙";
+          } else if (weatherCode >= 1 && weatherCode <= 3) {
+            desc = "Parcialmente Nublado";
+            icon = isDay ? "⛅" : "☁️";
+          } else if (weatherCode >= 45 && weatherCode <= 48) {
+            desc = "Neblina Fresca";
+            icon = "🌫️";
+          } else if (weatherCode >= 51 && weatherCode <= 67) {
+            desc = "Lluvia Ligera";
+            icon = "🌧️";
+          } else if (weatherCode >= 80 && weatherCode <= 99) {
+            desc = "Tormenta / Lluvia";
+            icon = "🌩️";
+          }
+
+          if (descEl) descEl.textContent = desc;
+          if (iconEl) iconEl.textContent = icon;
+        }
+      }
+    } catch (e) {
+      console.warn("[Jikokun Weather] Usando fallback para clima de El Salvador:", e);
+      if (tempEl) tempEl.textContent = "23°C";
+      if (descEl) descEl.textContent = "Noche Despejada";
+      if (iconEl) iconEl.textContent = "🌙";
+    }
+  }
+
+  fetchElSalvadorWeather();
+  setInterval(fetchElSalvadorWeather, 600000); // Actualizar clima cada 10 min
+}
+
+/* ==========================================================================
+   7. ANIMACIÓN LETRA POR LETRA PARA EL TÍTULO INFERIOR (MODO MIMIR)
+   ========================================================================== */
+function initMimirLetterAnimation() {
+  const lines = document.querySelectorAll('.mimir-line');
+  lines.forEach(line => {
+    const text = line.textContent.trim();
+    if (!text) return;
+    line.textContent = '';
+    [...text].forEach((char, index) => {
+      const span = document.createElement('span');
+      span.className = 'mimir-char';
+      span.textContent = char === ' ' ? '\u00A0' : char;
+      span.style.animationDelay = `${index * 0.07}s`;
+      line.appendChild(span);
+    });
+  });
+}
+
+/* ==========================================================================
+   8. EFECTO MÁGICO DE CAÍDA DE ESTRELLAS FUGACES (SHOOTING STARS)
+   ========================================================================== */
+function initShootingStars() {
+  const stage = document.getElementById('overlay-stage');
+  if (!stage) return;
+
+  // El efecto de caída de estrellas fugaces es exclusivo del Modo Mimir
+  const isModoMimir = stage.querySelector('.mimir-chat-card, .mimir-weather-widget, .mimir-bottom-title-container');
+  if (!isModoMimir) return;
+
+  let container = document.getElementById('shooting-stars-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'shooting-stars-container';
+    container.className = 'shooting-stars-container';
+    const bgVideo = stage.querySelector('.bg-video');
+    if (bgVideo && bgVideo.nextSibling) {
+      stage.insertBefore(container, bgVideo.nextSibling);
+    } else {
+      stage.appendChild(container);
+    }
+  }
+
+  function spawnStar() {
+    if (!container) return;
+
+    const star = document.createElement('div');
+    star.className = 'shooting-star';
+
+    const startX = 500 + Math.random() * 1200;
+    const startY = Math.random() * 350;
+    const duration = 1.2 + Math.random() * 1.3;
+    const size = 1.8 + Math.random() * 1.6;
+
+    star.style.left = `${startX}px`;
+    star.style.top = `${startY}px`;
+    star.style.animationDuration = `${duration}s`;
+    star.style.height = `${size}px`;
+
+    container.appendChild(star);
+
+    setTimeout(() => {
+      if (star.parentNode) star.parentNode.removeChild(star);
+    }, duration * 1000 + 100);
+
+    const nextDelay = 1800 + Math.random() * 2800;
+    setTimeout(spawnStar, nextDelay);
+  }
+
+  setTimeout(spawnStar, 800);
+}
+
+</script>
+</body>
+</html>
+
