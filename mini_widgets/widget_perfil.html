@@ -1987,19 +1987,42 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     const xpParaSubir = nivelInfo.xpParaSubir || 1000;
     const xpPct = Math.min(100, Math.max(0, nivelInfo.porcentajeProgreso !== undefined ? nivelInfo.porcentajeProgreso : Math.round((xpEnNivel / Math.max(1, xpParaSubir)) * 100)));
 
-    // Roles y Badges
-    const rol = (u.rol || 'espectador').toLowerCase();
-    const isJiko = normUser === 'jikokun' || rol === 'broadcaster' || rol === 'creador';
-    const isMod = rol === 'moderador' || rol === 'mod';
-    const isVip = rol === 'vip';
-    const isSub = rol === 'sub' || rol === 'subscriber' || Boolean(u.esSub);
-    const isOg = asistencias >= 10;
+    // ══════ ROLES Y BADGES (DETECCIÓN EXHAUSTIVA DE ROLES) ══════
+    const rol = String(u.rol || '').trim().toLowerCase();
+
+    const hasBadge = (type) => {
+      if (Array.isArray(u.badges)) {
+        return u.badges.some(b => {
+          const bType = typeof b === 'string' ? b : (b?.type || b?.name || '');
+          return String(bType).toLowerCase().includes(type);
+        });
+      }
+      if (Array.isArray(u.roles)) {
+        return u.roles.some(r => String(r).toLowerCase().includes(type));
+      }
+      return false;
+    };
+
+    const isJiko = normUser === 'jikokun' || rol === 'broadcaster' || rol === 'creador' || rol === 'streamer' || rol === 'owner' || Boolean(u.isBroadcaster) || hasBadge('broadcaster');
+    const isMod = !isJiko && (rol === 'moderador' || rol === 'moderator' || rol === 'mod' || Boolean(u.esMod) || Boolean(u.isMod) || Boolean(u.moderator) || hasBadge('mod'));
+    const isSub = !isJiko && (rol === 'suscriptor' || rol === 'subscriber' || rol === 'sub' || Boolean(u.esSub) || Boolean(u.isSub) || Boolean(u.subscribed) || Boolean(u.subscriber) || hasBadge('sub'));
+    const isVip = !isJiko && (rol === 'vip' || Boolean(u.esVip) || Boolean(u.isVip) || hasBadge('vip'));
+    const isOg = asistencias >= 10 || Boolean(u.esOg) || Boolean(u.isOg) || rol === 'og' || hasBadge('og');
 
     let roleTag = '🐾 SEGUIDOR';
-    if (isJiko) roleTag = '👑 CREADOR';
-    else if (isMod) roleTag = '🛡️ MODERADOR';
-    else if (isSub) roleTag = '🪙 SUSCRIPTOR';
-    else if (isVip) roleTag = '⭐ VIP';
+    if (isJiko) {
+      roleTag = '👑 CREADOR';
+    } else if (isMod) {
+      roleTag = isOg ? '🛡️ MODERADOR • OG' : '🛡️ MODERADOR';
+    } else if (isSub) {
+      roleTag = isOg ? '🪙 SUSCRIPTOR • OG' : '🪙 SUSCRIPTOR';
+    } else if (isVip) {
+      roleTag = isOg ? '⭐ VIP • OG' : '⭐ VIP';
+    } else if (isOg) {
+      roleTag = '🐺 MIEMBRO OG';
+    } else {
+      roleTag = '🐾 SEGUIDOR';
+    }
 
     // ══════ TÍTULO DINÁMICO POR CONSUMO EN TIENDITA ══════
     const customTitle = (u.tituloPersonalizado || '').trim();
@@ -2072,50 +2095,41 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       if (earnedTitles.length < 4 && !earnedTitles.some(title => title.toLowerCase() === chatTitle.toLowerCase())) earnedTitles.push(chatTitle);
     }
 
-    // ══════ JERARQUÍA DE TEMAS Y MARCO ASIGNADO ══════
-    // 1. Si tiene marcoPerfil explícito asignado desde el Dashboard
-    // 2. Si es Jikokun / Creador / Broadcaster: .theme-owner (Diseño único del Dueño)
-    // 3. Fallback jerárquico estándar hasta Nivel 500
+    // ══════ JERARQUÍA AUTOMÁTICA DE TEMAS Y COLORES ══════
     let themeClass = 'theme-silver';
-    let themeLabel = '🐾 CACHORRO';
+    let themeLabel = '🐾 SEGUIDOR';
 
-    const MARCO_LABELS = {
-      'theme-card-test': 'CARTA GAMER PRUEBA',
-      'theme-owner': '👑 CREADOR & DUEÑO',
-      'theme-creador': '👑 CREADOR & DUEÑO',
-      'theme-unicorn': '🦄 MANADA VIP',
-      'theme-unicornio': '🦄 MANADA VIP',
-      'theme-gold': '🪙 SUB GOLD',
-      'theme-dorado': '🪙 SUB GOLD',
-      'theme-red': '🔴 LOBO ALFA',
-      'theme-rojo': '🔴 LOBO ALFA',
-      'theme-orange': '🟠 LOBO BETA',
-      'theme-naranja': '🟠 LOBO BETA',
-      'theme-purple': '🟣 GUARDIÁN',
-      'theme-morado': '🟣 GUARDIÁN',
-      'theme-cyan': '🔵 CAZADOR FIEL',
-      'theme-azul': '🔵 CAZADOR FIEL',
-      'theme-green': '🟢 EXPLORADOR',
-      'theme-verde': '🟢 EXPLORADOR',
-      'theme-silver': '⚪ CACHORRO',
-      'theme-gris': '⚪ CACHORRO'
-    };
-
-    if (u.marcoPerfil && u.marcoPerfil !== 'auto' && u.marcoPerfil !== 'theme-card-test' && MARCO_LABELS[u.marcoPerfil]) {
+    // 1. Color de tarjeta explícito asignado desde el Admin Dashboard
+    if (u.colorTarjeta && u.colorTarjeta !== 'auto' && coloresTarjetaValidos.has(u.colorTarjeta)) {
+      themeClass = u.colorTarjeta;
+      themeLabel = MARCO_LABELS[u.colorTarjeta] || 'CARTA GAMER';
+    }
+    // 2. Marco clásico explícito asignado desde el Admin Dashboard
+    else if (u.marcoPerfil && u.marcoPerfil !== 'auto' && u.marcoPerfil !== 'theme-card-test' && MARCO_LABELS[u.marcoPerfil]) {
       themeClass = u.marcoPerfil;
       themeLabel = MARCO_LABELS[u.marcoPerfil];
-    } else if (isJiko) {
+    }
+    // 3. Asignación AUTOMÁTICA por ROL de usuario
+    else if (isJiko) {
       themeClass = 'theme-owner';
       themeLabel = '👑 CREADOR & DUEÑO';
-    } else if (esManadaVip) {
-      themeClass = 'theme-unicorn';
-      themeLabel = '🦄 MANADA VIP';
+    } else if (isMod) {
+      themeClass = 'theme-purple';
+      themeLabel = '🛡️ MODERADOR';
     } else if (isSub) {
       themeClass = 'theme-gold';
       themeLabel = '🪙 SUB GOLD';
-    } else if (nivel >= 500) {
+    } else if (isVip || esManadaVip) {
+      themeClass = 'theme-unicorn';
+      themeLabel = '⭐ MANADA VIP';
+    } else if (isOg) {
+      themeClass = 'theme-orange';
+      themeLabel = '🐺 MIEMBRO OG';
+    }
+    // 4. Asignación AUTOMÁTICA por NIVEL (espectador común que sube de nivel)
+    else if (nivel >= 500) {
       themeClass = 'theme-gold';
-      themeLabel = '🏆 SEÑOR SUPREMO (LVL 500)';
+      themeLabel = '🏆 MÁXIMO RANGO (LVL 500)';
     } else if (nivel >= 166) {
       themeClass = 'theme-purple';
       themeLabel = '🌌 LOBO ANCESTRAL';
@@ -2136,33 +2150,16 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       themeLabel = '🏹 CAZADOR FIEL';
     } else if (nivel >= 11) {
       themeClass = 'theme-green';
-      themeLabel = '🌲 EXPLORADOR';
+      themeLabel = '🧭 EXPLORADOR';
     } else {
       themeClass = 'theme-silver';
-      themeLabel = '🐾 CACHORRO';
+      themeLabel = '🐾 SEGUIDOR';
     }
 
-    const coloresTarjetaValidos = new Set([
-      'theme-silver', 'theme-green', 'theme-cyan', 'theme-purple', 'theme-orange',
-      'theme-red', 'theme-gold', 'theme-unicorn', 'theme-owner'
-    ]);
-
+    // 🎴 Modo de tarjeta: Nueva Carta Gamer por defecto para todos los usuarios
     const tipoTarjetaConfig = (u.tipoTarjeta || '').toLowerCase();
-    const useTestDesign = (tipoTarjetaConfig === 'gamer') ||
-      (tipoTarjetaConfig !== 'clasica' && (
-        u.marcoPerfil === 'theme-card-test' ||
-        ((!u.marcoPerfil || u.marcoPerfil === 'auto') && !isJiko && !esManadaVip && !isSub && !isVip)
-      ));
+    const useTestDesign = (tipoTarjetaConfig !== 'clasica');
 
-    if (useTestDesign && coloresTarjetaValidos.has(u.colorTarjeta)) {
-      themeClass = u.colorTarjeta;
-    }
-
-    if (useTestDesign && !cardTitle) {
-      themeLabel = isJiko ? '👑 CREADOR & DUEÑO' : 'CARTA GAMER';
-    }
-
-    // Slots de Habilidades / Medallas
     const favDishKey = u.widgets?.tiendita?.platoFavorito || 'pupusas';
     const favDishEmoji = {
       pupusas:'🫓', tamal:'🫔', cafe:'☕', cerveza:'🍺', vinito:'🍷',
@@ -2378,11 +2375,13 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     // Datos principales clásicos
     document.getElementById('card-role-badge').textContent = d.roleTag;
     const ogBadge = document.getElementById('card-extra-badge');
-    if (d.isOg) {
-      ogBadge.style.display = 'inline-flex';
-      ogBadge.textContent = '🐺 OG';
-    } else {
-      ogBadge.style.display = 'none';
+    if (ogBadge) {
+      if (d.isOg && !d.roleTag.includes('OG')) {
+        ogBadge.style.display = 'inline-flex';
+        ogBadge.textContent = '🐺 OG';
+      } else {
+        ogBadge.style.display = 'none';
+      }
     }
 
     document.getElementById('card-display-name').textContent = '@' + d.displayName;
@@ -2394,9 +2393,15 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     document.getElementById('test-card-level').textContent = `NIVEL ${d.nivel}`;
     document.getElementById('test-card-level-mini').textContent = d.nivel;
     const seriesEl = document.getElementById('test-card-series');
-    if (seriesEl) seriesEl.textContent = (uData.tituloTarjeta || '').trim() || 'PLAYER PROFILE';
+    if (seriesEl) {
+      const customHeader = String(uData.tituloTarjeta || '').trim();
+      seriesEl.textContent = (customHeader && customHeader.toUpperCase() !== 'PLAYER PROFILE') ? customHeader : d.roleTag;
+    }
     const mainTitleEl = document.getElementById('test-card-main-title');
-    if (mainTitleEl) mainTitleEl.textContent = d.consumerTitle;
+    if (mainTitleEl) {
+      const dishTitle = (d.consumerBadge === 'TIENDITA') ? d.consumerTitle : '';
+      mainTitleEl.textContent = dishTitle || d.themeLabel || d.consumerTitle;
+    }
 
     const gamerAvatar = document.getElementById('test-card-avatar');
     if (gamerAvatar) {
