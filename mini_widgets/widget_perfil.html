@@ -1497,9 +1497,44 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 .test-profile-card.has-art { background:linear-gradient(180deg,rgba(8,10,16,.12) 0,rgba(11,12,19,.84) 34%,#101219 47%,#090c10 100%); }
 .test-profile-card::before { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:.42; background:linear-gradient(118deg,transparent 0%,transparent 38%,rgba(255,255,255,.08) 49%,transparent 57%,transparent 100%); background-size:220% 100%; animation:testCardSweep 7s ease-in-out infinite; }
 .test-profile-card::after { content:""; position:absolute; inset:10px; z-index:-1; pointer-events:none; border:1px solid rgba(255,255,255,.07); border-radius:15px; }
-#card-root.test-card-design .card-border,#card-root.test-card-design .card-shadow,#card-root.test-card-design .card-glow { display:none !important; }
-#card-root.test-card-design .theme-label { display:none !important; }
-#card-root.test-card-design .test-profile-card { display:flex; }
+/* ========================================================
+   AISLAMIENTO ESTRICTO DE ESTILOS DE TARJETA (Clásico vs Gamer)
+   Evita cualquier destello del diseño opuesto
+   ======================================================== */
+#card-root .card-border,
+#card-root .card-shadow,
+#card-root .card-glow,
+#card-root .theme-label,
+#card-root .test-profile-card {
+  display: none !important;
+}
+
+/* Modo Clásico Cibernético explícito */
+#card-root.modo-clasico:not(.modo-gamer):not(.test-card-design) .card-border,
+#card-root.modo-clasico:not(.modo-gamer):not(.test-card-design) .card-shadow,
+#card-root.modo-clasico:not(.modo-gamer):not(.test-card-design) .card-glow,
+#card-root.modo-clasico:not(.modo-gamer):not(.test-card-design) .theme-label {
+  display: block !important;
+}
+#card-root.modo-clasico:not(.modo-gamer):not(.test-card-design) .test-profile-card {
+  display: none !important;
+}
+
+/* Modo Gamer Moderno explícito */
+#card-root.modo-gamer .test-profile-card,
+#card-root.test-card-design .test-profile-card {
+  display: flex !important;
+}
+#card-root.modo-gamer .card-border,
+#card-root.modo-gamer .card-shadow,
+#card-root.modo-gamer .card-glow,
+#card-root.modo-gamer .theme-label,
+#card-root.test-card-design .card-border,
+#card-root.test-card-design .card-shadow,
+#card-root.test-card-design .card-glow,
+#card-root.test-card-design .theme-label {
+  display: none !important;
+}
 .test-card-topline,.test-card-xp-head,.test-card-xp-foot { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .test-card-topline { color:#aab3bf; font:700 10px 'Orbitron',sans-serif; letter-spacing:2px; }
 .test-card-series { display:flex; align-items:center; gap:7px; max-width:245px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -1537,7 +1572,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 <body>
 
 <!-- TARJETA CIBERNÉTICA FLOTANTE (!perfil) -->
-<div id="card-root" class="card-wrapper theme-cyan">
+<div id="card-root" class="card-wrapper">
     <div class="theme-label" id="card-theme-label">CYAN</div>
     <div class="card-shadow"></div>
     <div class="card-glow"></div>
@@ -1724,7 +1759,14 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
           if (u && u.username) {
             const uKey = u.username.toLowerCase();
             if (u.avatar) {
-              avatarMemCache[uKey] = normalizarAvatarKickUrl(u.avatar);
+              const normAv = normalizarAvatarKickUrl(u.avatar);
+              avatarMemCache[uKey] = normAv;
+              if (typeof window.precargarImagenPerfil === 'function') {
+                window.precargarImagenPerfil(normAv, 1500);
+              }
+            }
+            if (u.fondoTarjetaUrl && typeof window.precargarImagenPerfil === 'function') {
+              window.precargarImagenPerfil(u.fondoTarjetaUrl, 1500);
             }
           }
         });
@@ -1738,7 +1780,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
             const matchUser = users.find(u => u && u.username && (u.username.toLowerCase() === currentShowing || (u.displayName && u.displayName.toLowerCase() === currentShowing)));
             if (matchUser) {
               console.log(`[WidgetPerfil] 🔄 Sincronizando tarjeta en vivo desde Firebase RTDB para @${matchUser.username}`);
-              window.mostrarTarjetaPerfil(matchUser);
+              window.mostrarTarjetaPerfil(matchUser, { isLiveUpdate: true, silent: true });
             }
           }
         }
@@ -2159,23 +2201,109 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
   let cardHideTimer = null;
   let cardTimerInterval = null;
 
-  async function mostrarTarjetaPerfil(usernameOObjeto) {
-    let uData = null;
-    let clean = 'usuario';
+  async /* ═══════════ GESTIÓN DE TARJETA DE PERFIL (0ms LATENCIA & PRECARGA) ═══════════ */
+  const perfilImagePreloadCache = new Map();
+  let perfilRenderToken = 0;
 
+  function precargarImagenPerfil(url, timeoutMs = 400) {
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return Promise.resolve(null);
+    }
+    const cleanUrl = url.trim();
+    if (perfilImagePreloadCache.has(cleanUrl)) {
+      return Promise.resolve(perfilImagePreloadCache.get(cleanUrl));
+    }
+    return new Promise(resolve => {
+      let resolved = false;
+      const img = new Image();
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(cleanUrl);
+        }
+      }, timeoutMs);
+
+      img.onload = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          perfilImagePreloadCache.set(cleanUrl, cleanUrl);
+          resolve(cleanUrl);
+        }
+      };
+      img.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      };
+      img.referrerPolicy = 'no-referrer';
+      img.src = cleanUrl;
+    });
+  }
+  window.precargarImagenPerfil = precargarImagenPerfil;
+
+  function limpiarEstadoTarjetaPerfil() {
+    const root = document.getElementById('card-root');
+    if (!root) return;
+    if (cardHideTimer) {
+      clearTimeout(cardHideTimer);
+      cardHideTimer = null;
+    }
+    root.classList.remove('visible', 'saliendo');
+    if (!isAdminPreview) {
+      root.style.display = 'none';
+    }
+    root.className = 'card-wrapper';
+
+    const cardArt = document.getElementById('test-card-art');
+    if (cardArt) {
+      cardArt.removeAttribute('src');
+      cardArt.style.display = 'none';
+    }
+    const gamerCard = document.getElementById('test-profile-card');
+    if (gamerCard) {
+      gamerCard.classList.remove('has-art');
+    }
+    const avEl = document.getElementById('card-avatar');
+    if (avEl) avEl.replaceChildren();
+    const testAvEl = document.getElementById('test-card-avatar');
+    if (testAvEl) testAvEl.replaceChildren();
+
+    const timerBar = document.getElementById('card-timer-bar');
+    if (timerBar) {
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
+    }
+  }
+  window.limpiarEstadoTarjetaPerfil = limpiarEstadoTarjetaPerfil;
+
+  async function mostrarTarjetaPerfil(usernameOObjeto, options = {}) {
+    const root = document.getElementById('card-root');
+    if (!root) return;
+    const currentToken = ++perfilRenderToken;
+    const isLiveUpdate = Boolean(options && options.isLiveUpdate);
+
+    let clean = 'usuario';
     if (typeof usernameOObjeto === 'object' && usernameOObjeto !== null) {
-      uData = usernameOObjeto;
       clean = String(usernameOObjeto.username || usernameOObjeto.displayName || 'usuario').replace(/^@/, '').trim().toLowerCase();
     } else {
       clean = String(usernameOObjeto || 'usuario').replace(/^@/, '').trim().toLowerCase();
     }
 
-    // Proteger pantalla adquiriendo lock de exclusión mutua inmediatamente antes de cualquier llamada asíncrona
-    if (!isAdminPreview && window.JikoWidgetSync) {
-      window.JikoWidgetSync.acquire('perfil', clean, (DURATION_SEC + 1) * 1000);
+    // Si la tarjeta ya estaba visible y es para OTRO usuario (o nuevo comando),
+    // limpiar de inmediato el estilo y los elementos anteriores para evitar mutación en vivo
+    const currentUserEl = document.getElementById('card-display-name') || document.getElementById('test-card-username');
+    const currentShowing = currentUserEl ? currentUserEl.textContent.replace(/^@/, '').trim().toLowerCase() : '';
+    if (root.classList.contains('visible') && (!isLiveUpdate || currentShowing !== clean)) {
+      limpiarEstadoTarjetaPerfil();
     }
 
-    if (!uData) {
+    let uData = null;
+    if (typeof usernameOObjeto === 'object' && usernameOObjeto !== null) {
+      uData = usernameOObjeto;
+    } else {
       if (window.StreamDB) {
         try { uData = await StreamDB.getUser(clean, true); } catch(e){}
       }
@@ -2203,31 +2331,51 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       }
     }
 
-    const d = calcularDatosTarjeta(uData);
+    // Cancelar si otro comando !perfil se ejecutó mientras se obtenían datos
+    if (currentToken !== perfilRenderToken) return;
 
-    const root = document.getElementById('card-root');
-    if (!root) return;
-
-    // Resetear clases de temas
-    root.className = 'card-wrapper ' + d.themeClass + (d.useTestDesign ? ' test-card-design' : '');
-    document.getElementById('card-theme-label').textContent = d.themeLabel;
-
-    // Foto de perfil Kick oficial
-    const avEl = document.getElementById('card-avatar');
-    const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarMemCache[d.username] || (d.username === 'jikokun' ? avatarMemCache['jikokun'] : null);
-    if (finalAvatar) {
-      avEl.innerHTML = crearAvatarImgHtml(finalAvatar, d.displayName);
-    } else {
-      avEl.innerHTML = `<span style="font-size:36px; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">🐺</span>`;
-      // Intentar obtener avatar en segundo plano
-      obtenerAvatarKick(d.username).then(pic => {
-        if (pic && root.classList.contains('visible')) {
-          avEl.innerHTML = crearAvatarImgHtml(pic, d.displayName);
-        }
-      });
+    // Proteger pantalla adquiriendo lock de exclusión mutua
+    if (!isAdminPreview && window.JikoWidgetSync) {
+      window.JikoWidgetSync.acquire('perfil', clean, (DURATION_SEC + 1) * 1000);
     }
 
-    // Datos principales
+    const d = calcularDatosTarjeta(uData);
+
+    const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarMemCache[d.username] || (d.username === 'jikokun' ? avatarMemCache['jikokun'] : null);
+    const artUrl = d.useTestDesign ? String(uData.fondoTarjetaUrl || '').trim() : '';
+
+    // 🚀 PRECARGA DE IMÁGENES ANTES DE MOSTRAR LA TARJETA
+    const preloads = [];
+    if (finalAvatar) preloads.push(precargarImagenPerfil(finalAvatar, 350));
+    if (d.useTestDesign && artUrl) preloads.push(precargarImagenPerfil(artUrl, 450));
+    if (preloads.length > 0) {
+      await Promise.allSettled(preloads);
+    }
+
+    // Cancelar si otro comando !perfil llegó durante la precarga
+    if (currentToken !== perfilRenderToken) return;
+
+    // Asignar clases de modo y temas (aislamiento estricto)
+    const modoClase = d.useTestDesign ? 'modo-gamer test-card-design' : 'modo-clasico';
+    root.className = `card-wrapper ${d.themeClass} ${modoClase}`;
+    document.getElementById('card-theme-label').textContent = d.themeLabel;
+
+    // Foto de perfil Kick oficial (clásica)
+    const avEl = document.getElementById('card-avatar');
+    if (avEl) {
+      if (finalAvatar) {
+        avEl.innerHTML = crearAvatarImgHtml(finalAvatar, d.displayName);
+      } else {
+        avEl.innerHTML = `<span style="font-size:36px; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">🐺</span>`;
+        obtenerAvatarKick(d.username).then(pic => {
+          if (pic && root.classList.contains('visible')) {
+            avEl.innerHTML = crearAvatarImgHtml(pic, d.displayName);
+          }
+        });
+      }
+    }
+
+    // Datos principales clásicos
     document.getElementById('card-role-badge').textContent = d.roleTag;
     const ogBadge = document.getElementById('card-extra-badge');
     if (d.isOg) {
@@ -2241,6 +2389,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     document.getElementById('card-level-num').textContent = d.nivel;
     document.getElementById('card-rank-title').textContent = d.rangoTitulo.toUpperCase();
 
+    // 🎴 Datos Tarjeta Gamer Moderna
     document.getElementById('test-card-username').textContent = '@' + d.displayName;
     document.getElementById('test-card-level').textContent = `NIVEL ${d.nivel}`;
     document.getElementById('test-card-level-mini').textContent = d.nivel;
@@ -2248,19 +2397,23 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     if (seriesEl) seriesEl.textContent = (uData.tituloTarjeta || '').trim() || 'PLAYER PROFILE';
     const mainTitleEl = document.getElementById('test-card-main-title');
     if (mainTitleEl) mainTitleEl.textContent = d.consumerTitle;
+
     const gamerAvatar = document.getElementById('test-card-avatar');
-    const gamerAvatarUrl = normalizarAvatarKickUrlLocal(d.avatar) || avatarMemCache[d.username] || null;
     if (gamerAvatar) {
-      if (gamerAvatarUrl) gamerAvatar.innerHTML = crearAvatarImgHtml(gamerAvatarUrl, d.displayName);
-      else {
+      if (finalAvatar) {
+        gamerAvatar.innerHTML = crearAvatarImgHtml(finalAvatar, d.displayName);
+      } else {
         gamerAvatar.textContent = (d.displayName || d.username || '?').slice(0, 1).toUpperCase();
-        obtenerAvatarKick(d.username).then(url => { if (url && gamerAvatar.isConnected) gamerAvatar.innerHTML = crearAvatarImgHtml(url, d.displayName); });
+        obtenerAvatarKick(d.username).then(url => {
+          if (url && gamerAvatar.isConnected) gamerAvatar.innerHTML = crearAvatarImgHtml(url, d.displayName);
+        });
       }
     }
+
     const earnedTitlesEl = document.getElementById('test-card-titles');
     if (earnedTitlesEl) {
       earnedTitlesEl.replaceChildren();
-      if (d.earnedTitles.length) {
+      if (d.earnedTitles && d.earnedTitles.length) {
         d.earnedTitles.forEach(title => {
           const chip = document.createElement('span');
           chip.className = 'test-card-title-chip';
@@ -2274,13 +2427,21 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
         earnedTitlesEl.appendChild(empty);
       }
     }
+
     const cardArt = document.getElementById('test-card-art');
     const gamerCard = document.getElementById('test-profile-card');
     if (cardArt && gamerCard) {
-      const artUrl = d.useTestDesign ? (uData.fondoTarjetaUrl || '') : '';
-      if (artUrl) { cardArt.src = artUrl; gamerCard.classList.add('has-art'); }
-      else { cardArt.removeAttribute('src'); gamerCard.classList.remove('has-art'); }
+      if (d.useTestDesign && artUrl) {
+        cardArt.src = artUrl;
+        cardArt.style.display = 'block';
+        gamerCard.classList.add('has-art');
+      } else {
+        cardArt.removeAttribute('src');
+        cardArt.style.display = 'none';
+        gamerCard.classList.remove('has-art');
+      }
     }
+
     const xpCurrent = document.getElementById('test-card-xp-current');
     const xpNeeded = document.getElementById('test-card-xp-needed');
     const xpTotalLabel = document.getElementById('test-card-xp-total');
@@ -2324,14 +2485,17 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     document.getElementById('skill-icon-4').textContent = d.favDishEmoji;
     document.getElementById('skill-lbl-4').textContent = d.favDishKey ? (d.favDishKey.slice(0, 7)) : 'Platillo';
 
-    // XP
+    // Progreso XP
     document.getElementById('card-xp-ratio').textContent = `${d.xpTotal.toLocaleString()} XP (${d.xpPct}%)`;
     document.getElementById('card-xp-fill').style.width = d.xpPct + '%';
 
-    // Mostrar en pantalla con animación
+    // Mostrar en pantalla con animación y reflow
+    root.style.display = 'block';
+    void root.offsetWidth; // Forzar reflow
+
     root.classList.remove('saliendo');
     root.classList.add('visible');
-    if (!isAdminPreview) playSciFiSound();
+    if (!isAdminPreview && !options.silent) playSciFiSound();
 
     // Proteger tarjeta de perfil adquiriendo lock de exclusión mutua
     if (!isAdminPreview && window.JikoWidgetSync) {
@@ -2361,8 +2525,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     if (!root) return;
     root.classList.add('saliendo');
     setTimeout(() => {
-      root.classList.remove('visible', 'saliendo');
-      root.style.display = 'none';
+      limpiarEstadoTarjetaPerfil();
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('perfil');
       }
@@ -2529,7 +2692,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
     if (isShowing && (currentName === cleanUser || currentName.includes(cleanUser))) {
       console.log(`[WidgetPerfil] 🔄 Sincronizando tarjeta en vivo para @${cleanUser}`);
-      mostrarTarjetaPerfil(datosFrescos || cleanUser);
+      mostrarTarjetaPerfil(datosFrescos || cleanUser, { isLiveUpdate: true, silent: true });
     }
   }
 

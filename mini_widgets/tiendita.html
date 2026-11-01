@@ -1803,14 +1803,44 @@
     border: 1px solid rgba(255, 255, 255, .07);
     border-radius: 15px;
   }
+
+  /* ══════════════════════════════════════════════════════════
+     AISLAMIENTO TOTAL: CERO PRECARGA DE DISEÑO BASE
+     Ningún diseño se muestra hasta que se defina su modo explícito.
+     ══════════════════════════════════════════════════════════ */
+  #overlay-card-perfil .pc-border,
+  #overlay-card-perfil .pc-shadow,
+  #overlay-card-perfil .pc-glow,
+  #overlay-card-perfil .pc-theme-label,
+  #overlay-card-perfil .test-profile-card {
+    display: none !important;
+  }
+
+  /* Modo Clásico Cibernético explícito */
+  #overlay-card-perfil.modo-clasico:not(.modo-gamer):not(.test-card-design) .pc-border,
+  #overlay-card-perfil.modo-clasico:not(.modo-gamer):not(.test-card-design) .pc-shadow,
+  #overlay-card-perfil.modo-clasico:not(.modo-gamer):not(.test-card-design) .pc-glow,
+  #overlay-card-perfil.modo-clasico:not(.modo-gamer):not(.test-card-design) .pc-theme-label {
+    display: block !important;
+  }
+  #overlay-card-perfil.modo-clasico:not(.modo-gamer):not(.test-card-design) .test-profile-card {
+    display: none !important;
+  }
+
+  /* Modo Gamer Moderno explícito */
+  #overlay-card-perfil.modo-gamer .test-profile-card,
+  #overlay-card-perfil.test-card-design .test-profile-card {
+    display: flex !important;
+  }
+  #overlay-card-perfil.modo-gamer .pc-border,
+  #overlay-card-perfil.modo-gamer .pc-shadow,
+  #overlay-card-perfil.modo-gamer .pc-glow,
+  #overlay-card-perfil.modo-gamer .pc-theme-label,
   #overlay-card-perfil.test-card-design .pc-border,
   #overlay-card-perfil.test-card-design .pc-shadow,
   #overlay-card-perfil.test-card-design .pc-glow,
   #overlay-card-perfil.test-card-design .pc-theme-label {
     display: none !important;
-  }
-  #overlay-card-perfil.test-card-design .test-profile-card {
-    display: flex !important;
   }
   .test-card-topline, .test-card-xp-head, .test-card-xp-foot {
     display: flex;
@@ -2217,7 +2247,7 @@
   </div>
 
   <!-- ════════════ TARJETA CIBERNÉTICA FLOTANTE (!perfil / !perfill) ════════════ -->
-  <div id="overlay-card-perfil" class="perfil-card-wrap theme-cyan">
+  <div id="overlay-card-perfil" class="perfil-card-wrap">
     <div class="pc-theme-label" id="ti-card-theme-label">CYAN</div>
     <div class="pc-shadow"></div>
     <div class="pc-glow"></div>
@@ -2416,7 +2446,14 @@
           if (u && u.username) {
             const uKey = norm(u.username);
             if (u.avatar && window.avatarCache) {
-              window.avatarCache[uKey] = normalizarAvatarKickUrl(u.avatar);
+              const normAv = normalizarAvatarKickUrl(u.avatar);
+              window.avatarCache[uKey] = normAv;
+              if (typeof window.precargarImagenPerfil === 'function') {
+                window.precargarImagenPerfil(normAv, 1500);
+              }
+            }
+            if (u.fondoTarjetaUrl && typeof window.precargarImagenPerfil === 'function') {
+              window.precargarImagenPerfil(u.fondoTarjetaUrl, 1500);
             }
             // Si la tarjeta de perfil está actualmente visible en pantalla y es este usuario, refrescar en vivo
             if (typeof $cardPerfil !== 'undefined' && $cardPerfil && $cardPerfil.classList.contains('visible') && norm($cardPerfil.dataset.username || '') === uKey) {
@@ -3096,20 +3133,104 @@
     };
   }
 
-  async function mostrarCardPerfilTiendita(targetUser) {
+  /* ═══════════ GESTIÓN DE TARJETA DE PERFIL (0ms LATENCIA & PRECARGA) ═══════════ */
+  const perfilImagePreloadCache = new Map();
+  let perfilRenderToken = 0;
+
+  function precargarImagenPerfil(url, timeoutMs = 400) {
+    if (!url || typeof url !== 'string' || !url.trim()) {
+      return Promise.resolve(null);
+    }
+    const cleanUrl = url.trim();
+    if (perfilImagePreloadCache.has(cleanUrl)) {
+      return Promise.resolve(perfilImagePreloadCache.get(cleanUrl));
+    }
+    return new Promise(resolve => {
+      let resolved = false;
+      const img = new Image();
+      const timer = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(cleanUrl); // Timeout de seguridad: no bloquear la UI si la red es lenta
+        }
+      }, timeoutMs);
+
+      img.onload = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          perfilImagePreloadCache.set(cleanUrl, cleanUrl);
+          resolve(cleanUrl);
+        }
+      };
+      img.onerror = () => {
+        if (!resolved) {
+          resolved = true;
+          clearTimeout(timer);
+          resolve(null);
+        }
+      };
+      img.referrerPolicy = 'no-referrer';
+      img.src = cleanUrl;
+    });
+  }
+  window.precargarImagenPerfil = precargarImagenPerfil;
+
+  function limpiarEstadoTarjetaPerfilTiendita() {
     if (!$cardPerfil) return;
-    initAudio();
-    playSciFiPerfilSound();
+    if (cardPerfilTimer) {
+      clearTimeout(cardPerfilTimer);
+      cardPerfilTimer = null;
+    }
+    $cardPerfil.classList.remove('visible', 'saliendo');
+    $cardPerfil.style.display = 'none';
+    $cardPerfil.className = 'perfil-card-wrap';
 
-    let uData = null;
+    const cardArt = document.getElementById('ti-test-card-art');
+    if (cardArt) {
+      cardArt.removeAttribute('src');
+      cardArt.style.display = 'none';
+    }
+    const gamerCard = document.getElementById('ti-test-profile-card');
+    if (gamerCard) {
+      gamerCard.classList.remove('has-art');
+    }
+    const avEl = document.getElementById('ti-card-avatar');
+    if (avEl) avEl.replaceChildren();
+    const testAvEl = document.getElementById('ti-test-card-avatar');
+    if (testAvEl) testAvEl.replaceChildren();
+
+    const timerBar = document.getElementById('ti-card-timer-bar');
+    if (timerBar) {
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
+    }
+  }
+  window.limpiarEstadoTarjetaPerfilTiendita = limpiarEstadoTarjetaPerfilTiendita;
+
+  async function mostrarCardPerfilTiendita(targetUser, options = {}) {
+    if (!$cardPerfil) return;
+    const currentToken = ++perfilRenderToken;
+    const isLiveUpdate = Boolean(options && options.isLiveUpdate);
+
     let cleanUser = 'usuario';
-
     if (typeof targetUser === 'object' && targetUser !== null) {
-      uData = targetUser;
       cleanUser = String(targetUser.username || targetUser.displayName || 'usuario').replace(/^@/, '').trim();
     } else {
       cleanUser = String(targetUser || usuarioActual || 'usuario').replace(/^@/, '').trim();
-      const userNorm = norm(cleanUser);
+    }
+    const userNorm = norm(cleanUser);
+
+    // Si la tarjeta ya estaba visible y es para OTRO usuario (o nuevo comando),
+    // limpiar de inmediato el estilo y los elementos anteriores para evitar mutación en vivo
+    if ($cardPerfil.classList.contains('visible') && (!isLiveUpdate || norm($cardPerfil.dataset.username || '') !== userNorm)) {
+      limpiarEstadoTarjetaPerfilTiendita();
+    }
+
+    let uData = null;
+    if (typeof targetUser === 'object' && targetUser !== null) {
+      uData = targetUser;
+    } else {
       if (window.StreamDB) {
         try {
           uData = await StreamDB.getUser(userNorm, true);
@@ -3130,7 +3251,8 @@
       }
     }
 
-    $cardPerfil.dataset.username = norm(cleanUser);
+    // Cancelar si otro comando !perfil se ejecutó mientras se obtenían datos
+    if (currentToken !== perfilRenderToken) return;
 
     // Proteger tarjeta de perfil adquiriendo lock de sincronización
     if (window.JikoWidgetSync) {
@@ -3139,26 +3261,39 @@
 
     const d = calcularDatosPerfilTiendita(uData);
 
-    const tiendaAbierta = $menu && $menu.classList.contains('visible');
-    if (tiendaAbierta) {
-      $cardPerfil.classList.add('arriba');
-    } else {
-      $cardPerfil.classList.remove('arriba');
+    const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarCache[d.username] || (d.username === 'jikokun' ? avatarCache['jikokun'] : null);
+    const artUrl = (d.useTestDesign && uData.fondoTarjetaUrl) ? String(uData.fondoTarjetaUrl).trim() : '';
+
+    // 🚀 PRECARGA DE IMÁGENES ANTES DE MOSTRAR LA TARJETA
+    // Evita cualquier flash de tarjeta clásica o mutación de imágenes previas
+    const preloads = [];
+    if (finalAvatar) preloads.push(precargarImagenPerfil(finalAvatar, 350));
+    if (d.useTestDesign && artUrl) preloads.push(precargarImagenPerfil(artUrl, 450));
+    if (preloads.length > 0) {
+      await Promise.allSettled(preloads);
     }
 
-    $cardPerfil.className = 'perfil-card-wrap ' + d.themeClass + (d.useTestDesign ? ' test-card-design' : '') + (tiendaAbierta ? ' arriba' : '');
+    // Cancelar si otro comando !perfil llegó durante la precarga
+    if (currentToken !== perfilRenderToken) return;
+
+    $cardPerfil.dataset.username = userNorm;
+
+    const tiendaAbierta = $menu && $menu.classList.contains('visible');
+    const modoClase = d.useTestDesign ? 'modo-gamer test-card-design' : 'modo-clasico';
+    $cardPerfil.className = `perfil-card-wrap ${d.themeClass} ${modoClase}${tiendaAbierta ? ' arriba' : ''}`;
+
     const lblEl = document.getElementById('ti-card-theme-label');
     if (lblEl) lblEl.textContent = d.themeLabel;
 
+    // Foto de perfil tarjeta clásica
     const avEl = document.getElementById('ti-card-avatar');
-    const finalAvatar = normalizarAvatarKickUrlLocal(d.avatar) || avatarCache[d.username] || (d.username === 'jikokun' ? avatarCache['jikokun'] : null);
     if (avEl) {
       if (finalAvatar) {
         avEl.innerHTML = crearAvatarImgHtml(finalAvatar, d.displayName);
       } else {
         avEl.innerHTML = `<span style="font-size:36px; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">🐺</span>`;
         obtenerAvatarDeKick(cleanUser).then(pic => {
-          if (pic && $cardPerfil.classList.contains('visible')) {
+          if (pic && $cardPerfil.classList.contains('visible') && norm($cardPerfil.dataset.username || '') === userNorm) {
             avEl.innerHTML = crearAvatarImgHtml(pic, d.displayName);
           }
         });
@@ -3252,12 +3387,13 @@
     const gamerCard = document.getElementById('ti-test-profile-card');
     const cardArt = document.getElementById('ti-test-card-art');
     if (cardArt && gamerCard) {
-      const artUrl = (d.useTestDesign && uData.fondoTarjetaUrl) ? uData.fondoTarjetaUrl : '';
-      if (artUrl) {
+      if (d.useTestDesign && artUrl) {
         cardArt.src = artUrl;
+        cardArt.style.display = 'block';
         gamerCard.classList.add('has-art');
       } else {
         cardArt.removeAttribute('src');
+        cardArt.style.display = 'none';
         gamerCard.classList.remove('has-art');
       }
     }
@@ -3325,7 +3461,15 @@
     const testNextLvl = document.getElementById('ti-test-card-next-level');
     if (testNextLvl) testNextLvl.textContent = `SIGUIENTE: NIVEL ${d.nivel + 1}`;
 
+    // Mostrar en pantalla con reflow forzado
     $cardPerfil.style.display = 'block';
+    void $cardPerfil.offsetWidth; // Forzar reflow
+
+    if (!options.silent) {
+      initAudio();
+      playSciFiPerfilSound();
+    }
+
     $cardPerfil.classList.remove('saliendo');
     $cardPerfil.classList.add('visible');
 
@@ -3348,8 +3492,7 @@
     if (!$cardPerfil) return;
     $cardPerfil.classList.add('saliendo');
     setTimeout(() => {
-      $cardPerfil.classList.remove('visible', 'saliendo');
-      $cardPerfil.style.display = 'none';
+      limpiarEstadoTarjetaPerfilTiendita();
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('perfil');
       }
@@ -3418,7 +3561,7 @@
     const visibleUser = norm($cardPerfil.dataset.username || '');
     if ($cardPerfil.classList.contains('visible') && visibleUser === cleanUpdated) {
       console.log(`[Tiendita] 🔄 Actualizando tarjeta en vivo para @${username}`);
-      mostrarCardPerfilTiendita(datos || username);
+      mostrarCardPerfilTiendita(datos || username, { isLiveUpdate: true, silent: true });
     }
   };
 
