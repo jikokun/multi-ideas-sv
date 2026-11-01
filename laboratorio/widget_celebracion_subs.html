@@ -1366,7 +1366,7 @@
   var fireworkSparks = [];
   var floatingOrbs = [];
 
-  var MAX_CONFETTI = 150;
+  var MAX_CONFETTI = 260;
   var MAX_SPARKS = 220;
   var animationFrameId = null;
 
@@ -1441,6 +1441,78 @@
           fadeRate: randomRange(0.0045, 0.0085)
         });
       }
+    }
+
+    ensureLoopRunning();
+  }
+
+  // -------------------------------------------------------------------------
+  // A2) LLUVIA DE CONFETI DESDE ARRIBA (Al aparecer el número: Verde Kick o Sub)
+  //     Caída moderada, elegante y flotante por todo el lienzo
+  // -------------------------------------------------------------------------
+  function spawnConfettiRain(piecesCount) {
+    var count = piecesCount || 48; // Cantidad moderada y estética (no saturada)
+    var darkPal = getActiveDarkPalette();
+    var lightPal = getActiveLightPalette();
+    var kickMode = isKickGreenActive();
+
+    var strokeDark = kickMode
+      ? "#083b02"
+      : (isDefaultAquaSubColor() ? "#0a3d4f" : darkenHex(state.shadow3dHex, 0.7));
+    var strokeLight = kickMode
+      ? "#a8ff82"
+      : (isDefaultAquaSubColor() ? "#8ef3ff" : tintHexWithWhite(state.shadowHex, 0.5));
+
+    for (var i = 0; i < count; i++) {
+      if (confettiList.length >= MAX_CONFETTI) {
+        confettiList.shift();
+      }
+
+      // Distribución: 65% en la zona central donde entra y flota el número, 35% en los laterales
+      var originX = (Math.random() < 0.65)
+        ? randomRange(380, 1540)
+        : randomRange(60, 1860);
+
+      // Escalona la altura sobre el borde superior para una entrada fluida y natural
+      var originY = randomRange(-140, -10);
+
+      var isDarkPiece = (i % 4 === 0);
+      var color = isDarkPiece
+        ? darkPal[Math.floor(Math.random() * darkPal.length)]
+        : lightPal[Math.floor(Math.random() * lightPal.length)];
+
+      var borderStroke = isDarkPiece ? strokeLight : strokeDark;
+
+      // Formas variadas: rectángulos clásicos, diamantes y pequeños círculos luminosos
+      var shape = "rect";
+      var shapeRoll = i % 5;
+      if (shapeRoll === 0) shape = "diamond";
+      else if (shapeRoll === 1) shape = "circle";
+
+      var baseW = shape === "circle" ? randomRange(8, 13) : randomRange(10, 18);
+      var baseH = shape === "circle" ? baseW : randomRange(6, 13);
+
+      confettiList.push({
+        x: originX,
+        y: originY,
+        vx: randomRange(-1.6, 1.6),
+        vy: randomRange(2.8, 5.4), // Caída suave hacia abajo
+        gravity: randomRange(0.08, 0.15), // Gravedad ligera para flotación aérea realista
+        drag: randomRange(0.985, 0.994),
+        w: baseW * state.widgetScale,
+        h: baseH * state.widgetScale,
+        shape: shape,
+        color: color,
+        stroke: borderStroke,
+        rotation: randomRange(0, Math.PI * 2),
+        rotSpeed: randomRange(-0.09, 0.09),
+        tiltAngle: randomRange(0, Math.PI * 2),
+        tiltSpeed: randomRange(0.06, 0.18),
+        wobble: randomRange(0, Math.PI * 2),
+        wobbleSpeed: randomRange(0.035, 0.085),
+        opacity: 1,
+        fadeRate: randomRange(0.0032, 0.0055)
+      });
     }
 
     ensureLoopRunning();
@@ -1671,6 +1743,11 @@
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
+      } else if (c.shape === "circle") {
+        ctx.beginPath();
+        ctx.arc(0, 0, Math.min(c.w, c.h) * 0.55, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
       } else {
         ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h);
         ctx.strokeRect(-c.w / 2, -c.h / 2, c.w, c.h);
@@ -1784,8 +1861,9 @@
     shockwave2.className = "aqua-shockwave wave-2";
     void numberWrapper.offsetWidth;
 
-    // 1. Disparo inicial de confeti desde ambos costados + sonido + haz de subida
-    spawnSideConfettiWave(42);
+    // 1. Disparo inicial al aparecer el número: Lluvia de confeti elegante desde arriba + confeti lateral + sonido + haz de subida
+    spawnConfettiRain(48);
+    spawnSideConfettiWave(38);
     playEpicRiseAndImpactSound();
 
     risingBeam.classList.add("beam-active");
@@ -1801,9 +1879,10 @@
     }, 580);
     state.sequenceTimers.push(tImpact);
 
-    // 3. Segunda ráfaga de confeti desde los costados
+    // 3. Segunda ráfaga de confeti desde los costados y llovizna complementaria
     var tSecondConfetti = setTimeout(function () {
-      spawnSideConfettiWave(30);
+      spawnSideConfettiWave(26);
+      spawnConfettiRain(18);
     }, 950);
     state.sequenceTimers.push(tSecondConfetti);
 
@@ -2457,7 +2536,8 @@
 
   btnOnlyConfetti.addEventListener("click", function (e) {
     e.stopPropagation();
-    spawnSideConfettiWave(45);
+    spawnSideConfettiWave(32);
+    spawnConfettiRain(46);
   });
 
   btnOnlyFireworks.addEventListener("click", function (e) {
