@@ -931,37 +931,42 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 return res.status(404).send(`No song found for "${songQuery}"`);
             }
 
-            // 🏆 Algoritmo de Calificación y Relevancia Oficial: Selecciona siempre la versión más reconocida
+            // Spotify ya no incluye popularity en las respuestas recientes de Search.
+            // Se prioriza la coincidencia de título/artista; popularity queda como señal secundaria
+            // si aparece en alguna respuesta y el orden original de Spotify resuelve los empates.
+            function normalizeSearchText(value) {
+                return String(value || "")
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, "")
+                    .toLowerCase()
+                    .replace(/&/g, " and ")
+                    .replace(/[^\p{L}\p{N}]+/gu, " ")
+                    .trim()
+                    .replace(/\s+/g, " ");
+            }
+
             function scoreTrackItem(track) {
                 let score = 0;
-                const qLower = cleanQuery.toLowerCase();
-                const nameLower = (track.name || "").toLowerCase();
-                const trackLower = (targetTrack || "").toLowerCase();
-                const artistLower = (targetArtist || "").toLowerCase();
+                const qLower = normalizeSearchText(cleanQuery);
+                const nameLower = normalizeSearchText(track.name);
+                const trackLower = normalizeSearchText(targetTrack);
+                const artistLower = normalizeSearchText(targetArtist);
 
-                // 1. Coincidencia de Artista
-                const artists = (track.artists || []).map(a => (a.name || "").toLowerCase());
+                // Título y artista exactos pesan más que la versión/álbum o la popularidad.
+                const artists = (track.artists || []).map(a => normalizeSearchText(a.name));
                 if (artistLower) {
                     const isExactArtist = artists.some(a => a === artistLower);
                     const isPartialArtist = artists.some(a => a.includes(artistLower) || artistLower.includes(a));
-                    if (isExactArtist) score += 120;
-                    else if (isPartialArtist) score += 70;
-                    else score -= 80;
+                    if (isExactArtist) score += 350;
+                    else if (isPartialArtist) score += 175;
+                    else score -= 700;
                 }
 
-                // 2. Coincidencia de Título
-                if (nameLower === trackLower) score += 100;
-                else if (nameLower.startsWith(trackLower)) score += 60;
-                else if (nameLower.includes(trackLower)) score += 30;
+                if (nameLower === trackLower) score += 1000;
+                else if (nameLower.startsWith(trackLower)) score += 550;
+                else if (nameLower.includes(trackLower)) score += 250;
 
-                // 3. Tipo de Álbum (Priorizar Álbum de Estudio oficial vs compilaciones/tributos)
-                if (track.album) {
-                    if (track.album.album_type === "album") score += 35;
-                    else if (track.album.album_type === "single") score += 20;
-                    else if (track.album.album_type === "compilation") score -= 15;
-                }
-
-                // 4. Penalización severa de Junk / Covers / Karaoke / Tributes
+                // Evitar versiones no oficiales si el usuario no las pidió.
                 const junkKeywords = [
                     "karaoke", "tribute", "instrumental", "cover", "backing track",
                     "made famous", "made popular", "in the style of", "originally performed",
@@ -969,33 +974,32 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                     "bass boosted", "lo-fi", "lofi", "ringtone", "acapella"
                 ];
                 for (const kw of junkKeywords) {
-                    if (!qLower.includes(kw) && nameLower.includes(kw)) {
-                        score -= 200;
+                    if (!qLower.includes(normalizeSearchText(kw)) && nameLower.includes(normalizeSearchText(kw))) {
+                        score -= 600;
                     }
                 }
 
-                // 5. Penalización de versiones Live / Remix / Acústicas si el usuario no las pidió explícitamente
                 if (!qLower.includes("live") && !qLower.includes("vivo") && (nameLower.includes("live") || nameLower.includes("en vivo") || nameLower.includes("directo"))) {
-                    score -= 40;
+                    score -= 250;
                 }
                 if (!qLower.includes("remix") && (nameLower.includes("remix") || nameLower.includes("rmx") || nameLower.includes("club mix"))) {
-                    score -= 45;
+                    score -= 250;
                 }
-                if (!qLower.includes("acoustic") && !qLower.includes("acustic") && (nameLower.includes("acoustic") || nameLower.includes("acústico"))) {
-                    score -= 30;
+                if (!qLower.includes("acoustic") && !qLower.includes("acustic") && !qLower.includes("acustico") && (nameLower.includes("acoustic") || nameLower.includes("acustico") || nameLower.includes("acustica"))) {
+                    score -= 200;
                 }
 
                 if (typeof track.popularity === "number") {
-                    score += track.popularity;
+                    score += track.popularity * 3;
                 }
 
                 return score;
             }
 
             const tracks = searchData.tracks.items;
-            tracks.sort((a, b) => scoreTrackItem(b) - scoreTrackItem(a));
-
-            const selectedTrack = tracks[0];
+            const selectedTrack = tracks
+                .map((track, searchRank) => ({ track, searchRank, score: scoreTrackItem(track) }))
+                .sort((a, b) => (b.score - a.score) || (a.searchRank - b.searchRank))[0].track;
             const artistName = selectedTrack.artists ? selectedTrack.artists[0].name : "Artista";
 
             // 🛡️ REGLA ANTI-DUPLICADO DE COLA: Evitar encolar 2 veces la misma canción si Streamer.bot envía doble disparo

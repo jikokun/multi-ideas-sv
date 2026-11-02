@@ -2157,18 +2157,35 @@
                                 var sData = await searchRes.json();
                                 var items = (sData && sData.tracks && sData.tracks.items) || [];
                                 if (items.length > 0) {
-                                    items.sort(function (a, b) {
-                                        var sa = 0, sb = 0;
-                                        var na = (a.name || "").toLowerCase(), nb = (b.name || "").toLowerCase();
-                                        if (na === tPart.toLowerCase()) sa += 100;
-                                        if (nb === tPart.toLowerCase()) sb += 100;
-                                        if (a.album && a.album.album_type === "album") sa += 30;
-                                        if (b.album && b.album.album_type === "album") sb += 30;
-                                        if (na.includes("karaoke") || na.includes("tribute") || na.includes("cover")) sa -= 200;
-                                        if (nb.includes("karaoke") || nb.includes("tribute") || nb.includes("cover")) sb -= 200;
-                                        return sb - sa;
-                                    });
-                                    var chosen = items[0];
+                                    var normalizeCandidateText = function (value) {
+                                        return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
+                                    };
+                                    var wantedTitle = normalizeCandidateText(tPart);
+                                    var wantedArtist = normalizeCandidateText(aPart);
+                                    var wantedQuery = normalizeCandidateText(queryParam);
+                                    var junkTerms = ["karaoke", "tribute", "instrumental", "cover", "backing track", "made famous", "made popular", "in the style of", "remake", "parody", "sped up", "slowed", "nightcore", "8d", "lo fi", "lofi", "ringtone", "acapella"];
+                                    var chosen = items.map(function (track, searchRank) {
+                                        var title = normalizeCandidateText(track.name);
+                                        var artists = (track.artists || []).map(function (artist) { return normalizeCandidateText(artist.name); });
+                                        var score = 0;
+                                        if (title === wantedTitle) score += 1000;
+                                        else if (title.indexOf(wantedTitle) === 0) score += 550;
+                                        else if (title.indexOf(wantedTitle) !== -1) score += 250;
+                                        if (wantedArtist) {
+                                            if (artists.some(function (artist) { return artist === wantedArtist; })) score += 350;
+                                            else if (artists.some(function (artist) { return artist.indexOf(wantedArtist) !== -1 || wantedArtist.indexOf(artist) !== -1; })) score += 175;
+                                            else score -= 700;
+                                        }
+                                        junkTerms.forEach(function (term) {
+                                            var normalizedTerm = normalizeCandidateText(term);
+                                            if (!wantedQuery.includes(normalizedTerm) && title.includes(normalizedTerm)) score -= 600;
+                                        });
+                                        if (!wantedQuery.includes("live") && !wantedQuery.includes("vivo") && (title.includes("live") || title.includes("en vivo") || title.includes("directo"))) score -= 250;
+                                        if (!wantedQuery.includes("remix") && (title.includes("remix") || title.includes("rmx") || title.includes("club mix"))) score -= 250;
+                                        if (!wantedQuery.includes("acoustic") && !wantedQuery.includes("acustic") && (title.includes("acoustic") || title.includes("acustico"))) score -= 200;
+                                        if (typeof track.popularity === "number") score += track.popularity * 3;
+                                        return { track: track, searchRank: searchRank, score: score };
+                                    }).sort(function (a, b) { return (b.score - a.score) || (a.searchRank - b.searchRank); })[0].track;
                                     var artistName = (chosen.artists && chosen.artists[0] && chosen.artists[0].name) || "Artista";
                                     var qRes = await fetch("https://api.spotify.com/v1/me/player/queue?uri=" + encodeURIComponent(chosen.uri), {
                                         method: "POST",
