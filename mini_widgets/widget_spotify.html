@@ -2040,6 +2040,7 @@
             // Ticker fluido segundo a segundo (cada 250ms avanza 0.25s)
             var pausedSeconds = 0;
             setInterval(function () {
+                if (document.hidden) return;
                 if (state.usingLocalAudio && !localAudio.paused) {
                     state.currentTime = localAudio.currentTime;
                     state.duration = localAudio.duration || state.duration;
@@ -2072,7 +2073,9 @@
             }, 250);
 
             // Consultar Spotify cada 3 segundos
-            setInterval(pollSpotifyPlayback, 3000);
+            setInterval(function () {
+                if (!document.hidden) pollSpotifyPlayback();
+            }, 3000);
 
             // =========================================================
             // CONTROLADOR NATIVO DE COMANDOS KICK / STREAMER.BOT / LABORATORIO
@@ -2353,7 +2356,15 @@
                     }
                 } catch (e) {}
             }
-            setInterval(checkFirebaseLastAction, 3500);
+            setInterval(function () {
+                if (!document.hidden) checkFirebaseLastAction();
+            }, 3500);
+            document.addEventListener("visibilitychange", function () {
+                if (!document.hidden) {
+                    pollSpotifyPlayback();
+                    checkFirebaseLastAction();
+                }
+            });
 
             // =========================================================
             // CONEXIÓN WEBSOCKET STREAMER.BOT (EJECUCIÓN + ALERTAS SIN DUPLICADOS)

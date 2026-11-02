@@ -2299,11 +2299,11 @@ function initBackgroundCanvas() {
       this.pulseSpeed = Math.random() * 0.02 + 0.005;
     }
 
-    update() {
-      this.x += this.vx + Math.sin(this.y * 0.01) * 0.2;
-      this.y += this.vy;
+    update(frameScale = 1) {
+      this.x += (this.vx + Math.sin(this.y * 0.01) * 0.2) * frameScale;
+      this.y += this.vy * frameScale;
 
-      this.alpha += Math.sin(Date.now() * this.pulseSpeed) * 0.05;
+      this.alpha += Math.sin(Date.now() * this.pulseSpeed) * 0.05 * frameScale;
       if (this.alpha < 0.1) this.alpha = 0.1;
       if (this.alpha > this.maxAlpha) this.alpha = this.maxAlpha;
 
@@ -2335,9 +2335,9 @@ function initBackgroundCanvas() {
       for (let j = i + 1; j < particles.length; j++) {
         const dx = particles[i].x - particles[j].x;
         const dy = particles[i].y - particles[j].y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-
-        if (dist < 130) {
+        const distanceSquared = dx * dx + dy * dy;
+        if (distanceSquared < 130 * 130) {
+          const dist = Math.sqrt(distanceSquared);
           ctx.save();
           ctx.globalAlpha = (1 - dist / 130) * 0.22;
           ctx.beginPath();
@@ -2352,19 +2352,47 @@ function initBackgroundCanvas() {
     }
   }
 
-  function animate() {
+  const targetFrameMs = 1000 / 30;
+  let lastFrameTime = 0;
+  let animationFrameId = null;
+
+  function scheduleFrame() {
+    if (!document.hidden && animationFrameId === null) {
+      animationFrameId = requestAnimationFrame(animate);
+    }
+  }
+
+  function animate(now) {
+    animationFrameId = null;
+    if (document.hidden) return;
+    if (lastFrameTime && now - lastFrameTime < targetFrameMs - 1) {
+      scheduleFrame();
+      return;
+    }
+    const frameScale = lastFrameTime ? Math.min((now - lastFrameTime) / (1000 / 60), 3) : 2;
+    lastFrameTime = now;
     ctx.clearRect(0, 0, width, height);
 
     particles.forEach(p => {
-      p.update();
+      p.update(frameScale);
       p.draw();
     });
 
     drawConnections();
-    requestAnimationFrame(animate);
+    scheduleFrame();
   }
 
-  animate();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      lastFrameTime = 0;
+    } else {
+      lastFrameTime = 0;
+      scheduleFrame();
+    }
+  });
+  scheduleFrame();
 }
 
 /* ==========================================================================
@@ -2459,8 +2487,8 @@ function initElectricCanvas() {
       ctx.restore();
     }
 
-    update() {
-      this.life -= this.decay;
+    update(frameScale = 1) {
+      this.life -= this.decay * frameScale;
     }
   }
 
@@ -2477,10 +2505,10 @@ function initElectricCanvas() {
       this.size = Math.random() * 3 + 1;
     }
 
-    update() {
-      this.x += this.vx;
-      this.y += this.vy;
-      this.life -= this.decay;
+    update(frameScale = 1) {
+      this.x += this.vx * frameScale;
+      this.y += this.vy * frameScale;
+      this.life -= this.decay * frameScale;
     }
 
     draw() {
@@ -2547,20 +2575,43 @@ function initElectricCanvas() {
     bolts.push(new LightningBolt(p3.x, p3.y, p4.x, p4.y));
   }
 
-  let frameCount = 0;
-  function animateElectric() {
-    ctx.clearRect(0, 0, width, height);
-    frameCount++;
+  const targetFrameMs = 1000 / 30;
+  let lastFrameTime = 0;
+  let animationFrameId = null;
+  let boxFrameProgress = 0;
+  let cornerFrameProgress = 0;
 
-    if (frameCount % 18 === 0 || Math.random() < 0.08) {
+  function scheduleElectricFrame() {
+    if (!document.hidden && animationFrameId === null) {
+      animationFrameId = requestAnimationFrame(animateElectric);
+    }
+  }
+
+  function animateElectric(now) {
+    animationFrameId = null;
+    if (document.hidden) return;
+    if (lastFrameTime && now - lastFrameTime < targetFrameMs - 1) {
+      scheduleElectricFrame();
+      return;
+    }
+    const frameScale = lastFrameTime ? Math.min((now - lastFrameTime) / (1000 / 60), 3) : 2;
+    lastFrameTime = now;
+    ctx.clearRect(0, 0, width, height);
+
+    boxFrameProgress += frameScale;
+    cornerFrameProgress += frameScale;
+    while (boxFrameProgress >= 18) {
+      boxFrameProgress -= 18;
       spawnBoxLightning();
     }
-    if (frameCount % 45 === 0) {
+    while (cornerFrameProgress >= 45) {
+      cornerFrameProgress -= 45;
       spawnCornerLightning();
     }
+    if (Math.random() < 1 - Math.pow(1 - 0.08, frameScale)) spawnBoxLightning();
 
     for (let i = bolts.length - 1; i >= 0; i--) {
-      bolts[i].update();
+      bolts[i].update(frameScale);
       bolts[i].draw();
       if (bolts[i].life <= 0) {
         bolts.splice(i, 1);
@@ -2568,17 +2619,27 @@ function initElectricCanvas() {
     }
 
     for (let i = sparks.length - 1; i >= 0; i--) {
-      sparks[i].update();
+      sparks[i].update(frameScale);
       sparks[i].draw();
       if (sparks[i].life <= 0) {
         sparks.splice(i, 1);
       }
     }
 
-    requestAnimationFrame(animateElectric);
+    scheduleElectricFrame();
   }
 
-  animateElectric();
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (animationFrameId !== null) cancelAnimationFrame(animationFrameId);
+      animationFrameId = null;
+      lastFrameTime = 0;
+    } else {
+      lastFrameTime = 0;
+      scheduleElectricFrame();
+    }
+  });
+  scheduleElectricFrame();
 }
 
 /* ==========================================================================
@@ -3184,7 +3245,9 @@ function initSpotifyWidget() {
   }
 
   checkSpotifyPlayer();
-  setInterval(checkSpotifyPlayer, 3000);
+  setInterval(() => {
+    if (!document.hidden) checkSpotifyPlayer();
+  }, 3000);
 }
 
 /* ==========================================================================

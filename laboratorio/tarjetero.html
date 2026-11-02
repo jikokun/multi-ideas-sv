@@ -600,7 +600,7 @@
                 EXHIBICIÓN // <span id="timer-rarity" class="font-bold"></span> // <span id="timer-seconds">15</span>s
             </div>
             <div class="w-64 h-1.5 bg-slate-900/80 overflow-hidden rounded-full border border-cyan-500/40 shadow-[0_0_15px_rgba(0,243,255,0.4)]">
-                <div id="timer-bar" class="h-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-cyan-400 w-full origin-left transition-transform duration-100 ease-linear"></div>
+                <div id="timer-bar" class="h-full bg-gradient-to-r from-cyan-400 via-fuchsia-500 to-cyan-400 w-full origin-left transition-transform duration-200 ease-linear"></div>
             </div>
         </div>
 
@@ -1736,7 +1736,7 @@
                 if (remaining <= 0) {
                     clearInterval(countdownInterval);
                 }
-            }, 80);
+            }, 200);
 
             showcaseTimeout = setTimeout(() => {
                 finishShowcase(selectedIndex, false);
@@ -1869,6 +1869,7 @@
         const canvas = document.getElementById('fx-canvas');
         const ctx = canvas.getContext('2d');
         let particles = [];
+        let particlesFrameId = null;
 
         function resizeCanvas() {
             canvas.width = window.innerWidth;
@@ -1895,9 +1896,17 @@
                     decay: 0.012 + Math.random() * 0.02
                 });
             }
+            if (particlesFrameId === null) {
+                particlesFrameId = requestAnimationFrame(animateParticles);
+            }
         }
 
         function animateParticles() {
+            particlesFrameId = null;
+            if (particles.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             for (let i = particles.length - 1; i >= 0; i--) {
@@ -1925,7 +1934,11 @@
                 ctx.restore();
             }
 
-            requestAnimationFrame(animateParticles);
+            if (particles.length > 0) {
+                particlesFrameId = requestAnimationFrame(animateParticles);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
         }
 
         // ═══════════ BOTONES Y CONTROLES ═══════════
@@ -2403,7 +2416,6 @@
 
         window.onload = async () => {
             await loadCollection();
-            animateParticles();
             checkUrlParams();
             conectarWS();
             initFirebaseRealtime();
