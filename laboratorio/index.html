@@ -2378,6 +2378,7 @@
             <div style="display:flex;gap:10px;flex-wrap:wrap">
                 <button type="button" class="test-btn" style="flex:2;min-width:220px;border-color:#a78bfa;color:#ddd6fe;font-weight:800" onclick="copyCineNeonUrl(this)">📋 Copiar enlace OBS</button>
                 <button type="button" class="test-btn" style="flex:1;min-width:170px;border-color:#38bdf8;color:#7dd3fc" onclick="testCineEnter()">🎟️ Probar !entrar</button>
+                <button type="button" class="test-btn" style="flex:1;min-width:170px;border-color:#f472b6;color:#f9a8d4" onclick="testCineExit()">↗ Probar !salir</button>
                 <a id="btn-open-cine-neon" href="laboratorio/cine_neon.html" target="_blank" rel="noopener noreferrer" class="test-btn" style="flex:1;min-width:170px;border-color:#a78bfa;color:#ddd6fe;text-decoration:none;display:flex;align-items:center;justify-content:center">↗ Abrir overlay</a>
             </div>
         </div>
@@ -3496,6 +3497,15 @@
             const iframe = document.getElementById('preview-cine-neon');
             if (!iframe) return;
             const sendTest = () => iframe.contentWindow && iframe.contentWindow.postMessage({ type: 'TEST_ENTER', user: 'Invitado' }, '*');
+            if (iframe.src === 'about:blank' || iframe.src.endsWith('about:blank')) {
+                iframe.addEventListener('load', sendTest, { once: true });
+                window.ensureIframeLoaded('preview-cine-neon');
+            } else sendTest();
+        };
+        window.testCineExit = function() {
+            const iframe = document.getElementById('preview-cine-neon');
+            if (!iframe) return;
+            const sendTest = () => iframe.contentWindow && iframe.contentWindow.postMessage({ type: 'TEST_EXIT', user: 'Invitado' }, '*');
             if (iframe.src === 'about:blank' || iframe.src.endsWith('about:blank')) {
                 iframe.addEventListener('load', sendTest, { once: true });
                 window.ensureIframeLoaded('preview-cine-neon');
