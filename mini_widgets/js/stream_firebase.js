@@ -3497,6 +3497,23 @@ class StreamFirebaseService {
     }
   }
 
+  async sendTarjeteroCommand(command, sender = 'Tiendita') {
+    const cleanCommand = String(command || '').trim();
+    if (!cleanCommand) return false;
+    try {
+      await this.init();
+      await set(ref(this.rtdb, `${NODE_WIDGETS}/tarjetas/command`), {
+        command: cleanCommand,
+        sender: String(sender || 'Tiendita'),
+        timestamp: Date.now()
+      });
+      return true;
+    } catch (e) {
+      console.warn('[Tarjetero] No se pudo enviar el comando desde Tiendita:', e);
+      return false;
+    }
+  }
+
   onWidgetState(widgetName, callback) {
     return onValue(ref(this.rtdb, `${NODE_WIDGETS}/${widgetName}/estadoEnVivo`), snap => {
       callback(snap.val() || {});

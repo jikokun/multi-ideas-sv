@@ -4995,6 +4995,20 @@
     const t = norm(raw);
     if(!t) return;
 
+    // Activación del tarjetero TCG desde el mismo chat conectado a Tiendita.
+    // El widget OBS escucha este comando en stream/widgets/tarjetas/command.
+    if(t === '!tarjetasjikokun' || t === '!tarjetas'){
+      if(window.StreamDB && typeof StreamDB.sendTarjeteroCommand === 'function'){
+        StreamDB.sendTarjeteroCommand(t, user).then(sent => {
+          if(sent) console.log(`[Tiendita] 🎴 Comando ${t} enviado al tarjetero para @${user}`);
+          else console.warn(`[Tiendita] No se pudo enviar ${t} al tarjetero.`);
+        });
+      } else {
+        console.warn('[Tiendita] StreamDB aún no está disponible para enviar el comando al tarjetero.');
+      }
+      return;
+    }
+
     // Reconocimiento de saludo de Lobito Mensajero / Botrix: "Gracias por estar aquí $(name)!"
     const userBienvenida = extraerUsuarioDeBienvenida(raw);
     if(userBienvenida){
