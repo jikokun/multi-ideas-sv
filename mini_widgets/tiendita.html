@@ -640,6 +640,30 @@
     background:linear-gradient(135deg,#00f2fe,#53fc18) !important;color:#04120a !important;
     box-shadow:0 0 26px rgba(83,252,24,.9) !important;transform:scale(1.04);
   }
+  .dz-carousel-simulator{
+    flex:1 1 100%;min-width:0;margin-top:4px;padding:9px 10px;border:1px solid rgba(83,252,24,.28);
+    border-radius:12px;background:rgba(83,252,24,.055)
+  }
+  .dz-carousel-simulator summary{
+    color:var(--kick-soft);font:800 11px var(--f-display);letter-spacing:.7px;cursor:pointer;list-style:none
+  }
+  .dz-carousel-simulator summary::-webkit-details-marker{display:none}
+  .dz-carousel-simulator summary::after{content:'＋';float:right;color:var(--kick);font:700 14px var(--f-cuerpo)}
+  .dz-carousel-simulator[open] summary::after{content:'−'}
+  .dz-carousel-controls{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  .dz-carousel-controls label{display:grid;gap:4px;color:#c5d2c5;font-size:10px;font-weight:700}
+  .dz-carousel-controls select,.dz-carousel-controls input[type="range"]{width:100%;accent-color:var(--kick)}
+  .dz-carousel-controls select{
+    min-height:30px;padding:4px 8px;border:1px solid rgba(255,255,255,.2);border-radius:8px;
+    background:#101a12;color:var(--tinta);font:700 11px var(--f-cuerpo)
+  }
+  .dz-carousel-speed{grid-column:1/-1}
+  .dz-carousel-speed > span{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .dz-carousel-speed input{margin:2px 0 0}
+  .dz-carousel-speed output{color:var(--kick-soft);font-variant-numeric:tabular-nums}
+  .dz-carousel-actions{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+  #demo-zone .dz-carousel-actions button{flex:1 1 auto;padding:6px 9px;font-size:10px}
+  .dz-carousel-hint{grid-column:1/-1;color:#98a89a;font-size:9px;line-height:1.35}
   @keyframes pulseSyncBtn{
     0%,100%{box-shadow:0 0 14px rgba(0,242,254,.45)}
     50%{box-shadow:0 0 24px rgba(83,252,24,.8),0 0 8px rgba(0,242,254,.9)}
@@ -2414,6 +2438,34 @@
     <button id="demo-bot-lote" style="color:var(--oro);border-color:rgba(255,211,92,.8);font-weight:800;">🐺 +8 Viewers (Carrusel)</button>
     <button id="demo-regalo">+500 JikoPts</button>
     <button id="demo-reset">Reset Pts</button>
+    <details class="dz-carousel-simulator" id="demo-carousel-simulator">
+      <summary>🎴 SIMULADOR DEL CARRUSEL DE TARJETAS</summary>
+      <div class="dz-carousel-controls">
+        <label for="demo-carousel-category">Categoría de tarjetas
+          <select id="demo-carousel-category">
+            <option value="todos">Todas</option>
+            <option value="comida">Comidas</option>
+            <option value="bebida">Bebidas</option>
+            <option value="postre">Postres</option>
+            <option value="especial">Especiales</option>
+            <option value="recurso">Recursos</option>
+          </select>
+        </label>
+        <label for="demo-carousel-toggle">Movimiento
+          <button type="button" id="demo-carousel-toggle" aria-pressed="false">⏸ Pausar</button>
+        </label>
+        <label class="dz-carousel-speed" for="demo-carousel-speed"><span>Velocidad de desplazamiento <output id="demo-carousel-speed-value">1.00×</output></span>
+          <input id="demo-carousel-speed" type="range" min="0.15" max="1.50" step="0.05" value="0.55">
+        </label>
+        <div class="dz-carousel-actions">
+          <button type="button" id="demo-carousel-open">👁 Mostrar vitrina</button>
+          <button type="button" id="demo-carousel-prev" aria-label="Desplazar cinco tarjetas hacia atrás">◀ −5</button>
+          <button type="button" id="demo-carousel-next" aria-label="Desplazar cinco tarjetas hacia adelante">+5 ▶</button>
+          <button type="button" id="demo-carousel-reset">↺ Restablecer</button>
+        </div>
+        <span class="dz-carousel-hint">Prueba el mismo carrusel y catálogo del widget. Los controles no cambian precios ni registran compras.</span>
+      </div>
+    </details>
   </div>
 
 <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
@@ -4098,6 +4150,21 @@
 
   let categoriaActiva = 'todos';
   window.categoriaActiva = 'todos';
+  let scrollPos = 0;
+  let isAutoScrolling = true;
+  let carouselRafId = null;
+  let carouselHalfWidth = 0;
+
+  function recalcularAnchoCarrusel(){
+    const cards = $track ? $track.querySelectorAll('.item-card') : [];
+    const itemCount = Math.min(cards.length, ITEMS.length);
+    let width = 0;
+    for(let i = 0; i < itemCount; i++){
+      if(cards[i]) width += (cards[i].offsetWidth || 0) + 14;
+    }
+    carouselHalfWidth = width;
+    return carouselHalfWidth;
+  }
 
   function cardHTML(it, idx) {
     const agotado = it.stock === 0;
@@ -4137,11 +4204,14 @@
     const itemsCiclo = itemsActivos.length > 0 ? [...itemsActivos, ...itemsActivos] : [];
     $track.innerHTML = itemsCiclo.map((it, idx) => cardHTML(it, idx)).join('');
     actualizarContadoresCategorias();
+    recalcularAnchoCarrusel();
   }
 
   window.filtrarCategoriaTienda = function(cat) {
     categoriaActiva = cat || 'todos';
     window.categoriaActiva = categoriaActiva;
+    const demoCategorySelect = document.getElementById('demo-carousel-category');
+    if(demoCategorySelect) demoCategorySelect.value = categoriaActiva;
 
     // Actualizar píldoras activas
     const pills = document.querySelectorAll('.cat-pill');
@@ -4204,37 +4274,53 @@
   }
 
   /* ═══════════ LÓGICA DE CARRUSEL CONTINUO & CENTRADO ═══════════ */
-  let scrollPos = 0;
-  let isAutoScrolling = true;
-  let animId = null;
-  const scrollSpeed = 0.55; // velocidad de deslizamiento suave
+  let scrollSpeed = 0.55; // velocidad por defecto; el simulador permite ajustarla temporalmente
 
   function getHalfWidth(){
-    const cards = $track ? $track.querySelectorAll('.item-card') : [];
-    let w = 0;
-    const len = Math.min(cards.length, ITEMS.length);
-    for(let i=0; i<len; i++){
-      if(cards[i]) w += (cards[i].offsetWidth || 0) + 14; // card + gap
+    return carouselHalfWidth;
+  }
+
+  function actualizarControlPausaCarrusel(){
+    const toggle = document.getElementById('demo-carousel-toggle');
+    if(!toggle) return;
+    toggle.textContent = isAutoScrolling ? '⏸ Pausar' : '▶ Reanudar';
+    toggle.setAttribute('aria-pressed', String(!isAutoScrolling));
+  }
+
+  function programarFrameCarrusel(){
+    if(isAutoScrolling && carouselRafId === null){
+      carouselRafId = requestAnimationFrame(loopCarousel);
     }
-    return w;
+  }
+
+  function establecerAutoScrollCarrusel(activo){
+    isAutoScrolling = Boolean(activo);
+    actualizarControlPausaCarrusel();
+    if(isAutoScrolling){
+      programarFrameCarrusel();
+    } else if(carouselRafId !== null){
+      cancelAnimationFrame(carouselRafId);
+      carouselRafId = null;
+    }
   }
 
   function loopCarousel(){
-    if(isAutoScrolling){
-      scrollPos -= scrollSpeed;
-      const halfWidth = getHalfWidth();
-      if(halfWidth > 0 && Math.abs(scrollPos) >= halfWidth){
-        scrollPos += halfWidth;
-      }
-      $track.style.transform = `translateX(${scrollPos}px)`;
+    carouselRafId = null;
+    if(!isAutoScrolling || !$track) return;
+
+    scrollPos -= scrollSpeed;
+    if(carouselHalfWidth > 0 && Math.abs(scrollPos) >= carouselHalfWidth){
+      scrollPos += carouselHalfWidth;
     }
-    animId = requestAnimationFrame(loopCarousel);
+    $track.style.transform = `translateX(${scrollPos}px)`;
+    programarFrameCarrusel();
   }
-  animId = requestAnimationFrame(loopCarousel);
+  programarFrameCarrusel();
+  window.addEventListener('resize', recalcularAnchoCarrusel, { passive: true });
 
   // Centra un ítem seleccionado y detiene el carrusel
   function centrarItem(cardEl){
-    isAutoScrolling = false;
+    establecerAutoScrollCarrusel(false);
     $track.classList.add('animando');
 
     const vWidth = $viewport.offsetWidth;
@@ -4251,7 +4337,7 @@
   }
 
   function reanudarCarrusel(){
-    isAutoScrolling = true;
+    establecerAutoScrollCarrusel(true);
     $track.classList.remove('animando');
   }
 
@@ -4279,7 +4365,7 @@
       void $track.offsetWidth;
     }
 
-    isAutoScrolling = false;
+    establecerAutoScrollCarrusel(false);
     $track.classList.add('animando');
     scrollPos -= delta;
     $track.style.transform = `translateX(${scrollPos}px)`;
@@ -4304,7 +4390,7 @@
       }
       // Reanudar desplazamiento continuo automático si no hay orden activa
       if(ordenActual.length === 0){
-        isAutoScrolling = true;
+        establecerAutoScrollCarrusel(true);
       }
     }, 680);
 
@@ -4314,8 +4400,8 @@
   }
 
   // Pausar al pasar el mouse por la vitrina
-  $viewport.addEventListener('mouseenter',()=>{ if(ordenActual.length === 0) isAutoScrolling=false; });
-  $viewport.addEventListener('mouseleave',()=>{ if(ordenActual.length === 0) isAutoScrolling=true; });
+  $viewport.addEventListener('mouseenter',()=>{ if(ordenActual.length === 0) establecerAutoScrollCarrusel(false); });
+  $viewport.addEventListener('mouseleave',()=>{ if(ordenActual.length === 0) establecerAutoScrollCarrusel(true); });
 
   function actualizarSeleccionTarjetas(){
     document.querySelectorAll('.item-card').forEach(c => {
@@ -4411,7 +4497,7 @@
 
     // Añadir selector dorado a las tarjetas del ítem pero manteniendo el giro continuo del carrusel
     actualizarSeleccionTarjetas();
-    isAutoScrolling = true;
+    establecerAutoScrollCarrusel(true);
 
     actualizarPanelOrden();
     const cantTxt = cant > 1 ? `<b>${cant}x ${it.nombre}</b>` : `<b>${it.nombre}</b>`;
@@ -4421,7 +4507,7 @@
 
   function actualizarPanelOrden(){
     actualizarSeleccionTarjetas();
-    isAutoScrolling = true;
+    establecerAutoScrollCarrusel(true);
 
     const $chips = document.getElementById('orden-chips-row');
     const $totalPts = document.getElementById('cart-total-pts');
@@ -4489,14 +4575,14 @@
     ordenActual = [];
     actualizarSeleccionTarjetas();
     actualizarPanelOrden();
-    isAutoScrolling = true;
+    establecerAutoScrollCarrusel(true);
   }
 
   // Configuración de botones interactivos de decisión
   const btnAnadir = document.getElementById('btn-anadir');
   if(btnAnadir){
     btnAnadir.onclick = () => {
-      isAutoScrolling = true;
+      establecerAutoScrollCarrusel(true);
       iniciarCd(AUTO_CIERRE_MS);
       toast(`🛒 Elige otro platillo haciendo clic o escribiendo su comando`);
     };
@@ -4840,7 +4926,7 @@
         document.body.classList.remove('mesero-activo');
         if($filaAtras) $filaAtras.innerHTML = '';
         if($filaAdelante) $filaAdelante.innerHTML = '';
-        if(demoZone && !isOverlayMode) demoZone.style.display = 'flex';
+        if(demoZone && (!isOverlayMode || isPreview)) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
       }, 600);
     }, 9000);
@@ -5688,6 +5774,66 @@
       rotarItems(5, u);
     };
   }
+  const demoCarouselCategory = document.getElementById('demo-carousel-category');
+  const demoCarouselSpeed = document.getElementById('demo-carousel-speed');
+  const demoCarouselSpeedValue = document.getElementById('demo-carousel-speed-value');
+  const demoCarouselToggle = document.getElementById('demo-carousel-toggle');
+
+  function abrirVitrinaParaSimulacion(){
+    const user = usuarioActual || 'LunaGamer';
+    if(!$menu.classList.contains('visible')) mostrarMenu(user, getUserPoints(user));
+    return user;
+  }
+
+  if(demoCarouselCategory){
+    demoCarouselCategory.addEventListener('change', () => {
+      if(typeof window.filtrarCategoriaTienda === 'function'){
+        window.filtrarCategoriaTienda(demoCarouselCategory.value);
+      }
+    });
+  }
+  if(demoCarouselSpeed){
+    demoCarouselSpeed.addEventListener('input', () => {
+      scrollSpeed = Number(demoCarouselSpeed.value) || 0.55;
+      if(demoCarouselSpeedValue){
+        demoCarouselSpeedValue.value = `${(scrollSpeed / 0.55).toFixed(2)}×`;
+        demoCarouselSpeedValue.textContent = `${(scrollSpeed / 0.55).toFixed(2)}×`;
+      }
+    });
+  }
+  if(demoCarouselToggle){
+    demoCarouselToggle.addEventListener('click', () => {
+      establecerAutoScrollCarrusel(!isAutoScrolling);
+      actualizarControlPausaCarrusel();
+    });
+  }
+  document.getElementById('demo-carousel-open')?.addEventListener('click', () => {
+    abrirVitrinaParaSimulacion();
+  });
+  document.getElementById('demo-carousel-prev')?.addEventListener('click', () => {
+    const user = abrirVitrinaParaSimulacion();
+    rotarItems(-5, user);
+  });
+  document.getElementById('demo-carousel-next')?.addEventListener('click', () => {
+    const user = abrirVitrinaParaSimulacion();
+    rotarItems(5, user);
+  });
+  document.getElementById('demo-carousel-reset')?.addEventListener('click', () => {
+    if(demoCarouselCategory){
+      demoCarouselCategory.value = 'todos';
+      if(typeof window.filtrarCategoriaTienda === 'function') window.filtrarCategoriaTienda('todos');
+    }
+    if(demoCarouselSpeed){
+      demoCarouselSpeed.value = '0.55';
+      scrollSpeed = 0.55;
+      if(demoCarouselSpeedValue){
+        demoCarouselSpeedValue.value = '1.00×';
+        demoCarouselSpeedValue.textContent = '1.00×';
+      }
+    }
+    establecerAutoScrollCarrusel(true);
+    actualizarControlPausaCarrusel();
+  });
   document.getElementById('demo-select').onclick=()=>{
     if(!$menu.classList.contains('visible')){
       mostrarMenu(usuarioActual || 'LunaGamer', getUserPoints(usuarioActual || 'LunaGamer'));
@@ -5943,8 +6089,11 @@
     btnSyncFb.onclick = () => window.ejecutarSincronizacionDesdeTiendita(btnSyncFb);
   }
 
-  if(isOverlayMode){
+  if(isOverlayMode && !isPreview){
     demoZone.classList.add('oculto');
+  } else if(isPreview){
+    demoZone.classList.remove('oculto');
+    demoZone.style.display = 'flex';
   }
 
   /* ═══════════ RECEPTOR DE ACCIONES EXTERNAS (PANEL DE PRUEBA) ═══════════ */
