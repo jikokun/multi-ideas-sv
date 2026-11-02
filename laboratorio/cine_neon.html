@@ -27,7 +27,7 @@
     .curtain{position:absolute;z-index:3;top:13%;height:53%;width:4.5%;background:repeating-linear-gradient(90deg,#32107d 0 10%,#6d22ba 15%,#301078 29%,#190c52 45%);filter:drop-shadow(0 0 9px rgba(167,66,255,.65));border-radius:0 0 45% 45%}.curtain.left{left:15.2%}.curtain.right{right:15.2%}
     .speaker{position:absolute;z-index:1;top:31%;width:3.7%;height:11%;border:2px solid #151d48;border-radius:10px;background:linear-gradient(145deg,#101a42,#030817);box-shadow:0 0 14px rgba(0,0,0,.9),0 0 9px rgba(68,115,255,.3)}.speaker:before,.speaker:after{content:"";position:absolute;left:22%;width:56%;aspect-ratio:1;border-radius:50%;border:2px solid #263663;background:radial-gradient(circle,#050918 45%,#17265b 49%,#050816 70%)}.speaker:before{top:14%}.speaker:after{bottom:10%}.speaker.left{left:23.4%}.speaker.right{right:23.4%}
     .camera-slot{display:none}
-    .audience{position:absolute;z-index:5;left:17%;right:17%;bottom:20%;height:38%;pointer-events:none}
+    .audience{position:absolute;z-index:6;left:18.65%;right:18.65%;bottom:19.63%;height:33.43%;pointer-events:none}
     .guest{position:absolute;width:64px;height:66px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;filter:drop-shadow(0 0 5px var(--guest-glow,rgba(63,201,255,.45)));animation:guest-arrive .9s cubic-bezier(.2,.8,.2,1) both}
     .guest-head{position:relative;z-index:1;width:44px;height:44px;flex:none;display:grid;place-items:center;overflow:hidden;border:2px solid var(--guest-color,#42ddff);border-radius:50%;background:#10132e;box-shadow:0 0 9px var(--guest-glow,rgba(63,201,255,.45)),inset 0 0 7px rgba(255,255,255,.14)}
     .guest-head img{width:100%;height:100%;object-fit:cover}.guest-face{font-size:22px;line-height:1}
@@ -68,10 +68,10 @@
       <div class="curtain left"></div><div class="curtain right"></div>
       <div class="exit left">SALIDA</div><div class="exit right">SALIDA</div>
       <div class="floor"></div><div class="aisle"></div>
-      <div class="audience" id="audience" aria-live="polite"></div>
       <div class="seats" id="seats" aria-hidden="true"></div>
     </section>
     </div>
+    <div class="audience" id="audience" aria-live="polite"></div>
   </main>
   <script>
     (()=>{
@@ -105,10 +105,9 @@
       const freeSeatIndexes=seatSlots.map((_,index)=>index);
       const guestColors=['#46d9ff','#bd72ff','#ff5ca8','#65f0c1','#ffd166','#7c9cff'];
       const findProfileImage=(...roots)=>{
-        const queue=roots.filter(Boolean).map(value=>({value,depth:0}));const seen=new Set();
-        while(queue.length){const {value,depth}=queue.shift();if(!value||typeof value!=='object'||seen.has(value)||depth>4)continue;seen.add(value);
-          for(const [key,child] of Object.entries(value)){if(typeof child==='string'&&/^https:\/\//i.test(child)&&/(avatar|profile.*(pic|image|url)|picture)/i.test(key))return child}
-          if(depth<4)for(const child of Object.values(value))if(child&&typeof child==='object')queue.push({value:child,depth:depth+1});
+        const queue=roots.filter(Boolean).map(value=>({value,depth:0,imageContext:false}));const seen=new Set();
+        while(queue.length){const {value,depth,imageContext}=queue.shift();if(!value||typeof value!=='object'||seen.has(value)||depth>4)continue;seen.add(value);
+          for(const [key,child] of Object.entries(value)){const profileContext=imageContext||/(avatar|profile|picture)/i.test(key);if(typeof child==='string'&&/^https?:\/\//i.test(child)&&profileContext){const image=child.replace(/^http:\/\/(files\.kick\.com\/)/i,'https://$1');if(/^https:\/\//i.test(image))return image}if(depth<4&&child&&typeof child==='object')queue.push({value:child,depth:depth+1,imageContext:profileContext})}
         }
         return '';
       };
@@ -126,7 +125,7 @@
         const name=clean(username).replace(/^@/,'').slice(0,32);if(!name)return;
         const key=name.toLocaleLowerCase();if(guests.has(key))return;
         if(!freeSeatIndexes.length)return;
-        const slotIndex=freeSeatIndexes.shift();const slot=seatSlots[slotIndex];
+        const randomSeatIndex=Math.floor(Math.random()*freeSeatIndexes.length);const slotIndex=freeSeatIndexes.splice(randomSeatIndex,1)[0];const slot=seatSlots[slotIndex];
         const color=guestColors[Math.floor(Math.random()*guestColors.length)];
         const guest=document.createElement('div');guest.className='guest';guest.style.left=`${slot.x}%`;guest.style.bottom=`${slot.bottom}px`;guest.style.setProperty('--guest-color',color);guest.style.setProperty('--guest-glow',`${color}99`);guest.setAttribute('aria-label',`${name} entrÃ³ a ver la pelÃ­cula`);
         const head=document.createElement('div');head.className='guest-head';
@@ -143,16 +142,19 @@
         setTimeout(()=>{guest.el.remove();guests.delete(key);freeSeatIndexes.push(guest.slotIndex);freeSeatIndexes.sort((a,b)=>a-b)},500);
       };
       const readChatPacket=(packet)=>{
-        const raw=packet?.data||packet?.body||packet||{};const data=raw?.data||raw;const message=data.message;const user=data.user||data.sender||(message&&typeof message==='object'?(message.sender||message.user):null)||{};
-        const username=typeof user==='string'?user:(user.username||user.name||user.displayName||user.user_name||data.username||data.userName||data.sender||'');
-        const text=typeof data.messageText==='string'?data.messageText:typeof data.rawInput==='string'?data.rawInput:typeof data.command==='string'?data.command:typeof message==='string'?message:message?.message||message?.text||message?.content||data.text||data.content||'';
+        const raw=packet?.data||packet?.body||packet||{};const data=raw?.data||raw;const eventInfo=packet?.event||raw?.event||{};const eventType=String(typeof eventInfo==='string'?eventInfo:(eventInfo.type||eventInfo.name||packet?.type||'')).toLowerCase();const message=data.message;const messageObj=message&&typeof message==='object'?message:null;
+        const user=data.user||data.sender||data.triggeredBy||messageObj?.sender||messageObj?.user||{};
+        const username=typeof user==='string'?user:(user.username||user.name||user.displayName||user.user_name||user.userName||data.username||data.userName||data.senderName||data.triggeredBy||'');
+        const commandValue=data.command;const commandName=typeof commandValue==='string'?commandValue:(commandValue?.name||commandValue?.command||data.commandName||data.command_name||'');
+        let text=typeof data.messageText==='string'?data.messageText:typeof data.rawInput==='string'?data.rawInput:typeof message==='string'?message:messageObj?.message||messageObj?.text||messageObj?.content||data.text||data.content||'';
+        if(commandName&&(eventType.includes('triggered')||!text)){const normalized=clean(commandName);text=normalized.startsWith('!')?normalized:`!${normalized}`}
         const command=clean(text).match(/^!(entrar|salir)(?:\s|$)/i);if(!command)return;
         if(command[1].toLowerCase()==='salir'){removeGuest(username);return}
-        const messageObj=message&&typeof message==='object'?message:null;const avatar=findProfileImage(packet,raw,data,user,messageObj,messageObj?.sender,messageObj?.user);
+        const avatar=findProfileImage(packet,raw,data,user,messageObj,messageObj?.sender,messageObj?.user);
         addGuest(username,avatar);
       };
       const port=clean(params.get('port'))||'4445';const endpoints=[`ws://127.0.0.1:${port}/`,`ws://localhost:${port}/`];let endpointIndex=0;let socket=null;let retryTimer=0;
-      const connectStreamerBot=()=>{if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;try{socket=new WebSocket(endpoints[endpointIndex]);socket.onopen=()=>socket.send(JSON.stringify({request:'Subscribe',id:'cine-neon-chat',events:{Kick:['ChatMessage','Message']}}));socket.onmessage=(event)=>{try{readChatPacket(JSON.parse(event.data))}catch(_){}};socket.onclose=()=>{endpointIndex=(endpointIndex+1)%endpoints.length;clearTimeout(retryTimer);retryTimer=setTimeout(connectStreamerBot,5000)};socket.onerror=()=>{try{socket.close()}catch(_){}}}catch(_){endpointIndex=(endpointIndex+1)%endpoints.length;retryTimer=setTimeout(connectStreamerBot,5000)}};
+      const connectStreamerBot=()=>{if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;try{socket=new WebSocket(endpoints[endpointIndex]);socket.onopen=()=>socket.send(JSON.stringify({request:'Subscribe',id:'cine-neon-chat',events:{Kick:['ChatMessage','Message'],Command:['Triggered']}}));socket.onmessage=(event)=>{try{readChatPacket(JSON.parse(event.data))}catch(_){}};socket.onclose=()=>{endpointIndex=(endpointIndex+1)%endpoints.length;clearTimeout(retryTimer);retryTimer=setTimeout(connectStreamerBot,5000)};socket.onerror=()=>{try{socket.close()}catch(_){}}}catch(_){endpointIndex=(endpointIndex+1)%endpoints.length;retryTimer=setTimeout(connectStreamerBot,5000)}};
       connectStreamerBot();
       addEventListener('message',(event)=>{if(event.data?.type==='TEST_ENTER')addGuest(event.data.user||'Invitado',event.data.avatar||'');else if(event.data?.type==='TEST_EXIT')removeGuest(event.data.user||'Invitado')});
     })();
