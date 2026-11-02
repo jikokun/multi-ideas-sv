@@ -2349,6 +2349,39 @@
         </div>
 
         <!-- Tarjeta de Gestión Exclusiva: Escena Radio Studio Live Jikokun (1920x1080) -->
+        <div class="test-card" id="card-cine-neon" data-category="scenes" data-keywords="cine cinema neon pelicula pantalla camara butacas overlay obs kick seguidor sub reloj" style="border-color: rgba(139, 92, 246, 0.55); background: linear-gradient(180deg, rgba(12, 8, 36, 0.97) 0%, rgba(4, 8, 29, 0.99) 100%);">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+                <span class="badge" style="background:rgba(139,92,246,.16);color:#c4b5fd;border:1px solid rgba(167,139,250,.5);font-weight:800">OVERLAY OBS · 1920 × 1080</span>
+                <span style="font-size:.8rem;color:#a5b4fc;font-weight:700">Cine Neón transparente</span>
+            </div>
+            <h2 style="margin:12px 0 6px;font-size:1.55rem;color:#c4b5fd">🎬 Cine Neón</h2>
+            <p style="color:#cbd5e1;font-size:.95rem;margin-bottom:14px;line-height:1.5">Escena fija 1920 × 1080 con butacas, pantalla 16:9 y recuadro de cámara transparentes para colocar tus fuentes debajo. Incluye reloj, eventos de Kick por Botrix y personajes básicos que aparecen al escribir <code>!entrar</code> en el chat conectado a Streamer.bot.</p>
+            <div style="border-radius:12px;overflow:hidden;height:390px;border:1px solid rgba(167,139,250,.45);background:radial-gradient(ellipse at center,#11113e,#050717);margin-bottom:14px;position:relative">
+                <iframe id="preview-cine-neon" src="about:blank" data-src="laboratorio/cine_neon.html?preview=true" title="Vista previa Cine Neón" style="width:100%;height:100%;border:0;background:transparent"></iframe>
+                <button type="button" class="lazy-activate-btn" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)" onclick="activateLazyIframe('preview-cine-neon')"><i class="fa-solid fa-play"></i> Cargar vista previa</button>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px">
+                <div>
+                    <label for="cine-botrix-bid" style="display:block;font-size:.8rem;font-weight:700;color:#c4b5fd;margin-bottom:4px">ID Botrix (BID) o enlace de labels</label>
+                    <input id="cine-botrix-bid" class="gate-input" value="542iomDnDN8s5+ggVjdyVg" placeholder="BID o URL de Botrix" style="padding:9px 12px;font-size:.84rem;letter-spacing:normal;text-align:left;font-family:monospace" oninput="updateCineNeonUrl()">
+                </div>
+                <div>
+                    <label for="cine-streamerbot-port" style="display:block;font-size:.8rem;font-weight:700;color:#c4b5fd;margin-bottom:4px">Puerto WebSocket Streamer.bot</label>
+                    <input id="cine-streamerbot-port" class="gate-input" value="4445" inputmode="numeric" style="padding:9px 12px;font-size:.84rem;letter-spacing:normal;text-align:left;font-family:monospace" oninput="updateCineNeonUrl()">
+                </div>
+                <div>
+                    <label for="cine-url-display" style="display:block;font-size:.8rem;font-weight:700;color:#c4b5fd;margin-bottom:4px">Enlace para OBS</label>
+                    <input id="cine-url-display" class="gate-input" readonly style="padding:9px 12px;font-size:.76rem;letter-spacing:normal;text-align:left;font-family:monospace" onclick="this.select()">
+                </div>
+            </div>
+            <p style="font-size:.84rem;color:#a5b4fc;line-height:1.5;margin:0 0 12px">En OBS añade esta fuente primero. Coloca la captura de cámara debajo del overlay, en el recuadro izquierdo, y el video debajo del marco central; el hueco 16:9 queda transparente.</p>
+            <div style="display:flex;gap:10px;flex-wrap:wrap">
+                <button type="button" class="test-btn" style="flex:2;min-width:220px;border-color:#a78bfa;color:#ddd6fe;font-weight:800" onclick="copyCineNeonUrl(this)">📋 Copiar enlace OBS</button>
+                <button type="button" class="test-btn" style="flex:1;min-width:170px;border-color:#38bdf8;color:#7dd3fc" onclick="testCineEnter()">🎟️ Probar !entrar</button>
+                <a id="btn-open-cine-neon" href="laboratorio/cine_neon.html" target="_blank" rel="noopener noreferrer" class="test-btn" style="flex:1;min-width:170px;border-color:#a78bfa;color:#ddd6fe;text-decoration:none;display:flex;align-items:center;justify-content:center">↗ Abrir overlay</a>
+            </div>
+        </div>
+
         <div class="test-card" id="card-radioshow" data-category="scenes" data-keywords="radioshow radio studio spotify botrix streamerbot en vivo la radio de todos" style="border-color: rgba(0, 242, 254, 0.45); background: linear-gradient(180deg, rgba(3, 15, 28, 0.96) 0%, rgba(2, 8, 18, 0.98) 100%);">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
                 <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
@@ -3423,6 +3456,51 @@
         // GESTIÓN EXCLUSIVA: RADIO STUDIO LIVE JIKOKUN (1920x1080 OBS)
         // =======================================================================
         const DEFAULT_BOTRIX_BID = '542iomDnDN8s5+ggVjdyVg';
+
+        window.updateCineNeonUrl = function() {
+            const bidInput = document.getElementById('cine-botrix-bid');
+            const portInput = document.getElementById('cine-streamerbot-port');
+            const display = document.getElementById('cine-url-display');
+            const openLink = document.getElementById('btn-open-cine-neon');
+            const preview = document.getElementById('preview-cine-neon');
+            let bid = bidInput ? bidInput.value.trim() : DEFAULT_BOTRIX_BID;
+            if (bid.includes('botrix.live')) {
+                try { bid = new URL(bid).searchParams.get('bid') || bid; }
+                catch (_) { const match = bid.match(/[?&]bid=([^&]+)/); if (match) bid = decodeURIComponent(match[1]); }
+            }
+            const params = new URLSearchParams();
+            if (bid) params.set('bid', bid);
+            const port = portInput ? portInput.value.trim() : '4445';
+            if (port && port !== '4445' && /^\d{2,5}$/.test(port)) params.set('port', port);
+            params.set('obs', 'true');
+            const url = new URL('laboratorio/cine_neon.html', document.baseURI);
+            url.search = params.toString();
+            if (display) display.value = url.href;
+            if (openLink) openLink.href = url.href;
+            if (preview) preview.dataset.src = `${url.pathname}${url.search}&preview=true`;
+            return url.href;
+        };
+
+        window.copyCineNeonUrl = async function(button) {
+            const url = window.updateCineNeonUrl();
+            try {
+                await navigator.clipboard.writeText(url);
+                if (button) { const old = button.textContent; button.textContent = '✅ Enlace copiado'; setTimeout(() => button.textContent = old, 1800); }
+            } catch (_) {
+                const input = document.getElementById('cine-url-display');
+                if (input) { input.select(); document.execCommand('copy'); }
+            }
+        };
+
+        window.testCineEnter = function() {
+            const iframe = document.getElementById('preview-cine-neon');
+            if (!iframe) return;
+            const sendTest = () => iframe.contentWindow && iframe.contentWindow.postMessage({ type: 'TEST_ENTER', user: 'Invitado' }, '*');
+            if (iframe.src === 'about:blank' || iframe.src.endsWith('about:blank')) {
+                iframe.addEventListener('load', sendTest, { once: true });
+                window.ensureIframeLoaded('preview-cine-neon');
+            } else sendTest();
+        };
         const DEFAULT_SPOTIFY_USER = 'jikokun2';
         const DEFAULT_SPOTIFY_REFRESH = '';
 
@@ -4780,6 +4858,7 @@
 
         // Inicializar enlaces al cargar
         document.addEventListener('DOMContentLoaded', () => {
+            if (window.updateCineNeonUrl) window.updateCineNeonUrl();
             if (typeof updateSpotifyNativeLinksLab === 'function') {
                 updateSpotifyNativeLinksLab();
             }

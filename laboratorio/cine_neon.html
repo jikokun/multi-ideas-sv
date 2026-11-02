@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cine Neón · Overlay OBS</title>
+  <style>
+    :root{--violet:#a855f7;--blue:#36a5ff;--glow:rgba(112,70,255,.62);--scale:1}
+    *{box-sizing:border-box} html,body{width:100%;height:100%;margin:0;overflow:hidden;background:transparent;color:#fff;font-family:Arial,Helvetica,sans-serif}
+    body{--vw:100vw;--vh:100vh}
+    .stage{position:absolute;left:0;top:0;width:1920px;height:1080px;overflow:hidden;isolation:isolate;background:transparent;transform:scale(var(--stage-scale,1));transform-origin:top left}
+    .stage:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 50% 44%,#17143f 0%,#0a0d2c 52%,#030717 100%);mask:url(#cine-room-mask);-webkit-mask:url(#cine-room-mask);mask-type:luminance;pointer-events:none}
+    .cinema-scene{position:absolute;inset:0;mask:url(#cine-room-mask);-webkit-mask:url(#cine-room-mask);mask-type:luminance;pointer-events:none}
+    .ticker{position:absolute;z-index:10;top:14.5%;left:4.7%;right:4.7%;height:6.2%;min-height:34px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr)) auto;align-items:center;border:1px solid rgba(105,118,216,.58);border-radius:12px;background:linear-gradient(100deg,rgba(3,7,29,.97),rgba(14,16,49,.96),rgba(3,7,29,.97));box-shadow:0 0 18px rgba(63,55,173,.27),inset 0 1px 0 rgba(204,213,255,.12);backdrop-filter:blur(8px)}
+    .ticker-item{height:65%;min-width:0;padding:0 14px;display:flex;align-items:center;gap:9px;border-right:1px solid rgba(190,177,255,.2)}
+    .ticker-icon{color:#8cceff;text-shadow:0 0 10px var(--blue);font-size:18px}
+    .ticker-copy{min-width:0;display:flex;flex-direction:column;gap:2px}.ticker-label{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#aaa9d1;font-weight:800}.ticker-value{height:1.25em;max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;font-size:17px;font-weight:800;text-shadow:0 1px 8px #000}
+    .ticker-clock{padding:0 18px;font-variant-numeric:tabular-nums;font-size:28px;font-weight:900;letter-spacing:.04em;text-shadow:0 0 15px var(--blue)}
+    .theater{position:absolute;inset:10% 2.5% 2%;overflow:hidden;border-radius:4% 4% 0 0;background:transparent;box-shadow:none}
+    .ceiling{position:absolute;left:0;right:0;top:0;height:18%;background:repeating-linear-gradient(110deg,transparent 0 14%,rgba(62,107,255,.18) 14.1% 14.35%,transparent 14.5% 28%),linear-gradient(180deg,rgba(17,22,88,.94),rgba(9,15,56,.75));clip-path:polygon(0 0,100% 0,91% 100%,9% 100%);border-bottom:2px solid rgba(54,127,255,.5)}
+    .lamp{position:absolute;top:5%;width:1.4%;height:1.5%;min-width:6px;min-height:4px;border-radius:50%;background:#fff3cc;box-shadow:0 0 9px 4px rgba(255,224,156,.6)}.lamp:nth-child(1){left:18%}.lamp:nth-child(2){left:36%}.lamp:nth-child(3){left:64%}.lamp:nth-child(4){left:82%}
+    .wall{position:absolute;top:16%;bottom:32%;width:17%;background:repeating-linear-gradient(90deg,rgba(30,41,126,.8) 0 2px,rgba(25,18,94,.55) 2px 21%,rgba(118,42,220,.18) 21.5% 22%,rgba(17,23,84,.66) 22.5% 44%);border-top:1px solid rgba(52,121,255,.55);border-bottom:2px solid rgba(68,101,255,.4);box-shadow:inset 0 0 35px #080b31}.wall.left{left:0;clip-path:polygon(0 0,100% 11%,100% 100%,0 100%)}.wall.right{right:0;clip-path:polygon(0 11%,100% 0,100% 100%,0 100%)}
+    .sconce{position:absolute;top:28%;width:3.1%;height:14%;background:linear-gradient(90deg,transparent,rgba(69,157,255,.65),rgba(209,136,255,.7),rgba(69,157,255,.55),transparent);filter:drop-shadow(0 0 12px #785aff)}.sconce.left{display:none}.sconce.right{right:4%}
+    .screen-bay{position:absolute;z-index:2;left:50%;top:15%;width:min(62%,820px);transform:translateX(-50%);padding:20px;border:20px solid #080d28;border-radius:7px;background:linear-gradient(135deg,#151c4c,#080d28);box-shadow:0 0 0 2px rgba(59,117,255,.72),0 0 24px var(--glow),inset 0 0 18px #000}
+    .screen{width:100%;height:auto;aspect-ratio:16/9;background:transparent;border:1px solid rgba(131,174,255,.28);box-shadow:0 0 13px rgba(62,104,255,.18);}
+    .screen-hint{position:absolute;inset:0;display:grid;place-items:center;color:rgba(208,220,255,.52);font-size:13px;letter-spacing:.14em;text-transform:uppercase;pointer-events:none;opacity:0;transition:opacity .25s}.screen-bay:hover .screen-hint{opacity:1}
+    .curtain{position:absolute;z-index:3;top:13%;height:53%;width:4.5%;background:repeating-linear-gradient(90deg,#32107d 0 10%,#6d22ba 15%,#301078 29%,#190c52 45%);filter:drop-shadow(0 0 9px rgba(167,66,255,.65));border-radius:0 0 45% 45%}.curtain.left{left:15.2%}.curtain.right{right:15.2%}
+    .speaker{position:absolute;z-index:1;top:31%;width:3.7%;height:11%;border:2px solid #151d48;border-radius:10px;background:linear-gradient(145deg,#101a42,#030817);box-shadow:0 0 14px rgba(0,0,0,.9),0 0 9px rgba(68,115,255,.3)}.speaker:before,.speaker:after{content:"";position:absolute;left:22%;width:56%;aspect-ratio:1;border-radius:50%;border:2px solid #263663;background:radial-gradient(circle,#050918 45%,#17265b 49%,#050816 70%)}.speaker:before{top:14%}.speaker:after{bottom:10%}.speaker.left{left:23.4%}.speaker.right{right:23.4%}
+    .camera-slot{display:none}
+    .audience{position:absolute;z-index:3;left:17%;right:17%;bottom:20%;height:38%;pointer-events:none}
+    .guest{position:absolute;bottom:0;width:92px;height:330px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;filter:drop-shadow(0 0 9px var(--guest-glow,rgba(63,201,255,.55)));animation:guest-arrive .55s cubic-bezier(.2,.8,.2,1) both}
+    .guest-head{position:relative;z-index:1;width:78px;height:78px;flex:none;display:grid;place-items:center;overflow:hidden;border:4px solid var(--guest-color,#42ddff);border-radius:50%;background:#10132e;box-shadow:0 0 18px var(--guest-glow,rgba(63,201,255,.55)),inset 0 0 12px rgba(255,255,255,.14)}
+    .guest-head img{width:100%;height:100%;object-fit:cover}.guest-face{font-size:34px;line-height:1}
+    .guest-body{position:relative;width:64px;height:190px;margin-top:5px;flex:none;animation:guest-bob 1.5s ease-in-out infinite alternate}
+    .guest-torso{position:absolute;left:50%;top:0;width:48px;height:112px;transform:translateX(-50%);border:2px solid color-mix(in srgb,var(--guest-color,#42ddff) 65%,transparent);border-radius:22px 22px 9px 9px;background:linear-gradient(180deg,#202342,#090d26);box-shadow:0 0 13px var(--guest-glow,rgba(63,201,255,.4))}
+    .guest-arm{position:absolute;top:14px;width:13px;height:92px;border:1px solid rgba(91,215,255,.5);border-radius:10px;background:linear-gradient(#252642,#0a0d20);transform-origin:top center}.guest-arm.left{left:0;transform:rotate(9deg)}.guest-arm.right{right:0;transform:rotate(-9deg)}
+    .guest-legs{position:absolute;bottom:0;left:50%;height:85px;width:40px;display:flex;justify-content:space-between;transform:translateX(-50%)}.guest-leg{width:14px;height:100%;border:1px solid rgba(91,215,255,.42);border-radius:9px;background:linear-gradient(#15182f,#070a19)}
+    .guest-name{position:absolute;bottom:-24px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font:bold 15px Arial,sans-serif;text-shadow:0 2px 6px #000,0 0 10px var(--guest-glow,rgba(63,201,255,.55))}
+    @keyframes guest-bob{from{transform:translateY(0)}to{transform:translateY(-7px)}}@keyframes guest-arrive{from{opacity:0;transform:translateY(60px) scale(.72)}to{opacity:1;transform:translateY(0) scale(1)}}
+    .exit{position:absolute;top:53%;width:4%;height:1.8%;border-radius:3px;background:#14f2a1;color:#031d18;display:grid;place-items:center;font-size:11px;font-weight:900;box-shadow:0 0 12px #08ffab}.exit.left{left:5%}.exit.right{right:5%}
+    .floor{position:absolute;left:16%;right:16%;top:62%;height:13%;background:repeating-linear-gradient(180deg,rgba(44,73,193,.12) 0 3%,transparent 3.5% 25%),linear-gradient(180deg,rgba(13,18,60,.72),rgba(20,20,80,.32));clip-path:polygon(15% 0,85% 0,100% 100%,0 100%)}
+    .aisle{position:absolute;z-index:2;left:50%;top:66%;height:21%;width:10%;transform:translateX(-50%);background:repeating-linear-gradient(180deg,transparent 0 20%,rgba(60,97,255,.85) 21%,rgba(38,59,255,.25) 22%,transparent 26%);filter:drop-shadow(0 0 7px #356dff);clip-path:polygon(37% 0,63% 0,100% 100%,0 100%)}
+    .seats{position:absolute;z-index:4;left:-4%;right:-4%;bottom:-5%;height:42%;display:flex;flex-direction:column;justify-content:flex-end;gap:1.3%;perspective:650px;overflow:hidden}
+    .seat-row{height:26%;display:flex;justify-content:center;gap:1.2%;transform:scaleX(var(--row-scale,1));transform-origin:center bottom;margin-bottom:-.5%}.seat-row:nth-child(1){--row-scale:.58}.seat-row:nth-child(2){--row-scale:.76}.seat-row:nth-child(3){--row-scale:.92}.seat-row:nth-child(4){--row-scale:1.08}
+    .seat{position:relative;flex:0 0 7.3%;height:100%;border:2px solid #7d2ddd;border-bottom:5px solid #4316a4;border-radius:30% 30% 13% 13%;background:linear-gradient(120deg,#180c50,#11163c 40%,#090e2e 78%,#381176);box-shadow:0 -3px 10px rgba(144,48,255,.5),inset 0 6px 9px rgba(151,61,255,.16),0 5px 7px rgba(0,0,0,.7);transform:rotateX(-7deg)}
+    .seat:before{content:"";position:absolute;left:8%;right:8%;top:10%;height:56%;border:1px solid rgba(158,93,255,.5);border-radius:32% 32% 14% 14%;background:linear-gradient(150deg,rgba(45,34,104,.82),rgba(8,13,39,.95));box-shadow:inset 0 2px 8px rgba(144,68,255,.2)}
+    .seat:after{content:"";position:absolute;left:-7%;right:-7%;bottom:0;height:26%;border-radius:15px 15px 7px 7px;background:linear-gradient(180deg,#181849,#080c2b);border:1px solid rgba(123,55,221,.72);box-shadow:0 0 6px rgba(133,57,255,.3)}
+    .seat:nth-child(4n){visibility:hidden}
+    @media(prefers-reduced-motion:no-preference){.sconce{animation:pulse 4s ease-in-out infinite alternate}@keyframes pulse{to{opacity:.68;filter:drop-shadow(0 0 18px #785aff)}}}
+  </style>
+</head>
+<body>
+  <main class="stage" aria-label="Cine Neón para overlay de OBS">
+    <svg aria-hidden="true" width="1920" height="1080" style="position:absolute;pointer-events:none"><defs><mask id="cine-room-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="1920" height="1080" mask-type="luminance"><rect x="48" y="108" width="1824" height="950" fill="white"/><rect x="589" y="289" width="742" height="419" fill="black"/><rect x="0" y="390" width="320" height="333" rx="18" fill="black"/></mask></defs></svg>
+    <header class="ticker" aria-label="Últimos eventos y hora">
+      <div class="ticker-item"><span class="ticker-icon">✦</span><div class="ticker-copy"><span class="ticker-label">Último seguidor</span><span class="ticker-value"><iframe id="event-follow" title="Último seguidor" loading="lazy" style="width:100%;height:1.25em;border:0;background:transparent"></iframe></span></div></div>
+      <div class="ticker-item"><span class="ticker-icon">★</span><div class="ticker-copy"><span class="ticker-label">Último sub</span><span class="ticker-value"><iframe id="event-sub" title="Último suscriptor" loading="lazy" style="width:100%;height:1.25em;border:0;background:transparent"></iframe></span></div></div>
+      <div class="ticker-item"><span class="ticker-icon">🎁</span><div class="ticker-copy"><span class="ticker-label">Último regalo</span><span class="ticker-value"><iframe id="event-gift" title="Último regalo de suscripción" loading="lazy" style="width:100%;height:1.25em;border:0;background:transparent"></iframe></span></div></div>
+      <div class="ticker-item"><span class="ticker-icon">ϟ</span><div class="ticker-copy"><span class="ticker-label">Últimos Kicks</span><span class="ticker-value"><iframe id="event-kicks" title="Últimos Kicks recibidos" loading="lazy" style="width:100%;height:1.25em;border:0;background:transparent"></iframe></span></div></div>
+      <time class="ticker-clock" id="clock" aria-label="Hora local">--:--</time>
+    </header>
+    <div class="cinema-scene">
+    <section class="theater" aria-label="Sala de cine">
+      <div class="ceiling"><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i><i class="lamp"></i></div>
+      <div class="wall left"></div><div class="wall right"></div>
+      <div class="sconce left"></div><div class="sconce right"></div>
+      <div class="speaker left"></div><div class="speaker right"></div>
+      <div class="screen-bay"><div class="screen" aria-label="Área transparente para video 16:9"></div><div class="screen-hint">Área transparente · video 16:9 debajo</div></div>
+      <div class="curtain left"></div><div class="curtain right"></div>
+      <div class="exit left">SALIDA</div><div class="exit right">SALIDA</div>
+      <div class="floor"></div><div class="aisle"></div>
+      <div class="audience" id="audience" aria-live="polite"></div>
+      <div class="seats" id="seats" aria-hidden="true"></div>
+    </section>
+    </div>
+  </main>
+  <script>
+    (()=>{
+      const params=new URLSearchParams(location.search);
+      const clean=value=>String(value||'').trim();
+      const stage=document.querySelector('.stage');
+      const fitStage=()=>{const scale=Math.min(innerWidth/1920,innerHeight/1080);stage.style.setProperty('--stage-scale',String(scale));stage.style.left=`${(innerWidth-1920*scale)/2}px`;stage.style.top=`${(innerHeight-1080*scale)/2}px`};
+      fitStage();addEventListener('resize',fitStage,{passive:true});
+      const buildBotrix=(bid,type,text)=>{
+        const q=new URLSearchParams({bid,text,font:'Rajdhani',type,platform:'kick',align:'center',fontSize:'24',fontWeight:'700',color:'#ffffff',lineHeight:'1.2'});
+        return `https://botrix.live/widgets/labels?${q.toString()}`;
+      };
+      const bid=clean(params.get('bid')||params.get('botrix_id')||params.get('botrix'));
+      const links={follow:params.get('b_follow')||params.get('botrix_follow'),sub:params.get('b_sub')||params.get('botrix_sub'),gift:params.get('b_gift')||params.get('botrix_gift'),kicks:params.get('b_kicks')||params.get('botrix_kicks')};
+      if(bid){links.follow||=buildBotrix(bid,'ultimoFollow','{value}');links.sub||=buildBotrix(bid,'ultimoSub','{value}');links.gift||=buildBotrix(bid,'ultimoGift','{value}');links.kicks||=buildBotrix(bid,'ultimoKicks','{name} - {amount}');}
+      Object.entries(links).forEach(([key,url])=>{if(!url)return;try{const parsed=new URL(url);if(parsed.protocol==='https:'&&parsed.hostname==='botrix.live')document.getElementById(`event-${key}`).src=parsed.href;}catch(_){}});
+      const clock=document.getElementById('clock');
+      const updateClock=()=>{clock.textContent=new Intl.DateTimeFormat(undefined,{hour:'numeric',minute:'2-digit',hour12:true}).format(new Date());clock.dateTime=new Date().toISOString()};
+      updateClock();setInterval(updateClock,15000);
+      const seats=document.getElementById('seats');
+      for(let row=0;row<4;row++){const line=document.createElement('div');line.className='seat-row';const count=13+row*2;for(let i=0;i<count;i++){const seat=document.createElement('i');seat.className='seat';line.appendChild(seat)}seats.appendChild(line)}
+      const audience=document.getElementById('audience');
+      const guests=new Map();
+      const guestColors=['#46d9ff','#bd72ff','#ff5ca8','#65f0c1','#ffd166','#7c9cff'];
+      const addGuest=(username,avatar='')=>{
+        const name=clean(username).replace(/^@/,'').slice(0,32);if(!name)return;
+        const key=name.toLocaleLowerCase();if(guests.has(key))return;
+        if(guests.size>=14){const [oldKey,oldGuest]=guests.entries().next().value;oldGuest.el.remove();guests.delete(oldKey)}
+        const color=guestColors[Math.floor(Math.random()*guestColors.length)];
+        const guest=document.createElement('div');guest.className='guest';guest.style.left=`${3+guests.size*6.8}%`;guest.style.setProperty('--guest-color',color);guest.style.setProperty('--guest-glow',`${color}99`);guest.setAttribute('aria-label',`${name} entró a ver la película`);
+        const head=document.createElement('div');head.className='guest-head';
+        if(avatar&&/^https:\/\//i.test(avatar)){const img=document.createElement('img');img.src=avatar;img.alt='';img.referrerPolicy='no-referrer';img.onerror=()=>{img.remove();head.textContent='🙂'};head.appendChild(img)}else{const face=document.createElement('span');face.className='guest-face';face.textContent='🙂';head.appendChild(face)}
+        const body=document.createElement('div');body.className='guest-body';body.innerHTML='<span class="guest-torso"></span><span class="guest-arm left"></span><span class="guest-arm right"></span><span class="guest-legs"><i class="guest-leg"></i><i class="guest-leg"></i></span>';
+        const label=document.createElement('span');label.className='guest-name';label.textContent=name;
+        guest.append(head,body,label);audience.appendChild(guest);guests.set(key,{el:guest});
+      };
+      const readChatPacket=(packet)=>{
+        const raw=packet?.data||packet?.body||packet||{};const data=raw?.data||raw;const message=data.message;const user=data.user||data.sender||(message&&typeof message==='object'?(message.sender||message.user):null)||{};
+        const username=typeof user==='string'?user:(user.username||user.name||user.displayName||user.user_name||data.username||data.userName||data.sender||'');
+        const text=typeof data.messageText==='string'?data.messageText:typeof data.rawInput==='string'?data.rawInput:typeof data.command==='string'?data.command:typeof message==='string'?message:message?.message||message?.text||message?.content||data.text||data.content||'';
+        if(!/^!entrar(?:\s|$)/i.test(clean(text)))return;
+        const avatar=user&&typeof user==='object'?(user.profile_pic||user.profilepic||user.avatar||user.avatarUrl||user.profileImageUrl):'';
+        addGuest(username,avatar);
+      };
+      const port=clean(params.get('port'))||'4445';const endpoints=[`ws://127.0.0.1:${port}/`,`ws://localhost:${port}/`];let endpointIndex=0;let socket=null;let retryTimer=0;
+      const connectStreamerBot=()=>{if(socket&&(socket.readyState===WebSocket.OPEN||socket.readyState===WebSocket.CONNECTING))return;try{socket=new WebSocket(endpoints[endpointIndex]);socket.onopen=()=>socket.send(JSON.stringify({request:'Subscribe',id:'cine-neon-chat',events:{Kick:['ChatMessage','Message']}}));socket.onmessage=(event)=>{try{readChatPacket(JSON.parse(event.data))}catch(_){}};socket.onclose=()=>{endpointIndex=(endpointIndex+1)%endpoints.length;clearTimeout(retryTimer);retryTimer=setTimeout(connectStreamerBot,5000)};socket.onerror=()=>{try{socket.close()}catch(_){}}}catch(_){endpointIndex=(endpointIndex+1)%endpoints.length;retryTimer=setTimeout(connectStreamerBot,5000)}};
+      connectStreamerBot();
+      addEventListener('message',(event)=>{if(event.data?.type==='TEST_ENTER')addGuest(event.data.user||'Invitado',event.data.avatar||'')});
+    })();
+  </script>
+</body>
+</html>
