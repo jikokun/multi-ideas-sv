@@ -1498,7 +1498,7 @@
           <button class="cfg-btn" id="btn-run-cmd" style="white-space:nowrap;">Enviar</button>
         </div>
         <div style="font-size:10.5px; color:rgba(255,255,255,0.55); line-height:1.35;">
-          Ejemplo: <b>!ruleta</b>, <b>!apostar 1000 negro 5 impar</b> (1000 a cada opción), <b>!girar</b>
+          Ejemplo: <b>!ruleta</b>, <b>!apostar 500 negro 5 impar</b> (500 por opción; máximo 1,000 JP en total), <b>!girar</b>
         </div>
       </div>
 
@@ -1591,6 +1591,7 @@
       saldo: 1000
     }
   };
+  var MAX_CASINO_BET = 1000;
 
   var mockDB = {
     'jikokun': { displayName: 'Jikokun', jikopuntos: 99999, avatar: 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp' },
@@ -2058,7 +2059,9 @@
       return;
     }
 
-    var chip = (typeof customAmount === 'number' && customAmount > 0) ? customAmount : state.selectedChip;
+    var remainingBetRoom = Math.max(0, MAX_CASINO_BET - getTotalBetAmount());
+    if (remainingBetRoom <= 0) return;
+    var chip = Math.min(remainingBetRoom, (typeof customAmount === 'number' && customAmount > 0) ? customAmount : state.selectedChip);
     if (state.points < chip) {
       if (state.points > 0) {
         chip = state.points;
@@ -2772,6 +2775,16 @@
         return;
       }
 
+      var remainingBetRoom = Math.max(0, MAX_CASINO_BET - getTotalBetAmount());
+      var maxAmountPerKey = Math.floor(remainingBetRoom / betKeys.length);
+      if (maxAmountPerKey <= 0) {
+        console.log('[Ruleta] Límite de apuesta alcanzado: máximo 1,000 JP por giro.');
+        return;
+      }
+      if (amount > maxAmountPerKey) {
+        amount = maxAmountPerKey;
+        console.log('[Ruleta] Apuesta ajustada al máximo total de 1,000 JP por giro.');
+      }
       var totalNeeded = amount * betKeys.length;
       if (state.points < totalNeeded) {
         playLoseSound();
@@ -2804,6 +2817,14 @@
       if (!ruletaVisible || !state.sessionActive || activeNorm !== sNorm || state.isSpinning) return;
       if (getTotalBetAmount() <= 0) {
         console.log('[Ruleta] No hay apuestas; usa !apostar antes de !girar.');
+        iniciarTemporizadorInactividad(state.tiempoInactividad);
+        return;
+      }
+      var spinUsage = window.JikoWidgetSync && typeof window.JikoWidgetSync.consumeCasinoSpin === 'function'
+        ? window.JikoWidgetSync.consumeCasinoSpin(sNorm)
+        : { allowed: true };
+      if (!spinUsage.allowed) {
+        console.warn('[Ruleta] Límite alcanzado: máximo 20 giros combinados en 15 minutos por usuario.');
         iniciarTemporizadorInactividad(state.tiempoInactividad);
         return;
       }

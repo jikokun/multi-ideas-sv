@@ -1591,6 +1591,7 @@
       saldo: 1000
     }
   };
+  var MAX_CASINO_BET = 1000;
 
   var mockDB = {
     'jikokun': { displayName: 'Jikokun', jikopuntos: 99999, avatar: 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp' },
@@ -2050,7 +2051,9 @@
       return;
     }
 
-    var chip = (typeof customAmount === 'number' && customAmount > 0) ? customAmount : state.selectedChip;
+    var remainingBetRoom = Math.max(0, MAX_CASINO_BET - getTotalBetAmount());
+    if (remainingBetRoom <= 0) return;
+    var chip = Math.min(remainingBetRoom, (typeof customAmount === 'number' && customAmount > 0) ? customAmount : state.selectedChip);
     if (state.points < chip) {
       if (state.points > 0) {
         chip = state.points;
@@ -2795,6 +2798,7 @@
         monto = getTotalBetAmount() > 0 ? getTotalBetAmount() : state.selectedChip;
       }
       if (monto <= 0) monto = 50;
+      monto = Math.min(MAX_CASINO_BET, monto);
 
       // Si especificó opciones de apuesta, limpiamos y ponemos las nuevas
       if (parsedKeys.length > 0) {
@@ -2811,6 +2815,15 @@
       var totalNeeded = getTotalBetAmount();
       if (state.points < totalNeeded) {
         playLoseSound();
+        iniciarTemporizadorInactividad(15);
+        return;
+      }
+
+      var spinUsage = window.JikoWidgetSync && typeof window.JikoWidgetSync.consumeCasinoSpin === 'function'
+        ? window.JikoWidgetSync.consumeCasinoSpin(sNorm)
+        : { allowed: true };
+      if (!spinUsage.allowed) {
+        console.warn('[Ruleta] Límite alcanzado: máximo 20 giros combinados en 15 minutos por usuario.');
         iniciarTemporizadorInactividad(15);
         return;
       }

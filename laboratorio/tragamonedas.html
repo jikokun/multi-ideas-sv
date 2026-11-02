@@ -2035,7 +2035,7 @@
             <span>🎯 Apuesta máxima por giro</span>
             <span class="val-badge" id="lbl-max-bet">1,000 JP</span>
           </div>
-          <input type="number" id="inp-max-bet" min="5" max="50000" step="5" value="1000">
+          <input type="number" id="inp-max-bet" min="5" max="1000" step="5" value="1000">
           <div style="font-size:0.75rem; color:#94a3b8; margin-top:4px;">
             Este límite se aplica a los controles y al monto de <code>!girar</code>.
           </div>
@@ -2195,7 +2195,7 @@
       if (!isNaN(nApar) && nApar >= 3 && nApar <= 60) state.tiempoAparicion = nApar;
     }
     var savedMaxBet = parseInt(localStorage.getItem('jiko_slot_max_bet'), 10);
-    if (!isNaN(savedMaxBet) && savedMaxBet >= 5 && savedMaxBet <= 50000) state.maxBet = savedMaxBet;
+    if (!isNaN(savedMaxBet) && savedMaxBet >= 5) state.maxBet = Math.min(1000, savedMaxBet);
 
     // Parámetros URL directos para OBS
     if (urlParams.has('inactividad') || urlParams.has('timeout')) {
@@ -2214,57 +2214,23 @@
     return String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim();
   }
 
-  var SPIN_LIMIT = 10;
-  var SPIN_WINDOW_MS = 15 * 60 * 1000;
-  var SPIN_HISTORY_KEY = 'jiko_slot_spin_history_v1';
-  var spinHistoryMemory = {};
+  var SPIN_LIMIT = 20;
   var activeSlotAlert = null;
   var slotAlertHideTimer = null;
 
-  function loadSpinHistory() {
-    try {
-      var saved = JSON.parse(localStorage.getItem(SPIN_HISTORY_KEY) || '{}');
-      if (saved && typeof saved === 'object') return saved;
-    } catch(e) {}
-    return spinHistoryMemory;
-  }
-
-  function saveSpinHistory(history) {
-    spinHistoryMemory = history;
-    try { localStorage.setItem(SPIN_HISTORY_KEY, JSON.stringify(history)); } catch(e) {}
-  }
-
   function getSpinQuota(username, now) {
-    var userKey = norm(username) || 'desconocido';
-    var timeNow = (typeof now === 'number') ? now : Date.now();
-    var history = loadSpinHistory();
-    var cutoff = timeNow - SPIN_WINDOW_MS;
-    Object.keys(history).forEach(function(key) {
-      var kept = Array.isArray(history[key]) ? history[key].map(Number).filter(function(ts) { return isFinite(ts) && ts > cutoff && ts <= timeNow; }).sort(function(a, b) { return a - b; }) : [];
-      if (kept.length > 0) history[key] = kept;
-      else delete history[key];
-    });
-    var entries = Array.isArray(history[userKey]) ? history[userKey] : [];
-    if (!history[userKey]) history[userKey] = entries;
-    saveSpinHistory(history);
-    var nextAt = entries.length >= SPIN_LIMIT ? entries[0] + SPIN_WINDOW_MS : 0;
-    return {
-      userKey: userKey,
-      used: entries.length,
-      remaining: Math.max(0, SPIN_LIMIT - entries.length),
-      nextAt: nextAt,
-      waitMs: nextAt ? Math.max(0, nextAt - timeNow) : 0
-    };
+    if (window.JikoWidgetSync && typeof window.JikoWidgetSync.getCasinoSpinQuota === 'function') {
+      return window.JikoWidgetSync.getCasinoSpinQuota(username);
+    }
+    return { userKey: norm(username) || 'desconocido', used: 0, remaining: SPIN_LIMIT, nextAt: 0, waitMs: 0 };
   }
 
   function registerSpin(username) {
+    if (window.JikoWidgetSync && typeof window.JikoWidgetSync.consumeCasinoSpin === 'function') {
+      return window.JikoWidgetSync.consumeCasinoSpin(username);
+    }
     var quota = getSpinQuota(username);
-    if (quota.remaining <= 0) return { allowed: false, quota: quota };
-    var history = loadSpinHistory();
-    history[quota.userKey].push(Date.now());
-    saveSpinHistory(history);
-    quota = getSpinQuota(username);
-    return { allowed: true, quota: quota };
+    return { allowed: quota.remaining > 0, quota: quota };
   }
 
   function formatWaitTime(milliseconds) {
@@ -2311,7 +2277,7 @@
       }
     }
     activeSlotAlert = { type: 'limit', username: username, title: 'Límite de giros alcanzado' };
-    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 10 de 10 giros. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
+    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 20 de 20 giros entre ruleta y tragamonedas. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
     if (slotAlertHideTimer) clearTimeout(slotAlertHideTimer);
     slotAlertHideTimer = null;
   }
@@ -2323,7 +2289,7 @@
       clearSlotAlert();
       return;
     }
-    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 10 de 10 giros. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
+    renderSlotAlert('limit', activeSlotAlert.title, 'Usaste 20 de 20 giros entre ruleta y tragamonedas. Próximo giro disponible en ' + formatWaitTime(quota.waitMs) + '.');
   }, 1000);
 
   // Caché y resolvedor en tiempo real de fotos de perfil de Kick
@@ -3232,7 +3198,7 @@
     maxBetInput.addEventListener('change', function() {
       var newMax = parseInt(this.value, 10);
       if (isNaN(newMax)) newMax = state.maxBet;
-      state.maxBet = Math.max(5, Math.min(50000, newMax));
+      state.maxBet = Math.max(5, Math.min(1000, newMax));
       this.value = state.maxBet;
       if (maxBetLabel) maxBetLabel.textContent = state.maxBet.toLocaleString() + ' JP';
       try { localStorage.setItem('jiko_slot_max_bet', String(state.maxBet)); } catch(e) {}
@@ -3907,7 +3873,7 @@
       if (quotaAtOpen.remaining <= 0) {
         showQuotaAlert(sNorm);
       } else {
-        showSlotAlert('success', '¡Tu turno está listo!', 'Tienes ' + quotaAtOpen.remaining + ' de 10 giros disponibles.', 4000);
+        showSlotAlert('success', '¡Tu turno está listo!', 'Tienes ' + quotaAtOpen.remaining + ' de 20 giros disponibles entre ruleta y tragamonedas.', 4000);
       }
 
       // Iniciar ventana de 30 segundos (o configurada) de inactividad para que el usuario use !girar

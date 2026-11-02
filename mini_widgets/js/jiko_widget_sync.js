@@ -543,6 +543,46 @@
   // EXPOSICIÓN GLOBAL
   // ─────────────────────────────────────────────────────────────────────────────
 
+  const CASINO_USE_KEY = 'jiko_casino_spin_usage_v1';
+  const CASINO_USE_LIMIT = 20;
+  const CASINO_USE_WINDOW_MS = 15 * 60 * 1000;
+
+  function getCasinoSpinQuota(user) {
+    const cleanUser = String(user || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/^@/, '').trim().toLowerCase();
+    if (!cleanUser) return { userKey: '', used: CASINO_USE_LIMIT, remaining: 0, waitMs: CASINO_USE_WINDOW_MS };
+
+    const now = Date.now();
+    let usage = {};
+    try { usage = JSON.parse(localStorage.getItem(CASINO_USE_KEY) || '{}') || {}; } catch(e) {}
+    Object.keys(usage).forEach(name => {
+      if (!Array.isArray(usage[name])) { delete usage[name]; return; }
+      usage[name] = usage[name].filter(ts => Number.isFinite(ts) && ts <= now && now - ts < CASINO_USE_WINDOW_MS);
+      if (!usage[name].length) delete usage[name];
+    });
+    const timestamps = usage[cleanUser] || [];
+    try { localStorage.setItem(CASINO_USE_KEY, JSON.stringify(usage)); } catch(e) {}
+    const nextAt = timestamps.length >= CASINO_USE_LIMIT ? timestamps[0] + CASINO_USE_WINDOW_MS : 0;
+    return { userKey: cleanUser, used: timestamps.length, remaining: Math.max(0, CASINO_USE_LIMIT - timestamps.length), nextAt, waitMs: nextAt ? Math.max(0, nextAt - now) : 0 };
+  }
+
+  function consumeCasinoSpin(user) {
+    const quota = getCasinoSpinQuota(user);
+    if (!quota.userKey || quota.remaining <= 0) return { allowed: false, quota, remaining: 0, retryAfterMs: quota.waitMs };
+
+    const now = Date.now();
+    let usage = {};
+    try { usage = JSON.parse(localStorage.getItem(CASINO_USE_KEY) || '{}') || {}; } catch(e) {}
+    const timestamps = Array.isArray(usage[quota.userKey]) ? usage[quota.userKey] : [];
+    if (timestamps.length >= CASINO_USE_LIMIT) {
+      return { allowed: false, quota, remaining: 0, retryAfterMs: Math.max(0, timestamps[0] + CASINO_USE_WINDOW_MS - now) };
+    }
+
+    timestamps.push(now);
+    usage[quota.userKey] = timestamps;
+    try { localStorage.setItem(CASINO_USE_KEY, JSON.stringify(usage)); } catch(e) {}
+    return { allowed: true, quota: getCasinoSpinQuota(user), remaining: CASINO_USE_LIMIT - timestamps.length, retryAfterMs: 0 };
+  }
+
   const JikoWidgetSync = {
     isBusy,
     getActiveLock,
@@ -560,6 +600,8 @@
     hasStandalonePerfil,
     getFriendlyQueuedToast,
     mostrarBannerPantallaOcupada,
+    getCasinoSpinQuota,
+    consumeCasinoSpin,
     DEFAULT_TTLS
   };
 

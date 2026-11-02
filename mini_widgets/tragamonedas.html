@@ -2067,6 +2067,7 @@
 
   var CELL_HEIGHT = 97.333;
   var STRIP_TOTAL_ITEMS = 30;
+  var MAX_CASINO_BET = 1000;
 
   // Estado del Widget y de la Máquina
   var state = {
@@ -3576,7 +3577,7 @@
         if (params.length > 0) {
           var initialBetRe = parsearMonto(params[0]);
           if (!isNaN(initialBetRe) && initialBetRe > 0) {
-            state.bet = Math.min(50000, Math.max(5, initialBetRe));
+            state.bet = Math.min(MAX_CASINO_BET, Math.max(5, initialBetRe));
             var elBet = document.getElementById('player-stat-bet');
             if (elBet) elBet.textContent = '🎯 APUESTA: ' + Number(state.bet).toLocaleString() + ' JP';
             var elSubCmd = document.getElementById('player-sub-cmd');
@@ -3636,7 +3637,7 @@
       if (params.length > 0) {
         var apuestaInicial = parsearMonto(params[0]);
         if (!isNaN(apuestaInicial) && apuestaInicial > 0) {
-          state.bet = Math.min(50000, Math.max(5, apuestaInicial));
+          state.bet = Math.min(MAX_CASINO_BET, Math.max(5, apuestaInicial));
         }
       }
 
@@ -3695,7 +3696,7 @@
       if (params.length > 0) {
         var nuevaApuesta = parsearMonto(params[0]);
         if (!isNaN(nuevaApuesta) && nuevaApuesta > 0) {
-          state.bet = Math.min(50000, Math.max(5, nuevaApuesta));
+          state.bet = Math.min(MAX_CASINO_BET, Math.max(5, nuevaApuesta));
         }
       }
 
@@ -3722,6 +3723,16 @@
       }
 
       // Extender Lock de exclusión mutua para cubrir este giro + nueva ventana de inactividad
+      var spinUsage = window.JikoWidgetSync && typeof window.JikoWidgetSync.consumeCasinoSpin === 'function'
+        ? window.JikoWidgetSync.consumeCasinoSpin(sNorm)
+        : { allowed: true };
+      if (!spinUsage.allowed) {
+        console.warn('[Tragamonedas] Límite alcanzado: máximo 20 giros combinados en 15 minutos por usuario.');
+        mostrarResultadoStatus('ready');
+        iniciarTemporizadorInactividad(15);
+        return;
+      }
+
       var ttlExtension = (state.tiempoInactividad + state.tiempoAparicion + 20) * 1000;
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.acquire('tragamonedas', sNorm, ttlExtension);
