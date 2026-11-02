@@ -1287,6 +1287,38 @@
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
 
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
+        <!-- TARJETA: WIDGET DE CUMPLEAÑOS SKA -->
+        <div class="test-card" id="card-cumpleanos-ska" data-category="kick" data-keywords="cumpleaños cumpleaños feliz ska cumpleaños kick overlay fiesta alborada streamerbot fuegos artificiales">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                <span class="badge" style="background:rgba(255,190,60,.14); color:#ffd166; border:1px solid rgba(255,209,102,.45); font-weight:800;">🎂 OVERLAY OBS 1920×1080</span>
+                <span style="font-size:.8rem; color:#a0aec0; font-weight:600;">Kick + Streamer.bot</span>
+            </div>
+            <h2 style="margin:14px 0 6px; font-size:1.7rem; color:#ffd166;">🎺 Celebración de Cumpleaños Ska</h2>
+            <p style="color:#cbd5e1; font-size:.95rem; margin-bottom:16px; line-height:1.55;">Celebración animada de 90 segundos con música, fuegos artificiales, frases y banner con avatar. Prueba la secuencia completa o salta directamente a la alborada.</p>
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; align-items:center;">
+                <label for="birthday-test-user" style="color:#fcd98a; font-weight:700;">Usuario:</label>
+                <input id="birthday-test-user" class="gate-input" value="Jikokun" maxlength="32" style="max-width:240px; padding:9px 12px;">
+                <button type="button" class="test-btn" style="border-color:#ffd166; color:#ffd166; font-weight:800;" onclick="testBirthdayWidget('start')">🎉 Celebración completa</button>
+                <button type="button" class="test-btn" style="border-color:#fb923c; color:#fb923c; font-weight:800;" onclick="testBirthdayWidget('alborada')">🔥 Probar alborada</button>
+                <button type="button" class="test-btn" style="border-color:#f87171; color:#f87171; font-weight:800;" onclick="testBirthdayWidget('stop')">⏹ Detener</button>
+            </div>
+            <div style="border-radius:14px; overflow:hidden; height:500px; border:1.5px solid rgba(255,209,102,.38); background:#07080d; margin-bottom:16px; position:relative;">
+                <div class="lazy-preview-cover" id="cover-preview-cumpleanos-ska">
+                    <div class="lazy-preview-card">
+                        <div class="lazy-preview-icon">🎂</div>
+                        <div class="lazy-preview-title">Celebración de Cumpleaños Ska</div>
+                        <div class="lazy-preview-desc">Carga la vista previa para probar la secuencia y sus controles.</div>
+                        <button type="button" class="lazy-activate-btn" onclick="activateLazyIframe('preview-cumpleanos-ska')"><i class="fa-solid fa-play"></i> Cargar Vista Previa</button>
+                    </div>
+                </div>
+                <iframe id="preview-cumpleanos-ska" data-src="laboratorio/widget_cumpleanos_integrado.html?preview=1" src="about:blank" title="Vista previa del widget de cumpleaños" style="width:100%; height:100%; border:0; background:transparent;"></iframe>
+            </div>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <button type="button" class="test-btn" style="border-color:#ffd166; color:#ffd166;" onclick="copyTextDirect(new URL('laboratorio/widget_cumpleanos_integrado.html', window.location.href).href, this)">📋 Copiar enlace OBS</button>
+                <a href="laboratorio/widget_cumpleanos_integrado.html" target="_blank" rel="noopener noreferrer" class="test-btn" style="border-color:rgba(255,209,102,.5); color:#ffd166; text-decoration:none;">↗ Abrir widget</a>
+            </div>
+        </div>
+
         <!-- TARJETA: OVERLAY MODO CHAT / JUST CHATTING (MODERN AQUA GLASS) -->
         <!-- ═══════════════════════════════════════════════════════════════════════ -->
         <div class="test-card" id="card-modochat-glass" data-category="scenes" data-keywords="modo chat glass escena obs just chatting streamerbot botrix modern aqua" style="border-color: rgba(0, 245, 212, 0.6); background: linear-gradient(180deg, rgba(4, 19, 34, 0.98) 0%, rgba(2, 8, 16, 0.98) 100%); box-shadow: 0 10px 45px rgba(0,0,0,0.8), 0 0 35px rgba(0,245,212,0.2);">
@@ -3711,10 +3743,27 @@
             }
         };
 
+        window.testBirthdayWidget = function(action) {
+            const iframeId = 'preview-cumpleanos-ska';
+            const iframe = document.getElementById(iframeId);
+            if (!iframe) return;
+            window.ensureIframeLoaded(iframeId);
+            const user = (document.getElementById('birthday-test-user')?.value || 'Jikokun').trim() || 'Jikokun';
+            const run = () => {
+                const widget = iframe.contentWindow;
+                if (!widget) return;
+                if (action === 'stop') widget.stopBirthdayCelebration?.();
+                else widget.triggerBirthdayCelebration?.(user, action === 'alborada' ? 68 : 0);
+            };
+            if (iframe.contentWindow?.triggerBirthdayCelebration || iframe.contentWindow?.stopBirthdayCelebration) run();
+            else iframe.addEventListener('load', run, { once: true });
+        };
+
         window.toggleAllPreviewsMaster = function(activate) {
             const iframes = [
                 'preview-modochat-test',
                 'preview-tarjetero-test',
+                'preview-cumpleanos-ska',
                 'preview-jikokun-test',
                 'preview-tiendita-test',
                 'preview-jikobank-test',

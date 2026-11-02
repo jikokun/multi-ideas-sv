@@ -1,0 +1,2923 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Widget Cumpleaños 1M - Jikokun Kick Overlay</title>
+  
+  <!-- Google Fonts: Titan One, Luckiest Guy, Fredoka, Outfit, Rajdhani -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@700;900&family=Luckiest+Guy&family=Montserrat:wght@800;900&family=Outfit:wght@700;800;900&family=Rajdhani:wght@600;700;800&family=Titan+One&display=swap" rel="stylesheet">
+
+  <!-- Preload de Canciones Oficiales de Cumpleaños para reproducción instantánea -->
+  <link rel="preload" as="audio" href="https://res.cloudinary.com/dn6fmqae9/video/upload/v1788844674/Cumplea%C3%B1os_feliz_rrlvlh.mp3">
+  <link rel="preload" as="audio" href="https://res.cloudinary.com/dn6fmqae9/video/upload/v1789529135/Cumplea%C3%B1os_feliz_2_y9cqk6.mp3">
+  <link rel="preload" as="audio" href="https://res.cloudinary.com/dn6fmqae9/video/upload/v1789529135/Cumplea%C3%B1os_feliz_1_vcot5i.mp3">
+
+  <!-- Estilos del Widget de Cumpleaños -->
+  <style>
+/* ==========================================================================
+   WIDGET CUMPLEAÑOS 1M - JIKOKUN
+   Resolución Nativa 1920x1080 | Optimizado para OBS Studio Browser Source
+   ========================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Fredoka:wght@700;900&family=Montserrat:ital,wght@0,800;0,900;1,900&family=Outfit:wght@600;800;900&family=Rajdhani:wght@600;700;800&family=Russo+One&family=Titan+One&display=swap');
+
+:root {
+  --font-title: 'Outfit', sans-serif;
+  --font-impact: 'Montserrat', sans-serif;
+  --font-tech: 'Rajdhani', sans-serif;
+  --font-bday: 'Titan One', 'Fredoka', cursive, sans-serif;
+
+  --neon-cyan: #00f5d4;
+  --neon-blue: #00e5ff;
+  --neon-pink: #ff007f;
+  --neon-purple: #7928ca;
+  --neon-gold: #ffd166;
+  --neon-lime: #53fc18;
+  --neon-orange: #ff5e00;
+
+  --bg-dark-glass: rgba(5, 12, 22, 0.88);
+  --border-cyan-glow: 0 0 25px rgba(0, 245, 212, 0.6);
+  --border-pink-glow: 0 0 25px rgba(255, 0, 127, 0.6);
+  --border-gold-glow: 0 0 35px rgba(255, 209, 102, 0.8);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent !important;
+  user-select: none;
+  font-family: var(--font-title);
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   ESCENARIO NATIVO 1920x1080 (AUTO-ESCALADO RESPONSIVO 16:9)
+   ========================================================================== */
+#overlay-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  transform: translate(-50%, -50%) scale(1);
+  overflow: hidden;
+  pointer-events: none; /* Dejar pasar clicks a OBS por defecto */
+}
+
+/* Lienzo Canvas principal de Fuegos Artificiales y Globos */
+#fireworks-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ==========================================================================
+   HACES DE LUCES DE CONCIERTO / FIESTA SKA (STAGE LIGHTS & SPOTLIGHTS)
+   Efecto de iluminación de escenario enérgico y dinámico al compás musical
+   ========================================================================== */
+#stage-lights-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+  mix-blend-mode: screen;
+}
+
+#stage-lights-container.lights-active {
+  opacity: 1;
+}
+
+.spotlight-beam {
+  position: absolute;
+  top: -60px;
+  width: 360px;
+  height: 1200px;
+  transform-origin: top center;
+  clip-path: polygon(46% 0, 54% 0, 100% 100%, 0% 100%);
+  pointer-events: none;
+  opacity: 0.35;
+  filter: blur(10px);
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+/* Foco 1 (Izquierda Extrema - Neón Cyan) */
+.beam-left-1 {
+  left: 120px;
+  background: linear-gradient(180deg, rgba(0, 245, 212, 0.8) 0%, rgba(0, 245, 212, 0.25) 50%, rgba(0, 229, 255, 0.08) 80%, transparent 100%);
+  animation: sweepLeft1 3.2s ease-in-out infinite;
+}
+
+/* Foco 2 (Izquierda Media - Magenta Eléctrico) */
+.beam-left-2 {
+  left: 450px;
+  background: linear-gradient(180deg, rgba(255, 0, 127, 0.8) 0%, rgba(255, 0, 127, 0.25) 50%, rgba(255, 94, 0, 0.08) 80%, transparent 100%);
+  animation: sweepLeft2 2.8s ease-in-out infinite;
+}
+
+/* Foco 3 (Centro - Oro Festivo) */
+.beam-center-1 {
+  left: 960px;
+  margin-left: -180px;
+  background: linear-gradient(180deg, rgba(255, 209, 102, 0.85) 0%, rgba(255, 209, 102, 0.25) 50%, rgba(255, 153, 0, 0.08) 80%, transparent 100%);
+  animation: sweepCenter 3.6s ease-in-out infinite;
+}
+
+/* Foco 4 (Derecha Media - Verde Neón Kick) */
+.beam-right-1 {
+  left: 1380px;
+  background: linear-gradient(180deg, rgba(83, 252, 24, 0.8) 0%, rgba(83, 252, 24, 0.25) 50%, rgba(0, 245, 212, 0.08) 80%, transparent 100%);
+  animation: sweepRight1 2.9s ease-in-out infinite;
+}
+
+/* Foco 5 (Derecha Extrema - Púrpura Cyber) */
+.beam-right-2 {
+  left: 1680px;
+  background: linear-gradient(180deg, rgba(121, 40, 202, 0.8) 0%, rgba(121, 40, 202, 0.25) 50%, rgba(255, 0, 127, 0.08) 80%, transparent 100%);
+  animation: sweepRight2 3.4s ease-in-out infinite;
+}
+
+/* Animaciones de barrido de focos móviles */
+@keyframes sweepLeft1 {
+  0% { transform: rotate(-26deg); }
+  50% { transform: rotate(16deg); }
+  100% { transform: rotate(-26deg); }
+}
+
+@keyframes sweepLeft2 {
+  0% { transform: rotate(18deg); }
+  50% { transform: rotate(-22deg); }
+  100% { transform: rotate(18deg); }
+}
+
+@keyframes sweepCenter {
+  0% { transform: rotate(-18deg); }
+  50% { transform: rotate(18deg); }
+  100% { transform: rotate(-18deg); }
+}
+
+@keyframes sweepRight1 {
+  0% { transform: rotate(-16deg); }
+  50% { transform: rotate(24deg); }
+  100% { transform: rotate(-16deg); }
+}
+
+@keyframes sweepRight2 {
+  0% { transform: rotate(25deg); }
+  50% { transform: rotate(-18deg); }
+  100% { transform: rotate(25deg); }
+}
+
+/* Pulso de intensidad de los focos con los beats */
+.spotlight-beam.beam-hit {
+  opacity: 0.85 !important;
+  filter: blur(6px) !important;
+}
+
+/* Resplandor ambiental de borde al ritmo de bombo y vientos */
+#ambient-beat-glow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 60px rgba(0, 245, 212, 0);
+  transition: box-shadow 0.1s ease-out;
+}
+
+#ambient-beat-glow.glow-bass {
+  box-shadow: inset 0 0 130px rgba(255, 0, 127, 0.45), inset 0 0 45px rgba(255, 209, 102, 0.5);
+}
+
+#ambient-beat-glow.glow-horns {
+  box-shadow: inset 0 0 130px rgba(0, 245, 212, 0.45), inset 0 0 45px rgba(83, 252, 24, 0.5);
+}
+
+/* Flash de Clímax para Explosión Final */
+#screen-flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at center, rgba(255, 255, 255, 0.95) 0%, rgba(255, 209, 102, 0.7) 40%, rgba(0, 245, 212, 0.2) 80%, transparent 100%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 0.08s ease-out;
+}
+
+/* ==========================================================================
+   FRASES NARRATIVAS PROGRESIVAS (PREVIAS AL GRAN FELIZ CUMPLEAÑOS)
+   ========================================================================== */
+#narrative-phrase-box {
+  position: absolute;
+  top: 140px;
+  left: 50%;
+  transform: translateX(-50%) scale(1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 35;
+  pointer-events: none;
+  width: auto;
+  max-width: 1800px;
+  transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#narrative-phrase-box.phrase-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-50%) scale(0.6);
+}
+
+.phrase-text {
+  font-family: var(--font-bday);
+  font-size: 48px;
+  font-weight: normal;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  width: auto;
+  line-height: 1.1;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+/* Temas específicos para cada una de las 3 frases (con contorno sobrio + resplandor vibrante + movimiento dinámico) */
+.phrase-theme-1 {
+  background: linear-gradient(90deg, #00f5d4 0%, #00e5ff 30%, #ffffff 55%, #ffd166 85%, #00f5d4 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: 
+    drop-shadow(-1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(-1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 20px rgba(0, 245, 212, 0.7));
+  animation: dynamicPhrase1 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes dynamicPhrase1 {
+  0% { transform: translateY(0) scale(0.98); background-position: 0% center; }
+  50% { transform: translateY(-6px) scale(1.01); }
+  100% { transform: translateY(0) scale(1.02); background-position: 100% center; }
+}
+
+.phrase-theme-2 {
+  background: linear-gradient(90deg, #ff007f 0%, #ff5e00 25%, #ffd166 50%, #7928ca 80%, #ff007f 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: 
+    drop-shadow(-1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(-1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 20px rgba(255, 0, 127, 0.7));
+  animation: dynamicPhrase2 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes dynamicPhrase2 {
+  0% { transform: translateY(0) scale(0.98); background-position: 0% center; }
+  50% { transform: translateY(-7px) scale(1.02); }
+  100% { transform: translateY(0) scale(1.01); background-position: 100% center; }
+}
+
+.phrase-theme-3 {
+  background: linear-gradient(90deg, #ffd166 0%, #ff9900 25%, #53fc18 50%, #00f5d4 75%, #ffd166 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: 
+    drop-shadow(-1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px -1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(-1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(1.2px 1.2px 0 rgba(2, 8, 18, 0.95))
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.7))
+    drop-shadow(0 0 20px rgba(83, 252, 24, 0.7));
+  animation: dynamicPhrase3 1.8s ease-in-out infinite alternate;
+}
+
+@keyframes dynamicPhrase3 {
+  0% { transform: translateY(0) scale(0.97); background-position: 0% center; }
+  50% { transform: translateY(-8px) scale(1.03); }
+  100% { transform: translateY(0) scale(1.02); background-position: 100% center; }
+}
+
+/* Efecto de salida 1: Explosión de letras (la caja se desvanece de golpe con destello mientras el canvas detona partículas) */
+.phrase-shatter-out {
+  opacity: 0 !important;
+  transform: translateX(-50%) scale(1.3) !important;
+  filter: brightness(3.5) blur(10px) !important;
+  transition: all 0.25s cubic-bezier(0.1, 0.9, 0.2, 1) !important;
+}
+
+/* Efecto de salida 2: Vórtice e implosión gravitacional a un punto singular */
+.phrase-vortex-out {
+  opacity: 0 !important;
+  transform: translateX(-50%) scale(0) rotate(720deg) !important;
+  filter: brightness(4) blur(15px) !important;
+  transition: all 0.65s cubic-bezier(0.55, 0.055, 0.675, 0.19) !important;
+}
+
+/* Efecto de salida 3: Disolución radiante hacia la Alborada */
+.phrase-alborada-out {
+  opacity: 0 !important;
+  transform: translateX(-50%) scale(1.4) translateY(-30px) !important;
+  filter: blur(20px) brightness(2.5) !important;
+  transition: all 0.5s ease-out !important;
+}
+
+/* ==========================================================================
+   GRAN BANNER CELEBRATORIO (ÚLTIMOS SEGUNDOS / FINAL FELIZ CUMPLEAÑOS)
+   ========================================================================== */
+#birthday-banner-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.4);
+  width: 1400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  visibility: hidden;
+  transition: all 0.7s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#birthday-banner-container.banner-visible {
+  visibility: visible;
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+#birthday-banner-container.banner-exit {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(1.6);
+  filter: blur(25px) brightness(2.5);
+  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Medallón Central con Avatar y Corona */
+.avatar-trophy-box {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin-bottom: 24px;
+}
+
+.crown-icon {
+  position: absolute;
+  top: -46px;
+  left: 50%;
+  transform: translateX(-50%) rotate(-4deg);
+  font-size: 64px;
+  z-index: 5;
+  filter: drop-shadow(0 0 20px #ffd166) drop-shadow(0 0 35px #ff5e00);
+  animation: crownBob 2s ease-in-out infinite alternate;
+}
+
+@keyframes crownBob {
+  0% { transform: translateX(-50%) rotate(-6deg) translateY(0); }
+  100% { transform: translateX(-50%) rotate(6deg) translateY(-8px); }
+}
+
+.avatar-halo-ring {
+  position: absolute;
+  top: -12px;
+  left: -12px;
+  right: -12px;
+  bottom: -12px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #ff007f,
+    #ffd166,
+    #53fc18,
+    #00f5d4,
+    #00e5ff,
+    #7928ca,
+    #ff007f
+  );
+  animation: ringRotate 4s linear infinite;
+  box-shadow: 0 0 45px rgba(0, 245, 212, 0.8), 0 0 80px rgba(255, 0, 127, 0.6);
+}
+
+@keyframes ringRotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.avatar-inner-wrapper {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  border-radius: 50%;
+  background: #06111f;
+  border: 4px solid #ffffff;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+}
+
+.avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+.avatar-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 76px;
+  font-weight: 900;
+  color: #ffffff;
+  background: linear-gradient(135deg, #00f5d4, #7928ca, #ff007f);
+  text-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+}
+
+/* Insignia Chamfered "KICK VIP" */
+.kick-badge-tag {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #53fc18, #00f5d4);
+  color: #031508;
+  font-family: var(--font-tech);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  padding: 4px 18px;
+  clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 0 20px rgba(83, 252, 24, 0.7);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   TIPOGRAFÍA GIGANTE MULTICOLOR
+   ========================================================================== */
+.banner-text-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.bday-dedication {
+  font-family: var(--font-tech);
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  color: #ffd166;
+  text-shadow: 
+    0 0 12px rgba(255, 209, 102, 0.7),
+    0 2px 4px rgba(0, 0, 0, 0.7);
+  margin-bottom: 6px;
+}
+
+.bday-title-huge {
+  font-family: 'Fredoka', 'Outfit', sans-serif;
+  font-size: 92px;
+  font-weight: 900;
+  line-height: 1.2;
+  padding: 8px 20px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: linear-gradient(
+    90deg,
+    #ff007f 0%,
+    #ff9900 20%,
+    #ffd166 40%,
+    #53fc18 60%,
+    #00f5d4 80%,
+    #00e5ff 90%,
+    #ff007f 100%
+  );
+  background-size: 250% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: rainbowFlow 4s linear infinite;
+  
+  /* Borde exterior sobrio y nítido con drop-shadow (sin rayas internas ni triángulos en Z, A, P, Ñ) */
+  filter: 
+    drop-shadow(-2px -2px 0 rgba(4, 12, 24, 0.95))
+    drop-shadow(2px -2px 0 rgba(4, 12, 24, 0.95))
+    drop-shadow(-2px 2px 0 rgba(4, 12, 24, 0.95))
+    drop-shadow(2px 2px 0 rgba(4, 12, 24, 0.95))
+    drop-shadow(0 4px 10px rgba(0, 0, 0, 0.8))
+    drop-shadow(0 0 25px rgba(0, 245, 212, 0.6))
+    drop-shadow(0 0 45px rgba(255, 0, 127, 0.45));
+}
+
+@keyframes rainbowFlow {
+  0% { background-position: 0% center; }
+  100% { background-position: 300% center; }
+}
+
+.bday-username-wrap {
+  position: relative;
+  margin-top: 14px;
+  padding: 8px 48px;
+  background: rgba(4, 15, 30, 0.85);
+  border: 2px solid #00f5d4;
+  border-radius: 60px;
+  box-shadow: 0 0 35px rgba(0, 245, 212, 0.6), inset 0 0 25px rgba(0, 245, 212, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bday-username {
+  font-family: var(--font-title);
+  font-size: 68px;
+  font-weight: 900;
+  color: #ffffff;
+  letter-spacing: 2px;
+  text-shadow: 0 0 25px #00f5d4, 0 0 50px #00e5ff;
+}
+
+.sparkle-icon {
+  font-size: 40px;
+  animation: sparkleTwinkle 1s ease-in-out infinite alternate;
+}
+
+@keyframes sparkleTwinkle {
+  0% { transform: scale(0.8) rotate(0deg); opacity: 0.7; }
+  100% { transform: scale(1.2) rotate(25deg); opacity: 1; filter: drop-shadow(0 0 15px #ffd166); }
+}
+
+/* ==========================================================================
+   PANEL FLOTANTE DE CONTROL Y PRUEBA (CONFIGURACIÓN / TEST DOCK)
+   Pointer events activados exclusivamente en este panel
+   ========================================================================== */
+#test-control-panel {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  width: 420px;
+  background: var(--bg-dark-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 245, 212, 0.4);
+  border-radius: 14px;
+  padding: 16px 20px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7), var(--border-cyan-glow);
+  z-index: 9999;
+  /* Oculto por defecto para no invadir la pantalla en transmisión */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(20px) scale(0.95);
+  transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0.25s;
+}
+
+/* Solo se habilita y muestra al tocar o hacer clic en la pantalla */
+#test-control-panel.panel-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+#test-control-panel.collapsed {
+  transform: translateX(calc(-100% + 48px));
+  opacity: 0.6;
+}
+
+#test-control-panel.collapsed:hover {
+  opacity: 1;
+}
+
+/* En modo OBS estricto (o con parámetro ?obs=1), se oculta totalmente */
+body.obs-mode #test-control-panel,
+#test-control-panel.hidden-completely {
+  display: none !important;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--neon-cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: uppercase;
+}
+
+.panel-btns-header {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-icon-tiny {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.btn-icon-tiny:hover {
+  background: var(--neon-cyan);
+  color: #000;
+  border-color: var(--neon-cyan);
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-username {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 245, 212, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #ffffff;
+  font-family: var(--font-title);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.input-username:focus {
+  border-color: var(--neon-cyan);
+  box-shadow: 0 0 10px rgba(0, 245, 212, 0.4);
+}
+
+.btn-action {
+  background: linear-gradient(135deg, #00f5d4, #00e5ff);
+  color: #021727;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(0, 245, 212, 0.8);
+}
+
+.btn-action.btn-alborada {
+  background: linear-gradient(135deg, #ff007f, #ffd166);
+  color: #1a040d;
+}
+
+.btn-action.btn-alborada:hover {
+  box-shadow: 0 0 15px rgba(255, 0, 127, 0.8);
+}
+
+.btn-action.btn-stop {
+  background: rgba(255, 50, 50, 0.2);
+  border: 1px solid rgba(255, 50, 50, 0.4);
+  color: #ff8b8b;
+}
+
+.btn-action.btn-stop:hover {
+  background: #ff3333;
+  color: #fff;
+}
+
+.action-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Barra de Progreso de la Celebración (0s a 60s) */
+.progress-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-family: var(--font-tech);
+  color: #8da4be;
+}
+
+.progress-phase {
+  color: var(--neon-gold);
+  font-weight: 700;
+}
+
+.progress-track {
+  width: 100%;
+  height: 7px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.progress-fill {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, #00f5d4, #ffd166, #ff007f);
+  transition: width 0.15s linear;
+}
+
+/* Estatus de Conexión */
+.status-indicator-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #7b94ad;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #53fc18;
+  display: inline-block;
+  box-shadow: 0 0 8px #53fc18;
+  margin-right: 6px;
+}
+
+.status-dot.disconnected {
+  background: #ff4757;
+  box-shadow: 0 0 8px #ff4757;
+}
+
+.status-dot.waiting {
+  background: #ffa502;
+  box-shadow: 0 0 8px #ffa502;
+}
+
+.audio-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #a4c4e2;
+  transition: color 0.2s;
+}
+
+.audio-toggle:hover {
+  color: var(--neon-cyan);
+}
+
+</style>
+
+  <!-- Librería Pusher para conexión directa de respaldo al chat de Kick -->
+  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
+</head>
+<body>
+
+  <!-- ======================================================================
+       ESCENARIO PRINCIPAL 1920x1080 (AUTO-ESCALABLE 16:9)
+       ====================================================================== -->
+  <div id="overlay-stage">
+
+    <!-- Elemento de Audio Oficial Ska (1:30 min / 90s exactos) -->
+    <audio id="bday-audio" preload="auto" crossorigin="anonymous" src="https://res.cloudinary.com/dn6fmqae9/video/upload/v1788844674/Cumplea%C3%B1os_feliz_rrlvlh.mp3"></audio>
+
+    <!-- Haces de Luces de Concierto / Fiesta Ska y Resplandor Rítmico -->
+    <div id="stage-lights-container" class="lights-inactive">
+      <div class="spotlight-beam beam-left-1"></div>
+      <div class="spotlight-beam beam-left-2"></div>
+      <div class="spotlight-beam beam-center-1"></div>
+      <div class="spotlight-beam beam-right-1"></div>
+      <div class="spotlight-beam beam-right-2"></div>
+      <div id="ambient-beat-glow"></div>
+    </div>
+
+    <!-- Flash Blanco/Dorado de Clímax para la Explosión Final -->
+    <div id="screen-flash"></div>
+
+    <!-- Lienzo Canvas 2D Nativo para Globos, Cohetes, Chispas y Alborada -->
+    <canvas id="fireworks-canvas" width="1920" height="1080"></canvas>
+
+    <!-- Frases Narrativas Progresivas (Antes del Feliz Cumpleaños) -->
+    <div id="narrative-phrase-box" class="phrase-container phrase-hidden">
+      <div id="phrase-text" class="phrase-text"></div>
+    </div>
+
+    <!-- Gran Banner Celebratorio Central (Aparece en los últimos segundos) -->
+    <div id="birthday-banner-container">
+      
+      <!-- Medallón Central con Avatar de Kick y Corona -->
+      <div class="avatar-trophy-box">
+        <div class="crown-icon">👑</div>
+        <div class="avatar-halo-ring"></div>
+        <div class="avatar-inner-wrapper">
+          <img id="banner-avatar-img" class="avatar-img" src="" alt="Avatar Cumpleañero" style="display: none;">
+          <div id="banner-avatar-fallback" class="avatar-fallback">J</div>
+        </div>
+        <div class="kick-badge-tag">KICK VIP</div>
+      </div>
+
+      <!-- Bloque Tipográfico Gigante Multicolor -->
+      <div class="banner-text-block">
+        <div class="bday-dedication">Jikokun te desea</div>
+        <h1 class="bday-title-huge">¡FELIZ CUMPLEAÑOS!</h1>
+        
+        <div class="bday-username-wrap">
+          <span class="sparkle-icon">🎉</span>
+          <span id="banner-username-text" class="bday-username">@Jikokun</span>
+          <span class="sparkle-icon">🎂</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- ======================================================================
+       PANEL FLOTANTE DE CONTROL Y PRUEBA (CONFIGURACIÓN / TEST DOCK)
+       Se puede colapsar con el botón ◀ o esconder con la tecla [H] en OBS
+       ====================================================================== -->
+  <aside id="test-control-panel" aria-label="Controles de Prueba del Widget">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span>🎺</span> Celebración Ska 1:30 min
+      </div>
+      <div class="panel-btns-header">
+        <button id="btn-collapse-panel" class="btn-icon-tiny" title="Colapsar panel">◀</button>
+      </div>
+    </div>
+
+    <div class="panel-body">
+      <!-- Fila de Entrada de Usuario para Simular !cumpleaños @usuario -->
+      <div class="input-row">
+        <input type="text" id="input-user" class="input-username" placeholder="@usuario o canal" value="Jikokun">
+        <button id="btn-test-start" class="btn-action" title="Iniciar los 90s completos">
+          <span>🎉</span> Probar 1:30m
+        </button>
+      </div>
+
+      <!-- Botones de Acción Rápida -->
+      <div class="action-buttons-grid">
+        <button id="btn-test-alborada" class="btn-action btn-alborada" title="Saltar directo a la alborada (68s a 90s)">
+          <span>🔥</span> Ver Alborada (68s)
+        </button>
+        <button id="btn-test-stop" class="btn-action btn-stop" title="Detener y limpiar lienzo">
+          <span>⏹</span> Detener
+        </button>
+      </div>
+
+      <!-- Barra de Progreso de la Celebración (0s a 90s) -->
+      <div class="progress-container">
+        <div class="progress-labels">
+          <span id="progress-phase-label" class="progress-phase">En Espera</span>
+          <span id="progress-seconds-label">0s / 90s</span>
+        </div>
+        <div class="progress-track">
+          <div id="progress-bar-fill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <!-- Estatus de Conexión y Audio -->
+      <div class="status-indicator-bar">
+        <div>
+          <span id="conn-status-dot" class="status-dot waiting"></span>
+          <span id="conn-status-text">Conectando...</span>
+        </div>
+        <div id="audio-toggle-btn" class="audio-toggle" title="Activar / Desactivar música Ska">
+          <span id="audio-icon">🔊</span> Música Ska
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Script del Widget de Cumpleaños -->
+  <script>
+/* ==========================================================================
+   WIDGET CUMPLEAÑOS 1M - JIKOKUN
+   Motor de Animación, Partículas, Audio Procedural y Conectividad Kick / Streamer.bot
+   ========================================================================== */
+
+(function () {
+  'use strict';
+
+  // -------------------------------------------------------------------------
+  // -------------------------------------------------------------------------
+  // CONSTANTES Y CONFIGURACIÓN (SKA FESTIVAL 1:30 MIN = 90S EXACTOS)
+  // -------------------------------------------------------------------------
+  const DURATION_TOTAL = 90; // Duración total de la canción Ska (1:30 min)
+  const TIME_PHRASE1_START = 3.0;
+  const TIME_PHRASE1_END = 22.0;
+  const TIME_PHRASE1_SHATTER = 22.0;
+  const TIME_PHRASE2_START = 25.5;
+  const TIME_PHRASE2_END = 47.0;
+  const TIME_PHRASE2_VORTEX = 47.0;
+  const TIME_PHRASE3_START = 50.5;
+  const TIME_PHRASE3_END = 67.0;
+  const TIME_PHRASE3_DISSOLVE = 67.0;
+
+  const TIME_ALBORADA_START = 68.0; // Inicia la Alborada y entra el Gran Banner
+  const TIME_BANNER_SHOW = 68.0;
+  const TIME_MEGA_BURSTS_START = 78.0; // Últimos 10s extras: Mega explosiones con parpadeos
+  const TIME_FINAL_EXPLOSION = 88.0; // Acorde final de la canción ska
+  const TIME_FADE_ALL = 89.5; // Se esfuma todo limpiamente
+
+  // Lista de canciones oficiales de cumpleaños (3 canciones aleatorias para cada celebración)
+  const BDAY_SONGS = [
+    'https://res.cloudinary.com/dn6fmqae9/video/upload/v1788844674/Cumplea%C3%B1os_feliz_rrlvlh.mp3',
+    'https://res.cloudinary.com/dn6fmqae9/video/upload/v1789529135/Cumplea%C3%B1os_feliz_2_y9cqk6.mp3',
+    'https://res.cloudinary.com/dn6fmqae9/video/upload/v1789529135/Cumplea%C3%B1os_feliz_1_vcot5i.mp3'
+  ];
+  let currentSongIndex = -1;
+
+  function selectRandomSong() {
+    if (!BDAY_SONGS || BDAY_SONGS.length === 0) return '';
+    if (BDAY_SONGS.length === 1) return BDAY_SONGS[0];
+    let nextIndex;
+    do {
+      nextIndex = Math.floor(Math.random() * BDAY_SONGS.length);
+    } while (nextIndex === currentSongIndex);
+    currentSongIndex = nextIndex;
+    return BDAY_SONGS[nextIndex];
+  }
+
+  const STREAMER_BOT_IP = "127.0.0.1";
+  const STREAMER_BOT_PORT = "4445";
+  const DEFAULT_KICK_CHANNEL = "jikokun";
+
+  const PALETAS_COLORES = [
+    ['#00f5d4', '#00e5ff', '#ffffff'], // Cian Eléctrico
+    ['#ff007f', '#ff5e00', '#ffd166'], // Magenta Fuego
+    ['#53fc18', '#00f5d4', '#ffffff'], // Neón Kick
+    ['#ffd166', '#ff9900', '#ffffff'], // Dorado Estelar
+    ['#7928ca', '#ff007f', '#00e5ff'], // Púrpura Cyber
+    ['#ff3366', '#33ccff', '#ffff33']  // Arcoíris Festivo
+  ];
+
+  const GIFT_PALETTES = [
+    { box: '#ff007f', ribbon: '#ffd166', shade: '#b30059' }, // Magenta + Oro
+    { box: '#00f5d4', ribbon: '#7928ca', shade: '#00b39b' }, // Cyan + Púrpura
+    { box: '#ffd166', ribbon: '#ff007f', shade: '#cc9e26' }, // Oro + Magenta
+    { box: '#7928ca', ribbon: '#00f5d4', shade: '#4d1980' }, // Púrpura + Cyan
+    { box: '#53fc18', ribbon: '#ff007f', shade: '#39b310' }, // Kick Verde + Magenta
+    { box: '#00e5ff', ribbon: '#ff9900', shade: '#009ecc' }  // Azul Eléctrico + Naranja
+  ];
+
+  // -------------------------------------------------------------------------
+  // ESTADO GLOBAL DEL WIDGET
+  // -------------------------------------------------------------------------
+  let canvas, ctx;
+  let stageEl, bannerEl, flashEl;
+  let phraseBoxEl, phraseTextEl;
+  let avatarImgEl, avatarFallbackEl, usernameEl;
+  let progressBarEl, progressPhaseEl, progressSecsEl;
+  let statusDotEl, statusTextEl;
+
+  // Elementos y análisis para la canción Ska y luces de escenario
+  let audioEl = null;
+  let stageLightsEl = null;
+  let ambientGlowEl = null;
+  let spotlightBeams = [];
+  let audioSourceNode = null;
+  let audioAnalyser = null;
+  let audioFreqData = null;
+  let lastBeatTime = 0;
+
+  let isRunning = false;
+  let startTime = 0;
+  let animationFrameId = 0;
+  let celebrationUser = 'Jikokun';
+
+  // Gestor reactivo de Avatar (resuelve el bug del primer globo con fallback síncrono)
+  const avatarState = {
+    image: null,
+    isRealLoaded: false,
+    fallbackCanvas: null,
+    fallbackImage: null
+  };
+  const avatarCache = {};
+
+  let balloons = [];
+  let particles = [];
+  let rockets = [];
+  let confetti = [];
+  let shockwaves = [];
+  let giftBoxes = [];
+
+  let lastBalloonSpawnTime = 0;
+  let lastRocketSpawnTime = 0;
+  let nextBalloonSpawn = 0;
+  let nextRocketSpawn = 0;
+  let nextConfettiSpawn = 0;
+  let nextGiftSpawn = 0;
+  let nextMegaBurstSpawn = 0;
+
+  // Control de las 3 frases narrativas
+  let phrase1Shown = false;
+  let phrase1Shattered = false;
+  let phrase2Shown = false;
+  let phrase2Vortexed = false;
+  let phrase3Shown = false;
+  let phrase3Dissolved = false;
+
+  let audioEnabled = true;
+  let audioCtx = null;
+
+  let streamerBotConnected = false;
+  let pusherConnected = false;
+
+  // -------------------------------------------------------------------------
+  // INICIALIZACIÓN
+  // -------------------------------------------------------------------------
+  document.addEventListener('DOMContentLoaded', () => {
+    initDOMElements();
+    initAutoScaling();
+    initCanvas();
+    initTestControls();
+    initAudio();
+    initStreamerBotWS();
+    initKickPusherBackup();
+
+    // Comprobar parámetros URL (ej: ?user=Nombre & ?autostart=1 & ?obs=1)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('obs') === '1' || urlParams.get('preview') === '0') {
+      document.body.classList.add('obs-mode');
+    }
+    const initialUser = urlParams.get('user');
+    if (initialUser) {
+      document.getElementById('input-user').value = initialUser;
+    }
+    if (urlParams.get('autostart') === '1' || urlParams.has('start')) {
+      const startAtSec = parseFloat(urlParams.get('startAt') || urlParams.get('start') || '0');
+      setTimeout(() => {
+        startCelebration(initialUser || 'Jikokun', startAtSec);
+      }, 800);
+    }
+  });
+
+  function initDOMElements() {
+    stageEl = document.getElementById('overlay-stage');
+    canvas = document.getElementById('fireworks-canvas');
+    ctx = canvas.getContext('2d');
+    bannerEl = document.getElementById('birthday-banner-container');
+    flashEl = document.getElementById('screen-flash');
+
+    // Luces de escenario y audio
+    audioEl = document.getElementById('bday-audio');
+    stageLightsEl = document.getElementById('stage-lights-container');
+    ambientGlowEl = document.getElementById('ambient-beat-glow');
+    spotlightBeams = document.querySelectorAll('.spotlight-beam');
+
+    phraseBoxEl = document.getElementById('narrative-phrase-box');
+    phraseTextEl = document.getElementById('phrase-text');
+
+    avatarImgEl = document.getElementById('banner-avatar-img');
+    avatarFallbackEl = document.getElementById('banner-avatar-fallback');
+    usernameEl = document.getElementById('banner-username-text');
+
+    progressBarEl = document.getElementById('progress-bar-fill');
+    progressPhaseEl = document.getElementById('progress-phase-label');
+    progressSecsEl = document.getElementById('progress-seconds-label');
+
+    statusDotEl = document.getElementById('conn-status-dot');
+    statusTextEl = document.getElementById('conn-status-text');
+  }
+
+  /* ==========================================================================
+     0. AUTO-ESCALADO RESPONSIVO PROPORCIONAL 16:9 (1920x1080)
+     ========================================================================== */
+  function initAutoScaling() {
+    if (!stageEl) return;
+    function resizeStage() {
+      const windowWidth = window.innerWidth;
+      const windowHeight = window.innerHeight;
+      const scale = Math.min(windowWidth / 1920, windowHeight / 1080);
+      stageEl.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    }
+    window.addEventListener('resize', resizeStage);
+    resizeStage();
+  }
+
+  function initCanvas() {
+    canvas.width = 1920;
+    canvas.height = 1080;
+  }
+
+  // -------------------------------------------------------------------------
+  // GESTIÓN DE AUDIO Y ANÁLISIS RÍTMICO EN TIEMPO REAL (WEB AUDIO API)
+  // Conexión del MP3 Ska + Analizador de Espectro para Luces y Beats
+  // -------------------------------------------------------------------------
+  function initAudio() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (AudioContextClass && !audioCtx) {
+      audioCtx = new AudioContextClass();
+    }
+    if (audioEl && audioCtx && !audioSourceNode) {
+      try {
+        audioSourceNode = audioCtx.createMediaElementSource(audioEl);
+        audioAnalyser = audioCtx.createAnalyser();
+        audioAnalyser.fftSize = 128; // 64 bins de frecuencia (rápido y eficiente)
+        audioFreqData = new Uint8Array(audioAnalyser.frequencyBinCount);
+        audioSourceNode.connect(audioAnalyser);
+        audioAnalyser.connect(audioCtx.destination);
+      } catch (err) {
+        console.warn('[Cumpleaños] Web Audio routing notice:', err);
+      }
+    }
+  }
+
+  /**
+   * Detector de Beats y Energía Musical Ska en Tiempo Real
+   */
+  function analyzeAudioBeat(currentTime, elapsedSeconds) {
+    let isBassBeat = false;
+    let isHornBeat = false;
+    let bassIntensity = 0;
+    let hornIntensity = 0;
+
+    if (audioAnalyser && audioFreqData && audioEl && !audioEl.paused && !audioEl.muted) {
+      audioAnalyser.getByteFrequencyData(audioFreqData);
+
+      // Graves (bins 1 a 4) - bombo y bajo caminante de ska
+      let bassSum = 0;
+      for (let i = 1; i <= 4; i++) bassSum += audioFreqData[i];
+      bassIntensity = bassSum / 4;
+
+      // Vientos y guitarras ska (bins 8 a 22)
+      let hornSum = 0;
+      for (let i = 8; i <= 22; i++) hornSum += audioFreqData[i];
+      hornIntensity = hornSum / 15;
+
+      // Detección de golpe con enfriamiento (~140-160 BPM)
+      if (bassIntensity > 135 && (currentTime - lastBeatTime) > 310) {
+        isBassBeat = true;
+        lastBeatTime = currentTime;
+      } else if (hornIntensity > 145 && (currentTime - lastBeatTime) > 280) {
+        isHornBeat = true;
+        lastBeatTime = currentTime;
+      }
+    } else {
+      // Metrónomo Fallback Ska (~145 BPM) si el audio aún no arranca o está silenciado
+      const beatInterval = 60 / 145; // ~0.413s
+      const beatFrac = (elapsedSeconds % beatInterval) / beatInterval;
+      if (beatFrac < 0.25 && (currentTime - lastBeatTime) > 320) {
+        isBassBeat = true;
+        lastBeatTime = currentTime;
+      }
+    }
+
+    // Efectos visuales sincronizados al ritmo:
+    if (isBassBeat || isHornBeat) {
+      // 1. Destello reactivo en focos de concierto
+      if (spotlightBeams && spotlightBeams.length) {
+        spotlightBeams.forEach(beam => beam.classList.add('beam-hit'));
+        setTimeout(() => {
+          if (spotlightBeams && spotlightBeams.length) {
+            spotlightBeams.forEach(beam => beam.classList.remove('beam-hit'));
+          }
+        }, 130);
+      }
+
+      // 2. Resplandor perimetral ambiental de fiesta
+      if (ambientGlowEl) {
+        ambientGlowEl.className = isBassBeat ? 'glow-bass' : 'glow-horns';
+        setTimeout(() => {
+          if (ambientGlowEl) ambientGlowEl.className = '';
+        }, 140);
+      }
+
+      // 3. Confeti al ritmo: en compases vivos, disparar 2 confetis
+      if (Math.random() < 0.55 && confetti.length < 55) {
+        confetti.push(new Confetti(200 + Math.random() * 1520, -10));
+        confetti.push(new Confetti(200 + Math.random() * 1520, -10));
+      }
+    }
+
+    return { isBassBeat, isHornBeat, bassIntensity, hornIntensity };
+  }
+
+  function resumeAudio() {
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+  }
+
+  function playBalloonPop(panX = 0.5) {
+    if (!audioEnabled || !audioCtx) return;
+    try {
+      resumeAudio();
+      const t = audioCtx.currentTime;
+
+      // Oscilador de golpe seco
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(260, t);
+      osc.frequency.exponentialRampToValueAtTime(40, t + 0.08);
+
+      gain.gain.setValueAtTime(0.3, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+
+      if (panner) {
+        panner.pan.setValueAtTime((panX - 0.5) * 1.6, t);
+        osc.connect(panner);
+        panner.connect(gain);
+      } else {
+        osc.connect(gain);
+      }
+
+      gain.connect(audioCtx.destination);
+      osc.start(t);
+      osc.stop(t + 0.09);
+    } catch (e) {}
+  }
+
+  function playFireworkBoom(panX = 0.5, volume = 0.35) {
+    if (!audioEnabled || !audioCtx) return;
+    try {
+      resumeAudio();
+      const t = audioCtx.currentTime;
+
+      // Generar ruido blanco filtrado para explosión
+      const bufferSize = audioCtx.sampleRate * 0.4;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
+      }
+
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(800, t);
+      filter.frequency.exponentialRampToValueAtTime(80, t + 0.35);
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(volume, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      noise.start(t);
+      noise.stop(t + 0.4);
+    } catch (e) {}
+  }
+
+  function playMegaFinaleBoom() {
+    if (!audioEnabled || !audioCtx) return;
+    try {
+      resumeAudio();
+      const t = audioCtx.currentTime;
+
+      // Sub-bass rumble
+      const osc = audioCtx.createOscillator();
+      const gainOsc = audioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(120, t);
+      osc.frequency.exponentialRampToValueAtTime(20, t + 1.2);
+      gainOsc.gain.setValueAtTime(0.8, t);
+      gainOsc.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+      osc.connect(gainOsc);
+      gainOsc.connect(audioCtx.destination);
+      osc.start(t);
+      osc.stop(t + 1.3);
+
+      // Explosión masiva con ruido estéreo
+      playFireworkBoom(0.5, 0.7);
+      setTimeout(() => playFireworkBoom(0.3, 0.5), 80);
+      setTimeout(() => playFireworkBoom(0.7, 0.5), 140);
+    } catch (e) {}
+  }
+
+  // -------------------------------------------------------------------------
+  // GESTIÓN REACTIVA DEL AVATAR DE KICK
+  // Permite que cualquier globo (incluso el primero) muestre la foto real de inmediato
+  // -------------------------------------------------------------------------
+  function getActiveAvatarImage() {
+    if (avatarState.isRealLoaded && avatarState.image && avatarState.image.complete && avatarState.image.naturalWidth > 0) {
+      return avatarState.image;
+    }
+    return avatarState.fallbackCanvas || avatarState.fallbackImage;
+  }
+
+  async function resolveKickAvatar(rawUsername) {
+    const cleanUser = String(rawUsername || '').replace(/^@/, '').trim();
+    if (!cleanUser) return null;
+
+    const userKey = cleanUser.toLowerCase();
+    if (avatarCache[userKey]) {
+      return avatarCache[userKey];
+    }
+
+    // 1. Intentar API directa de Kick
+    try {
+      const res = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(cleanUser)}`, {
+        headers: { 'Accept': 'application/json' }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const pic = data.user?.profile_pic || data.user?.profile_image || data.user?.avatar;
+        if (pic) {
+          avatarCache[userKey] = pic;
+          return pic;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Proxies CORS públicos en cascada
+    const proxies = [
+      `https://api.allorigins.win/get?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanUser)}`,
+      `https://corsproxy.io/?${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanUser)}`,
+      `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent('https://kick.com/api/v2/channels/' + cleanUser)}`
+    ];
+
+    for (const pUrl of proxies) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 3500);
+        const res = await fetch(pUrl, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          let data = null;
+          if (pUrl.includes('allorigins.win')) {
+            const wrap = await res.json();
+            if (wrap && wrap.contents) {
+              data = typeof wrap.contents === 'string' ? JSON.parse(wrap.contents) : wrap.contents;
+            }
+          } else {
+            data = await res.json();
+          }
+
+          const pic = data?.user?.profile_pic || data?.user?.profile_image || data?.user?.avatar;
+          if (pic) {
+            avatarCache[userKey] = pic;
+            return pic;
+          }
+        }
+      } catch (e) {}
+    }
+
+    return null;
+  }
+
+  function createFallbackAvatarCanvas(username) {
+    const canvasFb = document.createElement('canvas');
+    canvasFb.width = 160;
+    canvasFb.height = 160;
+    const fCtx = canvasFb.getContext('2d');
+
+    const grad = fCtx.createLinearGradient(0, 0, 160, 160);
+    grad.addColorStop(0, '#00f5d4');
+    grad.addColorStop(0.5, '#7928ca');
+    grad.addColorStop(1, '#ff007f');
+
+    fCtx.fillStyle = grad;
+    fCtx.beginPath();
+    fCtx.arc(80, 80, 78, 0, Math.PI * 2);
+    fCtx.fill();
+
+    fCtx.lineWidth = 4;
+    fCtx.strokeStyle = '#ffffff';
+    fCtx.stroke();
+
+    fCtx.fillStyle = '#ffffff';
+    fCtx.font = '900 72px Outfit, Montserrat, sans-serif';
+    fCtx.textAlign = 'center';
+    fCtx.textBaseline = 'middle';
+    const clean = String(username || '').replace(/^@/, '').trim();
+    const letter = (clean[0] || 'K').toUpperCase();
+    fCtx.fillText(letter, 80, 85);
+
+    return canvasFb;
+  }
+
+  // -------------------------------------------------------------------------
+  // CLASES DEL MOTOR DE PARTÍCULAS Y FÍSICA CANVAS
+  // -------------------------------------------------------------------------
+
+  /**
+   * GLOBITO CIRCULAR FLOTANTE
+   * Lleva en su interior la foto de perfil del usuario (reactiva), con hilo y brillo
+   */
+  class Balloon {
+    constructor(x, targetBurstY, colorPalette) {
+      this.x = x;
+      this.y = 1120 + Math.random() * 40;
+      this.radius = 48 + Math.random() * 14; // Tamaño de globo
+      this.vy = -(1.8 + Math.random() * 1.5); // Ascenso suave
+      this.targetBurstY = targetBurstY; // Altura a la que estalla
+      this.palette = colorPalette;
+      this.baseColor = colorPalette[0];
+      this.glowColor = colorPalette[1];
+
+      this.wobbleAngle = Math.random() * Math.PI * 2;
+      this.wobbleSpeed = 0.03 + Math.random() * 0.02;
+      this.wobbleAmplitude = 18 + Math.random() * 12;
+
+      this.stringLength = 55 + Math.random() * 15;
+      this.isPopped = false;
+      this.readyToBurst = false;
+    }
+
+    update(isBeatHit = false) {
+      this.wobbleAngle += this.wobbleSpeed;
+      this.y += this.vy;
+
+      // Entrar en zona de estallido al alcanzar la cota fijada
+      if (this.y <= this.targetBurstY) {
+        this.readyToBurst = true;
+      }
+
+      // Si está en la zona y suena un beat de la canción, ¡EXPLOTA AL RITMO!
+      // O si sube 75px por encima del objetivo, estalla para no escapar
+      if (!this.isPopped && this.readyToBurst) {
+        if (isBeatHit || this.y <= (this.targetBurstY - 75)) {
+          this.explode();
+        }
+      }
+    }
+
+    draw(c) {
+      if (this.isPopped) return;
+
+      const currentX = this.x + Math.sin(this.wobbleAngle) * this.wobbleAmplitude;
+      const currentY = this.y;
+
+      c.save();
+
+      // 1. Dibujar Cuerda / Hilo del Globo oscilando
+      c.beginPath();
+      c.moveTo(currentX, currentY + this.radius);
+      const cp1X = currentX + Math.cos(this.wobbleAngle) * 12;
+      const cp1Y = currentY + this.radius + this.stringLength * 0.5;
+      const endX = currentX - Math.sin(this.wobbleAngle) * 8;
+      const endY = currentY + this.radius + this.stringLength;
+      c.quadraticCurveTo(cp1X, cp1Y, endX, endY);
+      c.strokeStyle = 'rgba(255, 255, 255, 0.45)';
+      c.lineWidth = 2;
+      c.stroke();
+
+      // Nudo del globo
+      c.beginPath();
+      c.moveTo(currentX - 5, currentY + this.radius + 6);
+      c.lineTo(currentX + 5, currentY + this.radius + 6);
+      c.lineTo(currentX, currentY + this.radius);
+      c.closePath();
+      c.fillStyle = this.baseColor;
+      c.fill();
+
+      // 2. Halo Neón Exterior
+      c.shadowColor = this.glowColor;
+      c.shadowBlur = 24;
+
+      // 3. Anillo Decorativo Neón
+      c.beginPath();
+      c.arc(currentX, currentY, this.radius, 0, Math.PI * 2);
+      c.fillStyle = '#06111f';
+      c.fill();
+      c.lineWidth = 4;
+      c.strokeStyle = this.baseColor;
+      c.stroke();
+
+      // 4. Dibujar Avatar del Usuario en el Centro (Recortado en Círculo)
+      // Si la foto real ya cargó, se dibuja de inmediato; si no, el monograma canvas nítido
+      const activeAvatar = getActiveAvatarImage();
+
+      c.save();
+      c.beginPath();
+      c.arc(currentX, currentY, this.radius - 4, 0, Math.PI * 2);
+      c.clip();
+
+      if (activeAvatar) {
+        c.drawImage(
+          activeAvatar,
+          currentX - (this.radius - 4),
+          currentY - (this.radius - 4),
+          (this.radius - 4) * 2,
+          (this.radius - 4) * 2
+        );
+      } else {
+        c.fillStyle = this.baseColor;
+        c.fillRect(currentX - this.radius, currentY - this.radius, this.radius * 2, this.radius * 2);
+      }
+      c.restore();
+
+      // 5. Brillo y Reflejo Especular 3D de Globo
+      c.shadowBlur = 0;
+      const gradHighlight = c.createRadialGradient(
+        currentX - this.radius * 0.35,
+        currentY - this.radius * 0.35,
+        2,
+        currentX,
+        currentY,
+        this.radius
+      );
+      gradHighlight.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+      gradHighlight.addColorStop(0.2, 'rgba(255, 255, 255, 0.2)');
+      gradHighlight.addColorStop(0.8, 'transparent');
+      gradHighlight.addColorStop(1, 'rgba(0, 0, 0, 0.4)');
+
+      c.beginPath();
+      c.arc(currentX, currentY, this.radius - 2, 0, Math.PI * 2);
+      c.fillStyle = gradHighlight;
+      c.fill();
+
+      c.restore();
+    }
+
+    explode() {
+      this.isPopped = true;
+      const currentX = this.x + Math.sin(this.wobbleAngle) * this.wobbleAmplitude;
+      const currentY = this.y;
+
+      playBalloonPop(currentX / 1920);
+      playFireworkBoom(currentX / 1920, 0.3);
+
+      // Crear fuegos artificiales suaves saliendo del globo (optimizado para 60fps)
+      createFireworkBurst(currentX, currentY, this.palette, 16);
+
+      // Crear pequeña onda expansiva
+      shockwaves.push(new Shockwave(currentX, currentY, this.glowColor, 85));
+    }
+  }
+
+  /**
+   * CAJA DE REGALO FESTIVA QUE CAE Y SE ACUMULA EN LA BASE
+   */
+  class GiftBox {
+    constructor(x, theme) {
+      this.x = x;
+      this.y = -60 - Math.random() * 40;
+      this.size = 38 + Math.random() * 14;
+      this.vy = 2.8 + Math.random() * 2.2;
+      this.vx = (Math.random() - 0.5) * 1.6;
+      this.rotation = (Math.random() - 0.5) * 0.5;
+      this.rotSpeed = (Math.random() - 0.5) * 0.04;
+      this.theme = theme;
+      this.groundY = 1045 - (Math.random() * 40); // Base acumulativa
+      this.isLanded = false;
+      this.bounces = 0;
+      this.alpha = 1;
+    }
+
+    update() {
+      if (!this.isLanded) {
+        this.x += this.vx;
+        this.y += this.vy;
+        this.rotation += this.rotSpeed;
+
+        if (this.y >= this.groundY) {
+          this.y = this.groundY;
+          if (this.bounces < 2) {
+            this.vy = -this.vy * 0.35;
+            this.bounces++;
+          } else {
+            this.vy = 0;
+            this.vx = 0;
+            this.rotSpeed = 0;
+            this.isLanded = true;
+          }
+        }
+      }
+    }
+
+    draw(c) {
+      c.save();
+      c.globalAlpha = this.alpha;
+      c.translate(this.x, this.y);
+      c.rotate(this.rotation);
+
+      const s = this.size;
+      const half = s / 2;
+
+      // Sombra proyectada en la base
+      c.fillStyle = 'rgba(0, 0, 0, 0.35)';
+      c.beginPath();
+      c.ellipse(0, half + 4, half, 6, 0, 0, Math.PI * 2);
+      c.fill();
+
+      // Caja base con gradiente
+      const grad = c.createLinearGradient(-half, -half, half, half);
+      grad.addColorStop(0, this.theme.box);
+      grad.addColorStop(1, this.theme.shade);
+      c.fillStyle = grad;
+      c.fillRect(-half, -half, s, s);
+
+      // Borde sutil
+      c.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      c.lineWidth = 1.5;
+      c.strokeRect(-half, -half, s, s);
+
+      // Cintas (Ribbons horizontal y vertical)
+      const ribW = s * 0.22;
+      c.fillStyle = this.theme.ribbon;
+      // Vertical
+      c.fillRect(-ribW / 2, -half, ribW, s);
+      // Horizontal
+      c.fillRect(-half, -ribW / 2, s, ribW);
+
+      // Lazo / Moño en la parte superior (Bow tie 3D)
+      const bowSize = s * 0.28;
+      c.beginPath();
+      c.ellipse(-bowSize * 0.7, -half - bowSize * 0.3, bowSize * 0.75, bowSize * 0.45, -Math.PI / 6, 0, Math.PI * 2);
+      c.ellipse(bowSize * 0.7, -half - bowSize * 0.3, bowSize * 0.75, bowSize * 0.45, Math.PI / 6, 0, Math.PI * 2);
+      c.fill();
+
+      // Nudo central del lazo
+      c.beginPath();
+      c.arc(0, -half, bowSize * 0.35, 0, Math.PI * 2);
+      c.fillStyle = '#ffffff';
+      c.fill();
+
+      c.restore();
+    }
+
+    explode() {
+      // Reventar en pedazos de envoltorio optimizados (7 partículas por caja para 60fps)
+      for (let i = 0; i < 7; i++) {
+        particles.push(new FireworkParticle(
+          this.x,
+          this.y,
+          Math.random() > 0.5 ? this.theme.box : this.theme.ribbon,
+          2.5 + Math.random() * 5.0,
+          Math.random() * Math.PI * 2,
+          2.5 + Math.random() * 2.0,
+          0.025
+        ));
+      }
+    }
+  }
+
+  /**
+   * PARTÍCULA DE FUEGOS ARTIFICIALES
+   */
+  class FireworkParticle {
+    constructor(x, y, color, speed, angle, size = 3, decay = 0.015) {
+      this.x = x;
+      this.y = y;
+      this.color = color;
+      this.vx = Math.cos(angle) * speed;
+      this.vy = Math.sin(angle) * speed;
+      this.gravity = 0.07;
+      this.friction = 0.97;
+      this.alpha = 1;
+      this.decay = decay;
+      this.size = size;
+
+      // Estela histórica
+      this.history = [];
+      this.maxHistory = 3;
+    }
+
+    update() {
+      this.history.push({ x: this.x, y: this.y, alpha: this.alpha });
+      if (this.history.length > this.maxHistory) this.history.shift();
+
+      this.vx *= this.friction;
+      this.vy *= this.friction;
+      this.vy += this.gravity;
+
+      this.x += this.vx;
+      this.y += this.vy;
+      this.alpha -= this.decay;
+    }
+
+    draw(c) {
+      if (this.alpha <= 0) return;
+
+      c.save();
+      // Dibujar estela optimizada (sin sombras para máxima fluidez a 60fps)
+      for (let i = 0; i < this.history.length; i++) {
+        const point = this.history[i];
+        const stepAlpha = (i / this.history.length) * this.alpha * 0.65;
+        c.beginPath();
+        c.arc(point.x, point.y, Math.max(1, this.size * 0.65), 0, Math.PI * 2);
+        c.fillStyle = this.color;
+        c.globalAlpha = stepAlpha;
+        c.fill();
+      }
+
+      // Cabeza de la chispa
+      c.globalAlpha = this.alpha;
+      c.shadowColor = this.color;
+      c.shadowBlur = 4;
+      c.beginPath();
+      c.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+      c.fillStyle = this.color;
+      c.fill();
+      c.restore();
+    }
+  }
+
+  /**
+   * COHETE QUE SUBE Y ESTALLA
+   */
+  class Rocket {
+    constructor(x, targetY, palette) {
+      this.x = x;
+      this.y = 1090;
+      this.targetY = targetY;
+      this.vy = -(9 + Math.random() * 5);
+      this.palette = palette;
+      this.isDone = false;
+    }
+
+    update(isBeatHit = false) {
+      this.y += this.vy;
+      // Añadir chispas de estela al subir (optimizado)
+      if (Math.random() < 0.25) {
+        particles.push(new FireworkParticle(
+          this.x + (Math.random() - 0.5) * 4,
+          this.y,
+          '#ffd166',
+          Math.random() * 1.5,
+          Math.PI / 2 + (Math.random() - 0.5) * 0.5,
+          2,
+          0.04
+        ));
+      }
+
+      if (this.y <= this.targetY) {
+        if (isBeatHit || this.y <= (this.targetY - 45)) {
+          this.isDone = true;
+          createFireworkBurst(this.x, this.y, this.palette, 16);
+          playFireworkBoom(this.x / 1920, 0.4);
+          shockwaves.push(new Shockwave(this.x, this.y, this.palette[1], 100));
+        }
+      }
+    }
+
+    draw(c) {
+      if (this.isDone) return;
+      c.save();
+      c.fillStyle = '#ffffff';
+      c.shadowColor = '#ffd166';
+      c.shadowBlur = 10;
+      c.beginPath();
+      c.arc(this.x, this.y, 3.5, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
+    }
+  }
+
+  /**
+   * CONFETI EN 3D FLOTANTE
+   */
+  class Confetti {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.vx = (Math.random() - 0.5) * 6;
+      this.vy = 1.5 + Math.random() * 3.5;
+      this.color = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)][0];
+      this.width = 10 + Math.random() * 8;
+      this.height = 6 + Math.random() * 5;
+      this.rotationX = Math.random() * Math.PI * 2;
+      this.rotationY = Math.random() * Math.PI * 2;
+      this.rotSpeedX = (Math.random() - 0.5) * 0.1;
+      this.rotSpeedY = (Math.random() - 0.5) * 0.1;
+      this.alpha = 1;
+    }
+
+    update() {
+      this.x += this.vx;
+      this.y += this.vy;
+      this.rotationX += this.rotSpeedX;
+      this.rotationY += this.rotSpeedY;
+
+      if (this.y > 1100) this.alpha = 0;
+    }
+
+    draw(c) {
+      if (this.alpha <= 0) return;
+      c.save();
+      c.translate(this.x, this.y);
+      c.rotate(this.rotationX);
+      c.scale(Math.cos(this.rotationY), 1);
+      c.globalAlpha = this.alpha;
+      c.fillStyle = this.color;
+      c.fillRect(-this.width / 2, -this.height / 2, this.width, this.height);
+      c.restore();
+    }
+  }
+
+  /**
+   * ONDA EXPANSIVA (SHOCKWAVE)
+   */
+  class Shockwave {
+    constructor(x, y, color, maxRadius = 150) {
+      this.x = x;
+      this.y = y;
+      this.color = color;
+      this.radius = 5;
+      this.maxRadius = maxRadius;
+      this.alpha = 0.9;
+      this.isDone = false;
+    }
+
+    update() {
+      this.radius += (this.maxRadius - this.radius) * 0.12 + 2;
+      this.alpha -= 0.025;
+      if (this.alpha <= 0 || this.radius >= this.maxRadius) {
+        this.isDone = true;
+      }
+    }
+
+    draw(c) {
+      if (this.isDone) return;
+      c.save();
+      c.globalAlpha = Math.max(0, this.alpha);
+      c.lineWidth = 3;
+      c.strokeStyle = this.color;
+      c.beginPath();
+      c.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      c.stroke();
+      c.restore();
+    }
+  }
+
+  function createFireworkBurst(x, y, palette, count = 25) {
+    const finalCount = Math.min(count, 36);
+    for (let i = 0; i < finalCount; i++) {
+      const angle = (Math.PI * 2 / finalCount) * i + (Math.random() - 0.5) * 0.2;
+      const speed = 2.5 + Math.random() * 6.5;
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      const size = 2 + Math.random() * 2.2;
+      const decay = 0.014 + Math.random() * 0.015;
+      particles.push(new FireworkParticle(x, y, color, speed, angle, size, decay));
+    }
+  }
+
+  /**
+   * EFECTO 1: EXPLOSIÓN FÍSICA DE LETRAS EN TODAS DIRECCIONES (FRASE 1)
+   */
+  function shatterTextIntoParticles(centerX, centerY, palette) {
+    for (let i = 0; i < 40; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 4.0 + Math.random() * 9;
+      const color = palette[Math.floor(Math.random() * palette.length)];
+      const size = 2.8 + Math.random() * 3.5;
+      const decay = 0.015 + Math.random() * 0.02;
+      const p = new FireworkParticle(
+        centerX + (Math.random() - 0.5) * 450,
+        centerY + (Math.random() - 0.5) * 35,
+        color,
+        speed,
+        angle,
+        size,
+        decay
+      );
+      p.gravity = 0.12;
+      particles.push(p);
+    }
+    shockwaves.push(new Shockwave(centerX, centerY, palette[0], 200));
+    playFireworkBoom(0.5, 0.45);
+  }
+
+  /**
+   * EFECTO 2: VÓRTICE E IMPLOSIÓN ESTELAR (FRASE 2)
+   */
+  function implodeIntoStarFlash(centerX, centerY, palette) {
+    // Chispas convergiendo hacia el centro
+    for (let i = 0; i < 30; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 180 + Math.random() * 80;
+      const startX = centerX + Math.cos(angle) * dist;
+      const startY = centerY + Math.sin(angle) * dist;
+      const speed = -(dist / 17);
+      particles.push(new FireworkParticle(
+        startX,
+        startY,
+        palette[Math.floor(Math.random() * palette.length)],
+        Math.abs(speed),
+        angle + Math.PI,
+        2.5,
+        0.035
+      ));
+    }
+
+    // A los 550ms: estallido de la estrella colapsada
+    setTimeout(() => {
+      createFireworkBurst(centerX, centerY, palette, 40);
+      shockwaves.push(new Shockwave(centerX, centerY, '#ffffff', 180));
+      playFireworkBoom(0.5, 0.4);
+    }, 550);
+  }
+
+  /**
+   * PARPADEO SINCRONIZADO EN PANTALLA
+   */
+  function triggerStrobeFlash(duration = 100) {
+    if (!flashEl) return;
+    flashEl.classList.add('flash-active');
+    setTimeout(() => {
+      if (flashEl) flashEl.classList.remove('flash-active');
+    }, duration);
+  }
+
+  function triggerMegaFinalExplosion() {
+    playMegaFinaleBoom();
+
+    // 1. Destello cegador en pantalla
+    if (flashEl) {
+      flashEl.classList.add('flash-active');
+      setTimeout(() => {
+        flashEl.classList.remove('flash-active');
+      }, 350);
+    }
+
+    // 2. Ondas expansivas masivas en el centro
+    shockwaves.push(new Shockwave(960, 540, '#ffffff', 700));
+    shockwaves.push(new Shockwave(960, 540, '#ffd166', 500));
+    shockwaves.push(new Shockwave(960, 540, '#00f5d4', 350));
+
+    // 3. Supernova de partículas multicolores optimizada (~50 partículas para 60fps sin tirones)
+    createFireworkBurst(960, 540, PALETAS_COLORES[0], 25);
+    createFireworkBurst(960, 540, PALETAS_COLORES[1], 25);
+
+    // 4. Confeti estelar optimizado
+    for (let i = 0; i < 24; i++) {
+      confetti.push(new Confetti(Math.random() * 1920, -50 + Math.random() * 200));
+    }
+
+    // 5. Los regalos acumulados en la base también detonan en confeti y chispas
+    giftBoxes.forEach(g => g.explode());
+  }
+
+  // -------------------------------------------------------------------------
+  // CORE TIMELINE & LOOP PRINCIPAL (1 MINUTO EXACTO)
+  // -------------------------------------------------------------------------
+  function startCelebration(username, customStartSec = 0, directAvatarUrl = null) {
+    const cleanUser = String(username || 'Jikokun').replace(/^@/, '').trim();
+    celebrationUser = cleanUser;
+
+    const wasRunning = isRunning;
+
+    // Detener cualquier animación previa
+    stopCelebration();
+
+    // Resetear contenedores
+    balloons = [];
+    particles = [];
+    rockets = [];
+    confetti = [];
+    shockwaves = [];
+    giftBoxes = [];
+
+    // Resetear frases y banner
+    phrase1Shown = false;
+    phrase1Shattered = false;
+    phrase2Shown = false;
+    phrase2Vortexed = false;
+    phrase3Shown = false;
+    phrase3Dissolved = false;
+
+    if (phraseBoxEl) {
+      phraseBoxEl.className = 'phrase-container phrase-hidden';
+    }
+    if (bannerEl) {
+      bannerEl.className = '';
+    }
+
+    // Actualizar nombre en UI
+    if (usernameEl) {
+      usernameEl.textContent = `@${cleanUser}`;
+    }
+
+    const userKey = cleanUser.toLowerCase();
+    const resolvedUrl = directAvatarUrl || avatarCache[userKey] || null;
+
+    // Resetear estado del avatar reactivo con fallback síncrono instantáneo
+    avatarState.fallbackCanvas = createFallbackAvatarCanvas(cleanUser);
+    avatarState.isRealLoaded = false;
+    avatarState.image = null;
+
+    if (avatarFallbackEl) {
+      avatarFallbackEl.textContent = (cleanUser[0] || '?').toUpperCase();
+      avatarFallbackEl.style.display = 'flex';
+    }
+    if (avatarImgEl) {
+      avatarImgEl.style.display = 'none';
+      avatarImgEl.src = '';
+    }
+
+    function applyAvatarImage(picUrl) {
+      if (!picUrl) return;
+      avatarCache[userKey] = picUrl;
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        avatarState.image = img;
+        avatarState.isRealLoaded = true;
+        if (avatarImgEl && avatarFallbackEl) {
+          avatarImgEl.src = picUrl;
+          avatarImgEl.style.display = 'block';
+          avatarFallbackEl.style.display = 'none';
+        }
+      };
+      img.onerror = () => {
+        console.warn('[Cumpleaños] No se pudo cargar imagen remota de avatar:', picUrl);
+      };
+      img.src = picUrl;
+    }
+
+    if (resolvedUrl) {
+      applyAvatarImage(resolvedUrl);
+    } else {
+      resolveKickAvatar(cleanUser).then(url => {
+        if (url && cleanUser.toLowerCase() === celebrationUser.toLowerCase()) {
+          applyAvatarImage(url);
+        }
+      });
+    }
+
+    isRunning = true;
+    startTime = performance.now() - (customStartSec * 1000);
+    
+    // Iniciar y sincronizar audio Ska oficial (con pista aleatoria en cada celebración)
+    initAudio();
+    resumeAudio();
+
+    if (audioEl) {
+      const isNewCelebration = (customStartSec === 0 || !wasRunning);
+      if (isNewCelebration) {
+        const selectedSong = selectRandomSong();
+        if (audioEl.src !== selectedSong) {
+          audioEl.src = selectedSong;
+        }
+      }
+
+      const playAudio = () => {
+        try {
+          if (customStartSec > 0) {
+            try { audioEl.currentTime = customStartSec; } catch (e) {}
+          } else {
+            audioEl.currentTime = 0;
+          }
+          if (audioEnabled) {
+            audioEl.muted = false;
+            audioEl.play().catch(e => console.warn('[Cumpleaños] Autoplay notice:', e));
+          } else {
+            audioEl.pause();
+          }
+        } catch (err) {
+          console.warn('[Cumpleaños] Audio playback error:', err);
+        }
+      };
+
+      if (customStartSec > 0 && audioEl.readyState < 1) {
+        audioEl.addEventListener('loadedmetadata', playAudio, { once: true });
+      } else {
+        playAudio();
+      }
+    }
+
+    // Encender luces de escenario de concierto
+    if (stageLightsEl) {
+      stageLightsEl.classList.add('lights-active');
+    }
+
+    // Configurar temporizadores iniciales con sincronización rítmica:
+    lastBalloonSpawnTime = customStartSec;
+    lastRocketSpawnTime = customStartSec;
+    nextConfettiSpawn = customStartSec + 1.0;
+    nextGiftSpawn = customStartSec + 26.0;
+    nextMegaBurstSpawn = customStartSec + 78.0;
+
+    console.log(`🎉 [Cumpleaños] Iniciando celebración Ska de 1:30 min (90s) para: @${cleanUser} (t=${customStartSec}s)`, resolvedUrl ? '(Con avatar directo)' : '(Buscando avatar)');
+    animationFrameId = requestAnimationFrame(renderLoop);
+  }
+
+  function stopCelebration() {
+    isRunning = false;
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+      animationFrameId = 0;
+    }
+    balloons = [];
+    particles = [];
+    rockets = [];
+    confetti = [];
+    shockwaves = [];
+    giftBoxes = [];
+    lastBalloonSpawnTime = 0;
+    lastRocketSpawnTime = 0;
+    if (ctx) ctx.clearRect(0, 0, 1920, 1080);
+    if (phraseBoxEl) phraseBoxEl.className = 'phrase-container phrase-hidden';
+    if (bannerEl) bannerEl.className = '';
+    if (progressBarEl) progressBarEl.style.width = '0%';
+    if (progressSecsEl) progressSecsEl.textContent = '0s / 90s';
+    if (progressPhaseEl) progressPhaseEl.textContent = 'En Espera';
+
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.currentTime = 0;
+    }
+    if (stageLightsEl) {
+      stageLightsEl.classList.remove('lights-active');
+    }
+    if (ambientGlowEl) {
+      ambientGlowEl.className = '';
+    }
+    console.log("⏹ [Cumpleaños] Celebración detenida.");
+  }
+
+  function renderLoop(currentTime) {
+    if (!isRunning) return;
+
+    const elapsedSeconds = (currentTime - startTime) / 1000;
+
+    // Actualizar barra de progreso del panel de prueba
+    updateProgressUI(elapsedSeconds);
+
+    // Limpiar canvas
+    ctx.clearRect(0, 0, 1920, 1080);
+
+    // Analizar el beat musical y sincronizar luces/confeti en tiempo real
+    const beat = analyzeAudioBeat(currentTime, elapsedSeconds);
+
+    const isBeatHit = Boolean(beat.isBassBeat || beat.isHornBeat);
+
+    // =========================================================================
+    // ETAPAS Y COREOGRAFÍA DE LA CELEBRACIÓN SKA (0s a 90s)
+    // =========================================================================
+
+    // FASE 1: INTRO SKA ENÉRGICA (0s - 25.5s) - Burbujas + Cohetes al ritmo de la música
+    if (elapsedSeconds < 25.5) {
+      // Salida de borbujas al ritmo de la música
+      const balloonCooldown = 1.35;
+      if ((isBeatHit && (elapsedSeconds - lastBalloonSpawnTime >= balloonCooldown)) || (elapsedSeconds - lastBalloonSpawnTime >= 2.6)) {
+        const x = 200 + Math.random() * 1520;
+        const burstY = 220 + Math.random() * 350;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        balloons.push(new Balloon(x, burstY, pal));
+        lastBalloonSpawnTime = elapsedSeconds;
+      }
+
+      // Cohetes al ritmo de la introducción ska
+      const rocketCooldown = 3.2;
+      if ((isBeatHit && (elapsedSeconds - lastRocketSpawnTime >= rocketCooldown)) || (elapsedSeconds - lastRocketSpawnTime >= 5.0)) {
+        const rx = 200 + Math.random() * 1520;
+        const rTargetY = 160 + Math.random() * 280;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        rockets.push(new Rocket(rx, rTargetY, pal));
+        lastRocketSpawnTime = elapsedSeconds;
+      }
+    }
+    // FASE 2: RITMO SKA MARCADO & CAÍDA DE REGALOS (25.5s - 50.5s)
+    else if (elapsedSeconds >= 25.5 && elapsedSeconds < 50.5) {
+      // Burbujas continuas al ritmo
+      const balloonCooldown = 1.05;
+      if ((isBeatHit && (elapsedSeconds - lastBalloonSpawnTime >= balloonCooldown)) || (elapsedSeconds - lastBalloonSpawnTime >= 2.1)) {
+        const x = 160 + Math.random() * 1600;
+        const burstY = 190 + Math.random() * 380;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        balloons.push(new Balloon(x, burstY, pal));
+        lastBalloonSpawnTime = elapsedSeconds;
+      }
+
+      // Cohetes periódicos al ritmo
+      const rocketCooldown = 2.4;
+      if ((isBeatHit && (elapsedSeconds - lastRocketSpawnTime >= rocketCooldown)) || (elapsedSeconds - lastRocketSpawnTime >= 3.8)) {
+        const rx = 240 + Math.random() * 1440;
+        const rTargetY = 140 + Math.random() * 300;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        rockets.push(new Rocket(rx, rTargetY, pal));
+        lastRocketSpawnTime = elapsedSeconds;
+      }
+
+      // Lluvia de confeti
+      if (elapsedSeconds >= nextConfettiSpawn) {
+        confetti.push(new Confetti(Math.random() * 1920, -20));
+        nextConfettiSpawn = elapsedSeconds + 0.35;
+      }
+
+      // Caída de cajas de regalo que se acumulan en la base
+      if (elapsedSeconds >= nextGiftSpawn && elapsedSeconds < 68.0) {
+        const gx = 120 + Math.random() * 1680;
+        const theme = GIFT_PALETTES[Math.floor(Math.random() * GIFT_PALETTES.length)];
+        giftBoxes.push(new GiftBox(gx, theme));
+        nextGiftSpawn = elapsedSeconds + (1.8 + Math.random() * 1.5);
+      }
+    }
+    // FASE 3: SUBIDA FESTIVA PRE-ALBORADA (50.5s - 68.0s)
+    else if (elapsedSeconds >= 50.5 && elapsedSeconds < TIME_ALBORADA_START) {
+      const rocketCooldown = 1.2;
+      if ((isBeatHit && (elapsedSeconds - lastRocketSpawnTime >= rocketCooldown)) || (elapsedSeconds - lastRocketSpawnTime >= 2.0)) {
+        const rx = 150 + Math.random() * 1620;
+        const rTargetY = 130 + Math.random() * 380;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        rockets.push(new Rocket(rx, rTargetY, pal));
+        lastRocketSpawnTime = elapsedSeconds;
+      }
+
+      const balloonCooldown = 0.9;
+      if ((isBeatHit && (elapsedSeconds - lastBalloonSpawnTime >= balloonCooldown)) || (elapsedSeconds - lastBalloonSpawnTime >= 1.8)) {
+        const x = 140 + Math.random() * 1640;
+        const burstY = 200 + Math.random() * 360;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        balloons.push(new Balloon(x, burstY, pal));
+        lastBalloonSpawnTime = elapsedSeconds;
+      }
+
+      // Regalos acumulándose
+      if (elapsedSeconds >= nextGiftSpawn && elapsedSeconds < 68.0) {
+        const gx = 120 + Math.random() * 1680;
+        const theme = GIFT_PALETTES[Math.floor(Math.random() * GIFT_PALETTES.length)];
+        giftBoxes.push(new GiftBox(gx, theme));
+        nextGiftSpawn = elapsedSeconds + (2.0 + Math.random() * 1.5);
+      }
+    }
+    // FASE 4: ¡ALBORADA Y FELIZ CUMPLEAÑOS! (68.0s - 78.0s) - Ligera y Fluida
+    else if (elapsedSeconds >= TIME_ALBORADA_START && elapsedSeconds < TIME_MEGA_BURSTS_START) {
+      const rocketCooldown = 2.4;
+      if ((isBeatHit && (elapsedSeconds - lastRocketSpawnTime >= rocketCooldown)) || (elapsedSeconds - lastRocketSpawnTime >= 3.6)) {
+        const rx = 200 + Math.random() * 1520;
+        const rTargetY = 120 + Math.random() * 320;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        rockets.push(new Rocket(rx, rTargetY, pal));
+        lastRocketSpawnTime = elapsedSeconds;
+      }
+
+      // Máximo 2 globos activos en alborada para no saturar la escena
+      const balloonCooldown = 3.6;
+      if (balloons.length < 2 && ((isBeatHit && (elapsedSeconds - lastBalloonSpawnTime >= balloonCooldown)) || (elapsedSeconds - lastBalloonSpawnTime >= 5.0))) {
+        const x = 240 + Math.random() * 1440;
+        const burstY = 240 + Math.random() * 300;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        balloons.push(new Balloon(x, burstY, pal));
+        lastBalloonSpawnTime = elapsedSeconds;
+      }
+
+      // Confeti controlado y ligero (solo 1 pieza cada 2.2s, máximo 15 activas)
+      if (elapsedSeconds >= nextConfettiSpawn && confetti.length < 15) {
+        confetti.push(new Confetti(200 + Math.random() * 1520, -20));
+        nextConfettiSpawn = elapsedSeconds + 2.2;
+      }
+    }
+    // FASE 4.5: ¡MEGA EXPLOSIONES Y PARPADEOS AL RITMO SKA (78.0s - 88.0s)! - Fluidez Absoluta
+    else if (elapsedSeconds >= TIME_MEGA_BURSTS_START && elapsedSeconds < TIME_FINAL_EXPLOSION) {
+      // Cohetes espaciados
+      const rocketCooldown = 2.2;
+      if ((isBeatHit && (elapsedSeconds - lastRocketSpawnTime >= rocketCooldown)) || (elapsedSeconds - lastRocketSpawnTime >= 3.2)) {
+        const rx = 180 + Math.random() * 1560;
+        const rTargetY = 100 + Math.random() * 350;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        rockets.push(new Rocket(rx, rTargetY, pal));
+        lastRocketSpawnTime = elapsedSeconds;
+      }
+
+      // Mega explosión limpia y espaciada con parpadeo suave al compás de la música
+      if (elapsedSeconds >= nextMegaBurstSpawn) {
+        const bx = 260 + Math.random() * 1400;
+        const by = 140 + Math.random() * 300;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        
+        createFireworkBurst(bx, by, pal, 20); // 20 partículas nítidas en vez de 36
+        shockwaves.push(new Shockwave(bx, by, pal[0], 220));
+        playFireworkBoom(bx / 1920, 0.5);
+        triggerStrobeFlash(80);
+
+        nextMegaBurstSpawn = elapsedSeconds + (3.2 + Math.random() * 0.8);
+      }
+
+      // Pocos globos en la recta final (máx 2)
+      const balloonCooldown = 3.6;
+      if (balloons.length < 2 && ((isBeatHit && (elapsedSeconds - lastBalloonSpawnTime >= balloonCooldown)) || (elapsedSeconds - lastBalloonSpawnTime >= 5.0))) {
+        const x = 220 + Math.random() * 1480;
+        const burstY = 220 + Math.random() * 320;
+        const pal = PALETAS_COLORES[Math.floor(Math.random() * PALETAS_COLORES.length)];
+        balloons.push(new Balloon(x, burstY, pal));
+        lastBalloonSpawnTime = elapsedSeconds;
+      }
+
+      // Confeti muy ligero
+      if (elapsedSeconds >= nextConfettiSpawn && confetti.length < 15) {
+        confetti.push(new Confetti(200 + Math.random() * 1520, -20));
+        nextConfettiSpawn = elapsedSeconds + 2.4;
+      }
+    }
+
+    // =========================================================================
+    // NARRATIVA: LAS 3 FRASES PROGRESIVAS (0s a 68s)
+    // En 1 sola fila con contorno sobrio y dinámico
+    // =========================================================================
+
+    // 1. PRIMERA FRASE: "Hoy es un dia especial" (3.0s - 22.0s) -> ¡EXPLOSIÓN (22.0s - 25.0s)!
+    if (elapsedSeconds >= TIME_PHRASE1_START && elapsedSeconds < TIME_PHRASE1_END) {
+      if (!phrase1Shown && phraseBoxEl && phraseTextEl) {
+        phrase1Shown = true;
+        phraseTextEl.textContent = 'Hoy es un dia especial';
+        phraseTextEl.className = 'phrase-text phrase-theme-1';
+        phraseBoxEl.className = 'phrase-container';
+      }
+    } else if (elapsedSeconds >= TIME_PHRASE1_END && elapsedSeconds < TIME_PHRASE2_START) {
+      if (!phrase1Shattered && phrase1Shown) {
+        phrase1Shattered = true;
+        if (phraseBoxEl) phraseBoxEl.classList.add('phrase-shatter-out');
+        shatterTextIntoParticles(960, 150, ['#00f5d4', '#00e5ff', '#ffd166', '#ffffff']);
+      }
+    }
+
+    // 2. SEGUNDA FRASE: "En el cual cumple un año mas!" (25.5s - 47.0s) -> ¡VÓRTICE (47.0s - 50.0s)!
+    if (elapsedSeconds >= TIME_PHRASE2_START && elapsedSeconds < TIME_PHRASE2_END) {
+      if (!phrase2Shown && phraseBoxEl && phraseTextEl) {
+        phrase2Shown = true;
+        phraseTextEl.textContent = 'En el cual cumple un año mas!';
+        phraseTextEl.className = 'phrase-text phrase-theme-2';
+        phraseBoxEl.className = 'phrase-container';
+      }
+    } else if (elapsedSeconds >= TIME_PHRASE2_END && elapsedSeconds < TIME_PHRASE3_START) {
+      if (!phrase2Vortexed && phrase2Shown) {
+        phrase2Vortexed = true;
+        if (phraseBoxEl) phraseBoxEl.classList.add('phrase-vortex-out');
+        implodeIntoStarFlash(960, 150, ['#ff007f', '#7928ca', '#ffd166']);
+      }
+    }
+
+    // 3. TERCERA FRASE: "y aqui en el canal te deseamos!!!" (50.5s - 67.0s) -> ¡DISOLUCIÓN (67.0s - 68.0s)!
+    if (elapsedSeconds >= TIME_PHRASE3_START && elapsedSeconds < TIME_PHRASE3_END) {
+      if (!phrase3Shown && phraseBoxEl && phraseTextEl) {
+        phrase3Shown = true;
+        phraseTextEl.textContent = 'y aqui en el canal te deseamos!!!';
+        phraseTextEl.className = 'phrase-text phrase-theme-3';
+        phraseBoxEl.className = 'phrase-container';
+      }
+    } else if (elapsedSeconds >= TIME_PHRASE3_END && elapsedSeconds < TIME_ALBORADA_START) {
+      if (!phrase3Dissolved && phrase3Shown) {
+        phrase3Dissolved = true;
+        if (phraseBoxEl) phraseBoxEl.classList.add('phrase-alborada-out');
+      }
+    }
+
+    // FASE 4: POR ÚLTIMO, SOLO EL FELIZ CUMPLEAÑOS (68s - 88s)
+    if (elapsedSeconds >= TIME_BANNER_SHOW && elapsedSeconds < TIME_FINAL_EXPLOSION) {
+      if (bannerEl && !bannerEl.classList.contains('banner-visible')) {
+        bannerEl.classList.add('banner-visible');
+      }
+    }
+
+    // FASE 5: LA EXPLOSIÓN FINAL COLOSAL EN EL ACORDE FINAL SKA (88s)
+    if (elapsedSeconds >= TIME_FINAL_EXPLOSION && elapsedSeconds < TIME_FADE_ALL) {
+      if (!bannerEl.classList.contains('final-boom-done')) {
+        bannerEl.classList.add('final-boom-done');
+        triggerMegaFinalExplosion();
+      }
+    }
+
+    // FASE 6: SE ESFUMA TODO LIMPIAMENTE A LOS 90s (1:30 MIN)
+    if (elapsedSeconds >= TIME_FADE_ALL) {
+      if (bannerEl && !bannerEl.classList.contains('banner-exit')) {
+        bannerEl.classList.add('banner-exit');
+      }
+
+      if (stageLightsEl && stageLightsEl.classList.contains('lights-active')) {
+        stageLightsEl.classList.remove('lights-active');
+      }
+
+      // Desvanecer suavemente partículas y regalos remanentes
+      particles.forEach(p => p.alpha -= 0.04);
+      confetti.forEach(c => c.alpha -= 0.04);
+      shockwaves.forEach(s => s.alpha -= 0.04);
+      giftBoxes.forEach(g => g.alpha -= 0.04);
+      balloons.forEach(b => b.isPopped = true);
+
+      // Finalizar y reiniciar lienzo con tiempo para resonancia de sonido
+      if (elapsedSeconds >= TIME_FADE_ALL + 1.8) {
+        stopCelebration();
+        return;
+      }
+    }
+
+    // =========================================================================
+    // ACTUALIZACIÓN Y DIBUJADO DE ENTIDADES
+    // =========================================================================
+
+    // Ondas expansivas
+    for (let i = shockwaves.length - 1; i >= 0; i--) {
+      shockwaves[i].update();
+      shockwaves[i].draw(ctx);
+      if (shockwaves[i].isDone) shockwaves.splice(i, 1);
+    }
+
+    // Cajas de regalo acumuladas en la base
+    for (let i = giftBoxes.length - 1; i >= 0; i--) {
+      giftBoxes[i].update();
+      giftBoxes[i].draw(ctx);
+      if (giftBoxes[i].alpha <= 0) giftBoxes.splice(i, 1);
+    }
+
+    // Cohetes sincronizados al ritmo
+    for (let i = rockets.length - 1; i >= 0; i--) {
+      rockets[i].update(isBeatHit);
+      rockets[i].draw(ctx);
+      if (rockets[i].isDone) rockets.splice(i, 1);
+    }
+
+    // Globos con estallido reactivo al beat
+    for (let i = balloons.length - 1; i >= 0; i--) {
+      balloons[i].update(isBeatHit);
+      balloons[i].draw(ctx);
+      if (balloons[i].isPopped) balloons.splice(i, 1);
+    }
+
+    // Garantizar fluidez absoluta de 60 FPS sin sobrecargar la memoria ni saturar al final
+    if (particles.length > 55) {
+      particles.splice(0, particles.length - 55);
+    }
+    if (confetti.length > 18) {
+      confetti.splice(0, confetti.length - 18);
+    }
+    if (balloons.length > 3 && elapsedSeconds >= TIME_ALBORADA_START) {
+      balloons.shift();
+    }
+    if (giftBoxes.length > 10) {
+      giftBoxes.shift();
+    }
+
+    // Partículas de fuegos artificiales
+    for (let i = particles.length - 1; i >= 0; i--) {
+      particles[i].update();
+      particles[i].draw(ctx);
+      if (particles[i].alpha <= 0) particles.splice(i, 1);
+    }
+
+    // Confeti
+    for (let i = confetti.length - 1; i >= 0; i--) {
+      confetti[i].update();
+      confetti[i].draw(ctx);
+      if (confetti[i].alpha <= 0) confetti.splice(i, 1);
+    }
+
+    animationFrameId = isRunning ? requestAnimationFrame(renderLoop) : 0;
+  }
+
+  function updateProgressUI(elapsedSec) {
+    if (!progressBarEl) return;
+    const progress = Math.min(1, Math.max(0, elapsedSec / DURATION_TOTAL));
+    progressBarEl.style.width = `${progress * 100}%`;
+
+    const secFormatted = Math.min(DURATION_TOTAL, Math.floor(elapsedSec));
+    if (progressSecsEl) progressSecsEl.textContent = `${secFormatted}s / ${DURATION_TOTAL}s`;
+
+    if (progressPhaseEl) {
+      if (elapsedSec < 22) {
+        progressPhaseEl.textContent = '1. "Hoy es un día especial" (Intro Ska)';
+      } else if (elapsedSec < 47) {
+        progressPhaseEl.textContent = '2. "En el cual cumple un año más" (Ritmo Ska & Regalos)';
+      } else if (elapsedSec < 67) {
+        progressPhaseEl.textContent = '3. "y aquí en el canal..." (Subida Festiva)';
+      } else if (elapsedSec < TIME_MEGA_BURSTS_START) {
+        progressPhaseEl.textContent = '🎺 4. ¡ALBORADA Y FELIZ CUMPLEAÑOS! (68s - 78s)';
+      } else if (elapsedSec < TIME_FINAL_EXPLOSION) {
+        progressPhaseEl.textContent = '⚡ 5. MEGA EXPLOSIONES AL RITMO SKA (78s - 88s)';
+      } else if (elapsedSec < TIME_FADE_ALL) {
+        progressPhaseEl.textContent = '💥 6. ACORDE FINAL & EXPLOSIÓN (88s)';
+      } else {
+        progressPhaseEl.textContent = '✨ Esfumando Todo... (90s)';
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // CONEXIONES DE CHAT: STREAMER.BOT Y PUSHER KICK BACKUP
+  // -------------------------------------------------------------------------
+
+  /**
+   * Conexión Primaria WebSocket a Streamer.bot (Local ws://127.0.0.1:4445)
+   */
+  /**
+   * Conexión Primaria WebSocket a Streamer.bot (Local ws://127.0.0.1:4445)
+   */
+  function initStreamerBotWS() {
+    console.log(`[Cumpleaños] Conectando con Streamer.bot (ws://${STREAMER_BOT_IP}:${STREAMER_BOT_PORT})...`);
+
+    let ws;
+    try {
+      ws = new WebSocket(`ws://${STREAMER_BOT_IP}:${STREAMER_BOT_PORT}/`);
+    } catch (e) {
+      updateStatusUI('waiting', 'Buscando Streamer.bot...');
+      setTimeout(initStreamerBotWS, 6000);
+      return;
+    }
+
+    ws.onopen = () => {
+      streamerBotConnected = true;
+      updateStatusUI('connected', 'Conectado a Streamer.bot');
+      console.log('✅ [Cumpleaños] WebSocket Streamer.bot conectado');
+
+      // 1. Suscribirse a eventos de chat de Kick
+      const subPayload = {
+        request: 'Subscribe',
+        id: 'jikokun-cumpleanos-widget',
+        events: {
+          Kick: ['ChatMessage', 'Message']
+        }
+      };
+      ws.send(JSON.stringify(subPayload));
+
+      // 2. Solicitar datos del streamer para absorber su avatar Kick de inmediato
+      ws.send(JSON.stringify({
+        request: 'GetBroadcaster',
+        id: 'jikokun-broadcaster-info'
+      }));
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const rawPayload = JSON.parse(event.data);
+        const payload = rawPayload.data || rawPayload;
+
+        // Si es la respuesta de GetBroadcaster
+        if (rawPayload.id === 'jikokun-broadcaster-info' || rawPayload.platforms) {
+          const kickInfo = rawPayload.platforms?.kick || payload.platforms?.kick;
+          if (kickInfo) {
+            const bProfile = kickInfo.broadcasterProfileUrl;
+            if (bProfile) {
+              avatarCache['jikokun'] = bProfile;
+              if (kickInfo.broadcasterLogin) avatarCache[kickInfo.broadcasterLogin.toLowerCase()] = bProfile;
+              if (kickInfo.broadcasterUserName) avatarCache[kickInfo.broadcasterUserName.toLowerCase()] = bProfile;
+              console.log('✅ [Cumpleaños] Avatar Kick de Jikokun absorbido de Streamer.bot:', bProfile);
+            }
+            if (kickInfo.botProfileUrl && kickInfo.botLogin) {
+              avatarCache[kickInfo.botLogin.toLowerCase()] = kickInfo.botProfileUrl;
+            }
+          }
+        }
+
+        // Cachear avatar de cualquier chatter
+        extractAndCacheAvatar(rawPayload);
+        extractAndCacheAvatar(payload);
+
+        // Procesar posibles comandos de cumpleaños
+        processChatMessage(payload, rawPayload);
+      } catch (err) {}
+    };
+
+    ws.onerror = () => {
+      streamerBotConnected = false;
+    };
+
+    ws.onclose = () => {
+      streamerBotConnected = false;
+      if (!pusherConnected) {
+        updateStatusUI('disconnected', 'Desconectado de Chat (Reintentando)');
+      }
+      setTimeout(initStreamerBotWS, 6000);
+    };
+  }
+
+  /**
+   * Extrae y almacena en caché el avatar del usuario desde cualquier paquete WebSocket
+   */
+  function extractAndCacheAvatar(payload) {
+    if (!payload) return null;
+    const data = payload.data || payload;
+    const messageObj = data.message || (typeof payload.message === 'object' ? payload.message : null) || {};
+    const userObj = data.user || data.sender || messageObj.user || messageObj.sender || payload.user || payload.sender || {};
+
+    let username = '';
+    if (typeof userObj === 'string') {
+      username = userObj;
+    } else {
+      username = userObj.username || userObj.name || userObj.displayName || userObj.slug || userObj.user_name || data.username || data.user_name || '';
+    }
+    username = String(username).trim().replace(/^@/, '').toLowerCase();
+
+    let pic = userObj.profileUrl || userObj.userProfileUrl || userObj.profile_url || userObj.profile_pic || userObj.profile_image || userObj.avatar || userObj.profilePictureUrl || userObj.avatarUrl || data.profileUrl || data.profile_pic || data.profile_image || data.avatar || null;
+
+    if (username && pic && typeof pic === 'string' && pic.startsWith('http')) {
+      avatarCache[username] = pic;
+      return { username, pic };
+    }
+    return null;
+  }
+
+  /**
+   * Conexión de Respaldo Directa con WebSockets de Kick (Pusher)
+   */
+  async function initKickPusherBackup() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const channel = urlParams.get('channel') || DEFAULT_KICK_CHANNEL;
+    if (!channel) return;
+
+    try {
+      let chatroomId = null;
+      try {
+        const directRes = await fetch(`https://kick.com/api/v2/channels/${encodeURIComponent(channel)}`);
+        if (directRes.ok) {
+          const directData = await directRes.json();
+          chatroomId = directData.chatroom?.id;
+        }
+      } catch (e) {}
+
+      if (!chatroomId) {
+        try {
+          const proxyRes = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent('https://kick.com/api/v2/channels/' + channel)}`);
+          if (proxyRes.ok) {
+            const proxyData = await proxyRes.json();
+            chatroomId = proxyData.chatroom?.id;
+          }
+        } catch (e) {}
+      }
+
+      if (!chatroomId || typeof Pusher === 'undefined') return;
+
+      const PUSHER_KEY = "eb1d5f28b619a93b7726";
+      const PUSHER_CLUSTER = "us2";
+
+      const pusher = new Pusher(PUSHER_KEY, {
+        cluster: PUSHER_CLUSTER,
+        wsHost: `ws-${PUSHER_CLUSTER}.pusher.com`,
+        wsPort: 443,
+        wssPort: 443,
+        enabledTransports: ['ws', 'wss'],
+        forceTLS: true
+      });
+
+      const pusherChannel = pusher.subscribe(`chatrooms.${chatroomId}.v2`);
+
+      const handlePusherMsg = (raw) => {
+        let data = raw;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (e) {}
+        }
+        if (data && data.data) {
+          if (typeof data.data === 'string') {
+            try { data = JSON.parse(data.data); } catch (e) {}
+          } else {
+            data = data.data;
+          }
+        }
+        if (!data) return;
+        extractAndCacheAvatar(data);
+        if (data.content || data.message || data.text) {
+          processChatMessage(data);
+        }
+      };
+
+      pusherChannel.bind('App\\Events\\ChatMessageEvent', handlePusherMsg);
+      pusherChannel.bind_global((ev, d) => {
+        if (ev && ev.includes('ChatMessage')) handlePusherMsg(d);
+      });
+
+      pusher.connection.bind('connected', () => {
+        pusherConnected = true;
+        if (!streamerBotConnected) {
+          updateStatusUI('connected', `Conectado a Kick (@${channel})`);
+        }
+      });
+    } catch (err) {
+      console.warn('[Cumpleaños Pusher Backup Error]', err);
+    }
+  }
+
+  /**
+   * Parser de Mensajes de Chat: detecta !cumpleaños @usuario o !cumpleanos @usuario
+   */
+  function processChatMessage(data, rawPayload) {
+    if (!data && !rawPayload) return;
+
+    // Cachear avatar del emisor
+    const senderInfo = extractAndCacheAvatar(rawPayload) || extractAndCacheAvatar(data);
+
+    let textContent = '';
+    if (typeof data.content === 'string') textContent = data.content;
+    else if (typeof data.message === 'string') textContent = data.message;
+    else if (typeof data.text === 'string') textContent = data.text;
+    else if (typeof data.messageText === 'string') textContent = data.messageText;
+    else if (data.message && typeof data.message === 'object') {
+      textContent = data.message.message || data.message.text || data.message.content || '';
+    }
+    if (!textContent && rawPayload) {
+      if (typeof rawPayload.message === 'string') textContent = rawPayload.message;
+      else if (rawPayload.message && typeof rawPayload.message === 'object') {
+        textContent = rawPayload.message.message || rawPayload.message.text || '';
+      }
+    }
+
+    if (!textContent) return;
+
+    // Detectar comando: !cumpleaños @usuario, !cumpleaños usuario, o simplemente !cumpleaños
+    const match = textContent.match(/!(?:cumplea(?:ñ|n)os)(?:\s+@?([\w\d_.-]+))?/i);
+    if (match) {
+      let targetUser = (match[1] || '').trim();
+      let directPic = null;
+
+      if (!targetUser) {
+        // Si no especificó usuario (ej: "!cumpleaños"), celebrar al emisor del mensaje
+        targetUser = senderInfo?.username || 'Jikokun';
+        directPic = senderInfo?.pic || avatarCache[targetUser.toLowerCase()];
+      } else {
+        // Si especificó usuario (ej: "!cumpleaños @usuario"):
+        const targetKey = targetUser.toLowerCase();
+        if (senderInfo && senderInfo.username === targetKey) {
+          directPic = senderInfo.pic;
+        } else if (avatarCache[targetKey]) {
+          directPic = avatarCache[targetKey];
+        }
+      }
+
+      console.log(`🎂 [Cumpleaños] ¡Comando detectado para @${targetUser}!`, directPic ? '(Avatar en caché encontrado)' : '(Buscando avatar)');
+      startCelebration(targetUser, 0, directPic);
+    }
+  }
+
+  function updateStatusUI(status, label) {
+    if (!statusDotEl || !statusTextEl) return;
+    statusDotEl.className = 'status-dot ' + status;
+    statusTextEl.textContent = label;
+  }
+
+  // -------------------------------------------------------------------------
+  // CONTROLES DE PRUEBA Y PANEL FLOTANTE
+  // -------------------------------------------------------------------------
+  function initTestControls() {
+    const inputUser = document.getElementById('input-user');
+    const btnStart = document.getElementById('btn-test-start');
+    const btnAlborada = document.getElementById('btn-test-alborada');
+    const btnStop = document.getElementById('btn-test-stop');
+    const panel = document.getElementById('test-control-panel');
+    const btnCollapse = document.getElementById('btn-collapse-panel');
+    const audioToggle = document.getElementById('audio-toggle-btn');
+    const audioIcon = document.getElementById('audio-icon');
+
+    if (inputUser) {
+      inputUser.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          resumeAudio();
+          const user = inputUser.value || 'Jikokun';
+          startCelebration(user, 0);
+        }
+      });
+    }
+
+    if (btnStart) {
+      btnStart.addEventListener('click', () => {
+        resumeAudio();
+        const user = (inputUser ? inputUser.value : '') || 'Jikokun';
+        startCelebration(user, 0);
+      });
+    }
+
+    if (btnAlborada) {
+      btnAlborada.addEventListener('click', () => {
+        resumeAudio();
+        const user = (inputUser ? inputUser.value : '') || 'Jikokun';
+        startCelebration(user, 68); // Salta directo a la alborada (t=68s de 90s)
+      });
+    }
+
+    if (btnStop) {
+      btnStop.addEventListener('click', () => {
+        stopCelebration();
+      });
+    }
+
+    // 1. Mostrar/ocultar panel al tocar o hacer clic en la pantalla
+    function handleScreenTouchOrClick(e) {
+      if (!panel) return;
+      // Si el clic o toque ocurrió dentro del panel de control o sus elementos, mantenerlo abierto
+      if (panel.contains(e.target)) return;
+
+      // Si tocó la pantalla fuera del panel, alternar visibilidad
+      panel.classList.toggle('panel-visible');
+    }
+
+    window.addEventListener('click', handleScreenTouchOrClick);
+    window.addEventListener('touchstart', (e) => {
+      if (panel && panel.contains(e.target)) return;
+      handleScreenTouchOrClick(e);
+    }, { passive: true });
+
+    // Evitar que interactuar con el panel se propague a la ventana
+    if (panel) {
+      panel.addEventListener('click', (e) => e.stopPropagation());
+    }
+
+    if (btnCollapse && panel) {
+      btnCollapse.addEventListener('click', (e) => {
+        e.stopPropagation();
+        panel.classList.remove('panel-visible');
+      });
+    }
+
+    if (audioToggle && audioIcon) {
+      audioToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        audioEnabled = !audioEnabled;
+        audioIcon.textContent = audioEnabled ? '🔊' : '🔇';
+        if (audioEl) {
+          audioEl.muted = !audioEnabled;
+          if (audioEnabled && isRunning) {
+            audioEl.play().catch(() => {});
+          } else {
+            audioEl.pause();
+          }
+        }
+        if (audioEnabled) resumeAudio();
+      });
+    }
+
+    // Atajo de teclado 'H' para ocultar/mostrar panel (útil para streamers)
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'h' || e.key === 'H') {
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+        if (panel) panel.classList.toggle('panel-visible');
+      }
+    });
+  }
+
+  // Exponer API global para pruebas y plugins externos
+  window.triggerBirthdayCelebration = (username, startAt = 0) => {
+    resumeAudio();
+    startCelebration(username, startAt);
+  };
+  window.stopBirthdayCelebration = stopCelebration;
+
+})();
+
+</script>
+</body>
+</html>
+
