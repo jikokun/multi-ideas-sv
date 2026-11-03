@@ -27,14 +27,15 @@
     .curtain{position:absolute;z-index:3;top:13%;height:53%;width:4.5%;background:repeating-linear-gradient(90deg,#32107d 0 10%,#6d22ba 15%,#301078 29%,#190c52 45%);filter:drop-shadow(0 0 9px rgba(167,66,255,.65));border-radius:0 0 45% 45%}.curtain.left{left:15.2%}.curtain.right{right:15.2%}
     .speaker{position:absolute;z-index:1;top:31%;width:3.7%;height:11%;border:2px solid #151d48;border-radius:10px;background:linear-gradient(145deg,#101a42,#030817);box-shadow:0 0 14px rgba(0,0,0,.9),0 0 9px rgba(68,115,255,.3)}.speaker:before,.speaker:after{content:"";position:absolute;left:22%;width:56%;aspect-ratio:1;border-radius:50%;border:2px solid #263663;background:radial-gradient(circle,#050918 45%,#17265b 49%,#050816 70%)}.speaker:before{top:14%}.speaker:after{bottom:10%}.speaker.left{left:23.4%}.speaker.right{right:23.4%}
     .camera-slot{display:none}
-    .audience{position:absolute;z-index:6;left:18.65%;right:18.65%;bottom:19.63%;height:33.43%;pointer-events:none}
+    .audience{position:absolute;z-index:6;inset:0;pointer-events:none}
+    .guest-position{position:absolute;width:64px;height:66px;transform:translateX(-50%) scale(var(--guest-size,1));transform-origin:top center}
     .guest{position:absolute;width:64px;height:66px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;filter:drop-shadow(0 0 5px var(--guest-glow,rgba(63,201,255,.45)));animation:guest-arrive .9s cubic-bezier(.2,.8,.2,1) both}
     .guest-head{position:relative;z-index:1;width:44px;height:44px;flex:none;display:grid;place-items:center;overflow:hidden;border:2px solid var(--guest-color,#42ddff);border-radius:50%;background:#10132e;box-shadow:0 0 9px var(--guest-glow,rgba(63,201,255,.45)),inset 0 0 7px rgba(255,255,255,.14)}
     .guest-head img{width:100%;height:100%;object-fit:cover}.guest-face{font-size:22px;line-height:1}
     .guest-body{position:relative;width:52px;height:23px;margin-top:-2px;flex:none}
     .guest-torso{position:absolute;left:50%;top:0;width:52px;height:24px;transform:translateX(-50%);border:1px solid var(--guest-color,#42ddff);border-radius:19px 19px 5px 5px;background:linear-gradient(180deg,#202342,#090d26);box-shadow:0 0 7px var(--guest-glow,rgba(63,201,255,.4))}
     .guest-name{display:none}
-    .guest.is-leaving{animation:guest-leave .45s ease-in forwards}
+    .guest-position.is-leaving .guest{animation:guest-leave .45s ease-in forwards}
     @keyframes guest-arrive{from{opacity:0;transform:translateX(1350px) translateY(14px) scale(.75)}to{opacity:1;transform:translateX(0) translateY(0) scale(1)}}@keyframes guest-leave{to{opacity:0;transform:translateX(1350px) translateY(8px) scale(.8)}}
     .exit{position:absolute;top:53%;width:4%;height:1.8%;border-radius:3px;background:#14f2a1;color:#031d18;display:grid;place-items:center;font-size:11px;font-weight:900;box-shadow:0 0 12px #08ffab}.exit.left{left:5%}.exit.right{right:5%}
     .floor{position:absolute;left:16%;right:16%;top:62%;height:13%;background:repeating-linear-gradient(180deg,rgba(44,73,193,.12) 0 3%,transparent 3.5% 25%),linear-gradient(180deg,rgba(13,18,60,.72),rgba(20,20,80,.32));clip-path:polygon(15% 0,85% 0,100% 100%,0 100%)}
@@ -96,12 +97,10 @@
       const audience=document.getElementById('audience');
       const guests=new Map();
       const avatarRequests=new Map();
-      const seatSlots=[
-        {x:29,bottom:138},{x:42,bottom:138},{x:58,bottom:138},{x:71,bottom:138},
-        {x:20,bottom:54},{x:39,bottom:54},{x:61,bottom:54},{x:80,bottom:54},
-        {x:12,bottom:-32},{x:35,bottom:-32},{x:65,bottom:-32},{x:88,bottom:-32},
-        {x:8,bottom:-116},{x:33,bottom:-116},{x:67,bottom:-116},{x:92,bottom:-116}
-      ];
+      const seatBounds=(seat)=>{const scene=stage.getBoundingClientRect();const rect=seat.getBoundingClientRect();const scale=scene.width/1920;return {x:(rect.left-scene.left)/scale,y:(rect.top-scene.top)/scale,width:rect.width/scale,height:rect.height/scale}};
+      const seatSlots=Array.from(seats.querySelectorAll('.seat')).filter(seat=>{const rect=seatBounds(seat);return getComputedStyle(seat).visibility!=='hidden'&&rect.x>=48&&rect.x+rect.width<=1872&&rect.y<1000&&!(rect.x<320&&rect.y<723)});
+      const positionGuest=(entry)=>{const rect=seatBounds(seatSlots[entry.slotIndex]);const size=Math.max(.65,Math.min(1,rect.width/90));entry.el.style.left=`${rect.x+rect.width/2}px`;entry.el.style.top=`${rect.y-52*size}px`;entry.el.style.setProperty('--guest-size',String(size))};
+      addEventListener('resize',()=>{for(const entry of guests.values())positionGuest(entry)},{passive:true});
       const freeSeatIndexes=seatSlots.map((_,index)=>index);
       const guestColors=['#46d9ff','#bd72ff','#ff5ca8','#65f0c1','#ffd166','#7c9cff'];
       const findProfileImage=(...roots)=>{
@@ -115,25 +114,29 @@
       const resolveKickAvatar=(username)=>{
         const slug=clean(username).replace(/^@/,'').toLowerCase();if(!slug)return Promise.resolve('');if(avatarRequests.has(slug))return avatarRequests.get(slug);
         const request=(async()=>{
-          const endpoint=`https://kick.com/api/v1/users/${encodeURIComponent(slug)}`;
+          for(const storageKey of ['kick_avatar_cache','jikoteca_avatar_cache']){try{const cached=JSON.parse(localStorage.getItem(storageKey)||'{}')[slug];const image=typeof cached==='string'?cached:findProfileImage(cached);if(/^https:\/\//i.test(image||''))return image}catch(_){}}
+          const endpoints=[`https://kick.com/api/v1/users/${encodeURIComponent(slug)}`,`https://kick.com/api/v2/channels/${encodeURIComponent(slug)}`];
           const fetchJson=async(url)=>{const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),3000);try{const response=await fetch(url,{signal:controller.signal,headers:{Accept:'application/json'}});if(!response.ok)return null;return await response.json()}catch(_){return null}finally{clearTimeout(timer)}};
-          let data=await fetchJson(endpoint);let avatar=extractKickAvatar(data);if(avatar)return avatar;
-          data=await fetchJson(`https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`);return extractKickAvatar(data);
+          const direct=await Promise.all(endpoints.map(fetchJson));const directAvatar=direct.map(extractKickAvatar).find(Boolean);if(directAvatar)return directAvatar;
+          const proxied=await Promise.all(endpoints.map(endpoint=>fetchJson(`https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`)));return proxied.map(extractKickAvatar).find(Boolean)||'';
         })();avatarRequests.set(slug,request);return request;
       };
       const addGuest=(username,avatar='')=>{
         const name=clean(username).replace(/^@/,'').slice(0,32);if(!name)return;
         const key=name.toLocaleLowerCase();if(guests.has(key))return;
-        if(!freeSeatIndexes.length)return;
-        const randomSeatIndex=Math.floor(Math.random()*freeSeatIndexes.length);const slotIndex=freeSeatIndexes.splice(randomSeatIndex,1)[0];const slot=seatSlots[slotIndex];
+        if(!freeSeatIndexes.length||guests.size>=16)return;
+        const randomSeatIndex=Math.floor(Math.random()*freeSeatIndexes.length);const slotIndex=freeSeatIndexes.splice(randomSeatIndex,1)[0];
         const color=guestColors[Math.floor(Math.random()*guestColors.length)];
-        const guest=document.createElement('div');guest.className='guest';guest.style.left=`${slot.x}%`;guest.style.bottom=`${slot.bottom}px`;guest.style.setProperty('--guest-color',color);guest.style.setProperty('--guest-glow',`${color}99`);guest.setAttribute('aria-label',`${name} entrÃ³ a ver la pelÃ­cula`);
+        const guest=document.createElement('div');guest.className='guest';guest.style.setProperty('--guest-color',color);guest.style.setProperty('--guest-glow',`${color}99`);guest.setAttribute('aria-label',name);
         const head=document.createElement('div');head.className='guest-head';
         const fallback=document.createElement('span');fallback.className='guest-face';fallback.textContent=String.fromCodePoint(0x1F642);head.appendChild(fallback);
-        const applyAvatar=(url)=>{if(!url||!guest.isConnected)return;const img=document.createElement('img');img.src=url;img.alt='';img.referrerPolicy='no-referrer';img.loading='eager';img.onerror=()=>{if(guest.isConnected)head.replaceChildren(fallback)};head.replaceChildren(img)};
+        const applyAvatar=(url,retry=true)=>{if(!url||!guest.isConnected)return;const img=document.createElement('img');img.alt=name;img.referrerPolicy='no-referrer';img.loading='eager';img.onerror=()=>{if(guest.isConnected)head.replaceChildren(fallback);if(retry)resolveKickAvatar(name).then(image=>{if(image&&image!==url)applyAvatar(image,false)})};img.src=url;head.replaceChildren(img)};
         const body=document.createElement('div');body.className='guest-body';body.innerHTML='<span class="guest-torso"></span>';
         const label=document.createElement('span');label.className='guest-name';label.textContent=name;
-        guest.append(head,body,label);audience.appendChild(guest);guests.set(key,{el:guest,slotIndex});
+        const anchor=document.createElement('div');anchor.className='guest-position';
+        guest.style.removeProperty('left');guest.style.removeProperty('bottom');
+        guest.append(head,body,label);anchor.appendChild(guest);audience.appendChild(anchor);
+        const entry={el:anchor,slotIndex};guests.set(key,entry);positionGuest(entry);
         if(avatar&&/^https:\/\//i.test(avatar))applyAvatar(avatar);else resolveKickAvatar(name).then(applyAvatar);
       };
       const removeGuest=(username)=>{
