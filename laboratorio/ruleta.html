@@ -1498,7 +1498,7 @@
           <button class="cfg-btn" id="btn-run-cmd" style="white-space:nowrap;">Enviar</button>
         </div>
         <div style="font-size:10.5px; color:rgba(255,255,255,0.55); line-height:1.35;">
-          Ejemplo: <b>!ruleta</b>, <b>!apostar 500 negro 5 impar</b> (500 por opción; máximo 1,000 JP en total), <b>!girar</b>
+          Abre con <b>!ruleta</b>, apila hasta <b>3 opciones</b> con <b>!apostar 200 rojo</b>, <b>!apostar 100 impar</b> y <b>!apostar 50 17</b>; termina con <b>!girar</b>. Máximo total: 1,000 JP por tirada. <b>!salir</b> devuelve las apuestas pendientes.
         </div>
       </div>
 
@@ -1592,6 +1592,7 @@
     }
   };
   var MAX_CASINO_BET = 1000;
+  var MAX_ROULETTE_BETS = 3;
 
   var mockDB = {
     'jikokun': { displayName: 'Jikokun', jikopuntos: 99999, avatar: 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp' },
@@ -1980,7 +1981,8 @@
   function updateHUDJugador(datos) {
     if (!datos) return;
     state.activePlayer = Object.assign(state.activePlayer, datos);
-    if (datos.user) state.activePlayer.username = datos.user;
+    if (datos.username) state.activePlayer.username = norm(datos.username);
+    else if (datos.user) state.activePlayer.username = norm(datos.user);
     if (datos.user) state.activePlayer.displayName = datos.user;
 
     var elName = document.getElementById('player-username');
@@ -1993,7 +1995,7 @@
     if (elSaldo) elSaldo.textContent = formatNumber(livePoints);
     if (pointsDisplay) pointsDisplay.textContent = formatNumber(livePoints);
 
-    var cleanUser = String(datos.user || state.activePlayer.username || '').replace(/^@/, '').trim();
+    var cleanUser = String(state.activePlayer.username || '').replace(/^@/, '').trim();
     var uKey = norm(cleanUser);
 
     if (datos.avatar && typeof datos.avatar === 'string' && datos.avatar.startsWith('http')) {
@@ -2038,7 +2040,8 @@
   }
 
   function placeBetOnZone(betKey, removeMode, customAmount) {
-    if (state.isSpinning) return;
+    if (state.isSpinning || state.chatTransactionPending) return;
+    if (!removeMode && !state.bets[betKey] && Object.keys(state.bets).filter(function(key) { return state.bets[key] > 0; }).length >= MAX_ROULETTE_BETS) return;
 
     if (removeMode) {
       var existing = state.bets[betKey] || 0;
@@ -2084,7 +2087,7 @@
   }
 
   function clearAllBets() {
-    if (state.isSpinning) return;
+    if (state.isSpinning || state.chatTransactionPending) return;
     devolverApuestasPendientes('limpieza de mesa');
     playChipSound();
     updateBettingUI();
@@ -2114,6 +2117,7 @@
   }
 
   function devolverApuestasPendientes(motivo) {
+    if (state.isSpinning || state.chatTransactionPending) return;
     var amount = getTotalBetAmount();
     if (amount <= 0) return;
     var syncedAmount = Math.min(amount, state.syncedChatStake || 0);
@@ -2159,7 +2163,10 @@
   }
 
   function ocultarRuleta() {
+    if (state.isSpinning || state.chatTransactionPending) return;
     cancelarTemporizadorInactividad();
+    devolverApuestasPendientes('cierre de mesa');
+    state.sessionActive = false;
     ruletaVisible = false;
     widgetEl.classList.remove('is-visible');
     widgetEl.classList.add('is-hidden');
@@ -2222,7 +2229,7 @@
   }
 
   function spinRoulette(forcedNumber) {
-    if (state.isSpinning) return;
+    if (state.isSpinning || state.chatTransactionPending) return;
     if (state.returnTimer) {
       clearTimeout(state.returnTimer);
       state.returnTimer = null;
@@ -2634,7 +2641,24 @@
   });
 
   // Comandos de chat: !ruleta, !apostar [monto] [opciones], !girar, !salir
-  async function handleChatCommand(rawText, sender) {
+  var rouletteCommandQueue = Promise.resolve();
+  var recentRouletteCommands = new Map();
+  function handleChatCommand(rawText, sender, source, messageId) {
+    if (sender && typeof sender === 'object') sender = sender.username || sender.login || sender.userName || sender.user_name || sender.name || sender.displayName;
+    if (source && !sender) return Promise.resolve();
+    if (source) {
+      var fingerprint = norm(sender) + '|' + String(rawText || '').trim().toLowerCase();
+      var previous = recentRouletteCommands.get(fingerprint);
+      var now = Date.now();
+      if (previous && now - previous.time < 1800 && (previous.source !== source || (messageId && previous.id === messageId))) return Promise.resolve();
+      recentRouletteCommands.set(fingerprint, { source: source, id: messageId, time: now });
+      recentRouletteCommands.forEach(function(value, key) { if (now - value.time > 5000) recentRouletteCommands.delete(key); });
+    }
+    var task = rouletteCommandQueue.then(function() { return processRouletteCommand(rawText, sender); });
+    rouletteCommandQueue = task.catch(function(error) { console.error('[Ruleta] Error procesando comando:', error); });
+    return rouletteCommandQueue;
+  }
+  async function processRouletteCommand(rawText, sender) {
     if (!rawText) return;
     var userSender = sender || state.activePlayer.username || 'espectador';
     var sNorm = norm(userSender);
@@ -2708,12 +2732,14 @@
       }
 
       var saldoActual = (userObj.jikopuntos !== undefined && userObj.jikopuntos !== null) ? Number(userObj.jikopuntos) : 1000;
+      if (!isFinite(saldoActual) || saldoActual < 0) saldoActual = 0;
       state.points = saldoActual;
       state.sessionActive = true;
 
       mostrarRuleta();
       updateHUDJugador({
         user: userObj.displayName || userSender,
+        username: sNorm,
         avatar: userObj.avatar,
         saldo: saldoActual
       });
@@ -2744,7 +2770,7 @@
       }
       if (state.isSpinning) return;
 
-      var amount = params.length > 0 ? parsearMonto(params[0]) : NaN;
+      var amount = params.length > 0 && /^(?:\d+(?:,\d{3})*|\d+(?:\.\d+)?[km])$/i.test(params[0]) ? parsearMonto(params[0]) : NaN;
       if (!isFinite(amount) || amount <= 0) {
         console.log('[Ruleta] Uso: !apostar [monto] [color/paridad/número].');
         return;
@@ -2763,18 +2789,25 @@
       var betKeys = [];
       for (var p = 1; p < params.length; p++) {
         var token = params[p].toLowerCase().trim();
-        var betKey = mapAlias[token];
+        var betKey = Object.prototype.hasOwnProperty.call(mapAlias, token) ? mapAlias[token] : null;
         if (!betKey && /^\d+$/.test(token)) {
           var exactNumber = parseInt(token, 10);
           if (exactNumber >= 0 && exactNumber <= 36) betKey = exactNumber === 0 ? 'GREEN' : 'NUM_' + exactNumber;
         }
-        if (betKey && betKeys.indexOf(betKey) === -1) betKeys.push(betKey);
+        if (!betKey) { console.warn('[Ruleta] Opción de apuesta inválida: ' + token); return; }
+        if (betKeys.indexOf(betKey) === -1) betKeys.push(betKey);
       }
       if (betKeys.length === 0) {
         console.log('[Ruleta] Indica al menos una apuesta: rojo, negro, par, impar o un número del 0 al 36.');
         return;
       }
 
+      var existingKeys = Object.keys(state.bets).filter(function(key) { return state.bets[key] > 0; });
+      var newKeys = betKeys.filter(function(key) { return existingKeys.indexOf(key) === -1; });
+      if (existingKeys.length + newKeys.length > MAX_ROULETTE_BETS) {
+        console.warn('[Ruleta] Máximo 3 opciones de apuesta por tirada.');
+        return;
+      }
       var remainingBetRoom = Math.max(0, MAX_CASINO_BET - getTotalBetAmount());
       var maxAmountPerKey = Math.floor(remainingBetRoom / betKeys.length);
       if (maxAmountPerKey <= 0) {
@@ -2782,8 +2815,8 @@
         return;
       }
       if (amount > maxAmountPerKey) {
-        amount = maxAmountPerKey;
-        console.log('[Ruleta] Apuesta ajustada al máximo total de 1,000 JP por giro.');
+        console.warn('[Ruleta] La apuesta supera el máximo total de 1,000 JP por tirada.');
+        return;
       }
       var totalNeeded = amount * betKeys.length;
       if (state.points < totalNeeded) {
@@ -2803,10 +2836,15 @@
       }
 
       if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
-        state.syncedChatStake += totalNeeded;
+        state.chatTransactionPending = true;
         try {
           await window.StreamDB.addJikopuntos(sNorm, -totalNeeded, 'Apuesta en Ruleta Casino');
-        } catch(e) {}
+          state.syncedChatStake += totalNeeded;
+        } catch(e) {
+          state.points += totalNeeded;
+          betKeys.forEach(function(key) { state.bets[key] -= amount; if (state.bets[key] <= 0) delete state.bets[key]; });
+          console.error('[Ruleta] No se pudo registrar la apuesta:', e);
+        } finally { state.chatTransactionPending = false; }
       }
       updateBettingUI();
       iniciarTemporizadorInactividad(state.tiempoInactividad);
@@ -2815,6 +2853,7 @@
 
     if (cmd === '!girar' || cmd === '!giro' || cmd === '!spin') {
       if (!ruletaVisible || !state.sessionActive || activeNorm !== sNorm || state.isSpinning) return;
+      if (params.length) { console.warn('[Ruleta] Usa !apostar [cantidad] [opción] y después !girar sin argumentos.'); return; }
       if (getTotalBetAmount() <= 0) {
         console.log('[Ruleta] No hay apuestas; usa !apostar antes de !girar.');
         iniciarTemporizadorInactividad(state.tiempoInactividad);
@@ -2835,7 +2874,7 @@
   }
 
   window.ejecutarComandoRuleta = handleChatCommand;
-  window.despacharTextoChat = function(sender, text) { handleChatCommand(text, sender); };
+  window.despacharTextoChat = function(sender, text, source, messageId) { return handleChatCommand(text, sender, source || 'kick-cloud', messageId); };
   window.mostrarRuleta = mostrarRuleta;
   window.ocultarRuleta = ocultarRuleta;
 
@@ -2943,6 +2982,7 @@
   if (btnToggleVis) {
     btnToggleVis.addEventListener('click', function(e) {
       e.stopPropagation();
+      if (state.isSpinning || state.chatTransactionPending) return;
       if (ruletaVisible) {
         state.sessionActive = false;
         devolverApuestasPendientes('ocultado manualmente');
@@ -3183,6 +3223,7 @@
             id: 'jiko-ruleta-sub',
             events: {
               General: ['Custom'],
+              Command: ['Triggered'],
               Kick: ['ChatMessage', 'Message'],
               Twitch: ['ChatMessage'],
               YouTube: ['Message']
@@ -3225,8 +3266,15 @@
 
     if (eventType === 'custom' || msg.method === 'Custom') {
       var customCmd = data.command || data.action || data.cmd || (typeof data === 'string' ? data : '');
-      var customUser = data.user || data.userName || data.username || data.sender || 'Streamerbot';
-      if (customCmd) handleChatCommand(customCmd, customUser);
+      var customUser = data.user || data.userName || data.username || data.sender;
+      if (typeof customCmd === 'string') handleChatCommand(customCmd, customUser, 'streamerbot-custom', data.id || data.messageId);
+      return;
+    }
+
+    if (eventType.indexOf('triggered') !== -1) {
+      var triggeredCommand = typeof data.command === 'string' ? data.command : ((data.command || {}).name || data.commandName || '');
+      var triggeredUser = data.user || data.sender || data.userName || data.username;
+      if (triggeredCommand) handleChatCommand(triggeredCommand.charAt(0) === '!' ? triggeredCommand : '!' + triggeredCommand, triggeredUser, 'streamerbot-command', data.messageId || data.id);
       return;
     }
 
@@ -3234,10 +3282,10 @@
     if (isChat) {
       var messageObj = data.message || data;
       var userObj = data.user || data.sender || (typeof messageObj === 'object' ? (messageObj.user || messageObj.sender) : null) || {};
-      var sender = 'espectador';
+      var sender = '';
       if (typeof userObj === 'string') sender = userObj;
       else if (typeof userObj === 'object' && userObj !== null) {
-        sender = userObj.username || userObj.name || userObj.displayName || data.userName || data.username || 'espectador';
+        sender = userObj.username || userObj.login || userObj.userName || userObj.user_name || userObj.name || userObj.displayName || data.userName || data.username || '';
       }
 
       var text = '';
@@ -3245,7 +3293,7 @@
       else if (typeof data.message === 'string') text = data.message;
       else if (typeof data.text === 'string') text = data.text;
       else if (typeof messageObj === 'object' && messageObj !== null) {
-        text = messageObj.message || messageObj.text || '';
+        text = messageObj.message || messageObj.text || messageObj.content || '';
       }
 
       if (!text) return;
@@ -3253,7 +3301,7 @@
       var BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot'];
       if (BOTS_IGNORADOS.indexOf(userNorm) !== -1) return;
 
-      handleChatCommand(text, sender);
+      handleChatCommand(text, sender, 'streamerbot', messageObj.id || messageObj.messageId || data.messageId || data.id);
     }
   }
 
@@ -3324,7 +3372,7 @@
         window.StreamDB.onKickChatMessage(function(msg) {
           if (msg && msg.mensaje && typeof msg.mensaje === 'string') {
             if (window.despacharTextoChat) {
-              window.despacharTextoChat(msg.usuario || 'espectador', msg.mensaje);
+              window.despacharTextoChat(msg.usuario, msg.mensaje, 'kick-cloud', msg.id || msg.message_id);
             }
           }
         });
