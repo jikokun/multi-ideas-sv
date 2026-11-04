@@ -153,6 +153,7 @@
     async start(name, user, params = [], fromQueue = false) {
       const game = this.games.get(name);
       if (!game) return false;
+      if (game.owner === user && game.adapter.status().spinning) return true;
       const other = [...this.games].find(([key, item]) => key !== name && item.owner === user);
       const otherBusy = other && (other[1].adapter.status().spinning || other[1].adapter.status().pending);
       if (this.isBusy(name, user) || otherBusy || (!fromQueue && !game.owner && game.queue.length)) {

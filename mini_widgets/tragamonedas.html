@@ -2348,9 +2348,11 @@
   ===================================================== */
   var spinStartTime = 0;
   var countdownInterval = null;
+  var inactivityGeneration = 0;
   var tiempoRestanteInactividad = state.tiempoInactividad;
 
   function cancelarTemporizadorInactividad() {
+    inactivityGeneration++;
     if (countdownInterval) {
       clearInterval(countdownInterval);
       countdownInterval = null;
@@ -2412,6 +2414,7 @@
 
   function iniciarTemporizadorInactividad(segundosTotales) {
     cancelarTemporizadorInactividad();
+    var generation = inactivityGeneration;
 
     tiempoRestanteInactividad = (typeof segundosTotales === 'number') ? segundosTotales : state.tiempoInactividad;
     var activeUser = (state.activePlayer && (state.activePlayer.username || state.activePlayer.displayName)) ? (state.activePlayer.username || state.activePlayer.displayName) : 'JUGADOR';
@@ -2421,9 +2424,11 @@
       tiempoRestanteInactividad--;
       if (tiempoRestanteInactividad <= 0) {
         cancelarTemporizadorInactividad();
+        generation = inactivityGeneration;
         console.log('[Tragamonedas] ⌛ Tiempo de inactividad transcurrido para @' + activeUser + '. Finalizando sesión.');
         mostrarResultadoStatus('timeout');
         setTimeout(function() {
+          if (generation !== inactivityGeneration || state.isSpinning) return;
           if (!state.alwaysVisible) {
             ocultarRuleta();
           }
@@ -2814,7 +2819,7 @@
         if (state.pendingNextSpin) {
           var pending = state.pendingNextSpin;
           state.pendingNextSpin = null;
-          procesarComandoTragamonedas(pending);
+          continuarGiroPendiente(pending);
           return;
         }
 
@@ -2890,7 +2895,7 @@
         var nextSpinData = state.pendingNextSpin;
         state.pendingNextSpin = null;
         setTimeout(function() {
-          procesarComandoTragamonedas(nextSpinData);
+          continuarGiroPendiente(nextSpinData);
         }, 40);
       }
       return;
@@ -3537,6 +3542,11 @@
   /* =====================================================
      LÓGICA MAESTRA: PROCESAMIENTO DE COMANDOS (!tragamonedas / !girar)
   ===================================================== */
+  function continuarGiroPendiente(opciones) {
+    if (window.JikoCasinoHost) window.JikoCasinoHost.resumeSpin('tragamonedas', opciones);
+    else procesarComandoTragamonedas(opciones);
+  }
+
   async function procesarComandoTragamonedas(opciones) {
     var action = opciones.action || 'ACTIVAR'; // 'ACTIVAR', 'GIRAR', 'SALIR'
     var sender = opciones.sender || 'espectador';
@@ -3745,6 +3755,8 @@
           await window.StreamDB.addJikopuntos(sNorm, -state.bet, 'Apuesta en Tragamonedas');
         } catch(e) {
           console.warn('[Tragamonedas] Error al descontar apuesta:', e);
+          iniciarTemporizadorInactividad(state.tiempoInactividad);
+          return;
         }
       }
 

@@ -5,7 +5,7 @@
   try {
     if (parent.location.origin !== location.origin || !parent.JikoCasino) return;
     window.JikoCasinoHost = parent.JikoCasino;
-    const game = location.pathname.endsWith('/ruleta.html') ? 'ruleta' : 'tragamonedas';
+    const game = /\/ruleta(?:\.html)?$/.test(location.pathname) ? 'ruleta' : 'tragamonedas';
     window.JikoWidgetSync = parent.JikoCasino.createSync(game);
     window.StreamDB = parent.JikoCasino.database;
     window.calcularNivelUsuario = user => parent.JikoCasino.level(user);

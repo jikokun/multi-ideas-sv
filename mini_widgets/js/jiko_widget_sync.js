@@ -23,6 +23,11 @@
 
   // En Casino, el coordinador padre administra los dos turnos y el único lock externo.
   if (global.JikoCasinoHost) return;
+  if (global.location && /\/casino(?:\.html)?$/.test(global.location.pathname)) {
+    const casinoParams = new URLSearchParams(global.location.search);
+    // Las pruebas del casino tampoco consumen la cola ni los locks de overlays en vivo.
+    if (casinoParams.has('preview') || casinoParams.has('test') || casinoParams.get('demo') === '1') return;
+  }
 
   const CHANNEL_NAME = 'jiko_widget_sync_bus_v1';
   const STORAGE_LOCK_KEY = 'jiko_active_widget_lock_v1';
@@ -35,7 +40,8 @@
     cajero: 20000,   // Cajero JikoBank: duración consulta ~8-14s
     perfil: 15000,   // Tarjeta de perfil: duración ~10-12s
     ruleta: 45000,   // Tragamonedas / Ruleta: 10s juego + 30s ventana inactividad
-    tragamonedas: 45000
+    tragamonedas: 45000,
+    casino: 60000
   };
 
   let bus = null;
@@ -131,6 +137,7 @@
 
   function release(widget = null) {
     const current = getActiveLock();
+    if (!current) return false;
     const isMatchingWidget = !widget || current.widget === widget ||
       ((widget === 'tragamonedas' || widget === 'ruleta') && (current.widget === 'tragamonedas' || current.widget === 'ruleta'));
 
