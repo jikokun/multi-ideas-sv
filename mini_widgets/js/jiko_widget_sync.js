@@ -21,6 +21,9 @@
 (function(global) {
   'use strict';
 
+  // En Casino, el coordinador padre administra los dos turnos y el único lock externo.
+  if (global.JikoCasinoHost) return;
+
   const CHANNEL_NAME = 'jiko_widget_sync_bus_v1';
   const STORAGE_LOCK_KEY = 'jiko_active_widget_lock_v1';
   const STORAGE_QUEUE_KEY = 'jiko_widget_queue_v1';

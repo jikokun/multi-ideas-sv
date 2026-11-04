@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Casino de Jiko · Ruleta & Tragamonedas</title>
+  <link rel="icon" href="../imagenes/iconos_generales/multiideassv_ico.webp" type="image/webp">
+  <link rel="stylesheet" href="./css/jiko_casino.css">
+  <script src="./js/jiko_widget_sync.js"></script>
+  <script src="./js/jiko_casino.js"></script>
+  <script defer src="./js/jiko_casino_ui.js"></script>
+</head>
+<body>
+  <main id="casino-stage" aria-label="Casino de Jiko">
+    <section class="game-pane" id="pane-ruleta" aria-label="Ruleta">
+      <iframe id="game-ruleta" title="Ruleta europea" allow="autoplay"></iframe>
+      <div class="game-queue" id="queue-ruleta" hidden></div>
+    </section>
+    <section class="game-pane" id="pane-tragamonedas" aria-label="Tragamonedas">
+      <iframe id="game-tragamonedas" title="Tragamonedas 777" allow="autoplay"></iframe>
+      <div class="game-queue" id="queue-tragamonedas" hidden></div>
+    </section>
+  </main>
+
+  <aside id="casino-dock" hidden aria-label="Controles de casino">
+    <strong>♠ CASINO DE JIKO</strong>
+    <span id="casino-status" role="status">Conectando…</span>
+    <button id="open-settings">⚙ Ajustes</button>
+    <button id="hide-dock" aria-label="Ocultar controles">✕</button>
+  </aside>
+
+  <dialog id="casino-settings" aria-labelledby="settings-title">
+    <header>
+      <div><small>UN OVERLAY · DOS JUEGOS</small><h1 id="settings-title">Casino de Jiko</h1></div>
+      <button id="close-settings" aria-label="Cerrar ajustes">✕</button>
+    </header>
+    <nav aria-label="Configuración">
+      <button data-tab="general" class="active">General</button>
+      <button data-tab="ruleta">Ruleta</button>
+      <button data-tab="tragamonedas">Tragamonedas</button>
+      <button data-tab="pruebas">Pruebas</button>
+    </nav>
+    <div class="settings-content">
+      <section data-panel="general">
+        <p>Abre con <code>!ruleta</code> o <code>!slot</code>. Cada usuario controla su propio turno. <code>!girar</code> y <code>!salir</code> siguen el último juego que eligió.</p>
+        <label>Tema de ambos juegos<select data-config="theme"><option value="vegas">Vegas Dorado</option><option value="cyber">Cyber Neón</option><option value="glass">Liquid Glass</option><option value="crimson">Casino Carmesí</option></select></label>
+        <label>Inactividad por turno <span><input data-config="inactivity" type="number" min="5" max="300" step="5"> segundos</span></label>
+        <label>Visibilidad<select data-config="always"><option value="false">Automática al jugar</option><option value="true">Ambos juegos siempre visibles</option></select></label>
+        <label>Escala de los juegos<input data-config="scale" type="range" min="0.55" max="1" step="0.05"></label>
+        <label>Sonido<input data-config="sound" type="checkbox"></label>
+        <label>Volumen de tragamonedas<input data-config="volume" type="range" min="0" max="1" step="0.05"></label>
+        <label>Servidor Streamer.bot<input data-config="host" type="text" placeholder="127.0.0.1" autocomplete="off"></label>
+        <label>Puerto Streamer.bot<input data-config="port" type="number" min="1" max="65535"></label>
+        <button id="reconnect">Reconectar Streamer.bot</button>
+        <button id="copy-casino-url" class="primary">Copiar enlace único para OBS</button>
+        <p>Fuente de navegador OBS: <b>1920 × 1080</b>. Abre estos ajustes con doble clic en el fondo o con <kbd>C</kbd>. <kbd>T</kbd> muestra los controles.</p>
+      </section>
+      <section data-panel="ruleta" hidden>
+        <p><code>!ruleta</code> → <code>!apostar 50 rojo</code> → <code>!girar</code>. Hasta 3 opciones y 1,000 JP por tirada.</p>
+        <label>Duración del giro <span><input data-config="rouletteDuration" type="number" min="2.5" max="12" step="0.5"> segundos</span></label>
+        <label>Celebración al ganar <span><input data-config="rouletteReturn" type="number" min="1" max="10" step="0.5"> segundos</span></label>
+        <label>Mostrar tabla de premios al girar<input data-config="rouletteTable" type="checkbox"></label>
+        <button data-close-game="ruleta">Finalizar turno de ruleta y devolver apuestas pendientes</button>
+        <p>Rojo/negro, par/impar y mitades pagan ×2. Número exacto y cero pagan ×36. Las apuestas sin jugar se devuelven al salir o por inactividad.</p>
+      </section>
+      <section data-panel="tragamonedas" hidden>
+        <p><code>!slot</code> → <code>!girar 50</code>. También acepta <code>!tragamonedas</code>, <code>!slots</code> y <code>!tragamoneda</code>.</p>
+        <label>Título de la máquina<input data-config="slotTitle" type="text" maxlength="24"></label>
+        <label>Giro y celebración <span><input data-config="slotDuration" type="number" min="3" max="25"> segundos</span></label>
+        <label>Mostrar tabla de premios al girar<input data-config="slotTable" type="checkbox"></label>
+        <fieldset><legend>Pesos de probabilidad</legend>
+          <label>Perder<input data-weight="lose" type="number" min="0" max="100"></label>
+          <label>Premio pequeño<input data-weight="small" type="number" min="0" max="100"></label>
+          <label>Premio intermedio<input data-weight="medium" type="number" min="0" max="100"></label>
+          <label>Premio grande<input data-weight="big" type="number" min="0" max="100"></label>
+          <label>Pantalla completa ×100<input data-weight="full" type="number" min="0" max="100"></label>
+        </fieldset>
+        <p>Los pesos se normalizan entre sí. Se conservan las ocho líneas de pago y sus multiplicadores.</p>
+        <button data-close-game="tragamonedas">Finalizar turno de tragamonedas</button>
+      </section>
+      <section data-panel="pruebas" hidden>
+        <p id="test-mode-description"></p>
+        <label>Usuario<input id="test-user" type="text" value="espectador_demo" autocomplete="off"></label>
+        <label>Comando<input id="test-command" type="text" value="!ruleta" autocomplete="off"></label>
+        <button id="send-command" class="primary">Enviar comando</button>
+        <div class="button-grid">
+          <button data-command="!ruleta">!ruleta</button><button data-command="!slot">!slot</button>
+          <button data-command="!apostar 50 rojo">!apostar 50 rojo</button><button data-command="!girar">!girar</button>
+          <button data-command="!girar 25">!girar 25</button><button data-command="!salir">!salir</button>
+        </div>
+        <button id="demo-both">Probar ruleta (@demo) y tragamonedas (@lobito) a la vez</button>
+        <output id="turn-status" aria-live="polite"></output>
+      </section>
+    </div>
+  </dialog>
+</body>
+</html>

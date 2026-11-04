@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Orbitron:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
 <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+<script src="./js/jiko_casino_bridge.js"></script>
 <script src="./js/jiko_widget_sync.js"></script>
 
 <style>
@@ -3305,7 +3306,7 @@
     }
   }
 
-  conectarStreamerBot();
+  if (!window.JikoCasinoHost) conectarStreamerBot();
 
   /* =====================================================
      15. POSTMESSAGE LISTENER (PRUEBA.HTML / OBS EMBED)
@@ -3328,6 +3329,26 @@
   /* =====================================================
      16. INICIALIZACIÓN
      ===================================================== */
+  if (window.JikoCasinoHost) {
+    window.JikoCasinoHost.register('ruleta', {
+      win: window,
+      state: state,
+      root: widgetEl,
+      table: paytableEl,
+      command: processRouletteCommand,
+      status: function() {
+        return { visible: ruletaVisible, spinning: state.isSpinning, pending: !!state.chatTransactionPending };
+      },
+      show: mostrarRuleta,
+      close: function() {
+        ocultarRuleta();
+        if (!ruletaVisible) window.JikoWidgetSync.release('ruleta');
+      },
+      sound: function(enabled) { state.soundEnabled = enabled; },
+      refresh: updateBettingUI
+    });
+  }
+
   buildExactNumbersGrid();
   renderHistoryStrip();
   updateBettingUI();
@@ -3382,7 +3403,7 @@
     }
   }
 
-  iniciarConexionFirebase();
+  if (!window.JikoCasinoHost) iniciarConexionFirebase();
 </script>
 </body>
 </html>

@@ -12,6 +12,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Cinzel:wght@700;900&family=Outfit:wght@500;600;700;800&family=Rajdhani:wght@600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 
 <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+<script src="./js/jiko_casino_bridge.js"></script>
 <script src="./js/jiko_widget_sync.js"></script>
 
 <style>
@@ -3992,7 +3993,7 @@
     }
   }
 
-  conectarStreamerBot();
+  if (!window.JikoCasinoHost) conectarStreamerBot();
 
   /* =====================================================
      INTEGRACIÓN EN MODO TEST / LABORATORIO
@@ -4157,6 +4158,33 @@
   window.mostrarRuleta = mostrarRuleta;
   window.ocultarRuleta = ocultarRuleta;
   window.triggerSpin = triggerSpin;
+  if (window.JikoCasinoHost) {
+    window.JikoCasinoHost.register('tragamonedas', {
+      win: window,
+      state: state,
+      root: slotWrapper,
+      table: payoutBoardWrapper,
+      command: function(text, sender) {
+        var parts = text.trim().split(/\s+/);
+        var cmd = parts.shift();
+        return procesarComandoTragamonedas({
+          action: cmd === '!salir' ? 'SALIR' : cmd === '!girar' ? 'GIRAR' : 'ACTIVAR',
+          sender: sender,
+          params: parts
+        });
+      },
+      status: function() { return { visible: ruletaVisible, spinning: state.isSpinning, pending: false }; },
+      show: mostrarRuleta,
+      close: function() {
+        if (state.isSpinning) return;
+        state.pendingNextSpin = null;
+        ocultarRuleta(true);
+        window.JikoWidgetSync.release('tragamonedas');
+      },
+      sound: function(enabled, volume) { state.volume = enabled ? volume : 0; },
+      refresh: updateDashboardUI
+    });
+  }
 })();
 </script>
 
@@ -4201,7 +4229,7 @@
     }
   }
 
-  iniciarConexionFirebase();
+  if (!window.JikoCasinoHost) iniciarConexionFirebase();
 </script>
 </body>
 </html>
