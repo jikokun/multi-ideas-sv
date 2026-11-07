@@ -7,9 +7,7 @@
 3. Añade ese enlace como una segunda fuente de navegador de **1920 × 1080**. Ambas fuentes deben poder conectarse a Firebase. Usa el enlace HTTPS del sitio publicado; abrir archivos mediante `file://` puede impedir cargar módulos de JavaScript.
 4. Coloca la fuente de sobres por encima de **Tiendita** en la lista de fuentes de OBS y déjala visible. No tiene fondo ni rótulos y permanece vacía mientras espera.
 
-La tiendita muestra la mesa y el mesero. El tarjetero dibuja los sobres desde la entrega, los conserva mientras se retira el mesero y los abre en esa misma zona. Si no hay un tarjetero disponible, la tiendita muestra sus imágenes habituales y el recibo queda esperando apertura. No hace falta un segundo comando.
-
-Los sobres de la entrega esperan 1,2 segundos antes de aparecer con una entrada suave de 0,3 segundos, para que la mesa llegue primero. Después permanecen visibles durante la retirada del mesero y el inicio de la apertura.
+La tiendita muestra el sobre como cualquier producto, junto con la mesa y el mesero. Cuando desaparecen por completo la mesa, el mesero y sus productos, el tarjetero invoca el sobre con su animación de entrada en la zona compacta y comienza la apertura. Si no hay un tarjetero disponible, el recibo queda esperando apertura. No hace falta un segundo comando.
 
 El carrusel, las aperturas, los estilos y la recepción de turnos están integrados en **`laboratorio/tarjetero.html`**. La fuente ocupa un lienzo transparente de 1920 × 1080, pero las aperturas comunes se concentran abajo a la izquierda, en la zona de la mesa. Una especial o superior amplía el sobre y las cartas para conservar su animación destacada. `!mostrarcartas [rareza]` utiliza un carrusel pequeño junto al borde inferior izquierdo.
 

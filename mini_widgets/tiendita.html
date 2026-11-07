@@ -460,7 +460,6 @@
     position:absolute;bottom:11%;left:3%;right:3%;height:55%;
     pointer-events:none;z-index:2;
   }
-  .mesero-mesa.external-tcg-packs .plato-cluster[data-item-key="sobre"] { visibility:hidden; }
 
   /* Filas de la mesa: Atrás (perspectiva profunda) y Adelante (primer plano) */
   .mesa-fila{
@@ -4873,7 +4872,7 @@
 
   function mostrarMeseroEntrega(user, platos, options = {}){
     if(!$meseroOverlay || !$meseroMesa) return;
-    $meseroMesa.classList.toggle('external-tcg-packs', !!options.externalPacks);
+    $meseroMesa.classList.remove('external-tcg-packs');
 
     // Sonido de servicio en restaurante
     playSfx('serve');
@@ -5002,14 +5001,11 @@
   window.iniciarSobresTiendita = function(cloud) {
     if (isPreview || parent !== window || window._tcgDeliveryStarted) return;
     window._tcgDeliveryStarted = true;
-    cloud.startWorker('delivery', async (job, signal) => {
-      const externalPacks = await cloud.waitForPresentation(job.id, signal);
-      return new Promise((resolve, reject) => {
+    cloud.startWorker('delivery', (job, signal) => new Promise((resolve, reject) => {
       if (!$meseroOverlay || !$meseroMesa) { reject(new Error('No está disponible la escena de entrega.')); return; }
       window.JikoWidgetSync?.acquire('tarjetero', job.user, 180000);
-      mostrarMeseroEntrega(job.user, job.receipt.items, { signal, externalPacks, onComplete: resolve, onAbort: () => reject(new Error('Entrega interrumpida; permanece en Firebase.')) });
-      });
-    }, () => {
+      mostrarMeseroEntrega(job.user, job.receipt.items, { signal, onComplete: resolve, onAbort: () => reject(new Error('Entrega interrumpida; permanece en Firebase.')) });
+    }), () => {
       const lock = window.JikoWidgetSync?.getActiveLock();
       return !$menu.classList.contains('visible') && !$meseroOverlay?.classList.contains('visible') && !$cardPerfil?.classList.contains('visible') && (!lock || lock.widget === 'tarjetero');
     });

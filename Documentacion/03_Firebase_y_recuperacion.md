@@ -36,7 +36,7 @@ Los estados son `reserved` → `ready` → `delivering` → `awaiting_open` → 
 
 La fuente Tiendita es la única que toma el turno de entrega. La fuente Tarjetero toma el de apertura después de que el mesero se haya retirado por completo. Cada turno tiene un token y un vencimiento de 30 segundos, renovado cada cinco segundos mientras se reproduce. Una segunda fuente no puede confirmar el trabajo de la primera con otro token.
 
-Durante `delivering`, el tarjetero prepara la pila de sobres en su zona compacta y confirma `presentationReadyAt` en ese mismo trabajo de Firebase. La tiendita espera brevemente esa confirmación antes de mostrar al mesero; si llega, oculta sus propias imágenes de sobres y deja que el tarjetero las conserve durante la retirada de la mesa. Si no llega, muestra la entrega habitual. La apertura sigue necesitando el turno exclusivo `awaiting_open` → `opening`; preparar imágenes no concede cartas ni vuelve a sortear el premio.
+Durante `delivering`, la tiendita dibuja todos los productos de la mesa, incluidos los sobres. Al finalizar la salida del mesero, vacía las filas de productos y confirma la entrega; entonces el trabajo pasa a `awaiting_open`. El tarjetero obtiene el turno exclusivo `opening` y comienza la invocación del sobre en su posición compacta. Las imágenes se cargan antes de iniciar esa animación. Cada fuente muestra su parte de la secuencia en el turno correspondiente.
 
 Si una fuente se cierra, el turno vence y otra puede recuperar la solicitud. Las aperturas ya terminadas de una compra múltiple tienen un punto de control. Una interrupción justo antes de guardar ese punto puede repetir la animación del mismo premio; no repite el cobro, las cartas ni la XP.
 
