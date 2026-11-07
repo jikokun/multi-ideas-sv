@@ -2361,6 +2361,7 @@
           </div>
 
           <!-- Barra de Progreso XP -->
+          <div data-tcg-summary></div>
           <div class="pc-xp-sec">
             <div class="pc-xp-lbl">
               <span>EXP TOTAL</span>
@@ -2399,7 +2400,8 @@
           <span class="test-card-title-empty">Sin títulos ganados aún</span>
         </div>
       </div>
-      <div class="test-card-xp">
+      <div data-tcg-summary></div>
+          <div class="test-card-xp">
         <div class="test-card-xp-head">
           <span>EXPERIENCIA</span>
           <span class="test-card-xp-total" id="ti-test-card-xp-total">0 XP TOTAL</span>
@@ -2468,11 +2470,15 @@
   </div>
 
 <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
+<script src="./js/jiko_tcg_profile.js"></script>
 <script src="./js/jiko_widget_sync.js"></script>
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
+  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js';
+  TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
+  initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
@@ -2947,6 +2953,7 @@
   }
 
   function calcularDatosPerfilTiendita(u) {
+    window.renderTcgProfile?.(u.tarjetas || {});
     if (!u) u = {};
     const normUser = norm(u.username || u.displayName || 'usuario');
     const displayName = String(u.nombreTarjeta || u.username || 'Usuario').trim();
@@ -4619,13 +4626,40 @@
   }
 
   /* ═══════════ PROCESAR PAGO DE LA ORDEN & MOSTRAR MESERO ═══════════ */
-  function procesarPagoOrden(){
+  let pagoTcgPendiente = false;
+  let pagoTcgId = null;
+  async function procesarPagoOrden(){
+    if (pagoTcgPendiente) return;
     if(ordenActual.length === 0){
       toast(`⚠️ Tu orden está vacía. Elige un producto primero.`,'warn');
       playSfx('error');
       return;
     }
 
+    if (ordenActual.some(item => item.key === 'sobre')) {
+      const cloud = window.JikoTcgCloud;
+      if (!cloud?.ready) { toast('Firebase de tarjetas aún no está disponible. No se cobró la orden.', 'warn'); return; }
+      if (isPreview || parent !== window) { toast('La vista previa no realiza compras reales de sobres. Usa la fuente en vivo.', 'warn'); return; }
+      pagoTcgPendiente = true;
+      pagoTcgId ||= cloud.id();
+      if (btnPagar) btnPagar.disabled = true;
+      cancelAnimationFrame(cdRaf);
+      try {
+        const receipt = await cloud.purchase(window.StreamDB?.resolverUsuarioReal(usuarioActual) || usuarioActual, [...ordenActual], pagoTcgId);
+        saldoActual = receipt.nuevoSaldo;
+        animarPuntos(saldoActual);
+        playSfx('buy');
+        // El saldo ya se descontó en la misma transacción que guardó las cartas.
+        // No llamar setUserPoints ni registrarCompra para este recibo.
+        ocultarMenu();
+        toast(`✦ Compra confirmada: ${receipt.packs.length} sobre(s), −${receipt.costoTotal} Jikopuntos. Entrega y apertura en cola.`);
+        pagoTcgId = null;
+      } catch (error) {
+        toast(String(error.message).replace(/[<>&]/g, ''), 'warn');
+        iniciarCd(AUTO_CIERRE_MS);
+      } finally { pagoTcgPendiente = false; if (btnPagar) btnPagar.disabled = false; }
+      return;
+    }
     const total = ordenActual.reduce((acc, it) => acc + it.precio, 0);
     const user = usuarioActual;
 
@@ -4816,7 +4850,7 @@
     });
   }
 
-  function mostrarMeseroEntrega(user, platos){
+  function mostrarMeseroEntrega(user, platos, options = {}){
     if(!$meseroOverlay || !$meseroMesa) return;
 
     // Sonido de servicio en restaurante
@@ -4917,19 +4951,44 @@
     console.log(`[Tiendita] 🍽️ Mesero entregando orden de @${user} (${totalPlatos} platillos):`, platos.map(p => p.nombre));
 
     if(meseroTimer) clearTimeout(meseroTimer);
+    let salidaTcgTimer = null;
+    const abortDelivery = () => {
+      clearTimeout(meseroTimer); clearTimeout(salidaTcgTimer);
+      $meseroOverlay.classList.remove('visible', 'saliendo');
+      document.body.classList.remove('mesero-activo');
+      if ($filaAtras) $filaAtras.innerHTML = '';
+      if ($filaAdelante) $filaAdelante.innerHTML = '';
+      options.onAbort?.();
+    };
+    options.signal?.addEventListener('abort', abortDelivery, { once: true });
     meseroTimer = setTimeout(()=>{
       // Retirar mesero suavemente tras 9 segundos
       $meseroOverlay.classList.add('saliendo');
-      setTimeout(()=>{
+      salidaTcgTimer = setTimeout(()=>{
         $meseroOverlay.classList.remove('visible', 'saliendo');
         document.body.classList.remove('mesero-activo');
         if($filaAtras) $filaAtras.innerHTML = '';
         if($filaAdelante) $filaAdelante.innerHTML = '';
         if(demoZone && (!isOverlayMode || isPreview)) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
+        options.signal?.removeEventListener('abort', abortDelivery);
+        options.onComplete?.();
       }, 600);
     }, 9000);
   }
+
+  window.iniciarSobresTiendita = function(cloud) {
+    if (isPreview || parent !== window || window._tcgDeliveryStarted) return;
+    window._tcgDeliveryStarted = true;
+    cloud.startWorker('delivery', (job, signal) => new Promise((resolve, reject) => {
+      if (!$meseroOverlay || !$meseroMesa) { reject(new Error('No está disponible la escena de entrega.')); return; }
+      window.JikoWidgetSync?.acquire('tarjetero', job.user, 180000);
+      mostrarMeseroEntrega(job.user, job.receipt.items, { signal, onComplete: resolve, onAbort: () => reject(new Error('Entrega interrumpida; permanece en Firebase.')) });
+    }), () => {
+      const lock = window.JikoWidgetSync?.getActiveLock();
+      return !$menu.classList.contains('visible') && !$meseroOverlay?.classList.contains('visible') && !$cardPerfil?.classList.contains('visible') && (!lock || lock.widget === 'tarjetero');
+    });
+  };
 
   /* ═══════════ PROCESADOR DE COMANDOS ═══════════ */
   function parsearMonto(str) {
@@ -4993,6 +5052,15 @@
   function ejecutarTexto(raw, user=usuarioActual, meta=null){
     const t = norm(raw);
     if(!t) return;
+    const cardsCommand = t.match(/^!mostrarcartas(?:\s+(.+))?$/);
+    if (cardsCommand) {
+      if (!window.JikoTcgCloud?.ready) { toast('Firebase de tarjetas aún no está conectado.', 'warn'); return; }
+      window.JikoTcgCloud.showCollection(window.StreamDB?.resolverUsuarioReal(user) || user, cardsCommand[1] || '')
+        .then(() => toast('✦ Tus últimas cartas quedaron en la cola de visualización.'))
+        .catch(error => toast(String(error.message).replace(/[<>&]/g, ''), 'warn'));
+      return;
+    }
+    if (pagoTcgPendiente) return;
 
     // Activación del tarjetero TCG desde el mismo chat conectado a Tiendita.
     // El widget OBS escucha este comando en stream/widgets/tarjetas/command.

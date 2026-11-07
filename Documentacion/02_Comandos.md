@@ -1,0 +1,35 @@
+# Comandos y turnos de las cartas
+
+| Comando | Función |
+| --- | --- |
+| `!tienda` o `!tiendita` | Abrir la tiendita y obtener el turno de compra. |
+| `!sobre` | Añadir un sobre a la orden del usuario que tiene abierta la tienda. |
+| `!sobre 2` | Añadir dos sobres, sujeto al límite configurado por compra. |
+| `!comprar` o `!pagar` | Pagar la orden. La entrega y la apertura quedan enlazadas automáticamente. |
+| `!mostrarcartas` | Mostrar en un carrusel pequeño las últimas cinco cartas obtenidas por el emisor. |
+| `!mostrarcartas comun` | Mostrar sus últimas cinco comunes. También acepta `comunes`. |
+| `!mostrarcartas especial` | Mostrar sus últimas cinco especiales. También acepta `especiales`. |
+| `!mostrarcartas raro` | Mostrar sus últimas cinco raras. Acepta `rara`, `raras` y `raros`. |
+| `!mostrarcartas epica` | Filtrar épicas. Si el usuario no posee ninguna, informa sin encolar una animación. |
+| `!mostrarcartas legendaria` | Mostrar sus últimas cinco legendarias. Acepta variantes masculina y plural. |
+| `!mostrarcartas mitica` | Filtrar míticas cuando existan cartas obtenidas de esa rareza. |
+
+Los filtros aceptan mayúsculas y acentos. El usuario solo solicita sus propias cartas; el argumento del comando es una rareza, no el nombre de otro usuario.
+
+## Control de uso
+
+- Una solicitud pendiente por usuario, incluyendo compras de sobres y carruseles.
+- Cooldown mínimo de **20 segundos por usuario**, compartido entre todos los filtros. Cambiar `comun` por `legendaria` no lo reinicia.
+- Separación global mínima de **20 segundos entre el inicio de dos solicitudes**.
+- Cola FIFO compartida en Firebase, con capacidad inicial de **20 solicitudes**.
+- Las compras no se descartan al quedar en espera. Si la cola está llena antes de confirmar una compra, no se cobran los puntos.
+- Un carrusel dura inicialmente 12 segundos. Los siguientes esperan su turno, sin reemplazar el carrusel actual.
+- Una compra con varios sobres termina sus aperturas antes de comenzar la siguiente solicitud.
+
+La tiendita recibe el chat mediante sus conexiones actuales de Kick y Streamer.bot. El comando se transforma en una solicitud en Firebase; el tarjetero no necesita una conexión de chat adicional.
+
+## Controles de operador
+
+`tarjetero.html?controls=true` abre un panel local de prueba visual. Las pruebas no cobran puntos, no añaden cartas a perfiles y no consumen compras reales de la cola. El enlace `?obs=true` se reserva para la fuente en vivo que consume los turnos confirmados de Firebase.
+
+Los comandos antiguos del mostrador (`!tarjetasjikokun`, `!rotar`, `!carta`, entre otros) permanecen en el respaldo y no se utilizan para las colecciones personales nuevas.

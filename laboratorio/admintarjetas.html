@@ -281,6 +281,26 @@
 
     </div>
 
+    <section id="tcg-commerce-panel" class="cyber-panel p-4 rounded-xl border border-emerald-500/30 space-y-4">
+      <div class="flex items-center gap-4"><img id="tcg-admin-pack-image" src="https://lh3.googleusercontent.com/d/1YqH7yeTZkVAtZUSnbB-YzqV2Xffcm55K" alt="Sobre de cartas" class="w-16 h-24 object-contain"><div><h2 class="font-orbitron text-sm font-bold text-emerald-300">SOBRES · TIENDITA Y COLECCIONES</h2><p id="tcg-admin-status" role="status" class="text-xs text-slate-400 mt-2">Conectando el catálogo de sobres a Firebase…</p></div></div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        <label>Nombre del producto<input id="tcg-product-name" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1" value="Sobre"></label>
+        <label>Precio en Jikopuntos<input id="tcg-product-price" type="number" min="1" max="1000000" value="1500" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>XP por repetida (% del precio)<input id="tcg-duplicate-xp" type="number" min="0.1" max="5" step="0.1" value="1" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Máximo de sobres por compra<input id="tcg-max-packs" type="number" min="1" max="5" value="3" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Cooldown por usuario (s)<input id="tcg-user-cooldown" type="number" min="20" max="300" value="20" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Separación global mínima (s)<input id="tcg-global-cooldown" type="number" min="20" max="300" value="20" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Duración del carrusel (s)<input id="tcg-carousel-duration" type="number" min="6" max="15" value="12" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Exhibición del premio (s)<input id="tcg-reveal-duration" type="number" min="4" max="20" value="8" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label>Capacidad de la cola<input id="tcg-queue-capacity" type="number" min="1" max="30" value="20" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label>
+        <label class="flex gap-2 items-center"><input id="tcg-product-active" type="checkbox" checked> Sobre disponible en la tiendita</label>
+      </div>
+      <div class="grid md:grid-cols-2 gap-3 text-xs"><label>Imagen frontal del sobre<input id="tcg-product-front" type="url" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label><label>Imagen trasera del sobre<input id="tcg-product-back" type="url" class="w-full bg-slate-900 border border-slate-700 rounded p-2 mt-1"></label></div>
+      <div class="flex gap-3 flex-wrap"><button id="tcg-save-commerce" type="button" disabled class="bg-emerald-700 hover:bg-emerald-600 rounded px-4 py-2 text-xs font-bold">Guardar producto y ajustes en Firebase</button><button id="tcg-publish-catalog" type="button" disabled class="bg-cyan-900 hover:bg-cyan-800 rounded px-4 py-2 text-xs font-bold">Publicar colección 001–100 en Firebase</button><a href="../Documentacion/README.md" target="_blank" class="text-xs text-cyan-300 p-2">Manuales y comandos ↗</a></div>
+      <p class="text-xs text-slate-400">Compra: !tienda → !sobre → !comprar. Colección: !mostrarcartas o !mostrarcartas [rareza]. Una solicitud pendiente por usuario; los cambios de filtro comparten el mismo cooldown.</p>
+      <div class="rounded bg-slate-950/60 p-3"><p class="text-xs font-bold text-emerald-300 mb-2">COLA EN LA NUBE</p><div id="tcg-admin-queue" class="text-xs text-slate-400">Sin solicitudes.</div></div>
+    </section>
+
     <!-- ═══════════ CONFIGURACIÓN DEL EXPOSITOR 3D (OBS & STREAMER.BOT) ═══════════ -->
     <div class="cyber-panel p-4 rounded-xl border border-cyan-500/30 space-y-4">
       <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pb-2 border-b border-slate-800">
@@ -1019,6 +1039,7 @@
 
     // Estado Global de Colecciones
     let allCollections = {};
+    window.getTcgAdminCatalog = () => allCollections['Coleccion_Jikokun_001-100']?.cards || window.DEFAULT_JIKOKUN_COLLECTIONS?.['Coleccion_Jikokun_001-100']?.cards;
     let activeCollectionId = 'Coleccion_Jikokun_00-33';
     let currentCards = [];
     let activeFilter = 'TODOS';
@@ -2127,12 +2148,14 @@
         let collectionsDetected = 0;
         subfolders.forEach(sf => {
           if (sf.name.toLowerCase().includes('reverso')) return;
+          const folderKey = sf.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          if (folderKey === 'documentacion' || /^sobres?[_\s-]/.test(folderKey)) return;
 
           const colId = sf.name;
           const colName = sf.name.replace(/_/g, ' ');
 
           // Procesar las cartas de esta carpeta
-          const importedCards = sf.files.map((file, i) => {
+          const importedCards = sf.files.filter(file => String(file.mimeType || '').startsWith('image/')).map((file, i) => {
             const fn = file.name.replace(/\.png$/i, '');
             let rarity = 'COMÚN';
             const lower = fn.toLowerCase();
@@ -2220,5 +2243,6 @@
       initCollections();
     };
   </script>
+  <script type="module" src="tarjetero_admin_cloud.js"></script>
 </body>
 </html>
