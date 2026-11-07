@@ -1825,7 +1825,7 @@
     return parsed === 1 ? "SUB" : "SUBS";
   }
 
-  function triggerFullCelebration(customNumber, customKind) {
+  function triggerFullCelebration(customNumber, customKind, months) {
     clearSequenceTimers();
     state.isAnimating = true;
 
@@ -1841,7 +1841,7 @@
 
     var chosenNumber = isSubscriberActive() ? String(customNumber) : resolveRandomOrFixedNumber(customNumber);
     var numericVal = parseInt(String(chosenNumber).replace(/[^0-9]/g, ""), 10);
-    var labelWord = isSubscriberActive() ? "Se acaba de suscribir" : resolveEventLabel(chosenNumber, state.currentEventKind);
+    var labelWord = isSubscriberActive() ? (months !== undefined ? (months > 0 ? "Se re suscribi? x" + months + (months === 1 ? " mes" : " meses") : "Se re suscribi?") : "Se acaba de suscribir") : resolveEventLabel(chosenNumber, state.currentEventKind);
 
     if (!isSubscriberActive() && !isNaN(numericVal) && numericVal >= 1) {
       if (state.currentEventKind === "KICKS") {
@@ -1938,7 +1938,7 @@
       if (state.giftQueue.length > 0) {
         var nextItem = state.giftQueue.shift();
         if (nextItem && typeof nextItem === "object") {
-          triggerFullCelebration(nextItem.count, nextItem.kind);
+          triggerFullCelebration(nextItem.count, nextItem.kind, nextItem.months);
         } else {
           triggerFullCelebration(nextItem, "SUBS");
         }
@@ -1948,6 +1948,30 @@
   }
 
   // Función que conecta la variable de SUBS REGALADAS (1 en adelante) con la celebración
+  function procesarSuscripcion(username, renewal, months) {
+    var name = String(username || "").trim();
+    if (!name) return;
+    var count = renewal ? (extractPositiveInt(months) || 0) : undefined;
+    var message = renewal ? (count ? " se re suscribi? x" + count + (count === 1 ? " mes" : " meses") : " se re suscribi?") : " se acaba de suscribir";
+    if (wsLastEvent) wsLastEvent.textContent = "? " + name + message;
+    if (labelLastSubsVar) labelLastSubsVar.textContent = name + " ? SUB";
+    if (state.isAnimating) state.giftQueue.push({ count: name, kind: "SUBSCRIBER", months: count });
+    else triggerFullCelebration(name, "SUBSCRIBER", count);
+  }
+
+  function extractSubscriptionMonths(payload) {
+    if (!payload || typeof payload !== "object") return 0;
+    var sources = [payload, payload.user, payload.data, payload.arguments, payload.variables];
+    var keys = ["monthsSubscribed", "months_subscribed", "cumulative", "cumulativeMonths", "months", "durationMonths", "duration"];
+    for (var i = 0; i < keys.length; i++) {
+      for (var j = 0; j < sources.length; j++) {
+        var value = extractPositiveInt(getByPathOrKey(sources[j], keys[i]));
+        if (value > 0) return value;
+      }
+    }
+    return 0;
+  }
+
   function procesarSubsRegaladas(cantidad, gifterName) {
     var num = parseInt(String(cantidad).replace(/[^0-9]/g, ""), 10);
     if (isNaN(num) || num < 1) return;
@@ -2296,6 +2320,13 @@
     }
 
     // 2. Evento Custom de Streamer.bot (Broadcast WebSocket o Acción personalizada)
+    var isNewSubscription = (source === "kick" && evType === "subscription") || (source === "twitch" && evType === "sub");
+    var isRenewal = (source === "kick" && evType === "resubscription") || (source === "twitch" && evType === "resub");
+    if (isNewSubscription || isRenewal) {
+      procesarSuscripcion(extractGifterUsername(payload), isRenewal, extractSubscriptionMonths(payload));
+      return;
+    }
+
     if (source === "general" || source === "streamerbot" || evType === "custom") {
       var customPayload = (payload && payload.data) ? payload.data : payload;
       if (typeof customPayload === "string") {
@@ -2303,6 +2334,12 @@
       }
 
       // Si el payload contiene variables de Kicks (%kicks.amount%, kicks, etc.), lanzar celebración de KICKS
+      var customType = String(customPayload && (customPayload.kind || customPayload.eventType || customPayload.type) || "").toLowerCase();
+      if (/^(subscription|subscribe|subscriber|sub|resub|resubscription)$/.test(customType)) {
+        procesarSuscripcion(extractGifterUsername(customPayload), customType === "resub" || customType === "resubscription", extractSubscriptionMonths(customPayload));
+        return;
+      }
+
       if (hasExplicitKicksData(customPayload)) {
         var customKicks = extractKicksAmountFromPayload(customPayload, false);
         if (customKicks >= 1) {
@@ -2368,10 +2405,6 @@
       return;
     }
 
-    if ((source === "kick" && (evType === "subscription" || evType === "resubscription")) ||
-        (source === "twitch" && (evType === "sub" || evType === "resub" || evType === "subscription"))) {
-      procesarSuscripcion(extractGifterUsername(payload));
-    }
   }
 
   function connectStreamerBot() {
@@ -2411,28 +2444,8 @@
           id: "jikokun-epic-subs-kicks-celebration",
           events: {
             General: ["Custom"],
-            StreamerBot: ["Custom"],
-            Kick: [
-              "KicksGifted",
-              "Kicks",
-              "GiftedKicks",
-              "RewardGift",
-              "GiftSubscription",
-              "MassGiftSubscription",
-              "SubBomb",
-              "GiftedSubscriptions",
-              "MassGiftedSubscriptions",
-              "Subscription",
-              "*"
-            ],
-            Twitch: [
-              "Sub",
-              "ReSub",
-              "GiftSub",
-              "GiftBomb",
-              "SubGift",
-              "CommunitySubGift"
-            ],
+            Kick: ["KicksGifted", "GiftSubscription", "MassGiftSubscription", "Subscription", "Resubscription"],
+            Twitch: ["Sub", "ReSub", "GiftSub", "GiftBomb"],
             YouTube: [
               "MembershipGift",
               "GiftMembershipReceived"
@@ -2558,6 +2571,11 @@
   document.getElementById("btn-test-subscriber").addEventListener("click", function (e) {
     e.stopPropagation();
     procesarSuscripcion("UsuarioDePrueba");
+  });
+
+  document.getElementById("btn-test-resubscriber").addEventListener("click", function (e) {
+    e.stopPropagation();
+    procesarSuscripcion("UsuarioDePrueba", true, 6);
   });
 
   btnTest1Sub.addEventListener("click", function (e) {
@@ -2738,6 +2756,7 @@
     }
   };
   window.celebrarSuscripcion = procesarSuscripcion;
+  window.celebrarResuscripcion = function (user, months) { procesarSuscripcion(user, true, months); };
   window.celebrarSubsRegaladas = procesarSubsRegaladas;
   window.celebrarKicksEnviados = procesarKicksEnviados;
 
@@ -2747,6 +2766,8 @@
     var d = event.data;
     if (d.type === "SUBSCRIPTION" || d.type === "TRIGGER_SUBSCRIPTION") {
       procesarSuscripcion(d.user || d.username || "");
+    } else if (d.type === "RESUBSCRIPTION" || d.type === "TRIGGER_RESUBSCRIPTION") {
+      procesarSuscripcion(d.user || d.username || "", true, extractSubscriptionMonths(d));
     } else if (d.type === "GIFT_KICKS" || d.type === "TRIGGER_KICKS") {
       procesarKicksEnviados(d.kicks || d.amount || d.count || 100, d.user || "");
     } else if (d.type === "GIFT_SUBS" || d.type === "TRIGGER_SUBS") {
