@@ -669,7 +669,7 @@
 
       <div class="grid grid-cols-2 gap-2">
         <button id="btn-test-subscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar suscripción</button>
-        <button id="btn-test-resubscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar resuscripción (6 meses)</button>
+        <button id="btn-test-resubscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ff5426]">✨ Probar resuscripción (6 meses)</button>
         <button id="btn-test-follow" type="button" class="col-span-2 btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#6beef7]">💙 Probar follow</button>
       </div>
 
@@ -999,6 +999,7 @@
     wsUrl: defaultWsUrl,
     sbVarName: defaultSbVar,
     sbKicksVarName: defaultSbKicksVar,
+    currentSubscriptionRenewal: false,
     currentEventKind: "KICKS" // "SUBS" (color personalizable) o "KICKS" (siempre Verde Kick #53fc18)
   };
 
@@ -1008,6 +1009,10 @@
 
   function isSubscriberActive() {
     return state.currentEventKind === "SUBSCRIBER";
+  }
+
+  function isResubscriberActive() {
+    return isSubscriberActive() && state.currentSubscriptionRenewal;
   }
 
   function isNamedEventActive() {
@@ -1020,6 +1025,7 @@
   }
 
   function getActiveDarkPalette() {
+    if (isResubscriberActive()) return ["#751308", "#a62110", "#d82d18", "#f0341a", "#ff5426", "#ff915c"];
     if (isSubscriberActive()) return ["#714000", "#9a5b00", "#c78609", "#e6a917", "#ffc83d", "#ffe28a"];
     if (isKickGreenActive()) return KICK_DARK_PALETTE;
     if (isDefaultAquaSubColor()) return AQUA_DARK_PALETTE;
@@ -1034,6 +1040,7 @@
   }
 
   function getActiveLightPalette() {
+    if (isResubscriberActive()) return ["#f0341a", "#ff5426", "#ff915c", "#ffd0ad", "#ffffff"];
     if (isSubscriberActive()) return ["#d99a16", "#ffc83d", "#ffe28a", "#fff1c2", "#ffffff"];
     if (isKickGreenActive()) return KICK_LIGHT_PALETTE;
     if (isDefaultAquaSubColor()) return AQUA_LIGHT_PALETTE;
@@ -1176,8 +1183,8 @@
 
     // KICKS usa EXCLUSIVAMENTE el color Verde Kick (#53fc18 / #062902).
     // SUBS usa el color variable / personalizable configurado en el panel (state.shadowHex / state.shadow3dHex).
-    var activeGlowHex = isSubscriberActive() ? "#ffc83d" : (isKickGreenActive() ? "#53fc18" : state.shadowHex);
-    var active3dHex = isSubscriberActive() ? "#593000" : (isKickGreenActive() ? "#062902" : state.shadow3dHex);
+    var activeGlowHex = isResubscriberActive() ? "#ff5426" : (isSubscriberActive() ? "#ffc83d" : (isKickGreenActive() ? "#53fc18" : state.shadowHex));
+    var active3dHex = isResubscriberActive() ? "#5c1308" : (isSubscriberActive() ? "#593000" : (isKickGreenActive() ? "#062902" : state.shadow3dHex));
 
     rootStyle.setProperty("--shadow-blur-1", blur1 + "px");
     rootStyle.setProperty("--shadow-blur-2", blur2 + "px");
@@ -1195,16 +1202,20 @@
     // - Si es KICKS: siempre Verde Kick fijo (#53fc18)
     // - Si es SUBS: color personalizable del usuario (Acua Claro por defecto o cualquier color elegido)
     if (isSubscriberActive()) {
+      var renewal = isResubscriberActive();
+      var subscriptionGradient = renewal
+        ? ["#fff5ed", "#ffd0ad", "#ff5426", "#d82d18", "#751308"]
+        : ["#ffffff", "#fff0b3", "#ffc83d", "#c7830a", "#754000"];
       ["num", "sub"].forEach(function (prefix) {
-        ["#ffffff", "#fff0b3", "#ffc83d", "#c7830a", "#754000"].forEach(function (color, index) {
+        subscriptionGradient.forEach(function (color, index) {
           rootStyle.setProperty("--" + prefix + "-grad-" + (index + 1), color);
         });
       });
-      rootStyle.setProperty("--theme-neon", "#ffc83d");
-      rootStyle.setProperty("--theme-bright", "#e6a917");
-      rootStyle.setProperty("--beam-mid", "rgba(199, 131, 10, 0.78)");
-      rootStyle.setProperty("--beam-top", "rgba(255, 200, 61, 0.92)");
-      rootStyle.setProperty("--ring-border", "rgba(255, 226, 138, 0.75)");
+      rootStyle.setProperty("--theme-neon", renewal ? "#ff5426" : "#ffc83d");
+      rootStyle.setProperty("--theme-bright", renewal ? "#f0341a" : "#e6a917");
+      rootStyle.setProperty("--beam-mid", renewal ? "rgba(216, 45, 24, 0.78)" : "rgba(199, 131, 10, 0.78)");
+      rootStyle.setProperty("--beam-top", renewal ? "rgba(255, 84, 38, 0.92)" : "rgba(255, 200, 61, 0.92)");
+      rootStyle.setProperty("--ring-border", renewal ? "rgba(255, 145, 92, 0.75)" : "rgba(255, 226, 138, 0.75)");
     } else if (isKickGreenActive()) {
       rootStyle.setProperty("--num-grad-1", "#ffffff");
       rootStyle.setProperty("--num-grad-2", "#d6ffc2");
@@ -1463,6 +1474,7 @@
         var borderStroke = isDarkPiece
           ? (kickMode ? "#a8ff82" : "#8ef3ff")
           : (kickMode ? "#083b02" : "#0a3d4f");
+        if (isResubscriberActive()) borderStroke = isDarkPiece ? "#ffd0ad" : "#751308";
 
         confettiList.push({
           x: originX,
@@ -1507,6 +1519,10 @@
     var strokeLight = kickMode
       ? "#a8ff82"
       : (isDefaultAquaSubColor() ? "#8ef3ff" : tintHexWithWhite(state.shadowHex, 0.5));
+    if (isResubscriberActive()) {
+      strokeDark = "#751308";
+      strokeLight = "#ffd0ad";
+    }
 
     for (var i = 0; i < count; i++) {
       if (confettiList.length >= MAX_CONFETTI) {
@@ -1579,7 +1595,7 @@
       y: y,
       radius: 8,
       maxRadius: 120 * scale,
-      color: kickMode
+      color: isResubscriberActive() ? "#ff5426" : kickMode
         ? (Math.random() < 0.65 ? "#53fc18" : "#28c211")
         : (Math.random() < 0.65 ? "#5ce8fa" : "#25b8db"),
       alpha: 0.9
@@ -1859,6 +1875,7 @@
       ? String(customKind).toUpperCase()
       : (selectTestKind && selectTestKind.value ? selectTestKind.value.toUpperCase() : state.currentEventKind);
     state.currentEventKind = chosenKind === "FOLLOW" || chosenKind === "SUBSCRIBER" ? chosenKind : ((chosenKind === "SUBS" || chosenKind === "SUB") ? "SUBS" : "KICKS");
+    state.currentSubscriptionRenewal = isSubscriberActive() && months !== undefined;
     numberWrapper.setAttribute("data-event-kind", state.currentEventKind);
 
     // Aplicar de inmediato el tema de color correspondiente:
