@@ -38,6 +38,8 @@ button { -webkit-tap-highlight-color: transparent; }
 #obs-canvas[data-layout="expanded"] { --scene-x: 960px; --scene-y: 475.2px; --scene-scale: 1; }
 #obs-canvas[data-layout="collection"] { --scene-x: 360px; --scene-y: 940px; --scene-scale: .58; }
 #pack-reserve { position: absolute; z-index: 5; left: var(--compact-x); top: var(--compact-y); width: 0; height: 0; pointer-events: none; }
+#pack-reserve.delivery-arrival { animation: packArriveOnTable .3s ease-out 1.2s both; }
+@keyframes packArriveOnTable { from { opacity: 0; transform: translateY(12px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .reserve-sleeve { position: absolute; width: calc(310px * var(--compact-scale)); height: calc(470px * var(--compact-scale)); transform: translate(calc(-50% + var(--reserve-offset)), calc(-50% - var(--reserve-rise))); filter: drop-shadow(0 8px 12px #0008); }
 .reserve-sleeve::before { content: '✦'; position: absolute; inset: 0; display: grid; place-items: center; background: #082638; border: 1px solid #7dd3fc; border-radius: 7px; font-size: 40px; color: #7dd3fc; }
 #pack-wrapper.docked { opacity: 1; transform: none; transition: none; }
@@ -417,10 +419,11 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         }
     }
 
-    function prepareDelivery(id, count) {
+    function prepareDelivery(id, count, arrival = false) {
         if (deliveryJobId === id || state.phase !== 'idle' || !$('pack-front-art').classList.contains('loaded')) return false;
         deliveryJobId = id;
         setLayout('compact', true);
+        reserve.classList.toggle('delivery-arrival', arrival);
         setReserveCount(count);
         setPhase('delivery');
         return true;
@@ -701,7 +704,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         if (frameId !== null) cancelAnimationFrame(frameId);
         frameId = null; particles = []; previousFrame = null;
         if (ctx) ctx.clearRect(0, 0, 1920, 1080);
-        if (!keepReserve) { setReserveCount(0); deliveryJobId = null; }
+        if (!keepReserve) { setReserveCount(0); deliveryJobId = null; reserve.classList.remove('delivery-arrival'); }
         audioNodes.forEach(node => { try { node.stop(); } catch (_) {} });
         audioNodes.clear();
         wrapper.className = '';
@@ -1121,7 +1124,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         playBatch,
         prepareDelivery,
         setReserveCount,
-        clearDelivery: () => { setReserveCount(0); deliveryJobId = null; if (state.phase === 'delivery') resetStage(); },
+        clearDelivery: () => { setReserveCount(0); deliveryJobId = null; reserve.classList.remove('delivery-arrival'); if (state.phase === 'delivery') resetStage(); },
         showOwned: showOwnedCards,
         setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
         setCloudProduct: product => { if (product?.img && packArtwork.front !== product.img) { packArtwork.front = product.img; loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && packArtwork.back !== product.packBack) { packArtwork.back = product.packBack; loadArtwork($('pack-back-art'), product.packBack); } },
@@ -1143,7 +1146,7 @@ TcgCloud.subscribe(service => {
     window.JikoBooster?.setCloudProduct(service.product);
     if (!live || !window.JikoBooster) return;
     const head = window.JikoTcgEngine.pending(service.control)[0];
-    if (head?.type === 'purchase' && head.status === 'delivering' && service.now() - (head.deliveryAttemptAt || head.startedAt) < 750 && window.JikoBooster.prepareDelivery(head.id, head.receipt.packs.length)) {
+    if (head?.type === 'purchase' && head.status === 'delivering' && service.now() - (head.deliveryAttemptAt || head.startedAt) < 750 && window.JikoBooster.prepareDelivery(head.id, head.receipt.packs.length, true)) {
         service.markPresentationReady(head.id).catch(error => console.warn('[TCG entrega]', error.message));
     }
     if (!head) window.JikoBooster.clearDelivery();
