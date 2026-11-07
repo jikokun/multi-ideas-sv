@@ -1,9 +1,9 @@
 import { rtdb, auth, signInAnonymously } from '../../firebase-config.js';
 import { ref, get, set, update, runTransaction, onValue, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
-import '../../laboratorio/tarjetero_sobres_core.js';
+import '../../laboratorio/tarjetero_sobres_core.js?v=20261107-media3';
 import '../../data/tarjetas_default_data.js';
-import './jiko_tcg_engine.js';
-import './jiko_tcg_service.js';
+import './jiko_tcg_engine.js?v=20261107-media3';
+import './jiko_tcg_service.js?v=20261107-media3';
 
 let offset = 0;
 let connected = false;

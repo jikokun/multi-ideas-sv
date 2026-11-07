@@ -42,6 +42,10 @@ Si una fuente se cierra, el turno vence y otra puede recuperar la solicitud. Las
 
 Para compras de más de cinco sobres se guarda `packIndex` después de cada diapositiva. Al recuperar el turno, se reconstruye la pila de cartas ya mostradas y se continúa desde el siguiente trío. Al terminar, todas las cartas salen juntas y se confirma el recibo una sola vez.
 
+La carga visual usa las imágenes reales de Drive. Se prueban direcciones alternativas del mismo archivo, se decodifica la imagen y se espera también su carga en cada cara del DOM antes de iniciar el contador. Se conserva una caché acotada de imágenes decodificadas para reducir las descargas repetidas.
+
+Un error de imágenes conserva el recibo sin entregar, registra `lastError` y `retryAt` en el trabajo y libera el turno para reintentar a partir de 30 segundos. El token sigue protegiendo cada confirmación; reintentar no vuelve a cobrar, conceder XP ni sortear. Una colección solicitada detrás de su propia compra puede llevar `notBefore` para respetar el cooldown sin descartar el comando.
+
 Los recibos pagados no caducan por estar en espera. Si no hay una fuente de tarjetero activa, permanecen esperando apertura. Las reservas que nunca llegaron a pagarse se cancelan después de dos minutos, tras comprobar que no existe un recibo.
 
 ## Puesta en marcha y límites de confianza
@@ -61,3 +65,5 @@ node --test laboratorio/tests/tarjetero_sobres.test.cjs laboratorio/tests/tcg_co
 ```
 
 Las pruebas cubren probabilidades, repetidas, XP, cobro idempotente, compras de seis sobres, dos clientes simultáneos, saldo insuficiente, recuperación tras interrupción, turnos exclusivos, cooldowns compartidos, filtros, capacidad de la cola y la comprobación de conexión del adaptador Firebase. Las pruebas de navegador usan perfiles y una base de pruebas aislada: no descuentan puntos a usuarios reales.
+
+También se comprueba que pedir cartas después de comprar conserve el turno con `notBefore`, que un fallo de imágenes deje el recibo pendiente con reintento y que la recuperación no cobre otra vez. La validación visual incluye una descarga lenta, una respuesta de inicio de sesión en lugar de una imagen y la apertura y giro con archivos reales de Drive. Tras habilitar los permisos de las carpetas se verificaron las 108 imágenes de la colección, reversos y sobres.

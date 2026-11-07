@@ -11,6 +11,8 @@ La tiendita muestra la mesa y el mesero. El tarjetero dibuja los sobres desde la
 
 El carrusel, las aperturas, los estilos y la recepción de turnos están integrados en **`laboratorio/tarjetero.html`**. La fuente ocupa un lienzo transparente de 1920 × 1080, pero las aperturas comunes se concentran abajo a la izquierda, en la zona de la mesa. Una especial o superior amplía el sobre y las cartas para conservar su animación destacada. `!mostrarcartas [rareza]` utiliza un carrusel pequeño junto al borde inferior izquierdo.
 
+También funciona `!mostrarcarta [rareza]`, en singular. Si se solicita el carrusel mientras sigue pendiente una compra del mismo usuario, se coloca una única solicitud después de esa compra y espera el cooldown correspondiente.
+
 Antes de habilitar las ventas por primera vez, publica los archivos nuevos del sitio y comprueba que ambas fuentes están cargando la versión actualizada. Después activa **Sobre disponible en la tiendita** en el panel de tarjetas. El producto preparado inicialmente en Firebase queda desactivado hasta completar ese paso, para impedir compras desde una versión antigua de la tienda que todavía no entrega cartas.
 
 ## Comprar un sobre
@@ -71,4 +73,6 @@ Pulsa **Guardar producto y ajustes en Firebase**. El precio y la disponibilidad 
 
 Para cambiar el catálogo de cartas, prepara las 100 cartas de la colección principal en el administrador y pulsa **Publicar colección 001–100 en Firebase**. Las compras nuevas usarán el catálogo publicado. Los números 001–100 son identificadores estables: no deben reutilizarse para representar cartas diferentes.
 
-Las imágenes deben poder abrirse sin una sesión de Google. El respaldo gráfico evita detener una animación si Drive no entrega una imagen.
+Las carpetas **Coleccion_Jikokun_001-100**, **Reverso_cartas** y **Sobres_cartas** deben permitir **Cualquier persona con el enlace → Lector**. OBS carga las imágenes sin una sesión de Google.
+
+Antes de comenzar la animación y su contador se comprueba que las portadas, reversos y caras del sobre estén cargadas y listas en pantalla. Si una imagen falla, el sobre queda esperando; el recibo no se marca como mostrado y se reintenta después de 30 segundos. No se vuelven a cobrar puntos ni a sortear cartas. El panel de tarjetas muestra el motivo de espera en la cola.

@@ -6,6 +6,7 @@ Abrir `tarjetero.html` en el navegador o como fuente de navegador de OBS a **192
 
 - Widget transparente, sin textos, rótulos ni controles: `tarjetero.html` o `tarjetero.html?obs=true`.
 - Las aperturas comunes usan la zona de la mesa, abajo a la izquierda. Una especial o superior amplía el escenario y conserva el doble realce. Las colecciones personales aparecen en un carrusel más pequeño, junto al borde inferior izquierdo.
+- `!mostrarcarta [rareza]` y `!mostrarcartas [rareza]` son equivalentes. Una petición de colección posterior a una compra se conserva en la cola y espera el cooldown.
 - En la fuente OBS en vivo, la compra de la tiendita activa la apertura después de que el mesero se retire. El widget reproduce las cartas del recibo guardado en Firebase; no se sortean de nuevo. `!mostrarcartas [rareza]` utiliza la misma cola para mostrar las cartas ganadas.
 - El enlace para copiar a OBS está en `laboratorio/index.html`, en la tarjeta **Sobres Jikokun · Apertura de cartas**. Sus botones actúan sobre la vista previa del laboratorio.
 - Panel de operador opcional: `tarjetero.html?controls=true`. Solo en esta URL se muestra el menú; **H** permite abrirlo y cerrarlo. `obs=true` impide mostrar controles incluso si se combina con `controls=true`.
@@ -47,7 +48,7 @@ Las portadas y los reversos rellenan el marco completo con `object-fit: fill`: l
 - Carpeta de sobres: `1ZVUPDHXdrWtieT8vaC1K8Z8SfjZVV97z`.
 - Los seis reversos conservan sus IDs oficiales en `tarjetero_sobres_core.js`.
 
-Se solicitan las portadas y los reversos del sobre actual, sin precargar las 100 imágenes. Las imágenes deben poder abrirse sin iniciar sesión en Google para funcionar en OBS. Si una falla, el widget muestra un respaldo gráfico sin rótulos; el panel de operador informa del fallo. El número y la rareza permanecen disponibles en la API local y en las etiquetas de accesibilidad. No reemplaza esa carta por otra ni vuelve a sortearla.
+Se solicitan las portadas y los reversos del sobre actual, sin precargar las 100 imágenes. Las tres carpetas de imágenes de Drive deben permitir lectura a cualquiera con el enlace. El cargador prueba variantes del mismo archivo, decodifica las imágenes y espera su carga en las caras visibles antes de iniciar la animación o el contador. Si una falla, mantiene el sobre y su recibo pendiente, informa en la cola del administrador y reintenta después de 30 segundos. No reemplaza la carta, vuelve a sortear ni marca una apertura fallida como mostrada. La caché de imágenes decodificadas está limitada a 16 entradas.
 
 ## Respaldo y restauración del mostrador
 

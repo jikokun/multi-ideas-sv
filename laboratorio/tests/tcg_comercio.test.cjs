@@ -232,3 +232,60 @@ test('la mesa entrega los sobres al mismo renderizador y conserva su confirmaci�
         assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 4500);
     } finally { service.destroy(); }
 });
+
+test('mostrar cartas después de comprar queda en cola, respeta los 20 segundos y no permite otra colección pendiente', async () => {
+    const { service, store, now, advance } = await setup();
+    try {
+        await service.purchase('ana', [{ key: 'sobre' }], 'before_collection');
+        advance(1000);
+        const collection = await service.showCollection('ana', 'comunes');
+        assert.deepEqual(collection.cards, [1, 1, 1]);
+        assert.equal(service.control.jobs[collection.id].notBefore, 220000);
+        assert.equal(Engine.pending(service.control).length, 2);
+        await assert.rejects(service.showCollection('ana'), /solicitud/);
+        const control = await store.get('stream/widgets/tcg/control');
+        control.jobs.before_collection.status = 'done';
+        assert.equal(Engine.claim(control, 'cards', 'obs', 'early', now(), service.settings), undefined);
+        advance(19000);
+        assert.ok(Engine.claim(control, 'cards', 'obs', 'on_time', now(), service.settings));
+    } finally { service.destroy(); }
+});
+
+test('un fallo de imágenes conserva el recibo pendiente, espera 30 segundos y reintenta sin cobrar ni sortear otra vez', async () => {
+    const { service, store, now, advance } = await setup();
+    let stop;
+    const waitUntil = async condition => {
+        const deadline = Date.now() + 3000;
+        while (!await condition()) { if (Date.now() > deadline) throw Error('Worker timeout'); await new Promise(resolve => setTimeout(resolve, 10)); }
+    };
+    try {
+        const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'retry_images');
+        const control = Engine.claim(await store.get('stream/widgets/tcg/control'), 'delivery', 'shop', 'delivery', now(), service.settings);
+        control.jobs.retry_images.status = 'awaiting_open'; delete control.active;
+        await store.set('stream/widgets/tcg/control', control);
+        let available = false, calls = 0;
+        stop = service.startWorker('cards', async job => {
+            calls++;
+            assert.deepEqual(job.receipt.packs, receipt.packs);
+            if (!available) throw Error('Imágenes de Drive no disponibles.');
+        });
+        await waitUntil(() => !!store.read('stream/widgets/tcg/control/jobs/retry_images/retryAt'));
+        const failed = await store.get('stream/widgets/tcg/control');
+        assert.equal(failed.jobs.retry_images.status, 'awaiting_open');
+        assert.equal(failed.jobs.retry_images.retryAt, now() + 30000);
+        assert.match(failed.jobs.retry_images.lastError.message, /Drive/);
+        assert.equal(failed.active, undefined);
+        assert.equal((await store.get('stream/usuarios/ana')).tarjetas.compras.retry_images.entregado, false);
+        assert.equal(Engine.claim(failed, 'cards', 'other', 'too_soon', now() + 29999, service.settings), undefined);
+        await service.promote(receipt);
+        assert.equal(service.control.jobs.retry_images.retryAt, failed.jobs.retry_images.retryAt);
+        available = true; advance(30000);
+        await store.set('stream/widgets/tcg/control', service.control);
+        await waitUntil(() => store.read('stream/usuarios/ana/tarjetas/compras/retry_images/entregado') === true);
+        const user = await store.get('stream/usuarios/ana');
+        assert.equal(calls, 2);
+        assert.equal(user.jikopuntos, 4500);
+        assert.equal(user.tarjetas.totalCartas, 3);
+        assert.equal(user.tarjetas.pendiente, false);
+    } finally { stop?.(); service.destroy(); }
+});

@@ -58,7 +58,7 @@
                 state ||= { jobs: {}, cooldowns: {} }; state.jobs ||= {};
                 const previous = state.jobs[receipt.id];
                 if (previous?.status === 'done') return;
-                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}) };
+                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}), ...(previous?.retryAt ? { retryAt: previous.retryAt, lastError: previous.lastError } : {}) };
                 return state;
             });
         }
@@ -178,6 +178,7 @@
                 if (!head) return;
                 working = true;
                 let heartbeat = null;
+                let token = null;
                 try {
                     await this.online();
                     if (head.status === 'reserved') {
@@ -186,7 +187,7 @@
                         else if (this.now() - head.createdAt > 120000) await this.cancelReservation(head.id, head.user);
                         return;
                     }
-                    const token = this.id();
+                    token = this.id();
                     const claim = await this.store.transaction(CONTROL, state => E.claim(state, role, owner, token, this.now(), this.settings));
                     if (!claim.committed) return;
                     const lease = claim.value.active, job = claim.value.jobs[lease.jobId];
@@ -218,7 +219,17 @@
                         delete state.active; return state;
                     });
                     if (completed.committed && role === 'cards' && job.type === 'purchase') await this.acknowledge(job.user, job.id);
-                } catch (error) { console.warn('[TCG cola]', error.message); }
+                } catch (error) {
+                    console.warn('[TCG cola]', error.message);
+                    if (token) await this.store.transaction(CONTROL, state => {
+                        if (state?.active?.token !== token) return;
+                        const job = state.jobs[state.active.jobId];
+                        job.status = role === 'delivery' ? 'ready' : job.type === 'collection' ? 'ready' : 'awaiting_open';
+                        job.retryAt = this.now() + 30000;
+                        job.lastError = { message: String(error.message).slice(0, 300), timestamp: this.now() };
+                        delete state.active; return state;
+                    }).catch(() => {});
+                }
                 finally { if (heartbeat) clearInterval(heartbeat); if (aborter) this.activeControllers.delete(aborter); aborter = null; working = false; }
             };
             const timer = setInterval(pump, 1200);

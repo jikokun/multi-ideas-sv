@@ -227,7 +227,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
 
     </style>
     <script src="../data/tarjetas_default_data.js"></script>
-    <script src="tarjetero_sobres_core.js"></script>
+    <script src="tarjetero_sobres_core.js?v=20261107-media3"></script>
 
 </head>
 <body class="clean-overlay">
@@ -338,9 +338,14 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     }
 
     const state = { phase: 'idle', generation: 0, pack: null, packs: 0, cards: 0, legendary: 0 };
+    const packArtwork = { front: Core.PACK_ART.front, back: Core.PACK_ART.back };
     const timers = new Set();
     const failedAssets = new Set();
     const loadedAssets = new Set();
+    const assetCache = new Map();
+    const artworkElements = new WeakMap();
+    let assetPreparation = null;
+    let lastAssetError = '';
     let slots = [];
     let particles = [];
     let frameId = null;
@@ -407,13 +412,13 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
             sleeve.style.setProperty('--reserve-offset', Math.min(index, 12) * 4 + 'px');
             sleeve.style.setProperty('--reserve-rise', Math.min(index, 12) * 2 + 'px');
             const image = element('img', 'drive-art'); image.alt = '';
-            loadArtwork(image, $('pack-front-art').getAttribute('src') || Core.PACK_ART.front);
+            loadArtwork(image, packArtwork.front);
             sleeve.append(image); reserve.append(sleeve);
         }
     }
 
     function prepareDelivery(id, count) {
-        if (deliveryJobId === id || state.phase !== 'idle') return false;
+        if (deliveryJobId === id || state.phase !== 'idle' || !$('pack-front-art').classList.contains('loaded')) return false;
         deliveryJobId = id;
         setLayout('compact', true);
         setReserveCount(count);
@@ -421,24 +426,123 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         return true;
     }
 
-    // Fallback local legible: conserva la identidad de la carta sin sustituirla
-    // por otra imagen. No usa placehold.co ni reintentos infinitos.
+    function artworkInfo(url) {
+        const value = String(url || '');
+        const id = value.match(/https:\/\/(?:lh3\.googleusercontent\.com|drive\.google\.com|drive\.usercontent\.google\.com)\/(?:u\/\d+\/)?(?:d\/|file\/d\/)([\w-]+)/)?.[1]
+            || (/^https:\/\/drive\.(?:google|usercontent\.google)\.com\//.test(value) ? value.match(/[?&]id=([\w-]+)/)?.[1] : null);
+        return id ? { key: 'drive:' + id, sources: ['https://lh3.googleusercontent.com/d/' + id + '=w1200', 'https://drive.google.com/thumbnail?id=' + id + '&sz=w1200', value].filter((source, index, sources) => sources.indexOf(source) === index) } : { key: value, sources: [value] };
+    }
+
+    function resolveArtwork(url) {
+        const info = artworkInfo(url);
+        if (assetCache.has(info.key)) {
+            const cached = assetCache.get(info.key); assetCache.delete(info.key); assetCache.set(info.key, cached);
+            return cached;
+        }
+        const promise = (async () => {
+            for (const source of info.sources) {
+                try {
+                    const decodedImage = await new Promise((resolve, reject) => {
+                        const probe = new Image();
+                        probe.referrerPolicy = 'no-referrer';
+                        let settled = false;
+                        const finish = error => {
+                            if (settled) return; settled = true;
+                            clearTimeout(timeout); probe.onload = probe.onerror = null;
+                            if (error) { probe.removeAttribute('src'); reject(error); } else resolve(probe);
+                        };
+                        const timeout = setTimeout(() => finish(new Error('Tiempo de carga agotado.')), 15000);
+                        probe.onerror = () => finish(new Error('La dirección no devolvió una imagen.'));
+                        probe.onload = async () => {
+                            try { if (probe.decode) await probe.decode(); if (!probe.naturalWidth) throw Error('Imagen vacía.'); finish(); }
+                            catch (error) { finish(error); }
+                        };
+                        probe.src = source;
+                    });
+                    loadedAssets.add(info.key); failedAssets.delete(info.key); updateAssetStatus();
+                    return { source, image: decodedImage };
+                } catch (_) { /* Intento acotado con la siguiente URL del mismo archivo. */ }
+            }
+            failedAssets.add(info.key); updateAssetStatus();
+            const error = new Error('No se pudieron cargar las imágenes de Drive. El premio sigue guardado; revisa el acceso por enlace.');
+            error.code = 'TCG_IMAGES_UNAVAILABLE';
+            lastAssetError = error.message;
+            throw error;
+        })();
+        assetCache.set(info.key, promise);
+        while (assetCache.size > 16) assetCache.delete(assetCache.keys().next().value);
+        promise.catch(() => { if (assetCache.get(info.key) === promise) assetCache.delete(info.key); });
+        return promise;
+    }
+
     function loadArtwork(image, url) {
-        image.decoding = 'async';
-        image.referrerPolicy = 'no-referrer';
-        image.onload = () => {
+        const key = artworkInfo(url).key;
+        const current = artworkElements.get(image);
+        if (current?.key === key) return current.promise;
+        const promise = loadArtworkElement(image, url);
+        artworkElements.set(image, { key, promise });
+        promise.finally(() => { if (artworkElements.get(image)?.promise === promise) artworkElements.delete(image); });
+        return promise;
+    }
+
+    async function loadArtworkElement(image, url) {
+        const key = artworkInfo(url).key;
+        if (image.dataset.artworkKey === key && image.classList.contains('loaded') && image.naturalWidth) return true;
+        image.dataset.artworkKey = key;
+        image.decoding = 'async'; image.referrerPolicy = 'no-referrer';
+        try {
+            const asset = await resolveArtwork(url);
+            if (image.dataset.artworkKey !== key) return false;
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('La imagen no terminó de cargar.')), 15000);
+                image.onload = () => { clearTimeout(timeout); resolve(); };
+                image.onerror = () => { clearTimeout(timeout); reject(new Error('La imagen no se pudo mostrar.')); };
+                image.src = asset.source;
+                if (image.complete && image.naturalWidth) { clearTimeout(timeout); resolve(); }
+            });
+            if (image.decode) await image.decode();
             image.classList.add('loaded');
-            loadedAssets.add(url);
-            failedAssets.delete(url);
-            updateAssetStatus();
-        };
-        image.onerror = () => {
-            image.classList.remove('loaded');
-            failedAssets.add(url);
-            updateAssetStatus();
-        };
-        image.src = url;
-        if (image.complete && image.naturalWidth > 0) image.onload();
+            loadedAssets.add(key); failedAssets.delete(key); updateAssetStatus();
+            return true;
+        } catch (_) {
+            if (image.dataset.artworkKey === key) {
+                image.classList.remove('loaded'); loadedAssets.delete(key); failedAssets.add(key); assetCache.delete(key); updateAssetStatus();
+            }
+            return false;
+        }
+        finally { if (image.dataset.artworkKey === key) image.onload = image.onerror = null; }
+    }
+
+    async function prepareArtwork(cards, signal, includePack = false) {
+        if (assetPreparation) throw new Error('Las imágenes de otra apertura todavía están cargando.');
+        const controller = new AbortController();
+        assetPreparation = controller;
+        const cancel = () => controller.abort();
+        signal?.addEventListener('abort', cancel, { once: true });
+        if (signal?.aborted) cancel();
+        try {
+            const urls = cards.flatMap(card => [card.frontImage, card.backImage]);
+            if (includePack) urls.push(packArtwork.front, packArtwork.back);
+            const images = Promise.allSettled([...new Set(urls)].map(resolveArtwork)).then(async results => {
+                if (includePack && results.every(result => result.status === 'fulfilled')) {
+                    const painted = await Promise.all([loadArtwork($('pack-front-art'), packArtwork.front), loadArtwork($('pack-back-art'), packArtwork.back), loadArtwork($('pack-seal-art'), packArtwork.front)]);
+                    if (painted.some(loaded => !loaded)) throw new Error('Las imágenes del sobre no terminaron de cargar. El premio sigue pendiente.');
+                }
+                return results;
+            });
+            const results = await new Promise((resolve, reject) => {
+                const stop = () => reject(new Error('La carga de imágenes fue cancelada.'));
+                controller.signal.addEventListener('abort', stop, { once: true });
+                if (controller.signal.aborted) stop();
+                images.then(value => { controller.signal.removeEventListener('abort', stop); resolve(value); }, error => { controller.signal.removeEventListener('abort', stop); reject(error); });
+            });
+            const failed = results.find(result => result.status === 'rejected');
+            if (failed) throw failed.reason;
+            lastAssetError = '';
+        } finally {
+            signal?.removeEventListener('abort', cancel);
+            if (assetPreparation === controller) assetPreparation = null;
+        }
     }
 
     function element(tag, className, text) {
@@ -460,7 +564,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         );
         const image = element('img', 'drive-art');
         image.alt = front ? '#' + card.num + ' — ' + card.title : 'Reverso oficial ' + Core.RARITIES[card.rarity].label;
-        loadArtwork(image, front ? card.frontImage : card.backImage);
+        face.artworkReady = loadArtwork(image, front ? card.frontImage : card.backImage);
         artwork.append(fallback, image, element('span', 'holo-sheen'));
         face.append(artwork);
         return face;
@@ -494,6 +598,13 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
             });
             cardsStage.append(slot);
             return slot;
+        });
+        return Promise.all(slots.flatMap(slot => [...slot.querySelectorAll('.card-face')].map(face => face.artworkReady))).then(results => {
+            if (results.some(loaded => !loaded)) {
+                const error = new Error('Las imágenes de las cartas no terminaron de cargar. El premio sigue pendiente.');
+                error.code = 'TCG_IMAGES_UNAVAILABLE';
+                throw error;
+            }
         });
     }
 
@@ -581,7 +692,8 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         node.classList.add(className);
     }
 
-    function resetStage(reason = 'cleared', keepReserve = false) {
+    function resetStage(reason = 'cleared', keepReserve = false, error = null) {
+        assetPreparation?.abort();
         state.generation++;
         timers.forEach(clearTimeout);
         timers.clear();
@@ -611,7 +723,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
             cloudPlayback = null;
             playback.cleanup();
             if (reason === 'completed') playback.resolve();
-            else playback.reject(new Error('La reproducción fue interrumpida.'));
+            else playback.reject(error || new Error('La reproducción fue interrumpida.'));
         }
     }
 
@@ -695,14 +807,15 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         later(() => resetStage('completed', true), fast ? 850 : 1800);
     }
 
-    function openPack(options = {}) {
+    async function openPack(options = {}) {
         if (cloudPlayback) return false;
         if (parent === window && !controlsEnabled && !params.has('preview') && !options.awardedCards) return false;
         if (queueLocked && !options.awardedCards) return false;
         if (!['idle', 'revealed', 'delivery'].includes(state.phase) || (state.phase === 'delivery' && !options.awardedCards)) return false;
         let pack;
         try {
-            if (options.awardedCards) {
+            if (options.preparedPack) pack = options.preparedPack;
+            else if (options.awardedCards) {
                 if (!Array.isArray(options.awardedCards) || options.awardedCards.length !== 3) throw new Error('El recibo debe contener tres cartas.');
                 const cards = options.awardedCards.map(id => catalog.find(card => card.id === Number(id)));
                 if (cards.some(card => !card)) throw new Error('Una carta del recibo no está en el catálogo de Firebase.');
@@ -715,7 +828,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         const fast = !!options.fast;
         const high = pack.highestRarity !== 'common';
         canvas.dataset.fast = String(fast);
-        setPhase('entering');
+        setPhase('loading');
         showPanel(false);
         palette(canvas, 'common');
         canvas.dataset.highestRarity = pack.highestRarity;
@@ -725,7 +838,11 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
             state.legendary += pack.cards.filter(card => card.rarity === 'legendary').length;
             updateStats();
         }
-        renderCards(pack);
+        const generation = state.generation;
+        await renderCards(pack);
+        if (generation !== state.generation || options.signal?.aborted) throw new Error('La reproducción fue interrumpida.');
+        options.onReady?.();
+        setPhase('entering');
         caption.textContent = pack.mode === 'preview' ? 'VISTA DE PRUEBA · Invocando sobre…' : 'La suerte ya está dentro. Invocando sobre…';
         wrapper.className = 'phase-enter' + (options.docked ? ' docked' : '');
         aura.classList.add('active'); rays.classList.add('active');
@@ -777,6 +894,27 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         return true;
     }
 
+    async function openPreparedPack(options = {}) {
+        if (assetPreparation || cloudPlayback || queueLocked || !['idle', 'revealed'].includes(state.phase)) return false;
+        if (parent === window && !controlsEnabled && !params.has('preview')) return false;
+        let generation = state.generation;
+        if (autoExitTimer !== null) { clearTimeout(autoExitTimer); timers.delete(autoExitTimer); autoExitTimer = null; }
+        try {
+            const pack = Core.drawPack(catalog, options);
+            await prepareArtwork(pack.cards, options.signal, true);
+            const started = openPack({ ...options, preparedPack: pack });
+            generation = state.generation;
+            return await started;
+        } catch (error) {
+            if (generation === state.generation && state.phase === 'loading') resetStage('images-failed', true, error);
+            lastAssetError = error.message;
+            caption.textContent = error.message;
+            if (state.phase === 'revealed') updateAutoExit();
+            showPanel();
+            return false;
+        }
+    }
+
     Core.distribution(catalog).filter(item => item.probability > 0).forEach(item => {
         const cell = element('div', 'odds-item');
         palette(cell, item.rarity);
@@ -784,24 +922,43 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         cell.append(element('span', '', Core.RARITIES[item.rarity].label), element('strong', '', percent + '%'), element('small', '', item.count + ' cartas'));
         $('odds-grid').append(cell);
     });
-    function attachPlayback(signal, duration, start, allowDelivery = false) {
+    async function attachPlayback(signal, duration, start, allowDelivery = false) {
         if (cloudPlayback || (state.phase !== 'idle' && !(allowDelivery && state.phase === 'delivery'))) return Promise.reject(new Error('El escenario está ocupado.'));
         if (signal?.aborted) return Promise.reject(new Error('El turno fue cancelado.'));
-        if (!start()) return Promise.reject(new Error('No se pudo iniciar la animación.'));
+        let generation = state.generation;
+        let cancelStart;
+        try {
+            const pending = start();
+            generation = state.generation;
+            const started = await new Promise((resolve, reject) => {
+                cancelStart = () => { if (generation === state.generation) resetStage('aborted'); reject(new Error('El turno fue cancelado.')); };
+                signal?.addEventListener('abort', cancelStart, { once: true });
+                if (signal?.aborted) cancelStart();
+                Promise.resolve(pending).then(resolve, reject);
+            });
+            if (!started || generation !== state.generation) throw new Error('No se pudo iniciar la animación.');
+        } catch (error) {
+            if (generation === state.generation) resetStage('start-failed', true);
+            throw error;
+        } finally { signal?.removeEventListener('abort', cancelStart); }
         return new Promise((resolve, reject) => {
             const cancel = () => resetStage('aborted');
             cloudPlayback = { resolve, reject, duration, cleanup: () => signal?.removeEventListener('abort', cancel) };
             signal?.addEventListener('abort', cancel, { once: true });
         });
     }
-    function showOwnedCards(ids, options = {}) {
+    async function showOwnedCards(ids, options = {}) {
         const cards = ids.slice(0, 5).map(id => catalog.find(card => card.id === Number(id)));
         if (!cards.length || cards.some(card => !card)) return Promise.reject(new Error('No se encontraron las cartas ganadas.'));
-        return attachPlayback(options.signal, options.duration || 12000, () => {
+        await prepareArtwork(cards, options.signal);
+        return attachPlayback(options.signal, options.duration || 12000, async () => {
             resetStage();
             setLayout('collection', true);
             state.pack = { mode: 'collection', cards, highestRarity: Core.highestRarity(cards) };
-            renderCards(state.pack);
+            setPhase('loading');
+            const generation = state.generation;
+            await renderCards(state.pack);
+            if (generation !== state.generation || options.signal?.aborted) throw new Error('La reproducción fue interrumpida.');
             cardsStage.classList.add('owned-carousel');
             setPhase('collection');
             let current = 0;
@@ -825,14 +982,16 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
 
     // Una diapositiva por sobre pagado, sin invocar ni rasgar otro envoltorio.
     // Todas las cartas se conservan en la pila hasta su única salida conjunta.
-    function playBatch(packs, options = {}) {
+    async function playBatch(packs, options = {}) {
         if (!Array.isArray(packs) || packs.length < 6 || packs.length > 20 || packs.some(pack => !Array.isArray(pack) || pack.length !== 3)) return Promise.reject(new Error('La presentación requiere entre 6 y 20 sobres de tres cartas.'));
         const awarded = packs.map(pack => pack.map(id => catalog.find(card => card.id === Number(id))));
         if (awarded.some(pack => pack.some(card => !card))) return Promise.reject(new Error('Una carta del recibo no está en el catálogo.'));
         const startIndex = Math.max(0, Math.min(awarded.length, Math.floor(Number(options.startIndex) || 0)));
-        return attachPlayback(options.signal, 0, () => {
+        if (startIndex < awarded.length) await prepareArtwork(awarded[startIndex], options.signal, true);
+        return attachPlayback(options.signal, 0, async () => {
             resetStage('cleared', true);
             const generation = state.generation;
+            setPhase('loading');
             cardsStage.classList.add('batch-slides');
             canvas.dataset.batchCount = String(awarded.length);
             const makeSlide = index => {
@@ -841,7 +1000,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
                 canvas.dataset.batchIndex = String(index);
                 canvas.dataset.highestRarity = state.pack.highestRarity;
                 palette(canvas, state.pack.highestRarity);
-                renderCards(state.pack, true);
+                const ready = renderCards(state.pack, true);
                 cardsStage.setAttribute('aria-hidden', 'false');
                 slots.forEach((slot, offset) => {
                     slot.dataset.packIndex = String(index);
@@ -850,6 +1009,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
                     slot.classList.add('batch-slide', 'flipped');
                     slot.setAttribute('aria-label', '#' + awarded[index][offset].num + ' ' + awarded[index][offset].title);
                 });
+                return ready;
             };
             const stackSlide = () => slots.forEach(slot => {
                 slot.classList.remove('state-spread', 'state-revealed', 'double-emphasis');
@@ -865,10 +1025,15 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
                 later(() => cardsStage.classList.add('batch-departing'), 650);
                 later(() => resetStage('completed'), 1650);
             };
-            const nextSlide = index => {
+            const nextSlide = async index => {
                 if (generation !== state.generation || options.signal?.aborted) return;
                 if (index >= awarded.length) { finishBatch(); return; }
-                makeSlide(index);
+                try { await prepareArtwork(awarded[index], options.signal); }
+                catch (error) { if (generation === state.generation) { lastAssetError = error.message; resetStage('images-failed', false, error); } return; }
+                if (generation !== state.generation || options.signal?.aborted) return;
+                try { await makeSlide(index); }
+                catch (error) { if (generation === state.generation) { lastAssetError = error.message; resetStage('images-failed', false, error); } return; }
+                if (generation !== state.generation || options.signal?.aborted) return;
                 setPhase('batch');
                 const high = state.pack.highestRarity !== 'common';
                 setLayout(high ? 'expanded' : 'compact');
@@ -894,7 +1059,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
                 }, high ? 2400 : 1000);
             };
             // Al recuperar un turno, reconstruir la pila ya mostrada sin repetir diapositivas.
-            for (let index = 0; index < startIndex; index++) { makeSlide(index); stackSlide(); }
+            for (let index = 0; index < startIndex; index++) { await makeSlide(index); if (generation !== state.generation || options.signal?.aborted) throw new Error('La reproducción fue interrumpida.'); stackSlide(); }
             nextSlide(startIndex);
             return true;
         }, true);
@@ -902,8 +1067,8 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     const legendProbability = Core.distribution(catalog).find(item => item.rarity === 'legendary').probability;
     $('legendary-pack-chance').textContent = (Core.chanceInPack(legendProbability) * 100).toFixed(2) + '%';
 
-    $('btn-open-pack').addEventListener('click', () => openPack());
-    $('btn-test-effect').addEventListener('click', () => openPack({ mode: 'preview', rarity: $('test-rarity').value }));
+    $('btn-open-pack').addEventListener('click', () => openPreparedPack());
+    $('btn-test-effect').addEventListener('click', () => openPreparedPack({ mode: 'preview', rarity: $('test-rarity').value }));
     $('btn-reset').addEventListener('click', () => { resetStage(); showPanel(); });
     $('btn-test-carousel').addEventListener('click', () => { showPanel(false); showOwnedCards(catalog.slice(-5).map(card => card.id)).catch(error => console.warn(error.message)); });
     $('close-panel').addEventListener('click', () => { showPanel(false); $('reopen-panel').focus({ preventScroll: true }); });
@@ -917,7 +1082,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         if (cloudPlayback) return;
         if (event.target.closest('button, input, select, summary, #sim-config-panel')) return;
         if (controlsEnabled) showPanel();
-        else openPack();
+        else openPreparedPack();
     });
     addEventListener('keydown', event => {
         if (cloudPlayback) return;
@@ -928,7 +1093,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         }
         if (event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
         if (event.key.toLowerCase() === 'h' && controlsEnabled) { event.preventDefault(); showPanel(panel.hidden); }
-        if (event.key.toLowerCase() === 'n') { event.preventDefault(); openPack(); }
+        if (event.key.toLowerCase() === 'n') { event.preventDefault(); openPreparedPack(); }
     });
     addEventListener('pagehide', resetStage);
 
@@ -941,14 +1106,17 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     if (controlsEnabled) showPanel();
     // API local de simulación para pruebas. No escucha los comandos del mostrador.
     window.JikoBooster = Object.freeze({
-        open: openPack,
+        open: openPreparedPack,
         clear: () => { setReserveCount(0); deliveryJobId = null; resetStage(); },
         gather: gatherCards,
         showPanel,
-        playAwarded: (ids, options = {}) => {
+        playAwarded: async (ids, options = {}) => {
+            const cards = ids.map(id => catalog.find(card => card.id === Number(id)));
+            if (cards.some(card => !card)) throw new Error('Una carta del recibo no está en el catálogo.');
+            await prepareArtwork(cards, options.signal, true);
             const high = ids.some(id => catalog.find(card => card.id === Number(id))?.rarity !== 'common');
             const duration = options.fast ? (high ? 1800 : 650) : (options.duration || 8000);
-            return attachPlayback(options.signal, duration, () => openPack({ awardedCards: ids, fast: options.fast, docked: true }), true);
+            return attachPlayback(options.signal, duration, () => openPack({ awardedCards: ids, fast: options.fast, docked: true, signal: options.signal, onReady: options.onReady }), true);
         },
         playBatch,
         prepareDelivery,
@@ -956,16 +1124,16 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         clearDelivery: () => { setReserveCount(0); deliveryJobId = null; if (state.phase === 'delivery') resetStage(); },
         showOwned: showOwnedCards,
         setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
-        setCloudProduct: product => { if (product?.img && $('pack-front-art').getAttribute('src') !== product.img) { loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && $('pack-back-art').getAttribute('src') !== product.packBack) loadArtwork($('pack-back-art'), product.packBack); },
+        setCloudProduct: product => { if (product?.img && packArtwork.front !== product.img) { packArtwork.front = product.img; loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && packArtwork.back !== product.packBack) { packArtwork.back = product.packBack; loadArtwork($('pack-back-art'), product.packBack); } },
         setQueueLocked: locked => { queueLocked = !!locked; },
-        snapshot: () => ({ phase: state.phase, layout: canvas.dataset.layout, reserveCount, deliveryJobId, mode: state.pack?.mode || null, highestRarity: state.pack?.highestRarity || null, cards: state.pack?.cards.map(card => ({ id: card.id, num: card.num, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })) || [], stats: { packs: state.packs, cards: state.cards, legendary: state.legendary }, pendingTimers: timers.size, particles: particles.length, controlsEnabled, panelOpen: !panel.hidden, failedImages: failedAssets.size, loadedImages: loadedAssets.size })
+        snapshot: () => ({ phase: state.phase, layout: canvas.dataset.layout, reserveCount, deliveryJobId, loadingImages: !!assetPreparation || state.phase === 'loading', lastAssetError, mode: state.pack?.mode || null, highestRarity: state.pack?.highestRarity || null, cards: state.pack?.cards.map(card => ({ id: card.id, num: card.num, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })) || [], stats: { packs: state.packs, cards: state.cards, legendary: state.legendary }, pendingTimers: timers.size, particles: particles.length, controlsEnabled, panelOpen: !panel.hidden, failedImages: failedAssets.size, loadedImages: loadedAssets.size })
     });
     // El consumidor de Firebase se integra debajo en el mismo HTML.
 })();
 
 </script>
 <script type="module" id="tarjetero-firebase">
-import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js';
+import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-media3';
 
 const params = new URLSearchParams(location.search);
 const live = !params.has('preview') && (params.get('controls') !== 'true' || params.get('obs') === 'true') && parent === window;
@@ -975,7 +1143,7 @@ TcgCloud.subscribe(service => {
     window.JikoBooster?.setCloudProduct(service.product);
     if (!live || !window.JikoBooster) return;
     const head = window.JikoTcgEngine.pending(service.control)[0];
-    if (head?.type === 'purchase' && head.status === 'delivering' && window.JikoBooster.prepareDelivery(head.id, head.receipt.packs.length)) {
+    if (head?.type === 'purchase' && head.status === 'delivering' && service.now() - (head.deliveryAttemptAt || head.startedAt) < 750 && window.JikoBooster.prepareDelivery(head.id, head.receipt.packs.length)) {
         service.markPresentationReady(head.id).catch(error => console.warn('[TCG entrega]', error.message));
     }
     if (!head) window.JikoBooster.clearDelivery();
@@ -988,6 +1156,8 @@ if (live) {
         widget.setCloudCatalog(TcgCloud.catalog);
         widget.setQueueLocked(true);
         window.JikoWidgetSync?.acquire('tarjetero', job.user, 180000);
+        let completed = false;
+        let remaining = Math.max(0, (job.receipt?.packs.length || 0) - (job.packIndex || 0));
         try {
             if (job.type === 'collection') {
                 await widget.showOwned(job.cards, { signal, duration: TcgCloud.settings.collectionDurationMs });
@@ -996,12 +1166,22 @@ if (live) {
             } else {
                 for (let index = job.packIndex || 0; index < job.receipt.packs.length; index++) {
                     if (signal.aborted) throw new Error('Turno cancelado.');
-                    widget.setReserveCount(job.receipt.packs.length - index - 1);
-                    await widget.playAwarded(job.receipt.packs[index], { signal, duration: TcgCloud.settings.revealDurationMs, fast: job.receipt.packs.length >= 2 });
+                    remaining = job.receipt.packs.length - index;
+                    widget.setReserveCount(remaining);
+                    await widget.playAwarded(job.receipt.packs[index], { signal, duration: TcgCloud.settings.revealDurationMs, fast: job.receipt.packs.length >= 2, onReady: () => widget.setReserveCount(remaining - 1) });
                     await checkpoint(index + 1);
+                    remaining--;
                 }
             }
-        } finally { widget.clearDelivery(); widget.setQueueLocked(false); window.JikoWidgetSync?.release('tarjetero'); }
+            completed = true;
+        } finally {
+            widget.clearDelivery();
+            if (!completed && !signal.aborted && job.type === 'purchase') {
+                const done = TcgCloud.control.jobs?.[job.id]?.packIndex || 0;
+                widget.prepareDelivery(job.id, job.receipt.packs.length - done);
+            }
+            widget.setQueueLocked(false); window.JikoWidgetSync?.release('tarjetero');
+        }
     }, () => {
         if (!['idle', 'delivery'].includes(window.JikoBooster?.snapshot().phase)) return false;
         const lock = window.JikoWidgetSync?.getActiveLock();
@@ -1013,7 +1193,7 @@ window.JikoTarjeteroCommands = Object.freeze({
 });
 addEventListener('message', event => {
     if (event.origin !== location.origin || event.data?.type !== 'TARJETERO_COMMAND') return;
-    const command = String(event.data.command || '').match(/^!mostrarcartas(?:\s+(.+))?$/i);
+    const command = String(event.data.command || '').trim().match(/^!mostrarcartas?(?:\s+(.+))?$/i);
     if (!command || !live) return;
     window.JikoTarjeteroCommands.mostrarCartas(event.data.user, command[1] || '').catch(error => console.warn('[TCG comando]', error.message));
 });

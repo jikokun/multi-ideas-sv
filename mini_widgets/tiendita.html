@@ -2479,7 +2479,7 @@
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
-  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js';
+  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261107-media3';
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
@@ -5077,12 +5077,12 @@
   function ejecutarTexto(raw, user=usuarioActual, meta=null){
     const t = norm(raw);
     if(!t) return;
-    const cardsCommand = t.match(/^!mostrarcartas(?:\s+(.+))?$/);
+    const cardsCommand = t.match(/^!mostrarcartas?(?:\s+(.+))?$/);
     if (cardsCommand) {
       if (!window.JikoTcgCloud?.ready) { toast('Firebase de tarjetas aún no está conectado.', 'warn'); return; }
       window.JikoTcgCloud.showCollection(window.StreamDB?.resolverUsuarioReal(user) || user, cardsCommand[1] || '')
         .then(() => toast('✦ Tus últimas cartas quedaron en la cola de visualización.'))
-        .catch(error => toast(String(error.message).replace(/[<>&]/g, ''), 'warn'));
+        .catch(error => { console.warn('[TCG mostrarcartas]', error.message); toast(String(error.message).replace(/[<>&]/g, ''), 'warn'); });
       return;
     }
     if (pagoTcgPendiente) return;
@@ -5602,7 +5602,7 @@
           return;
         }
         const customUser = data.user || data.userName || data.username || usuarioActual || 'cliente';
-        if (/^!mostrarcartas(?:\s|$)/.test(norm(data.command || ''))) {
+        if (/^!mostrarcartas?(?:\s|$)/.test(norm(data.command || ''))) {
           ejecutarTexto(data.command, customUser);
           return;
         }
@@ -5705,7 +5705,7 @@
         }
 
         const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
-                                /^!mostrarcartas(?:\s|$)/.test(t)||
+                                /^!mostrarcartas?(?:\s|$)/.test(t)||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
                                 t==='!anadir'||t==='!añadir'||t==='!agregar'||

@@ -111,9 +111,14 @@
         for (const [key, entry] of Object.entries(state.cooldowns)) if (now - entry.timestamp > 300000) delete state.cooldowns[key];
         const queue = pending(state);
         if (queue.length >= settings.maxQueue) throw new Error('La cola de tarjetas está llena. No se ha cobrado nada.');
-        if (queue.some(item => item.user === job.user)) throw new Error('Ya tienes una solicitud de tarjetas en la cola.');
         const last = state.cooldowns[job.user];
-        if (last && now - last.timestamp < settings.userCooldownMs) throw new Error('Espera ' + Math.ceil((settings.userCooldownMs - now + last.timestamp) / 1000) + ' segundos para volver a usar las tarjetas.');
+        const own = queue.filter(item => item.user === job.user);
+        const afterPurchase = job.type === 'collection' && own.every(item => item.type === 'purchase') && (own.some(item => item.type === 'purchase') || state.jobs[last?.id]?.type === 'purchase');
+        if (own.length && !afterPurchase) throw new Error('Ya tienes una solicitud de tarjetas en la cola.');
+        if (last && now - last.timestamp < settings.userCooldownMs) {
+            if (!afterPurchase) throw new Error('Espera ' + Math.ceil((settings.userCooldownMs - now + last.timestamp) / 1000) + ' segundos para volver a usar las tarjetas.');
+            job.notBefore = last.timestamp + settings.userCooldownMs;
+        }
         state.cooldowns[job.user] = { timestamp: now, id: job.id };
         state.jobs[job.id] = job;
         // Los recibos económicos se conservan en el perfil. Solo se recorta el historial visual terminado.
@@ -126,10 +131,12 @@
         const state = copy(current);
         if (state.active && state.active.expiresAt > now) return;
         const job = pending(state)[0];
-        if (!job || job.status === 'reserved') return;
+        if (!job || job.status === 'reserved' || Math.max(job.retryAt || 0, job.notBefore || 0) > now) return;
         const expected = job.type === 'collection' || ['opening', 'awaiting_open'].includes(job.status) ? 'cards' : 'delivery';
         if (role !== expected || (!job.startedAt && (state.nextStartAt || 0) > now)) return;
         if (!job.startedAt) { job.startedAt = now; state.nextStartAt = now + settings.globalCooldownMs; }
+        delete job.retryAt; delete job.lastError;
+        if (role === 'delivery') job.deliveryAttemptAt = now;
         job.status = role === 'delivery' ? 'delivering' : job.type === 'collection' ? 'showing' : 'opening';
         state.active = { jobId: job.id, role, owner, token, expiresAt: now + 30000 };
         return state;

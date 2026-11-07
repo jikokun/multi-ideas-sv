@@ -1,4 +1,4 @@
-import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js';
+import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-media3';
 const $ = id => document.getElementById(id);
 const fields = { duplicateXpPercent: 'tcg-duplicate-xp', userCooldownMs: 'tcg-user-cooldown', globalCooldownMs: 'tcg-global-cooldown', collectionDurationMs: 'tcg-carousel-duration', revealDurationMs: 'tcg-reveal-duration', maxQueue: 'tcg-queue-capacity', maxPacksPerPurchase: 'tcg-max-packs' };
 const seconds = new Set(['userCooldownMs', 'globalCooldownMs', 'collectionDurationMs', 'revealDurationMs']);
@@ -20,7 +20,7 @@ try {
         const jobs = window.JikoTcgEngine.pending(service.control);
         $('tcg-admin-queue').replaceChildren();
         const names = { reserved: 'Confirmando compra', ready: 'En espera', delivering: 'Entrega en la mesa', awaiting_open: 'Esperando apertura', opening: 'Abriendo sobres', showing: 'Mostrando colección' };
-        jobs.forEach((job, i) => { const row = document.createElement('p'); row.textContent = `${i + 1}. @${job.user} · ${job.type === 'purchase' ? 'Compra de sobre' : 'Últimas cartas'} · ${names[job.status] || job.status}`; $('tcg-admin-queue').append(row); });
+        jobs.forEach((job, i) => { const row = document.createElement('p'); row.textContent = `${i + 1}. @${job.user} · ${job.type === 'purchase' ? 'Compra de sobre' : 'Últimas cartas'} · ${names[job.status] || job.status}${job.lastError ? ' · ' + job.lastError.message : ''}`; $('tcg-admin-queue').append(row); });
         if (!jobs.length) $('tcg-admin-queue').textContent = 'Sin solicitudes pendientes.';
     });
     $('tcg-save-commerce').disabled = false;
