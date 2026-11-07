@@ -6,7 +6,7 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
     const RARITIES = ['common', 'special', 'rare', 'epic', 'legendary', 'mythic'];
-    const DEFAULT_CONFIG = Object.freeze({ duplicateXpPercent: 1, userCooldownMs: 20000, globalCooldownMs: 20000, collectionDurationMs: 12000, revealDurationMs: 8000, maxQueue: 20, maxPacksPerPurchase: 3 });
+    const DEFAULT_CONFIG = Object.freeze({ duplicateXpPercent: 1, userCooldownMs: 20000, globalCooldownMs: 20000, collectionDurationMs: 12000, revealDurationMs: 8000, maxQueue: 20, maxPacksPerPurchase: 20 });
     const copy = value => JSON.parse(JSON.stringify(value));
     const count = value => Math.max(0, Math.floor(Number(value) || 0));
     function userKey(value) {
@@ -16,7 +16,7 @@
     }
     function config(value = {}) {
         const number = (key, min, max) => Math.min(max, Math.max(min, Number(value[key] ?? DEFAULT_CONFIG[key]) || DEFAULT_CONFIG[key]));
-        return { duplicateXpPercent: number('duplicateXpPercent', .1, 5), userCooldownMs: number('userCooldownMs', 20000, 300000), globalCooldownMs: number('globalCooldownMs', 20000, 300000), collectionDurationMs: number('collectionDurationMs', 6000, 15000), revealDurationMs: number('revealDurationMs', 4000, 20000), maxQueue: Math.floor(number('maxQueue', 1, 30)), maxPacksPerPurchase: Math.floor(number('maxPacksPerPurchase', 1, 5)) };
+        return { duplicateXpPercent: number('duplicateXpPercent', .1, 5), userCooldownMs: number('userCooldownMs', 20000, 300000), globalCooldownMs: number('globalCooldownMs', 20000, 300000), collectionDurationMs: number('collectionDurationMs', 6000, 15000), revealDurationMs: number('revealDurationMs', 4000, 20000), maxQueue: Math.floor(number('maxQueue', 1, 30)), maxPacksPerPurchase: Math.floor(number('maxPacksPerPurchase', 1, 20)) };
     }
     function inventory(user) {
         const data = copy(user?.tarjetas || {});

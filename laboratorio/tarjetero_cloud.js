@@ -18,6 +18,8 @@ if (live) {
         try {
             if (job.type === 'collection') {
                 await widget.showOwned(job.cards, { signal, duration: TcgCloud.settings.collectionDurationMs });
+            } else if (job.receipt.packs.length > 5) {
+                await widget.playBatch(job.receipt.packs, { signal, startIndex: job.packIndex || 0, onCheckpoint: checkpoint });
             } else {
                 for (let index = job.packIndex || 0; index < job.receipt.packs.length; index++) {
                     if (signal.aborted) throw new Error('Turno cancelado.');

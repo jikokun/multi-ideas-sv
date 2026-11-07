@@ -11,6 +11,7 @@ Abrir `tarjetero.html` en el navegador o como fuente de navegador de OBS a **192
 - **Lanzar suerte** en el panel de operador o tecla **N**: generar un sobre de tres cartas. Las comunes pueden repetirse, incluso dentro del mismo sobre.
 - Las cartas aparecen por el reverso, se extienden y se revelan de menor a mayor rareza. Al terminar, un clic en una carta permite consultar su reverso.
 - Cada carta especial o superior recibe dos pulsos de luz, dos ampliaciones y dos ráfagas de partículas. Se completa el doble énfasis antes de revelar la siguiente carta de rareza alta.
+- Las compras de más de cinco sobres usan `JikoBooster.playBatch(packs, { signal, startIndex, onCheckpoint })`: muestran tres cartas por diapositiva, resaltan especiales o superiores y acumulan todas las cartas para una sola salida conjunta. No invocan sobres individuales ni sortean premios. Cada diapositiva terminada guarda su punto de control en Firebase.
 - Las cartas se reúnen y salen automáticamente tras ocho segundos de exhibición, dejando nuevamente el lienzo vacío. El panel de operador permite cambiar el tiempo o activar **Conservar las cartas en pantalla**.
 - **Forzar efecto** fuerza la rareza indicada en la carta central y deja dos comunes. No representa las probabilidades del sorteo ni cuenta en las estadísticas. El menú solo permite rarezas presentes en esta colección.
 - **Limpiar lienzo** cancela la secuencia, sus temporizadores, audio y partículas. No borra las estadísticas de la sesión.
@@ -34,7 +35,7 @@ Los pesos base son 96% común, 3% especial, 0.9% raro, 0.05% épico y 0.05% lege
 
 Los controles de prueba no cobran puntos ni otorgan cartas. Las compras reales se confirman en la tiendita mediante una transacción de Firebase que guarda cobro, inventario, experiencia y recibo. Las estadísticas locales del panel de pruebas se mantienen separadas del inventario real.
 
-Los colores, hologramas y reversos siguen las seis rarezas del mostrador anterior. El aura del sobre depende de la carta de mayor rareza que realmente contiene.
+Los brillos, partículas, hologramas y el doble énfasis usan los colores de los reversos oficiales: común celeste, especial iridiscente rosa/cian, raro amatista morado, épico carmesí/cobre, legendario oro y mítico platino. El aura del sobre depende de la carta de mayor rareza que realmente contiene.
 
 Las portadas y los reversos rellenan el marco completo con `object-fit: fill`: las imágenes cuya proporción difiere se estiran suavemente para evitar franjas, sin recortar el arte. El sobre conserva su ajuste original.
 

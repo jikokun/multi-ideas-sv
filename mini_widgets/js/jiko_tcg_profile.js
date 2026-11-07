@@ -1,6 +1,6 @@
 (function () {
     const labels = { common: 'Comunes', special: 'Especiales', rare: 'Raras', epic: 'Épicas', legendary: 'Legendarias', mythic: 'Míticas' };
-    const colors = { common: '#7dd3fc', special: '#f9a8d4', rare: '#6ee7b7', epic: '#c4b5fd', legendary: '#fde047', mythic: '#fda4af' };
+    const colors = { common: '#7dd3fc', special: '#f9a8d4', rare: '#c4b5fd', epic: '#fda4af', legendary: '#fde047', mythic: '#e2e8f0' };
     window.renderTcgProfile = function (data = {}) {
         document.querySelectorAll('[data-tcg-summary]').forEach(container => {
             container.replaceChildren();

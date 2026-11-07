@@ -190,3 +190,27 @@ test('sin conexión no se reserva cola ni se modifica el saldo', async () => {
         assert.equal(await store.get('stream/widgets/tcg/control/jobs/offline'), null);
     } finally { service.destroy(); }
 });
+
+test('seis sobres cobran una vez y guardan sus 18 cartas; el límite administrable llega hasta veinte', async () => {
+    const { service, store } = await setup();
+    try {
+        await store.set('stream/usuarios/ana', { username: 'ana', jikopuntos: 60000, experiencia: 0 });
+        const cart = Array.from({ length: 6 }, () => ({ key: 'sobre' }));
+        const receipt = await service.purchase('ana', cart, 'bulk_six');
+        assert.deepEqual(await service.purchase('ana', cart, 'bulk_six'), receipt);
+        assert.equal(receipt.packs.length, 6);
+        assert.ok(receipt.packs.every(pack => pack.length === 3));
+        const user = await store.get('stream/usuarios/ana');
+        assert.equal(user.jikopuntos, 51000);
+        assert.equal(user.tarjetas.totalCartas, 18);
+        assert.equal(user.tarjetas.inventario['001'].cantidad, 18);
+        assert.equal(user.tarjetas.repetidas, 17);
+        assert.equal(user.tarjetas.xpRepetidas, 255);
+        assert.equal(Engine.config({ maxPacksPerPurchase: 99 }).maxPacksPerPurchase, 20);
+        await store.set('stream/widgets/tcg/config', Engine.config({ maxPacksPerPurchase: 5 }));
+        await store.set('stream/usuarios/beto', { username: 'beto', jikopuntos: 60000 });
+        await assert.rejects(service.purchase('beto', cart, 'bulk_reject'), /entre 1 y 5/);
+        assert.equal((await store.get('stream/usuarios/beto')).jikopuntos, 60000);
+        assert.equal(await store.get('stream/widgets/tcg/control/jobs/bulk_reject'), null);
+    } finally { service.destroy(); }
+});

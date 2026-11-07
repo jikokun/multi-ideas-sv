@@ -7,13 +7,15 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
 
+    // Paletas de los reversos oficiales: celeste, iridiscente, amatista,
+    // carmesí/cobre, obsidiana/oro y platino, respectivamente.
     const RARITIES = Object.freeze({
         common: Object.freeze({ label: 'COMÚN', rank: 0, color: '#38bdf8', secondary: '#0284c7' }),
         special: Object.freeze({ label: 'ESPECIAL', rank: 1, color: '#ec4899', secondary: '#06b6d4' }),
-        rare: Object.freeze({ label: 'RARO', rank: 2, color: '#10b981', secondary: '#06b6d4' }),
-        epic: Object.freeze({ label: 'ÉPICO', rank: 3, color: '#a855f7', secondary: '#ec4899' }),
+        rare: Object.freeze({ label: 'RARO', rank: 2, color: '#a855f7', secondary: '#7c3aed' }),
+        epic: Object.freeze({ label: 'ÉPICO', rank: 3, color: '#dc143c', secondary: '#b87333' }),
         legendary: Object.freeze({ label: 'LEGENDARIO', rank: 4, color: '#facc15', secondary: '#f97316' }),
-        mythic: Object.freeze({ label: 'MÍTICO', rank: 5, color: '#ff0055', secondary: '#00f3ff' })
+        mythic: Object.freeze({ label: 'MÍTICO', rank: 5, color: '#e2e8f0', secondary: '#94a3b8' })
     });
 
     // Pesos POR CARTA. Tres sorteos independientes de rareza por sobre.

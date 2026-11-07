@@ -138,8 +138,8 @@
         return face;
     }
 
-    function renderCards(pack) {
-        cardsStage.replaceChildren();
+    function renderCards(pack, append = false) {
+        if (!append) cardsStage.replaceChildren();
         cardsStage.setAttribute('aria-hidden', 'true');
         slots = pack.cards.map((card, index) => {
             const slot = element('button', 'tcg-card-slot slot-' + index + ' ' + card.rarity);
@@ -267,7 +267,9 @@
         wrapper.querySelector('.pack-top-seal').classList.remove('ready');
         aura.className = 'stage-aura'; rays.className = 'god-rays';
         $('epic-shockwave').className = ''; $('center-flash-burst').className = '';
-        cardsStage.replaceChildren(); cardsStage.classList.remove('owned-carousel'); cardsStage.setAttribute('aria-hidden', 'true'); slots = [];
+        cardsStage.replaceChildren(); cardsStage.classList.remove('owned-carousel', 'batch-slides', 'batch-gathered', 'batch-departing'); cardsStage.setAttribute('aria-hidden', 'true'); slots = [];
+        delete canvas.dataset.batchIndex;
+        delete canvas.dataset.batchCount;
         summary.hidden = true; caption.textContent = '';
         state.pack = null;
         delete canvas.dataset.highestRarity;
@@ -483,6 +485,80 @@
             return true;
         });
     }
+
+    // Una diapositiva por sobre pagado, sin invocar ni rasgar otro envoltorio.
+    // Todas las cartas se conservan en la pila hasta su única salida conjunta.
+    function playBatch(packs, options = {}) {
+        if (!Array.isArray(packs) || packs.length < 6 || packs.length > 20 || packs.some(pack => !Array.isArray(pack) || pack.length !== 3)) return Promise.reject(new Error('La presentación requiere entre 6 y 20 sobres de tres cartas.'));
+        const awarded = packs.map(pack => pack.map(id => catalog.find(card => card.id === Number(id))));
+        if (awarded.some(pack => pack.some(card => !card))) return Promise.reject(new Error('Una carta del recibo no está en el catálogo.'));
+        const startIndex = Math.max(0, Math.min(awarded.length, Math.floor(Number(options.startIndex) || 0)));
+        return attachPlayback(options.signal, 0, () => {
+            resetStage();
+            const generation = state.generation;
+            cardsStage.classList.add('batch-slides');
+            canvas.dataset.batchCount = String(awarded.length);
+            const makeSlide = index => {
+                state.pack = { mode: 'batch', cards: awarded[index], highestRarity: Core.highestRarity(awarded[index]) };
+                canvas.dataset.mode = 'batch';
+                canvas.dataset.batchIndex = String(index);
+                canvas.dataset.highestRarity = state.pack.highestRarity;
+                palette(canvas, state.pack.highestRarity);
+                renderCards(state.pack, true);
+                cardsStage.setAttribute('aria-hidden', 'false');
+                slots.forEach((slot, offset) => {
+                    slot.dataset.packIndex = String(index);
+                    slot.style.setProperty('--pile-x', (index * 3 + offset) * .7 + 'px');
+                    slot.style.setProperty('--pile-y', (index * 3 + offset) * -.45 + 'px');
+                    slot.classList.add('batch-slide', 'flipped');
+                    slot.setAttribute('aria-label', '#' + awarded[index][offset].num + ' ' + awarded[index][offset].title);
+                });
+            };
+            const stackSlide = () => slots.forEach(slot => {
+                slot.classList.remove('state-spread', 'state-revealed', 'double-emphasis');
+                slot.classList.add('batch-stacked');
+                slot.setAttribute('aria-hidden', 'true');
+            });
+            const finishBatch = () => {
+                setPhase('batch-gathering');
+                cardsStage.classList.add('batch-gathered');
+                aura.classList.remove('active'); rays.classList.remove('active');
+                playSound('exit');
+                later(() => cardsStage.classList.add('batch-departing'), 800);
+                later(() => resetStage('completed'), 1800);
+            };
+            const nextSlide = index => {
+                if (generation !== state.generation || options.signal?.aborted) return;
+                if (index >= awarded.length) { finishBatch(); return; }
+                makeSlide(index);
+                setPhase('batch');
+                const high = state.pack.highestRarity !== 'common';
+                aura.classList.toggle('active', high);
+                rays.classList.toggle('active', high);
+                later(() => slots.forEach((slot, offset) => {
+                    slot.classList.add('state-spread');
+                    if (awarded[index][offset].rarity !== 'common') revealCard(offset);
+                    else slot.classList.add('state-revealed');
+                }), 40);
+                later(async () => {
+                    stackSlide();
+                    aura.classList.remove('active'); rays.classList.remove('active');
+                    try {
+                        await options.onCheckpoint?.(index + 1);
+                        if (generation !== state.generation || options.signal?.aborted) return;
+                        later(() => nextSlide(index + 1), 450);
+                    } catch (error) {
+                        console.warn('[TCG diapositivas]', error.message);
+                        if (generation === state.generation) resetStage('failed');
+                    }
+                }, high ? 3200 : 2400);
+            };
+            // Al recuperar un turno, reconstruir la pila ya mostrada sin repetir diapositivas.
+            for (let index = 0; index < startIndex; index++) { makeSlide(index); stackSlide(); }
+            nextSlide(startIndex);
+            return true;
+        });
+    }
     const legendProbability = Core.distribution(catalog).find(item => item.rarity === 'legendary').probability;
     $('legendary-pack-chance').textContent = (Core.chanceInPack(legendProbability) * 100).toFixed(2) + '%';
 
@@ -528,6 +604,7 @@
         gather: gatherCards,
         showPanel,
         playAwarded: (ids, options = {}) => attachPlayback(options.signal, options.duration || 8000, () => openPack({ awardedCards: ids })),
+        playBatch,
         showOwned: showOwnedCards,
         setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
         setCloudProduct: product => { if (product?.img && $('pack-front-art').getAttribute('src') !== product.img) { loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && $('pack-back-art').getAttribute('src') !== product.packBack) loadArtwork($('pack-back-art'), product.packBack); },

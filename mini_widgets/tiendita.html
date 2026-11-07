@@ -2173,6 +2173,8 @@
           <!-- Platos añadidos a la orden -->
           <div class="orden-chips-row" id="orden-chips-row"></div>
 
+          <p id="payment-status" role="status" aria-live="polite" hidden style="margin:0;color:#fef08a;font-size:15px;text-align:center;"></p>
+
           <div class="confirm-actions-row">
             <button type="button" class="btn-decision btn-pagar" id="btn-pagar" title="Pagar toda la orden y servir con el mesero">
               <span>💳 Pagar todo (<b id="btn-pagar-pts">0</b> pts)</span>
@@ -4423,6 +4425,7 @@
   let meseroTimer = null;
 
   function agregarItemAOrden(itemKey, user=null, cantidad=1){
+    if (pagoTcgPendiente) return false;
     const k = norm(itemKey);
     const it = ITEMS.find(x => norm(x.key) === k || (x.aliases && x.aliases.some(a => norm(a) === k)));
     if(!it) return false;
@@ -4558,6 +4561,7 @@
   }
 
   function removerItemPorKey(key){
+    if (pagoTcgPendiente) return;
     const idx = ordenActual.map(i => i.key).lastIndexOf(key);
     if(idx !== -1){
       const eliminado = ordenActual.splice(idx, 1)[0];
@@ -4578,6 +4582,7 @@
   }
 
   function vaciarOrden(){
+    if (pagoTcgPendiente) return;
     ordenActual = [];
     actualizarSeleccionTarjetas();
     actualizarPanelOrden();
@@ -4628,6 +4633,11 @@
   /* ═══════════ PROCESAR PAGO DE LA ORDEN & MOSTRAR MESERO ═══════════ */
   let pagoTcgPendiente = false;
   let pagoTcgId = null;
+  function estadoPago(text = '') {
+    const status = document.getElementById('payment-status');
+    status.textContent = text;
+    status.hidden = !text;
+  }
   async function procesarPagoOrden(){
     if (pagoTcgPendiente) return;
     if(ordenActual.length === 0){
@@ -4638,11 +4648,13 @@
 
     if (ordenActual.some(item => item.key === 'sobre')) {
       const cloud = window.JikoTcgCloud;
-      if (!cloud?.ready) { toast('Firebase de tarjetas aún no está disponible. No se cobró la orden.', 'warn'); return; }
-      if (isPreview || parent !== window) { toast('La vista previa no realiza compras reales de sobres. Usa la fuente en vivo.', 'warn'); return; }
+      if (!cloud?.ready) { estadoPago('La tienda todavía está conectando. Intenta pagar de nuevo en unos segundos.'); return; }
+      if (isPreview || parent !== window) { estadoPago('Esta vista previa no cobra sobres. Usa la fuente de la tiendita en vivo.'); return; }
       pagoTcgPendiente = true;
       pagoTcgId ||= cloud.id();
       if (btnPagar) btnPagar.disabled = true;
+      $confirmBox.setAttribute('aria-busy', 'true');
+      estadoPago('Confirmando pago…');
       cancelAnimationFrame(cdRaf);
       try {
         const receipt = await cloud.purchase(window.StreamDB?.resolverUsuarioReal(usuarioActual) || usuarioActual, [...ordenActual], pagoTcgId);
@@ -4651,13 +4663,20 @@
         playSfx('buy');
         // El saldo ya se descontó en la misma transacción que guardó las cartas.
         // No llamar setUserPoints ni registrarCompra para este recibo.
+        pagoTcgPendiente = false;
+        estadoPago();
         ocultarMenu();
         toast(`✦ Compra confirmada: ${receipt.packs.length} sobre(s), −${receipt.costoTotal} Jikopuntos. Entrega y apertura en cola.`);
         pagoTcgId = null;
       } catch (error) {
-        toast(String(error.message).replace(/[<>&]/g, ''), 'warn');
-        iniciarCd(AUTO_CIERRE_MS);
-      } finally { pagoTcgPendiente = false; if (btnPagar) btnPagar.disabled = false; }
+        console.error('[TCG pago]', error);
+        estadoPago(String(error.message || 'No se pudo confirmar el pago. Intenta de nuevo.'));
+      } finally {
+        pagoTcgPendiente = false;
+        $confirmBox.removeAttribute('aria-busy');
+        if (btnPagar) btnPagar.disabled = false;
+        if ($menu.classList.contains('visible')) reanudarCd();
+      }
       return;
     }
     const total = ordenActual.reduce((acc, it) => acc + it.precio, 0);
@@ -5727,9 +5746,9 @@
     if(p<=0){ ocultarMenu(); return; }
     cdRaf=requestAnimationFrame(tickCd);
   }
-  function iniciarCd(ms){ cdTotal=cdRestante=ms; cdStart=performance.now(); cancelAnimationFrame(cdRaf); cdRaf=requestAnimationFrame(tickCd); }
+  function iniciarCd(ms){ if(pagoTcgPendiente)return; cdTotal=cdRestante=ms; cdStart=performance.now(); cancelAnimationFrame(cdRaf); cdRaf=requestAnimationFrame(tickCd); }
   function pausarCd(){ cancelAnimationFrame(cdRaf); }
-  function reanudarCd(){ if(cdRestante<=0)return; cdTotal=cdRestante; cdStart=performance.now(); cdRaf=requestAnimationFrame(tickCd); }
+  function reanudarCd(){ if(pagoTcgPendiente || cdRestante<=0)return; cdTotal=cdRestante; cdStart=performance.now(); cdRaf=requestAnimationFrame(tickCd); }
 
   function animarPuntos(hasta){
     const el=document.getElementById('pts-val');
@@ -5744,6 +5763,7 @@
   let unsubscribeLiveUser = null;
 
   function mostrarMenu(user, puntos=null){
+    estadoPago();
     initAudio();
     playSfx('open');
     if($turnAlert) $turnAlert.classList.remove('activo', 'sacudir');
@@ -5790,6 +5810,7 @@
     }
   }
   function ocultarMenu(){ 
+    if (pagoTcgPendiente) return;
     const estabaAbierta = $menu.classList.contains('visible');
     $menu.classList.remove('visible'); 
     if($cardJp) $cardJp.classList.remove('arriba');

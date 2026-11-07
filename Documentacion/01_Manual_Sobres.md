@@ -15,11 +15,21 @@ Antes de habilitar las ventas por primera vez, publica los archivos nuevos del s
 
 1. El usuario escribe `!tienda`.
 2. Selecciona el producto escribiendo `!sobre`, o haciendo clic en el producto.
-3. Escribe `!comprar` para confirmar la orden.
+3. Escribe `!pagar`, `pagar` o `!comprar` para confirmar la orden.
 4. Firebase comprueba el precio vigente y el saldo. Si la compra se confirma, descuenta los puntos y guarda las cartas en el perfil en una misma transacción.
 5. La entrega se coloca en la cola. Primero aparece la animación del mesero. Cuando el mesero y la mesa han desaparecido, comienza la apertura del sobre.
 
-El precio inicial es **1500 Jikopuntos**. Se pueden seleccionar hasta **tres sobres por orden** de forma predeterminada. Una orden mixta con otros productos usa la misma entrega; los productos deben tener stock ilimitado para este tipo de orden. No se cobra una compra rechazada por saldo, producto desactivado, límite de sobres o cola llena.
+El precio inicial es **1500 Jikopuntos**. Se pueden seleccionar hasta **20 sobres por orden**, con un límite administrable de 1 a 20. La bandeja admite hasta 20 productos en total. Una orden mixta con otros productos usa la misma entrega; los productos deben tener stock ilimitado para este tipo de orden. No se cobra una compra rechazada por saldo, producto desactivado, límite de sobres o cola llena.
+
+Durante la confirmación, la orden y su contador quedan en pausa para evitar cambios o pagos simultáneos. Si el pago falla, el motivo aparece dentro de la confirmación y continúa el tiempo que quedaba, sin reiniciarlo. Reintentar la misma compra conserva su identificador para impedir un cobro duplicado.
+
+## Compras de varios sobres
+
+- De **uno a cinco sobres**: después de la entrega en la mesa, se reproduce la apertura completa de cada sobre.
+- De **seis a veinte sobres**: después de esa misma entrega, se omiten las invocaciones y rasgados individuales. Se muestran diapositivas de tres cartas, una por sobre, con realce doble únicamente para las especiales o superiores y con el color de su reverso.
+- Las cartas de cada diapositiva se acumulan en una pila. Al terminar, todas las cartas de la compra se reúnen y salen en un solo bloque.
+
+Ambas presentaciones usan las cartas del recibo guardado en Firebase. Cambiar la animación no cambia el premio ni vuelve a sortearlo.
 
 Las vistas previas del laboratorio no realizan compras reales ni otorgan cartas. Los botones de rareza fuerzan un resultado únicamente para revisar el efecto.
 
@@ -38,7 +48,7 @@ Cada sobre contiene tres cartas. Se sortea la rareza de cada una por separado.
 
 Existe un peso reservado de 0.05% para épicas cuando haya cartas de esa rareza en el catálogo. Mientras no existan, ese peso se añade a común. No se aumenta la probabilidad legendaria. Un sobre tiene aproximadamente **0.15%** de contener al menos una legendaria. No hay premios de rareza alta garantizados por cantidad de compras.
 
-Las comunes pueden repetirse dentro del mismo sobre. Una carta especial o superior conserva el doble énfasis al revelarse. El brillo del sobre corresponde a la mayor rareza que realmente contiene.
+Las comunes pueden repetirse dentro del mismo sobre. Una carta especial o superior conserva el doble énfasis al revelarse. El brillo del sobre corresponde a la mayor rareza que realmente contiene. Los efectos respetan los colores del reverso: común celeste, especial iridiscente rosa/cian, raro amatista morado, épico carmesí/cobre, legendario oro y mítico platino.
 
 ## Cartas repetidas y experiencia
 

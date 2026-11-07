@@ -5,7 +5,8 @@
 | `!tienda` o `!tiendita` | Abrir la tiendita y obtener el turno de compra. |
 | `!sobre` | Añadir un sobre a la orden del usuario que tiene abierta la tienda. |
 | `!sobre 2` | Añadir dos sobres, sujeto al límite configurado por compra. |
-| `!comprar` o `!pagar` | Pagar la orden. La entrega y la apertura quedan enlazadas automáticamente. |
+| `!sobre 6` | Añadir seis sobres. Al pagar, utiliza la presentación por diapositivas después de la entrega. |
+| `!comprar`, `comprar`, `!pagar`, `pagar` o `!listo` | Pagar la orden. La entrega y la apertura quedan enlazadas automáticamente. |
 | `!mostrarcartas` | Mostrar en un carrusel pequeño las últimas cinco cartas obtenidas por el emisor. |
 | `!mostrarcartas comun` | Mostrar sus últimas cinco comunes. También acepta `comunes`. |
 | `!mostrarcartas especial` | Mostrar sus últimas cinco especiales. También acepta `especiales`. |
@@ -24,7 +25,7 @@ Los filtros aceptan mayúsculas y acentos. El usuario solo solicita sus propias 
 - Cola FIFO compartida en Firebase, con capacidad inicial de **20 solicitudes**.
 - Las compras no se descartan al quedar en espera. Si la cola está llena antes de confirmar una compra, no se cobran los puntos.
 - Un carrusel dura inicialmente 12 segundos. Los siguientes esperan su turno, sin reemplazar el carrusel actual.
-- Una compra con varios sobres termina sus aperturas antes de comenzar la siguiente solicitud.
+- Una compra con varios sobres termina su presentación antes de comenzar la siguiente solicitud. Hasta cinco usa aperturas completas; desde seis muestra tríos sucesivos y una única salida de todas las cartas.
 
 La tiendita recibe el chat mediante sus conexiones actuales de Kick y Streamer.bot. El comando se transforma en una solicitud en Firebase; el tarjetero no necesita una conexión de chat adicional.
 
