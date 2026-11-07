@@ -68,7 +68,7 @@ El bono inicial por cada repetida es **1% del precio de un sobre**, reducido por
 
 El sobre no otorga además el bono normal de XP por gasto de la tiendita. Los productos que lo acompañan sí conservan su XP normal. En el nivel máximo se respeta el factor de XP igual a cero.
 
-Los perfiles muestran cartas únicas, total de ejemplares, repetidas y acumulados por rareza. El incremento de experiencia utiliza el mismo sistema de niveles que los demás productos.
+El perfil muestra el progreso de cartas únicas sobre 100 y seis casillas con las únicas de cada rareza. Cada carta cuenta una sola vez aunque tenga varias copias; por ejemplo, diez copias de una común suman una común en el perfil. Las copias y recibos siguen guardados en Firebase para conservar el historial y calcular la XP, pero no aumentan el progreso visible de la colección. El incremento de experiencia utiliza el mismo sistema de niveles que los demás productos.
 
 ## Administrar el producto
 

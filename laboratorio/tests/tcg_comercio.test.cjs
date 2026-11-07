@@ -61,6 +61,7 @@ test('cobra una vez, guarda cartas repetidas y XP en la misma transacción; rein
         assert.equal(user.tarjetas.inventario['001'].cantidad, 3);
         assert.equal(user.tarjetas.porRareza.common, 3);
         assert.equal(user.tarjetas.cartasUnicas, 1);
+        assert.equal(user.tarjetas.unicasPorRareza.common, 1);
         assert.equal(user.tarjetas.repetidas, 2);
         assert.equal(user.tarjetas.sobresComprados, 1);
         assert.equal(user.avatar, 'preserve-me');
@@ -173,6 +174,7 @@ test('recomprar una carta conserva una sola única, acumula seis copias y las ú
         assert.equal(user.tarjetas.cartasUnicas, 1);
         assert.equal(user.tarjetas.totalCartas, 6);
         assert.equal(user.tarjetas.inventario['001'].cantidad, 6);
+        assert.equal(user.tarjetas.unicasPorRareza.common, 1);
         assert.equal(Engine.recentCards(user).length, 5);
         assert.equal(Engine.recentCards(user, 'common').length, 5);
     } finally { service.destroy(); }

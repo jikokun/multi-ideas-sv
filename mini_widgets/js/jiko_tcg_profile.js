@@ -2,18 +2,37 @@
     const labels = { common: 'Comunes', special: 'Especiales', rare: 'Raras', epic: 'Épicas', legendary: 'Legendarias', mythic: 'Míticas' };
     const colors = { common: '#7dd3fc', special: '#f9a8d4', rare: '#c4b5fd', epic: '#fda4af', legendary: '#fde047', mythic: '#e2e8f0' };
     window.renderTcgProfile = function (data = {}) {
+        const uniqueByRarity = Object.fromEntries(Object.keys(labels).map(rarity => [rarity, 0]));
+        // Una entrada del inventario representa una carta distinta, tenga una o cien copias.
+        // Los perfiles antiguos sin inventario pueden usar los contadores de únicas guardados.
+        if (data.inventario && typeof data.inventario === 'object') {
+            for (const card of Object.values(data.inventario)) {
+                if (Number(card?.cantidad) > 0 && Object.hasOwn(uniqueByRarity, card.rareza)) uniqueByRarity[card.rareza]++;
+            }
+        } else {
+            for (const rarity of Object.keys(labels)) uniqueByRarity[rarity] = Math.max(0, Math.floor(Number(data.unicasPorRareza?.[rarity]) || 0));
+        }
+        const uniqueTotal = Object.values(uniqueByRarity).reduce((sum, count) => sum + count, 0);
         document.querySelectorAll('[data-tcg-summary]').forEach(container => {
             container.replaceChildren();
-            container.style.cssText = 'margin:6px 0;padding:7px 9px;border:1px solid #6b8ea833;border-radius:7px;background:#06111d66;font-size:10px;line-height:1.4;color:#afc5d3;';
+            container.classList.add('tcg-profile-summary');
+            const heading = document.createElement('div'); heading.className = 'tcg-profile-heading';
             const title = document.createElement('div');
-            title.textContent = `✦ CARTAS ${Number(data.cartasUnicas) || 0}/100 · ${Number(data.totalCartas) || 0} obtenidas · ${Number(data.repetidas) || 0} repetidas`;
-            title.style.cssText = 'font-weight:700;margin-bottom:4px;';
-            const grid = document.createElement('div'); grid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:3px 8px;';
+            title.textContent = 'CARTAS ÚNICAS';
+            const total = document.createElement('strong'); total.className = 'tcg-profile-total';
+            total.textContent = `${uniqueTotal} / 100`;
+            heading.append(title, total);
+            const grid = document.createElement('dl'); grid.className = 'tcg-profile-grid';
             for (const [rarity, label] of Object.entries(labels)) {
-                const cell = document.createElement('span'); cell.style.color = colors[rarity];
-                cell.textContent = `${label}: ${Number(data.porRareza?.[rarity]) || 0}`; grid.append(cell);
+                const cell = document.createElement('div'); cell.className = 'tcg-profile-rarity'; cell.dataset.rarity = rarity;
+                cell.style.setProperty('--rarity-color', colors[rarity]);
+                const name = document.createElement('dt'); name.textContent = label;
+                const count = document.createElement('dd'); count.textContent = uniqueByRarity[rarity];
+                cell.append(name, count); grid.append(cell);
             }
-            container.append(title, grid);
+            const note = document.createElement('div'); note.className = 'tcg-profile-note';
+            note.textContent = 'Las repetidas otorgan XP';
+            container.append(heading, grid, note);
         });
     };
 })();
