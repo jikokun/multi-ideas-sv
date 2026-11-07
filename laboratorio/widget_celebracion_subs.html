@@ -7,7 +7,7 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bowlby+One+SC&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Bowlby+One+SC&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Paleta Verde Kick (Default) + Paleta JIKOKUN Acua */
@@ -372,6 +372,22 @@
 
   .epic-number-display, .epic-sub-display { white-space: nowrap; }
 
+  #number-wrapper[data-event-kind="FOLLOW"] .epic-number-display,
+  #number-wrapper[data-event-kind="FOLLOW"] .epic-sub-display {
+    font-family: 'Baloo 2', 'Arial Rounded MT Bold', sans-serif;
+    font-weight: 800;
+    line-height: 1.1;
+    paint-order: stroke fill;
+  }
+
+  #number-wrapper[data-event-kind="FOLLOW"] .epic-number-display {
+    -webkit-text-stroke-width: 4px;
+  }
+
+  #number-wrapper[data-event-kind="FOLLOW"] .epic-sub-display {
+    -webkit-text-stroke-width: 2.5px;
+  }
+
   /* Etiqueta inferior SUB / SUBS o KICK / KICKS con la misma fuente Bowlby One SC */
   .epic-sub-display {
     position: relative;
@@ -654,6 +670,7 @@
       <div class="grid grid-cols-2 gap-2">
         <button id="btn-test-subscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar suscripción</button>
         <button id="btn-test-resubscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar resuscripción (6 meses)</button>
+        <button id="btn-test-follow" type="button" class="col-span-2 btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#6beef7]">💙 Probar follow</button>
       </div>
 
       <!-- Conexión a Streamer.bot y Variables de Subs y Kicks -->
@@ -991,6 +1008,10 @@
 
   function isSubscriberActive() {
     return state.currentEventKind === "SUBSCRIBER";
+  }
+
+  function isNamedEventActive() {
+    return isSubscriberActive() || state.currentEventKind === "FOLLOW";
   }
 
   function isDefaultAquaSubColor() {
@@ -1837,18 +1858,20 @@
     var chosenKind = customKind
       ? String(customKind).toUpperCase()
       : (selectTestKind && selectTestKind.value ? selectTestKind.value.toUpperCase() : state.currentEventKind);
-    state.currentEventKind = chosenKind === "SUBSCRIBER" ? "SUBSCRIBER" : ((chosenKind === "SUBS" || chosenKind === "SUB") ? "SUBS" : "KICKS");
+    state.currentEventKind = chosenKind === "FOLLOW" || chosenKind === "SUBSCRIBER" ? chosenKind : ((chosenKind === "SUBS" || chosenKind === "SUB") ? "SUBS" : "KICKS");
+    numberWrapper.setAttribute("data-event-kind", state.currentEventKind);
 
     // Aplicar de inmediato el tema de color correspondiente:
     // - Si es KICKS: Verde Kick fijo (#53fc18 / #062902)
     // - Si es SUBS: Color personalizable configurado para Subs (state.shadowHex / state.shadow3dHex)
     applyShadowSettings();
 
-    var chosenNumber = isSubscriberActive() ? String(customNumber) : resolveRandomOrFixedNumber(customNumber);
+    var chosenNumber = isNamedEventActive() ? String(customNumber) : resolveRandomOrFixedNumber(customNumber);
     var numericVal = parseInt(String(chosenNumber).replace(/[^0-9]/g, ""), 10);
     var labelWord = isSubscriberActive() ? (months !== undefined ? (months > 0 ? "Se re suscribió x" + months + (months === 1 ? " mes" : " meses") : "Se re suscribió") : "Se acaba de suscribir") : resolveEventLabel(chosenNumber, state.currentEventKind);
+    if (state.currentEventKind === "FOLLOW") labelWord = "Te acaba de seguir";
 
-    if (!isSubscriberActive() && !isNaN(numericVal) && numericVal >= 1) {
+    if (!isNamedEventActive() && !isNaN(numericVal) && numericVal >= 1) {
       if (state.currentEventKind === "KICKS") {
         kicksEnviados = numericVal;
         window.kicksEnviados = numericVal;
@@ -1870,10 +1893,11 @@
     } else if (digitsLen >= 6) {
       effectiveFontSize = Math.round(baseSize * 0.62);
     }
-    if (isSubscriberActive()) {
+    if (isNamedEventActive()) {
       var measure = document.createElement("canvas").getContext("2d");
+      var textStyle = getComputedStyle(numberText);
       var fitSize = function (text, maxSize, availableWidth, spacing) {
-        measure.font = maxSize + "px 'Bowlby One SC', sans-serif";
+        measure.font = textStyle.fontWeight + " " + maxSize + "px " + textStyle.fontFamily;
         var width = measure.measureText(text).width + text.length * maxSize * spacing;
         return Math.min(maxSize, Math.floor(maxSize * availableWidth / Math.max(1, width)));
       };
@@ -1952,7 +1976,15 @@
     state.sequenceTimers.push(tDone);
   }
 
-  // Función que conecta la variable de SUBS REGALADAS (1 en adelante) con la celebración
+  function procesarFollow(username) {
+    var name = String(username || "").trim();
+    if (!name) return;
+    if (wsLastEvent) wsLastEvent.textContent = "💙 " + name + " te acaba de seguir";
+    if (labelLastSubsVar) labelLastSubsVar.textContent = name + " · FOLLOW";
+    if (state.isAnimating) state.giftQueue.push({ count: name, kind: "FOLLOW" });
+    else triggerFullCelebration(name, "FOLLOW");
+  }
+
   function procesarSuscripcion(username, renewal, months) {
     var name = String(username || "").trim();
     if (!name) return;
@@ -2075,7 +2107,7 @@
 
   function extractGifterUsername(payload) {
     if (!payload || typeof payload !== "object") return "";
-    var raw = payload.gifter || payload.sender || payload.user || payload.user_name || payload.userName || payload.displayName || payload.username || "";
+    var raw = payload.gifter || payload.sender || payload.user || payload.targetUser || payload.user_name || payload.userName || payload.displayName || payload.username || "";
     if (typeof raw === "object" && raw !== null) {
       return raw.username || raw.name || raw.display_name || raw.displayName || raw.login || "";
     }
@@ -2313,6 +2345,11 @@
       try { payload = JSON.parse(payload); } catch (e) {}
     }
 
+    if ((source === "kick" || source === "twitch") && evType === "follow") {
+      procesarFollow(extractGifterUsername(payload));
+      return;
+    }
+
     // Ignorar eventos de chat o comandos normales
     if (
       evType.indexOf("chatmessage") !== -1 ||
@@ -2340,6 +2377,10 @@
 
       // Si el payload contiene variables de Kicks (%kicks.amount%, kicks, etc.), lanzar celebración de KICKS
       var customType = String(customPayload && (customPayload.kind || customPayload.eventType || customPayload.type) || "").toLowerCase();
+      if (customType === "follow") {
+        procesarFollow(extractGifterUsername(customPayload));
+        return;
+      }
       if (/^(subscription|subscribe|subscriber|sub|resub|resubscription)$/.test(customType)) {
         procesarSuscripcion(extractGifterUsername(customPayload), customType === "resub" || customType === "resubscription", extractSubscriptionMonths(customPayload));
         return;
@@ -2449,8 +2490,8 @@
           id: "jikokun-epic-subs-kicks-celebration",
           events: {
             General: ["Custom"],
-            Kick: ["KicksGifted", "GiftSubscription", "MassGiftSubscription", "Subscription", "Resubscription"],
-            Twitch: ["Sub", "ReSub", "GiftSub", "GiftBomb"],
+            Kick: ["Follow", "KicksGifted", "GiftSubscription", "MassGiftSubscription", "Subscription", "Resubscription"],
+            Twitch: ["Follow", "Sub", "ReSub", "GiftSub", "GiftBomb"],
             YouTube: [
               "MembershipGift",
               "GiftMembershipReceived"
@@ -2584,6 +2625,11 @@
   document.getElementById("btn-test-resubscriber").addEventListener("click", function (e) {
     e.stopPropagation();
     procesarSuscripcion("UsuarioDePrueba", true, 6);
+  });
+
+  document.getElementById("btn-test-follow").addEventListener("click", function (e) {
+    e.stopPropagation();
+    procesarFollow("NuevoSeguidor");
   });
 
   btnTest1Sub.addEventListener("click", function (e) {
@@ -2764,6 +2810,7 @@
     }
   };
   window.celebrarSuscripcion = procesarSuscripcion;
+  window.celebrarFollow = procesarFollow;
   window.celebrarResuscripcion = function (user, months) { procesarSuscripcion(user, true, months); };
   window.celebrarSubsRegaladas = procesarSubsRegaladas;
   window.celebrarKicksEnviados = procesarKicksEnviados;
@@ -2772,7 +2819,9 @@
   window.addEventListener("message", function (event) {
     if (!event || !event.data) return;
     var d = event.data;
-    if (d.type === "SUBSCRIPTION" || d.type === "TRIGGER_SUBSCRIPTION") {
+    if (d.type === "FOLLOW" || d.type === "TRIGGER_FOLLOW") {
+      procesarFollow(d.user || d.username || "");
+    } else if (d.type === "SUBSCRIPTION" || d.type === "TRIGGER_SUBSCRIPTION") {
       procesarSuscripcion(d.user || d.username || "");
     } else if (d.type === "RESUBSCRIPTION" || d.type === "TRIGGER_RESUBSCRIPTION") {
       procesarSuscripcion(d.user || d.username || "", true, extractSubscriptionMonths(d));
@@ -2788,6 +2837,7 @@
   });
 
   window.addEventListener("load", function () {
+    if (document.fonts) document.fonts.load('800 100px "Baloo 2"').catch(function () {});
     loadSavedConfig();
     syncUIFromState();
     applyShadowSettings();
