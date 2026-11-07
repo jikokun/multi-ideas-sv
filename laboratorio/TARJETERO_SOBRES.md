@@ -5,6 +5,7 @@ El sistema de compra, inventario y comandos en Firebase está documentado en [Do
 Abrir `tarjetero.html` en el navegador o como fuente de navegador de OBS a **1920 × 1080**. El lienzo conserva esas dimensiones y ajusta su escala en ventanas de vista previa.
 
 - Widget transparente, sin textos, rótulos ni controles: `tarjetero.html` o `tarjetero.html?obs=true`.
+- Las aperturas comunes usan la zona de la mesa, abajo a la izquierda. Una especial o superior amplía el escenario y conserva el doble realce. Las colecciones personales aparecen en un carrusel más pequeño, junto al borde inferior izquierdo.
 - En la fuente OBS en vivo, la compra de la tiendita activa la apertura después de que el mesero se retire. El widget reproduce las cartas del recibo guardado en Firebase; no se sortean de nuevo. `!mostrarcartas [rareza]` utiliza la misma cola para mostrar las cartas ganadas.
 - El enlace para copiar a OBS está en `laboratorio/index.html`, en la tarjeta **Sobres Jikokun · Apertura de cartas**. Sus botones actúan sobre la vista previa del laboratorio.
 - Panel de operador opcional: `tarjetero.html?controls=true`. Solo en esta URL se muestra el menú; **H** permite abrirlo y cerrarlo. `obs=true` impide mostrar controles incluso si se combina con `controls=true`.
@@ -12,7 +13,7 @@ Abrir `tarjetero.html` en el navegador o como fuente de navegador de OBS a **192
 - Las cartas aparecen por el reverso, se extienden y se revelan de menor a mayor rareza. Al terminar, un clic en una carta permite consultar su reverso.
 - Cada carta especial o superior recibe dos pulsos de luz, dos ampliaciones y dos ráfagas de partículas. Se completa el doble énfasis antes de revelar la siguiente carta de rareza alta.
 - Las compras de más de cinco sobres usan `JikoBooster.playBatch(packs, { signal, startIndex, onCheckpoint })`: muestran tres cartas por diapositiva, resaltan especiales o superiores y acumulan todas las cartas para una sola salida conjunta. No invocan sobres individuales ni sortean premios. Cada diapositiva terminada guarda su punto de control en Firebase.
-- Las cartas se reúnen y salen automáticamente tras ocho segundos de exhibición, dejando nuevamente el lienzo vacío. El panel de operador permite cambiar el tiempo o activar **Conservar las cartas en pantalla**.
+- Un solo sobre conserva ocho segundos de exhibición. Las compras de dos a cinco usan aperturas rápidas y una pausa breve para comunes, con más tiempo para rarezas avanzadas. Desde seis se usan tríos por diapositiva y una sola salida conjunta. El panel de operador permite cambiar el tiempo de la prueba individual o activar **Conservar las cartas en pantalla**.
 - **Forzar efecto** fuerza la rareza indicada en la carta central y deja dos comunes. No representa las probabilidades del sorteo ni cuenta en las estadísticas. El menú solo permite rarezas presentes en esta colección.
 - **Limpiar lienzo** cancela la secuencia, sus temporizadores, audio y partículas. No borra las estadísticas de la sesión.
 
@@ -54,10 +55,9 @@ Se solicitan las portadas y los reversos del sobre actual, sin precargar las 100
 
 ## Código y validación
 
-- `tarjetero.html`: estructura del widget y menú.
-- `tarjetero_sobres.css`: sobre 3D, rasgado, abanico, hologramas y salida.
+- `tarjetero.html`: estructura, estilos, carrusel, apertura 3D, controles, audio, partículas, reserva de sobres y consumo de la cola Firebase, todo en el mismo archivo.
 - `tarjetero_sobres_core.js`: catálogo, probabilidades y sorteo sin dependencias del DOM.
-- `tarjetero_sobres.js`: secuencia visual, controles, audio y partículas.
+- `tarjetero_modular_respaldo.txt`: copia de los tres archivos visuales modulares anteriores, sin ejecutar.
 - Pruebas: `node --test laboratorio/tests/tarjetero_sobres.test.cjs`.
 
 La animación combina las fases de invocación, giro, carga y rasgado del prototipo adjunto con la flotación, hologramas, paleta de rarezas y salida épica del mostrador anterior. El catálogo ficticio y la garantía cada diez intentos del prototipo no se utilizan.

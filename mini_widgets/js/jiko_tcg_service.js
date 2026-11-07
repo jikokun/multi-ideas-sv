@@ -58,7 +58,7 @@
                 state ||= { jobs: {}, cooldowns: {} }; state.jobs ||= {};
                 const previous = state.jobs[receipt.id];
                 if (previous?.status === 'done') return;
-                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}) };
+                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}) };
                 return state;
             });
         }
@@ -121,6 +121,23 @@
                 await this.store.set('stream/tienda/transacciones/' + id, { usuario: user, usuarioNorm: user, items: items.map(item => item.nombre).join(', '), itemsKeys: items.map(item => item.key), costoTotal: total, nuevoSaldo: receipt.nuevoSaldo, experienciaGanada: receipt.xpGanada, timestamp: now, tipo: 'sobre_tcg', compraId: id }).catch(() => {});
                 return receipt;
             } catch (error) { if (!committed) await this.cancelReservation(id, user).catch(() => {}); throw error; }
+        }
+        async markPresentationReady(id) {
+            return this.store.transaction(CONTROL, state => {
+                const job = state?.jobs?.[id];
+                if (!job || job.type !== 'purchase' || job.status !== 'delivering') return;
+                job.presentationReadyAt = this.now();
+                return state;
+            });
+        }
+        async waitForPresentation(id, signal) {
+            for (let attempt = 0; attempt < 12; attempt++) {
+                if (signal?.aborted) throw new Error('Entrega interrumpida.');
+                const ready = this.control.jobs?.[id]?.presentationReadyAt;
+                if (ready && this.now() - ready < 5000) return true;
+                await new Promise(resolve => setTimeout(resolve, 70));
+            }
+            return false;
         }
         async showCollection(username, rarity = '') {
             await this.online();

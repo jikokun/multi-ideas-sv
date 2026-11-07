@@ -214,3 +214,21 @@ test('seis sobres cobran una vez y guardan sus 18 cartas; el límite administrab
         assert.equal(await store.get('stream/widgets/tcg/control/jobs/bulk_reject'), null);
     } finally { service.destroy(); }
 });
+
+test('la mesa entrega los sobres al mismo renderizador y conserva su confirmación al recuperar el recibo', async () => {
+    const { service, store, now } = await setup();
+    try {
+        const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'handoff');
+        assert.equal((await service.markPresentationReady('handoff')).committed, false);
+        const delivery = Engine.claim(await store.get('stream/widgets/tcg/control'), 'delivery', 'shop', 'token', now(), service.settings);
+        await store.set('stream/widgets/tcg/control', delivery);
+        assert.equal((await service.markPresentationReady('handoff')).committed, true);
+        assert.equal(await service.waitForPresentation('handoff'), true);
+        await service.promote(receipt);
+        assert.equal((await store.get('stream/widgets/tcg/control/jobs/handoff')).presentationReadyAt, now());
+        const aborter = new AbortController(); aborter.abort();
+        await assert.rejects(service.waitForPresentation('handoff', aborter.signal), /interrumpida/);
+        assert.equal(await service.waitForPresentation('no_renderer'), false);
+        assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 4500);
+    } finally { service.destroy(); }
+});

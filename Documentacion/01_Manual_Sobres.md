@@ -5,9 +5,11 @@
 1. Mantén activa la fuente de navegador de **Tiendita**.
 2. En el laboratorio, busca **Sobres Jikokun** y copia su enlace para OBS.
 3. Añade ese enlace como una segunda fuente de navegador de **1920 × 1080**. Ambas fuentes deben poder conectarse a Firebase. Usa el enlace HTTPS del sitio publicado; abrir archivos mediante `file://` puede impedir cargar módulos de JavaScript.
-4. Deja la fuente de sobres visible en la escena. No tiene fondo ni rótulos y permanece vacía mientras espera.
+4. Coloca la fuente de sobres por encima de **Tiendita** en la lista de fuentes de OBS y déjala visible. No tiene fondo ni rótulos y permanece vacía mientras espera.
 
-Las dos fuentes tienen tareas diferentes: la tiendita muestra al mesero y entrega el sobre sobre la mesa; el tarjetero abre ese mismo premio después de terminar la entrega. No hace falta activar la apertura con un segundo comando.
+La tiendita muestra la mesa y el mesero. El tarjetero dibuja los sobres desde la entrega, los conserva mientras se retira el mesero y los abre en esa misma zona. Si no hay un tarjetero disponible, la tiendita muestra sus imágenes habituales y el recibo queda esperando apertura. No hace falta un segundo comando.
+
+El carrusel, las aperturas, los estilos y la recepción de turnos están integrados en **`laboratorio/tarjetero.html`**. La fuente ocupa un lienzo transparente de 1920 × 1080, pero las aperturas comunes se concentran abajo a la izquierda, en la zona de la mesa. Una especial o superior amplía el sobre y las cartas para conservar su animación destacada. `!mostrarcartas [rareza]` utiliza un carrusel pequeño junto al borde inferior izquierdo.
 
 Antes de habilitar las ventas por primera vez, publica los archivos nuevos del sitio y comprueba que ambas fuentes están cargando la versión actualizada. Después activa **Sobre disponible en la tiendita** en el panel de tarjetas. El producto preparado inicialmente en Firebase queda desactivado hasta completar ese paso, para impedir compras desde una versión antigua de la tienda que todavía no entrega cartas.
 
@@ -25,8 +27,9 @@ Durante la confirmación, la orden y su contador quedan en pausa para evitar cam
 
 ## Compras de varios sobres
 
-- De **uno a cinco sobres**: después de la entrega en la mesa, se reproduce la apertura completa de cada sobre.
-- De **seis a veinte sobres**: después de esa misma entrega, se omiten las invocaciones y rasgados individuales. Se muestran diapositivas de tres cartas, una por sobre, con realce doble únicamente para las especiales o superiores y con el color de su reverso.
+- **Un sobre**: conserva la apertura y los ocho segundos de exhibición habituales.
+- De **dos a cinco sobres**: acelera entrada, rasgado y cartas comunes. Las comunes se exhiben brevemente; las especiales o superiores conservan el doble realce y una pausa mayor. Los sobres pendientes permanecen en la zona de la mesa.
+- De **seis a veinte sobres**: se omiten invocaciones y rasgados individuales. Muestra diapositivas rápidas de tres cartas, una por sobre. Las especiales o superiores se amplían y reciben doble realce con el color de su reverso.
 - Las cartas de cada diapositiva se acumulan en una pila. Al terminar, todas las cartas de la compra se reúnen y salen en un solo bloque.
 
 Ambas presentaciones usan las cartas del recibo guardado en Firebase. Cambiar la animación no cambia el premio ni vuelve a sortearlo.

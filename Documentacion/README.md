@@ -10,4 +10,6 @@ Configuración inicial: **1500 Jikopuntos por sobre**, tres cartas por sobre y c
 
 El carrusel original completo se conserva en `laboratorio/tarjetero_mostrador_legacy.html.txt`. El comando nuevo `!mostrarcartas` utiliza un carrusel pequeño para las cartas ganadas, sin reactivar los antiguos comandos del mostrador.
 
+La presentación activa está integrada en `laboratorio/tarjetero.html`: aperturas compactas en la zona de la mesa, ampliación para especiales o superiores y carrusel inferior izquierdo. Las compras múltiples usan una presentación más rápida. La versión modular previa se conserva en `laboratorio/tarjetero_modular_respaldo.txt`.
+
 Actualización: 7 de noviembre de 2026.

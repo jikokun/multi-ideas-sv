@@ -36,6 +36,8 @@ Los estados son `reserved` → `ready` → `delivering` → `awaiting_open` → 
 
 La fuente Tiendita es la única que toma el turno de entrega. La fuente Tarjetero toma el de apertura después de que el mesero se haya retirado por completo. Cada turno tiene un token y un vencimiento de 30 segundos, renovado cada cinco segundos mientras se reproduce. Una segunda fuente no puede confirmar el trabajo de la primera con otro token.
 
+Durante `delivering`, el tarjetero prepara la pila de sobres en su zona compacta y confirma `presentationReadyAt` en ese mismo trabajo de Firebase. La tiendita espera brevemente esa confirmación antes de mostrar al mesero; si llega, oculta sus propias imágenes de sobres y deja que el tarjetero las conserve durante la retirada de la mesa. Si no llega, muestra la entrega habitual. La apertura sigue necesitando el turno exclusivo `awaiting_open` → `opening`; preparar imágenes no concede cartas ni vuelve a sortear el premio.
+
 Si una fuente se cierra, el turno vence y otra puede recuperar la solicitud. Las aperturas ya terminadas de una compra múltiple tienen un punto de control. Una interrupción justo antes de guardar ese punto puede repetir la animación del mismo premio; no repite el cobro, las cartas ni la XP.
 
 Para compras de más de cinco sobres se guarda `packIndex` después de cada diapositiva. Al recuperar el turno, se reconstruye la pila de cartas ya mostradas y se continúa desde el siguiente trío. Al terminar, todas las cartas salen juntas y se confirma el recibo una sola vez.
@@ -44,7 +46,7 @@ Los recibos pagados no caducan por estar en espera. Si no hay una fuente de tarj
 
 ## Puesta en marcha y límites de confianza
 
-El sitio debe servir los archivos nuevos de `mini_widgets/js/` y `laboratorio/`. La inicialización crea los nodos de configuración, catálogo y producto solo si no existen; no sobrescribe ajustes ya guardados.
+El sitio debe servir los archivos nuevos de `mini_widgets/js/` y `laboratorio/`. Los estilos, el carrusel, las animaciones y el consumidor de la cola están dentro de `laboratorio/tarjetero.html`; el motor de sorteos y el servicio de compras siguen compartidos con la tiendita. La versión modular anterior se conserva sin ejecutar en `laboratorio/tarjetero_modular_respaldo.txt`. La inicialización crea los nodos de configuración, catálogo y producto solo si no existen; no sobrescribe ajustes ya guardados.
 
 El archivo `database.rules.json` añade el índice `tarjetas/pendiente` a los usuarios para recuperar entregas sin consultar todos los perfiles. Publicar ese índice mejora la consulta. La integración conserva el modelo de permisos de la instalación actual; no añade autenticación de compras a nivel de servidor ni cambia las reglas generales del resto de widgets. Los administradores deben mantener controlado quién puede escribir en los nodos de economía.
 

@@ -7,7 +7,7 @@
 | `!sobre 2` | Añadir dos sobres, sujeto al límite configurado por compra. |
 | `!sobre 6` | Añadir seis sobres. Al pagar, utiliza la presentación por diapositivas después de la entrega. |
 | `!comprar`, `comprar`, `!pagar`, `pagar` o `!listo` | Pagar la orden. La entrega y la apertura quedan enlazadas automáticamente. |
-| `!mostrarcartas` | Mostrar en un carrusel pequeño las últimas cinco cartas obtenidas por el emisor. |
+| `!mostrarcartas` | Mostrar en el tarjetero, abajo a la izquierda, un carrusel pequeño con las últimas cinco cartas obtenidas por el emisor. |
 | `!mostrarcartas comun` | Mostrar sus últimas cinco comunes. También acepta `comunes`. |
 | `!mostrarcartas especial` | Mostrar sus últimas cinco especiales. También acepta `especiales`. |
 | `!mostrarcartas raro` | Mostrar sus últimas cinco raras. Acepta `rara`, `raras` y `raros`. |
@@ -27,10 +27,10 @@ Los filtros aceptan mayúsculas y acentos. El usuario solo solicita sus propias 
 - Un carrusel dura inicialmente 12 segundos. Los siguientes esperan su turno, sin reemplazar el carrusel actual.
 - Una compra con varios sobres termina su presentación antes de comenzar la siguiente solicitud. Hasta cinco usa aperturas completas; desde seis muestra tríos sucesivos y una única salida de todas las cartas.
 
-La tiendita recibe el chat mediante sus conexiones actuales de Kick y Streamer.bot. El comando se transforma en una solicitud en Firebase; el tarjetero no necesita una conexión de chat adicional.
+La tiendita recibe el chat mediante sus conexiones actuales de Kick y Streamer.bot. Su filtro admite expresamente `!mostrarcartas` y sus variantes por rareza, incluso con la tienda cerrada. El comando se transforma en una solicitud en Firebase y el carrusel se reproduce dentro de `tarjetero.html`; no hace falta otra fuente de navegador para mostrar colecciones.
 
 ## Controles de operador
 
-`tarjetero.html?controls=true` abre un panel local de prueba visual. Las pruebas no cobran puntos, no añaden cartas a perfiles y no consumen compras reales de la cola. El enlace `?obs=true` se reserva para la fuente en vivo que consume los turnos confirmados de Firebase.
+`tarjetero.html?controls=true` abre un panel local de prueba visual, incluido **Probar carrusel inferior (5 cartas)**. Las pruebas no cobran puntos, no añaden cartas a perfiles y no consumen compras reales de la cola. `tarjetero.html` y `tarjetero.html?obs=true` funcionan como fuente en vivo cuando se abren directamente. Las vistas previas incrustadas y `?controls=true` quedan fuera de la cola real.
 
 Los comandos antiguos del mostrador (`!tarjetasjikokun`, `!rotar`, `!carta`, entre otros) permanecen en el respaldo y no se utilizan para las colecciones personales nuevas.

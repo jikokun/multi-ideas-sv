@@ -8,15 +8,234 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="tarjetero_sobres.css">
-    <script src="../data/tarjetas_default_data.js" defer></script>
-    <script src="tarjetero_sobres_core.js" defer></script>
-    <script src="tarjetero_sobres.js" defer></script>
+    <style id="tarjetero-estilos">
+:root {
+    color-scheme: normal;
+    --canvas-fit: 1;
+    --primary: #38bdf8;
+    --secondary: #0284c7;
+    --glow-rgb: 56, 189, 248;
+    font-family: 'Rajdhani', sans-serif;
+    color: #e8f5ff;
+}
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent !important; }
+/* La fuente de OBS está vacía en reposo, incluso con el ratón encima. */
+body:not(.operator-controls) :is(.sim-panel, .reopen-panel, .fatal-error) { display: none !important; }
+.result-summary, .card-floating-badge { display: none !important; }
+.scene-caption { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.clean-overlay .card-placeholder :is(.fallback-title, .fallback-number, .fallback-caption),
+.clean-overlay .pack-placeholder > :not(.pack-symbol) { display: none; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: wait; opacity: .5; }
+button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid #7dd3fc; outline-offset: 5px; }
+[hidden] { display: none !important; }
+button { -webkit-tap-highlight-color: transparent; }
+#obs-canvas { --compact-x: 650px; --compact-y: 875px; --compact-scale: .5; --scene-x: var(--compact-x); --scene-y: var(--compact-y); --scene-scale: var(--compact-scale); width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(var(--canvas-fit)); transform-origin: center; overflow: hidden; background: transparent; isolation: isolate; }
+#opening-scene { position: absolute; inset: 0; z-index: 10; transform-origin: 960px 475.2px; transform: translate3d(calc(var(--scene-x) - 960px), calc(var(--scene-y) - 475.2px), 0) scale(var(--scene-scale)); transition: transform .85s cubic-bezier(.2, .8, .2, 1); }
+#opening-scene.layout-snap { transition: none; }
+#obs-canvas[data-layout="expanded"] { --scene-x: 960px; --scene-y: 475.2px; --scene-scale: 1; }
+#obs-canvas[data-layout="collection"] { --scene-x: 360px; --scene-y: 940px; --scene-scale: .58; }
+#pack-reserve { position: absolute; z-index: 5; left: var(--compact-x); top: var(--compact-y); width: 0; height: 0; pointer-events: none; }
+.reserve-sleeve { position: absolute; width: calc(310px * var(--compact-scale)); height: calc(470px * var(--compact-scale)); transform: translate(calc(-50% + var(--reserve-offset)), calc(-50% - var(--reserve-rise))); filter: drop-shadow(0 8px 12px #0008); }
+.reserve-sleeve::before { content: '✦'; position: absolute; inset: 0; display: grid; place-items: center; background: #082638; border: 1px solid #7dd3fc; border-radius: 7px; font-size: 40px; color: #7dd3fc; }
+#pack-wrapper.docked { opacity: 1; transform: none; transition: none; }
+#pack-wrapper.docked .pack-float { animation: none; }
+#obs-canvas[data-fast="true"] .tcg-card-slot { transition-duration: .4s, .2s; }
+#obs-canvas[data-fast="true"] .card-rotator { transition-duration: .35s; }
+#obs-canvas[data-fast="true"] #pack-wrapper.phase-enter { transition-duration: .4s, .2s; }
+#obs-canvas[data-fast="true"] .state-vanish { animation-duration: .55s; }
+.canvas-header, .canvas-footer { position: absolute; left: 64px; right: 64px; display: flex; justify-content: space-between; align-items: center; pointer-events: none; z-index: 30; }
+.canvas-header { top: 42px; }
+.brand { display: flex; align-items: center; gap: 14px; font: 900 23px 'Orbitron', sans-serif; letter-spacing: 4px; }
+.brand small { display: block; color: #7594a9; font: 600 10px 'Rajdhani', sans-serif; letter-spacing: 3.8px; margin-top: 7px; }
+.brand-mark { color: #7dd3fc; font-size: 48px; text-shadow: 0 0 25px #38bdf84d; }
+.edition-tag { font-size: 13px; letter-spacing: 2px; color: #91a9bb; }
+.edition-tag i, .canvas-footer i { display: inline-block; height: 4px; width: 4px; border-radius: 50%; background: #36d9de; vertical-align: middle; margin: 0 14px; }
+.canvas-footer { bottom: 34px; font-size: 11px; letter-spacing: 3px; color: #4b687d; }
+body.obs-mode .preview-only { display: none; }
+#stage-container { position: absolute; left: 50%; top: 44%; width: 1240px; height: 720px; transform: translate(-50%, -50%); display: flex; justify-content: center; align-items: center; perspective: 1600px; }
+#fx-canvas { position: absolute; inset: 0; width: 1920px; height: 1080px; pointer-events: none; z-index: 22; }
+.stage-aura { position: absolute; z-index: 0; width: 760px; height: 760px; border-radius: 50%; background: radial-gradient(circle, rgba(var(--glow-rgb), .32), rgba(var(--glow-rgb), .08) 44%, transparent 69%); filter: blur(24px); opacity: 0; transform: scale(.3); transition: opacity .5s, transform .8s, background .5s; pointer-events: none; }
+.stage-aura.active { opacity: 1; transform: scale(1); }
+.stage-aura.high-rarity { transform: scale(1.28); }
+.god-rays { width: 1060px; height: 1060px; position: absolute; z-index: 1; background: repeating-conic-gradient(from 0deg, transparent 0deg 18deg, rgba(var(--glow-rgb), .18) 18deg 28deg, transparent 28deg 45deg); mask-image: radial-gradient(circle, black 5%, transparent 69%); -webkit-mask-image: radial-gradient(circle, black 5%, transparent 69%); opacity: 0; transition: opacity .6s; pointer-events: none; }
+.god-rays.active { opacity: .9; animation: spinRays 20s linear infinite; }
+@keyframes spinRays { to { transform: rotate(360deg); } }
+#epic-shockwave { position: absolute; width: 140px; height: 140px; border: 4px solid var(--primary); border-radius: 50%; box-shadow: 0 0 40px var(--primary), inset 0 0 30px var(--secondary); opacity: 0; pointer-events: none; z-index: 23; }
+#epic-shockwave.wave-active { animation: shockwaveBlast 1.15s cubic-bezier(.16, 1, .3, 1) forwards; }
+@keyframes shockwaveBlast { 0% { opacity: 1; transform: scale(.1); border-width: 14px; } 100% { opacity: 0; transform: scale(9); border-width: 1px; } }
+#center-flash-burst { position: absolute; width: 620px; height: 620px; background: radial-gradient(circle, #fff 0%, rgba(var(--glow-rgb), .65) 12%, transparent 65%); opacity: 0; pointer-events: none; z-index: 24; }
+#center-flash-burst.burst-active { animation: flashBurst .7s ease-out forwards; }
+@keyframes flashBurst { 0% { opacity: 0; transform: scale(.2); } 16% { opacity: .95; } 100% { opacity: 0; transform: scale(1.65); } }
+
+/* Entrada, giro, carga y rasgado adaptados del prototipo adjunto. */
+#pack-wrapper { position: absolute; width: 310px; height: 470px; transform-style: preserve-3d; opacity: 0; transform: translateY(420px) scale(.25) rotateY(-180deg) rotateZ(-12deg); pointer-events: none; z-index: 18; }
+#pack-wrapper.phase-enter { opacity: 1; transform: translateY(0) scale(1) rotateY(0) rotateZ(0); transition: transform 1s cubic-bezier(.18, 1.15, .32, 1), opacity .3s; }
+.pack-float { position: absolute; inset: 0; transform-style: preserve-3d; }
+.phase-enter .pack-float { animation: centerCardBreath 3.4s ease-in-out infinite alternate; }
+.pack-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 16px; overflow: hidden; background: #072b3b; box-shadow: 0 24px 65px #0009, 0 0 36px rgba(var(--glow-rgb), .5), inset 0 0 0 2px rgba(var(--glow-rgb), .65); }
+.pack-front { transform: translateZ(1px); }
+.pack-back { transform: rotateY(180deg) translateZ(1px); }
+.pack-placeholder { position: absolute; inset: 0; padding: 45px 16px; display: flex; flex-direction: column; align-items: center; justify-content: space-around; background: repeating-linear-gradient(90deg, #ffffff06 0 2px, transparent 2px 8px), linear-gradient(135deg, #041b26, #105569 45%, #062736 72%, #031018); border: 2px solid #67e8f959; border-radius: 16px; font-weight: 700; letter-spacing: 3px; text-align: center; }
+.pack-wordmark { font: 900 29px 'Orbitron', sans-serif; color: #b7efff; letter-spacing: 2px; }
+.pack-symbol { font-size: 140px; color: #a5f3fc; text-shadow: 0 0 35px var(--primary); line-height: 1; }
+.pack-placeholder small { font-size: 10px; color: #a3c5d0; }
+.drive-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .25s; }
+.drive-art.loaded { opacity: 1; }
+.pack-face .drive-art.loaded { background: #061521; }
+.pack-top-seal { position: absolute; inset: 0; border-radius: 16px 16px 0 0; height: 68px; opacity: 0; overflow: hidden; transform: translateZ(3px); transform-origin: right top; pointer-events: none; z-index: 5; transition: transform .6s cubic-bezier(.16, 1, .3, 1), opacity .45s; background: repeating-linear-gradient(90deg, #79d5ec 0 3px, #155b70 3px 7px); clip-path: polygon(0 0, 100% 0, 100% 90%, 86% 100%, 73% 88%, 61% 100%, 49% 87%, 36% 100%, 23% 88%, 10% 100%, 0 90%); }
+.pack-top-seal .drive-art { height: 470px; object-fit: contain; }
+#pack-wrapper.ripping .pack-face { clip-path: polygon(0 13%, 12% 14%, 24% 12%, 37% 14%, 50% 12%, 63% 14%, 75% 12%, 88% 14%, 100% 12%, 100% 100%, 0 100%); }
+#pack-wrapper.ripping .pack-top-seal { opacity: 0; transform: translate3d(165px, -190px, 100px) rotateZ(38deg); }
+.pack-top-seal.ready { opacity: 1; }
+.pack-slash-line { position: absolute; top: 62px; left: -70px; width: 450px; height: 10px; opacity: 0; background: linear-gradient(90deg, transparent, var(--primary), #fff, var(--primary), transparent); box-shadow: 0 0 30px var(--primary); border-radius: 50%; transform: scaleX(0) translateZ(8px); }
+.ripping .pack-slash-line { animation: slashRip .48s ease-out forwards; }
+@keyframes slashRip { 0% { opacity: 1; transform: scaleX(0) rotate(-3deg); } 45% { opacity: 1; transform: scaleX(1.15) rotate(-3deg); } 100% { opacity: 0; transform: scaleX(1.4) scaleY(.1) rotate(-3deg); } }
+#pack-wrapper.phase-transform-spin { opacity: 1; animation: packTransformSpin .9s cubic-bezier(.22, 1, .36, 1) forwards; }
+@keyframes packTransformSpin { 0% { transform: scale(1) rotateY(0); filter: brightness(1); } 45% { transform: translateY(-20px) scale(1.14) rotateY(360deg); filter: brightness(1.8) drop-shadow(0 0 25px var(--primary)); } 100% { transform: scale(1.06) rotateY(720deg); filter: brightness(1.05); } }
+#pack-wrapper.phase-charge { opacity: 1; animation: packChargeShake .45s ease-in-out infinite; }
+@keyframes packChargeShake { 0%, 100% { transform: scale(1.04); } 20% { transform: translate(-5px, -3px) scale(1.06) rotateZ(-1.5deg); } 40% { transform: translate(5px, 3px) scale(1.07) rotateZ(1.5deg); } 60% { transform: translate(-6px, 2px) scale(1.08) rotateZ(-2deg); } 80% { transform: translate(6px, -3px) scale(1.09) rotateZ(2deg); } }
+#pack-wrapper.phase-ripped { opacity: 0; transform: translateY(190px) scale(.8) rotateZ(8deg); transition: transform .6s ease-in, opacity .5s; animation: none; }
+#pack-wrapper.high-rarity .pack-face { box-shadow: 0 20px 60px #0009, 0 0 45px rgba(var(--glow-rgb), .85), 0 0 100px rgba(var(--glow-rgb), .3); }
+
+/* Reversos oficiales y flotación / holograma del mostrador conservado. */
+#cards-stage { position: absolute; inset: 0; z-index: 10; transform-style: preserve-3d; pointer-events: none; }
+.tcg-card-slot { --card-x: 0px; --card-angle: 0deg; position: absolute; left: calc(50% - 150px); top: calc(50% - 220px); width: 300px; height: 440px; padding: 0; border: 0; background: transparent; transform-style: preserve-3d; opacity: 0; transform: translate3d(0, 140px, -70px) scale(.65); transition: transform .85s cubic-bezier(.2, .8, .2, 1), opacity .45s; pointer-events: none; color: inherit; }
+.slot-0 { --card-x: -365px; --card-angle: -6deg; }
+.slot-2 { --card-x: 365px; --card-angle: 6deg; }
+.owned-carousel .collection-card { width: 220px; height: 322px; left: calc(50% - 110px); top: calc(50% - 161px); pointer-events: none; }
+.card-motion, .card-accent, .card-rotator { position: absolute; inset: 0; transform-style: preserve-3d; }
+.card-rotator { transition: transform .85s cubic-bezier(.2, .8, .2, 1); }
+.flipped .card-rotator { transform: rotateY(180deg); }
+.card-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 15px; padding: 4px; background: linear-gradient(135deg, var(--primary), #ffffff70 43%, var(--secondary)); box-shadow: 0 15px 36px #0009; }
+.card-front { transform: rotateY(180deg) translateZ(1px); }
+.card-back { transform: translateZ(1px); }
+.card-artwork { position: absolute; inset: 4px; border-radius: 12px; overflow: hidden; background: #06111e; }
+.card-placeholder { position: absolute; inset: 0; padding: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: radial-gradient(ellipse at 50% 40%, rgba(var(--glow-rgb), .16), transparent 70%), repeating-linear-gradient(135deg, #ffffff03 0 1px, transparent 1px 11px), #07131f; text-align: center; border: 1px solid rgba(var(--glow-rgb), .25); }
+.card-placeholder .emblem { font-size: 90px; color: var(--primary); line-height: 1; }
+.card-placeholder .fallback-title { font: 700 19px/1.45 'Orbitron', sans-serif; max-width: 100%; overflow-wrap: anywhere; }
+.card-placeholder .fallback-number { font-size: 14px; letter-spacing: 3px; color: #94acbc; }
+.card-placeholder .fallback-caption { font-size: 12px; color: #638299; letter-spacing: 1px; }
+.card-artwork .drive-art.loaded { background: #06111e; }
+.card-artwork .drive-art { object-fit: fill; }
+.holo-sheen { position: absolute; inset: -120%; pointer-events: none; opacity: .32; background: linear-gradient(45deg, transparent 42%, #ffffff25 48%, rgba(var(--glow-rgb), .4) 50%, #ffffff25 52%, transparent 60%); transform: translateX(-100%) rotate(25deg); }
+.phase-enter .holo-sheen, .state-revealed .holo-sheen { animation: holoSwipe 4.2s ease-in-out infinite; }
+@keyframes holoSwipe { 0%, 20% { transform: translateX(-100%) rotate(25deg); } 65%, 100% { transform: translateX(100%) rotate(25deg); } }
+.state-emerge { opacity: 1; transform: translate3d(0, -80px, -40px) scale(.82) rotateZ(calc(var(--card-angle) * .4)); }
+.state-spread { opacity: 1; transform: translate3d(var(--card-x), 0, 0) rotateZ(var(--card-angle)); }
+.state-revealed { pointer-events: auto; }
+.state-revealed .card-motion { animation: centerCardBreath 3.8s ease-in-out infinite alternate; animation-delay: calc(var(--slot-index) * -.8s); }
+@keyframes centerCardBreath { 0% { transform: translateY(0) rotateX(0); } 50% { transform: translateY(-9px) rotateX(2deg); } 100% { transform: translateY(-3px) rotateX(-1deg); } }
+.state-revealed.high-rarity .card-face { box-shadow: 0 18px 40px #0009, 0 0 24px rgba(var(--glow-rgb), .5), 0 0 55px rgba(var(--glow-rgb), .18); }
+.reveal-ring { position: absolute; inset: -18px; border: 3px solid var(--primary); border-radius: 23px; box-shadow: 0 0 32px rgba(var(--glow-rgb), .65), inset 0 0 20px rgba(var(--glow-rgb), .35); opacity: 0; pointer-events: none; transform: translateZ(24px); }
+.double-emphasis { z-index: 30; }
+.double-emphasis .card-accent { animation: rareRevealDouble 1.1s cubic-bezier(.2, .8, .2, 1); }
+.double-emphasis .ring-first { animation: rareRevealRing .5s ease-out; }
+.double-emphasis .ring-second { animation: rareRevealRing .58s ease-out .52s; }
+.double-emphasis .card-face { animation: rareRevealLight 1.1s ease-out; }
+@keyframes rareRevealDouble {
+    0%, 44%, 100% { transform: translateZ(0) scale(1); }
+    20% { transform: translate3d(0, -12px, 50px) scale(1.09); }
+    70% { transform: translate3d(0, -20px, 80px) scale(1.17); }
+}
+@keyframes rareRevealRing { 0% { opacity: .95; transform: translateZ(24px) scale(.95); } 100% { opacity: 0; transform: translateZ(24px) scale(1.42); } }
+@keyframes rareRevealLight { 0%, 44%, 100% { filter: brightness(1); } 20% { filter: brightness(1.3); } 70% { filter: brightness(1.55); } }
+.state-revealed.legendary .card-face { animation: pulseLegendaryGlow 2.2s ease-in-out infinite alternate; }
+@keyframes pulseLegendaryGlow { from { box-shadow: 0 18px 40px #0009, 0 0 24px #facc1580, 0 0 55px #f9731633; } to { box-shadow: 0 18px 40px #0009, 0 0 38px #facc15a6, 0 0 80px #f9731640; } }
+.card-floating-badge { position: absolute; top: calc(100% + 22px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; flex-direction: column; gap: 7px; width: 325px; opacity: 0; transition: opacity .5s; pointer-events: none; }
+.card-floating-badge strong { font: 700 11px 'Orbitron', sans-serif; letter-spacing: 3px; color: var(--primary); }
+.card-floating-badge span { font-size: 17px; font-weight: 600; color: #cedce6; max-width: 320px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+.state-revealed .card-floating-badge { opacity: 1; }
+.state-gather { opacity: 1; transform: translate3d(0, -10px, 60px) scale(.85) rotateZ(0); }
+.state-gather .card-motion { animation: none; }
+.state-gather .card-floating-badge, .state-vanish .card-floating-badge { opacity: 0; }
+.state-vanish { animation: epicHyperdriveOut 1.1s cubic-bezier(.55, .05, .67, .19) forwards; pointer-events: none; }
+@keyframes epicHyperdriveOut { 0% { transform: translate3d(0, -10px, 60px) scale(.85); opacity: 1; } 35% { transform: translate3d(0, -60px, 160px) scale(1) rotateY(-30deg); opacity: 1; filter: brightness(1.5); } 100% { transform: translate3d(0, -700px, 700px) scale(.05) rotateY(720deg); opacity: 0; filter: brightness(3); } }
+.tcg-card-slot:focus-visible { outline-offset: 12px; border-radius: 15px; }
+.tcg-card-slot:hover .card-face { outline: 1px solid rgba(var(--glow-rgb), .55); outline-offset: 5px; }
+
+/* Compras de seis o más sobres: tríos sucesivos y una sola pila al salir. */
+.batch-slides .batch-slide { transition: transform .45s ease, opacity .35s; pointer-events: none; }
+.batch-slides .state-spread .card-motion { animation: none; }
+.batch-slides .batch-stacked { opacity: 1; transform: translate3d(var(--pile-x), calc(240px + var(--pile-y)), 0) scale(.24); }
+.batch-slides .batch-stacked .card-motion { animation: none; }
+.batch-slides .batch-stacked .card-face { animation: none; box-shadow: 0 3px 12px #0008; }
+.batch-slides.batch-gathered .batch-stacked { transform: translate3d(var(--pile-x), var(--pile-y), 0) scale(.85); transition: transform .7s cubic-bezier(.2, .8, .2, 1); }
+#cards-stage.batch-departing { animation: batchStackExit .9s cubic-bezier(.55, .05, .67, .19) forwards; }
+@keyframes batchStackExit { 0% { opacity: 1; transform: translateY(0) scale(1); } 35% { opacity: 1; transform: translateY(-65px) scale(.95) rotate(-6deg); } 100% { opacity: 0; transform: translateY(-800px) scale(.08) rotate(-16deg); } }
+
+.idle-launcher { display: flex; align-items: center; flex-direction: column; background: transparent; border: 0; color: inherit; padding: 35px; z-index: 10; margin-top: -25px; }
+.idle-card-stack { position: relative; display: block; width: 145px; height: 190px; margin-bottom: 48px; }
+.idle-card-stack i { position: absolute; inset: 0; border: 1px solid #3183a45c; border-radius: 14px; background: linear-gradient(145deg, #12364c, #071220 70%); box-shadow: 0 18px 40px #0005; transform: translateX(-28px) rotate(-13deg); }
+.idle-card-stack i:nth-child(2) { transform: translateX(28px) rotate(13deg); }
+.idle-card-stack i:last-child { display: flex; align-items: center; justify-content: center; color: #9be7ff; font-size: 74px; font-style: normal; transform: none; border-color: #54bbdf80; box-shadow: 0 15px 45px #0008, 0 0 45px #38bdf810; animation: centerCardBreath 4s ease-in-out infinite alternate; }
+.eyebrow { color: #76aec5; font-size: 11px; font-weight: 700; letter-spacing: 3px; }
+.idle-title { margin-top: 13px; font-size: 54px; font-weight: 600; letter-spacing: -1px; }
+.idle-action { margin-top: 28px; display: flex; align-items: center; gap: 42px; padding: 13px 24px; border: 1px solid #4bb5d44d; background: #0c263880; border-radius: 6px; color: #b9efff; font-size: 18px; }
+.idle-launcher:hover .idle-action { border-color: #7dd3fc; background: #12384d; }
+.scene-caption { position: absolute; top: 778px; left: 50%; transform: translateX(-50%); max-width: 1200px; text-align: center; font-size: 19px; letter-spacing: 1px; color: #9bb9cd; pointer-events: none; }
+.scene-caption:empty { display: none; }
+.result-summary { position: absolute; top: 826px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 12px; font-size: 13px; letter-spacing: 2px; color: #7b9cae; pointer-events: none; }
+.result-summary strong { color: var(--primary); }
+.reopen-panel { position: absolute; bottom: 66px; right: 48px; z-index: 40; border: 1px solid #33546770; border-radius: 7px; padding: 10px 16px; background: #091522d9; color: #b2cadb; font-weight: 600; font-size: 15px; opacity: .6; transition: opacity .2s; }
+.reopen-panel:hover, .reopen-panel:focus-visible { opacity: 1; }
+body.obs-mode .reopen-panel { opacity: 0; }
+body.obs-mode .reopen-panel:hover, body.obs-mode .reopen-panel:focus-visible { opacity: 1; }
+kbd { margin-left: 8px; padding: 1px 5px; border: 1px solid #4f697c70; border-radius: 3px; color: #88a1b5; font: 11px 'Rajdhani', sans-serif; }
+.sim-panel { position: absolute; width: 760px; max-height: 950px; overflow: auto; left: 50%; bottom: 65px; transform: translateX(-50%); z-index: 50; padding: 28px 32px 18px; border: 1px solid #366f886b; border-top: 2px solid #52cae9a6; border-radius: 16px; background: linear-gradient(140deg, #0e2434fa, #07121ffb 70%); box-shadow: 0 28px 90px #0009, 0 0 60px #38bdf80a; }
+.panel-header { display: flex; align-items: center; gap: 18px; }
+.panel-header .eyebrow { font-size: 9px; letter-spacing: 2.4px; }
+.panel-header h1 { font-size: 30px; letter-spacing: .2px; line-height: 1.2; font-weight: 600; margin: 5px 0 0; }
+.simulation-pill { margin-left: auto; padding: 5px 9px; border: 1px solid #299b9c4d; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 1.4px; color: #70d8ce; background: #0b3d3d4d; }
+.icon-button { border: 0; background: transparent; color: #89a8bb; width: 28px; height: 28px; font-size: 27px; line-height: 1; }
+.panel-intro { color: #86a6bb; font-size: 16px; margin: 16px 0; }
+.main-actions { display: flex; gap: 12px; }
+.primary-button, .secondary-button { display: inline-flex; justify-content: center; align-items: center; gap: 14px; border-radius: 7px; padding: 12px 20px; font-size: 17px; font-weight: 700; border: 1px solid transparent; transition: background .2s, border-color .2s; }
+.primary-button { flex: 1; color: #03131e; background: linear-gradient(105deg, #7dd3fc, #39b8d8); box-shadow: 0 5px 24px #38bdf81a; }
+.primary-button:hover { background: #a5e6ff; }
+.secondary-button { color: #acc4d5; background: #142b3b; border-color: #3d647a4d; }
+.secondary-button:hover { border-color: #78abc5; background: #1c3b4f; }
+.session-stats { display: flex; justify-content: space-between; color: #6d8ea3; font-size: 14px; padding: 18px 0 13px; }
+.session-stats strong { color: #d4e7f5; margin-right: 4px; font-family: 'Orbitron', sans-serif; font-size: 12px; }
+details { border-top: 1px solid #35576e50; }
+summary { display: flex; justify-content: space-between; cursor: pointer; list-style: none; padding: 14px 0; color: #91b6ca; font-size: 15px; }
+summary::-webkit-details-marker { display: none; }
+details[open] summary span { transform: rotate(45deg); }
+.odds-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 4px 0 10px; }
+.odds-item { border: 1px solid #2a4d644d; border-radius: 7px; padding: 11px 12px; background: #06131f80; }
+.odds-item span { display: block; color: var(--primary); font-size: 12px; letter-spacing: 1px; }
+.odds-item strong { display: block; color: #dbebf7; font: 700 21px 'Orbitron', sans-serif; margin: 7px 0; }
+.odds-item small { color: #6b8c9e; font-size: 12px; }
+.odds-note, .collection-note, .test-note, .asset-status { color: #6e90a5; font-size: 13px; line-height: 1.5; margin: 6px 0; }
+.odds-note strong { color: #b2cddd; }
+.settings-row { display: flex; flex-wrap: wrap; gap: 12px 20px; margin: 18px 0 12px; font-size: 14px; color: #a2bdcf; }
+.settings-row label { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
+input[type=checkbox] { accent-color: #38bdf8; width: 14px; height: 14px; margin: 0; }
+.setting-range { display: flex; align-items: center; gap: 20px; color: #91adbf; font-size: 14px; margin-bottom: 15px; }
+.setting-range label { display: flex; gap: 12px; white-space: nowrap; }
+.setting-range output { color: #c6e8f7; min-width: 30px; }
+input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
+.test-row { display: flex; gap: 12px; align-items: center; padding-top: 14px; border-top: 1px solid #35576e50; color: #8fb1c4; font-size: 14px; }
+.test-row select { flex: 1; min-width: 0; background: #06121f; color: #d8e8f3; border: 1px solid #35576e; border-radius: 5px; padding: 8px; }
+.test-row button { font-size: 14px; padding: 8px 14px; }
+.asset-status.warning { color: #f5bd77; }
+.panel-footer { border-top: 1px solid #35576e50; margin: 9px 0 0; padding-top: 11px; font-size: 12px; color: #587b92; }
+.fatal-error { position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); max-width: 700px; padding: 28px; border: 1px solid #f87171; background: #230f1a; color: #fecaca; font-size: 22px; z-index: 100; }
+@media (prefers-reduced-motion: reduce) { .idle-card-stack i:last-child, .state-revealed .card-motion, .holo-sheen, .god-rays.active, .double-emphasis .card-accent { animation: none !important; } }
+
+    </style>
+    <script src="../data/tarjetas_default_data.js"></script>
+    <script src="tarjetero_sobres_core.js"></script>
+
 </head>
 <body class="clean-overlay">
     <!-- El mostrador anterior y todos sus comandos se conservan, sin ejecutar,
          en tarjetero_mostrador_legacy.html.txt, junto a este archivo. -->
     <main id="obs-canvas" aria-label="Apertura de sobres Jikokun">
+        <div id="pack-reserve" aria-hidden="true"></div>
+        <div id="opening-scene">
         <canvas id="fx-canvas" width="1920" height="1080" aria-hidden="true"></canvas>
         <section id="stage-container" aria-label="Escenario de apertura">
             <div id="stage-aura" class="stage-aura" aria-hidden="true"></div>
@@ -41,6 +260,7 @@
             </div>
             <div id="cards-stage" aria-label="Las tres cartas del sobre"></div>
         </section>
+        </div>
         <div id="opening-caption" class="scene-caption" role="status" aria-live="polite"></div>
         <div id="result-summary" class="result-summary" hidden></div>
         <button id="reopen-panel" class="reopen-panel" type="button" aria-controls="sim-config-panel" aria-expanded="false">✦ Controles <kbd>H</kbd></button>
@@ -56,6 +276,7 @@
                 <button id="btn-open-pack" class="primary-button" type="button"><span aria-hidden="true">✦</span> Lanzar suerte <span aria-hidden="true">↗</span></button>
                 <button id="btn-reset" class="secondary-button" type="button">Limpiar lienzo</button>
             </div>
+            <button id="btn-test-carousel" class="secondary-button" type="button">Probar carrusel inferior (5 cartas)</button>
             <div class="session-stats"><span><strong id="stat-packs">0</strong> sobres al azar</span><span><strong id="stat-cards">0</strong> cartas sorteadas</span><span><strong id="stat-legendary">0</strong> legendarias</span></div>
             <details id="config-drawer">
                 <summary>Probabilidades y opciones de prueba <span aria-hidden="true">+</span></summary>
@@ -72,5 +293,732 @@
         </section>
         <div id="fatal-error" class="fatal-error" role="alert" hidden></div>
     </main>
+<script id="tarjetero-visual">
+(function () {
+    'use strict';
+    const Core = window.JikoBoosterCore;
+    const $ = id => document.getElementById(id);
+    const canvas = $('obs-canvas');
+    const panel = $('sim-config-panel');
+    const wrapper = $('pack-wrapper');
+    const scene = $('opening-scene');
+    const reserve = $('pack-reserve');
+    let reserveCount = 0;
+    let deliveryJobId = null;
+    const cardsStage = $('cards-stage');
+    const aura = $('stage-aura');
+    const rays = $('god-rays');
+    const caption = $('opening-caption');
+    const summary = $('result-summary');
+    const fx = $('fx-canvas');
+    const ctx = fx.getContext('2d');
+    const params = new URLSearchParams(location.search);
+    const obsMode = params.get('obs') === 'true';
+    const controlsEnabled = params.get('controls') === 'true' && !obsMode;
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.body.classList.toggle('obs-mode', obsMode);
+    document.body.classList.toggle('operator-controls', controlsEnabled);
+
+    function fitCanvas() {
+        document.documentElement.style.setProperty('--canvas-fit', Math.min(innerWidth / 1920, innerHeight / 1080).toString());
+    }
+    addEventListener('resize', fitCanvas);
+    fitCanvas();
+
+    let catalog;
+    try {
+        if (!Core) throw new Error('No se pudo cargar el motor de sobres.');
+        catalog = Core.createCatalog(window.DEFAULT_JIKOKUN_COLLECTIONS?.['Coleccion_Jikokun_001-100']?.cards);
+    } catch (error) {
+        $('fatal-error').textContent = error.message;
+        $('fatal-error').hidden = false;
+        console.error('[Jiko sobres]', error.message);
+        $('btn-open-pack').disabled = true;
+        return;
+    }
+
+    const state = { phase: 'idle', generation: 0, pack: null, packs: 0, cards: 0, legendary: 0 };
+    const timers = new Set();
+    const failedAssets = new Set();
+    const loadedAssets = new Set();
+    let slots = [];
+    let particles = [];
+    let frameId = null;
+    let previousFrame = null;
+    let audioContext = null;
+    let autoExitTimer = null;
+    let cloudPlayback = null;
+    let queueLocked = false;
+    const audioNodes = new Set();
+
+    function later(callback, delay) {
+        const generation = state.generation;
+        const id = setTimeout(() => {
+            timers.delete(id);
+            if (generation === state.generation) callback();
+        }, delay);
+        timers.add(id);
+        return id;
+    }
+
+    function setPhase(phase) {
+        state.phase = phase;
+        canvas.dataset.phase = phase;
+        const busy = phase !== 'idle' && phase !== 'revealed';
+        $('btn-open-pack').disabled = busy;
+        $('btn-test-effect').disabled = busy;
+        $('btn-open-pack').setAttribute('aria-busy', String(busy));
+    }
+
+    function showPanel(show = true) {
+        const visible = controlsEnabled && show;
+        panel.hidden = !visible;
+        $('reopen-panel').setAttribute('aria-expanded', String(visible));
+        if (visible) $('btn-open-pack').focus({ preventScroll: true });
+    }
+
+    function palette(target, rarity) {
+        const config = Core.RARITIES[rarity];
+        target.style.setProperty('--primary', config.color);
+        target.style.setProperty('--secondary', config.secondary);
+        const hex = config.color.slice(1);
+        target.style.setProperty('--glow-rgb', [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16)).join(', '));
+    }
+
+    function updateAssetStatus() {
+        const status = $('asset-status');
+        status.classList.toggle('warning', failedAssets.size > 0);
+        status.textContent = failedAssets.size
+            ? failedAssets.size + ' imágenes no pudieron cargarse. Comprueba que sus enlaces de Drive sean accesibles sin iniciar sesión. Las cartas sorteadas conservan su número y rareza.'
+            : loadedAssets.size + ' imágenes cargadas. Solo se solicitan el sobre y las cartas del sorteo actual.';
+    }
+
+    function setLayout(layout, snap = false) {
+        scene.classList.toggle('layout-snap', snap);
+        canvas.dataset.layout = layout;
+        if (snap) { void scene.offsetWidth; scene.classList.remove('layout-snap'); }
+    }
+
+    function setReserveCount(count) {
+        reserveCount = Math.max(0, Math.min(20, Math.floor(Number(count) || 0)));
+        reserve.replaceChildren();
+        for (let index = reserveCount - 1; index >= 0; index--) {
+            const sleeve = element('span', 'reserve-sleeve');
+            sleeve.style.setProperty('--reserve-offset', Math.min(index, 12) * 4 + 'px');
+            sleeve.style.setProperty('--reserve-rise', Math.min(index, 12) * 2 + 'px');
+            const image = element('img', 'drive-art'); image.alt = '';
+            loadArtwork(image, $('pack-front-art').getAttribute('src') || Core.PACK_ART.front);
+            sleeve.append(image); reserve.append(sleeve);
+        }
+    }
+
+    function prepareDelivery(id, count) {
+        if (deliveryJobId === id || state.phase !== 'idle') return false;
+        deliveryJobId = id;
+        setLayout('compact', true);
+        setReserveCount(count);
+        setPhase('delivery');
+        return true;
+    }
+
+    // Fallback local legible: conserva la identidad de la carta sin sustituirla
+    // por otra imagen. No usa placehold.co ni reintentos infinitos.
+    function loadArtwork(image, url) {
+        image.decoding = 'async';
+        image.referrerPolicy = 'no-referrer';
+        image.onload = () => {
+            image.classList.add('loaded');
+            loadedAssets.add(url);
+            failedAssets.delete(url);
+            updateAssetStatus();
+        };
+        image.onerror = () => {
+            image.classList.remove('loaded');
+            failedAssets.add(url);
+            updateAssetStatus();
+        };
+        image.src = url;
+        if (image.complete && image.naturalWidth > 0) image.onload();
+    }
+
+    function element(tag, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        return node;
+    }
+
+    function makeFace(card, front) {
+        const face = element('span', 'card-face ' + (front ? 'card-front' : 'card-back'));
+        const artwork = element('span', 'card-artwork');
+        const fallback = element('span', 'card-placeholder');
+        fallback.append(
+            element('span', 'emblem', front ? '✦' : '◇'),
+            element('span', 'fallback-title', front ? card.title : 'JIKOKUN'),
+            element('span', 'fallback-number', front ? '#' + card.num + ' / 100' : Core.RARITIES[card.rarity].label),
+            element('span', 'fallback-caption', front ? 'Portada no disponible' : 'Reverso no disponible')
+        );
+        const image = element('img', 'drive-art');
+        image.alt = front ? '#' + card.num + ' — ' + card.title : 'Reverso oficial ' + Core.RARITIES[card.rarity].label;
+        loadArtwork(image, front ? card.frontImage : card.backImage);
+        artwork.append(fallback, image, element('span', 'holo-sheen'));
+        face.append(artwork);
+        return face;
+    }
+
+    function renderCards(pack, append = false) {
+        if (!append) cardsStage.replaceChildren();
+        cardsStage.setAttribute('aria-hidden', 'true');
+        slots = pack.cards.map((card, index) => {
+            const slot = element('button', 'tcg-card-slot slot-' + index + ' ' + card.rarity);
+            slot.type = 'button';
+            slot.tabIndex = -1;
+            slot.dataset.rarity = card.rarity;
+            slot.dataset.cardId = String(card.id);
+            slot.style.setProperty('--slot-index', String(index));
+            slot.setAttribute('aria-label', 'Carta ' + (index + 1) + ' sin revelar');
+            palette(slot, card.rarity);
+            const motion = element('span', 'card-motion');
+            const accent = element('span', 'card-accent');
+            const rotator = element('span', 'card-rotator');
+            rotator.append(makeFace(card, false), makeFace(card, true));
+            accent.append(rotator);
+            motion.append(accent);
+            slot.append(motion, element('span', 'reveal-ring ring-first'), element('span', 'reveal-ring ring-second'));
+            slot.addEventListener('click', event => {
+                event.stopPropagation();
+                if (state.phase !== 'revealed') return;
+                const front = slot.classList.toggle('flipped');
+                slot.setAttribute('aria-pressed', String(front));
+                slot.setAttribute('aria-label', '#' + card.num + ' ' + card.title + '. Mostrar ' + (front ? 'reverso' : 'frente'));
+            });
+            cardsStage.append(slot);
+            return slot;
+        });
+    }
+
+    // Web Audio del prototipo: invocación, giro, rasgado y acorde de revelación.
+    function playSound(kind) {
+        if (!$('sound-enabled').checked) return;
+        try {
+            const AudioClass = window.AudioContext || window.webkitAudioContext;
+            if (!AudioClass) return;
+            if (!audioContext) audioContext = new AudioClass();
+            if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+            const now = audioContext.currentTime;
+            const playTone = (frequency, endFrequency, duration, offset = 0, type = 'sine') => {
+                const oscillator = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                oscillator.type = type;
+                oscillator.frequency.setValueAtTime(frequency, now + offset);
+                oscillator.frequency.exponentialRampToValueAtTime(endFrequency, now + offset + duration);
+                gain.gain.setValueAtTime(.001, now + offset);
+                gain.gain.exponentialRampToValueAtTime(.06, now + offset + .03);
+                gain.gain.exponentialRampToValueAtTime(.001, now + offset + duration);
+                oscillator.connect(gain);
+                gain.connect(audioContext.destination);
+                oscillator.onended = () => { audioNodes.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
+                audioNodes.add(oscillator);
+                oscillator.start(now + offset);
+                oscillator.stop(now + offset + duration + .02);
+            };
+            if (kind === 'appear') playTone(110, 440, .65, 0, 'triangle');
+            else if (kind === 'spin') playTone(240, 980, .5);
+            else if (kind === 'exit') playTone(680, 140, .45);
+            else if (kind === 'legendary') [440, 554.37, 659.25, 880, 1108.73, 1318.5].forEach((note, i) => playTone(note, note * 1.01, 1, i * .07, 'triangle'));
+            else if (kind === 'reveal') [523.25, 659.25, 783.99].forEach((note, i) => playTone(note, note, .65, i * .06, 'triangle'));
+            else if (kind === 'rip') {
+                const buffer = audioContext.createBuffer(1, Math.floor(audioContext.sampleRate * .3), audioContext.sampleRate);
+                const samples = buffer.getChannelData(0);
+                for (let i = 0; i < samples.length; i++) samples[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioContext.sampleRate * .07));
+                const source = audioContext.createBufferSource();
+                const gain = audioContext.createGain();
+                source.buffer = buffer;
+                gain.gain.value = .14;
+                source.connect(gain);
+                gain.connect(audioContext.destination);
+                source.onended = () => { audioNodes.delete(source); source.disconnect(); gain.disconnect(); };
+                audioNodes.add(source);
+                source.start();
+                source.stop(now + .31);
+            }
+        } catch (error) { console.warn('[Jiko sobres] Audio no disponible:', error.message); }
+    }
+
+    function burst(x, y, count, rarity) {
+        if (!ctx) return;
+        const colors = [Core.RARITIES[rarity].color, Core.RARITIES[rarity].secondary, '#ffffff'];
+        const limit = reducedMotion ? Math.min(count, 12) : count;
+        for (let i = 0; i < limit && particles.length < 240; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 2.5 + Math.random() * 12;
+            particles.push({ x, y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed - 1.5, size: 2 + Math.random() * 5, alpha: 1, decay: .014 + Math.random() * .018, color: colors[i % colors.length], rotation: Math.random() * Math.PI });
+        }
+        if (frameId === null) { previousFrame = null; frameId = requestAnimationFrame(animateParticles); }
+    }
+
+    function animateParticles(time) {
+        const step = previousFrame === null ? 1 : Math.min(2.5, (time - previousFrame) / (1000 / 60));
+        previousFrame = time;
+        ctx.clearRect(0, 0, 1920, 1080);
+        particles = particles.filter(p => {
+            p.x += p.vx * step; p.y += p.vy * step; p.vy += .14 * step;
+            p.vx *= Math.pow(.985, step); p.alpha -= p.decay * step; p.rotation += .04 * step;
+            if (p.alpha <= 0) return false;
+            ctx.save(); ctx.globalAlpha = p.alpha; ctx.translate(p.x, p.y); ctx.rotate(p.rotation);
+            ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 12;
+            ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size); ctx.restore();
+            return true;
+        });
+        if (particles.length) frameId = requestAnimationFrame(animateParticles);
+        else { frameId = null; previousFrame = null; ctx.clearRect(0, 0, 1920, 1080); }
+    }
+
+    function pulse(id, className) {
+        const node = $(id);
+        node.classList.remove(className);
+        void node.offsetWidth;
+        node.classList.add(className);
+    }
+
+    function resetStage(reason = 'cleared', keepReserve = false) {
+        state.generation++;
+        timers.forEach(clearTimeout);
+        timers.clear();
+        autoExitTimer = null;
+        if (frameId !== null) cancelAnimationFrame(frameId);
+        frameId = null; particles = []; previousFrame = null;
+        if (ctx) ctx.clearRect(0, 0, 1920, 1080);
+        if (!keepReserve) { setReserveCount(0); deliveryJobId = null; }
+        audioNodes.forEach(node => { try { node.stop(); } catch (_) {} });
+        audioNodes.clear();
+        wrapper.className = '';
+        wrapper.querySelector('.pack-top-seal').classList.remove('ready');
+        aura.className = 'stage-aura'; rays.className = 'god-rays';
+        $('epic-shockwave').className = ''; $('center-flash-burst').className = '';
+        cardsStage.replaceChildren(); cardsStage.classList.remove('owned-carousel', 'batch-slides', 'batch-gathered', 'batch-departing'); cardsStage.setAttribute('aria-hidden', 'true'); slots = [];
+        delete canvas.dataset.batchIndex;
+        delete canvas.dataset.batchCount;
+        summary.hidden = true; caption.textContent = '';
+        state.pack = null;
+        delete canvas.dataset.highestRarity;
+        delete canvas.dataset.mode;
+        delete canvas.dataset.fast;
+        setPhase('idle');
+        setLayout('compact', true);
+        if (cloudPlayback) {
+            const playback = cloudPlayback;
+            cloudPlayback = null;
+            playback.cleanup();
+            if (reason === 'completed') playback.resolve();
+            else playback.reject(new Error('La reproducción fue interrumpida.'));
+        }
+    }
+
+    function updateStats() {
+        $('stat-packs').textContent = state.packs;
+        $('stat-cards').textContent = state.cards;
+        $('stat-legendary').textContent = state.legendary;
+    }
+
+    function revealCard(index) {
+        const card = state.pack.cards[index];
+        const slot = slots[index];
+        slot.classList.add('flipped', 'state-revealed');
+        if (card.rarity !== 'common') slot.classList.add('high-rarity');
+        const rarity = Core.RARITIES[card.rarity];
+        caption.textContent = '#' + card.num + ' · ' + card.title + ' · ' + rarity.label;
+        if (card.rarity !== 'common' || canvas.dataset.fast !== 'true') {
+            burst(960 + (index - 1) * 365, 470, card.rarity === 'legendary' ? 65 : 26, card.rarity);
+            playSound(card.rarity === 'legendary' ? 'legendary' : 'reveal');
+        }
+        if (Core.RARITIES[card.rarity].rank >= Core.RARITIES.special.rank) {
+            later(() => {
+                slot.classList.add('double-emphasis');
+                slot.dataset.emphasisPulses = '1';
+                burst(960 + (index - 1) * 365, 470, 45, card.rarity);
+            }, 600);
+            later(() => {
+                slot.dataset.emphasisPulses = '2';
+                burst(960 + (index - 1) * 365, 455, card.rarity === 'legendary' ? 75 : 50, card.rarity);
+                playSound('reveal');
+            }, 1120);
+            later(() => slot.classList.remove('double-emphasis'), 1750);
+        }
+    }
+
+    function finishReveal() {
+        const pack = state.pack;
+        setPhase('revealed');
+        cardsStage.setAttribute('aria-hidden', 'false');
+        slots.forEach((slot, index) => {
+            slot.tabIndex = 0;
+            slot.setAttribute('aria-pressed', 'true');
+            slot.setAttribute('aria-label', '#' + pack.cards[index].num + ' ' + pack.cards[index].title + '. Mostrar reverso');
+        });
+        caption.textContent = pack.mode === 'preview' ? 'VISTA DE PRUEBA · Rareza forzada. Este sobre no cuenta en las estadísticas.' : 'Tres nuevas cartas. Haz clic en cada una para ver su reverso.';
+        summary.replaceChildren(element('span', '', pack.mode === 'preview' ? 'PRUEBA VISUAL' : 'SOBRE AL AZAR'), element('span', '', ' / '), element('strong', '', Core.RARITIES[pack.highestRarity].label));
+        summary.hidden = false;
+        updateAutoExit();
+    }
+
+    function updateAutoExit() {
+        if (autoExitTimer !== null) {
+            clearTimeout(autoExitTimer);
+            timers.delete(autoExitTimer);
+            autoExitTimer = null;
+        }
+        if (state.phase === 'revealed' && (cloudPlayback || !$('hold-cards').checked)) {
+            const duration = cloudPlayback?.duration || Number($('display-time').value) * 1000;
+            autoExitTimer = later(() => { autoExitTimer = null; gatherCards(); }, duration);
+        }
+    }
+
+    function gatherCards() {
+        if (state.phase !== 'revealed') return;
+        const fast = canvas.dataset.fast === 'true';
+        setPhase('exiting');
+        summary.hidden = true;
+        caption.textContent = 'Hasta el próximo hallazgo.';
+        slots.forEach(slot => {
+            slot.tabIndex = -1;
+            slot.classList.remove('state-spread', 'state-revealed');
+            slot.classList.add('state-gather');
+        });
+        playSound('exit');
+        later(() => {
+            pulse('epic-shockwave', 'wave-active');
+            burst(960, 470, 75, state.pack.highestRarity);
+            slots.forEach(slot => { slot.classList.remove('state-gather'); slot.classList.add('state-vanish'); });
+            aura.classList.remove('active'); rays.classList.remove('active');
+        }, fast ? 250 : 600);
+        later(() => resetStage('completed', true), fast ? 850 : 1800);
+    }
+
+    function openPack(options = {}) {
+        if (cloudPlayback) return false;
+        if (parent === window && !controlsEnabled && !params.has('preview') && !options.awardedCards) return false;
+        if (queueLocked && !options.awardedCards) return false;
+        if (!['idle', 'revealed', 'delivery'].includes(state.phase) || (state.phase === 'delivery' && !options.awardedCards)) return false;
+        let pack;
+        try {
+            if (options.awardedCards) {
+                if (!Array.isArray(options.awardedCards) || options.awardedCards.length !== 3) throw new Error('El recibo debe contener tres cartas.');
+                const cards = options.awardedCards.map(id => catalog.find(card => card.id === Number(id)));
+                if (cards.some(card => !card)) throw new Error('Una carta del recibo no está en el catálogo de Firebase.');
+                pack = Object.freeze({ mode: 'award', cards: Object.freeze(cards), highestRarity: Core.highestRarity(cards) });
+            } else pack = Core.drawPack(catalog, options);
+        }
+        catch (error) { caption.textContent = error.message; showPanel(); return false; }
+        resetStage('cleared', !!options.awardedCards);
+        state.pack = pack;
+        const fast = !!options.fast;
+        const high = pack.highestRarity !== 'common';
+        canvas.dataset.fast = String(fast);
+        setPhase('entering');
+        showPanel(false);
+        palette(canvas, 'common');
+        canvas.dataset.highestRarity = pack.highestRarity;
+        canvas.dataset.mode = pack.mode;
+        if (pack.mode === 'random') {
+            state.packs++; state.cards += 3;
+            state.legendary += pack.cards.filter(card => card.rarity === 'legendary').length;
+            updateStats();
+        }
+        renderCards(pack);
+        caption.textContent = pack.mode === 'preview' ? 'VISTA DE PRUEBA · Invocando sobre…' : 'La suerte ya está dentro. Invocando sobre…';
+        wrapper.className = 'phase-enter' + (options.docked ? ' docked' : '');
+        aura.classList.add('active'); rays.classList.add('active');
+        pulse('epic-shockwave', 'wave-active');
+        if (!fast || high) { burst(960, 475, 35, 'common'); playSound('appear'); }
+        if (high) {
+            later(() => {
+                setLayout('expanded');
+                setPhase('transforming');
+                wrapper.className = 'phase-transform-spin';
+                playSound('spin');
+            }, fast ? 500 : 1100);
+            later(() => {
+                palette(canvas, pack.highestRarity);
+                wrapper.classList.add('high-rarity'); aura.classList.add('high-rarity');
+                pulse('epic-shockwave', 'wave-active');
+                burst(960, 475, 50, pack.highestRarity);
+                caption.textContent = 'El sobre resplandece: ' + Core.RARITIES[pack.highestRarity].label + '.';
+            }, fast ? 760 : 1460);
+        }
+        const chargeAt = fast ? (high ? 1450 : 450) : (high ? 2050 : 1150);
+        const ripAt = chargeAt + (fast ? (high ? 450 : 260) : 650);
+        later(() => {
+            setPhase('charging');
+            wrapper.className = 'phase-charge' + (high ? ' high-rarity' : '');
+            wrapper.querySelector('.pack-top-seal').classList.add('ready');
+        }, chargeAt);
+        later(() => {
+            setPhase('opening');
+            wrapper.className = 'phase-enter ripping' + (high ? ' high-rarity' : '');
+            pulse('center-flash-burst', 'burst-active'); pulse('epic-shockwave', 'wave-active');
+            if (!fast || high) { playSound('rip'); burst(960, 430, 65, pack.highestRarity); }
+            caption.textContent = 'Tres cartas. Tres posibilidades.';
+        }, ripAt);
+        later(() => slots.forEach(slot => slot.classList.add('state-emerge')), ripAt + 160);
+        later(() => {
+            setPhase('spreading');
+            wrapper.classList.add('phase-ripped');
+            slots.forEach(slot => { slot.classList.remove('state-emerge'); slot.classList.add('state-spread'); });
+        }, ripAt + (fast ? 360 : 650));
+        const revealAt = ripAt + (fast ? (high ? 950 : 620) : 1550);
+        const order = pack.cards.map((card, index) => ({ index, rank: Core.RARITIES[card.rarity].rank })).sort((a, b) => a.rank - b.rank);
+        let revealOffset = 0;
+        order.forEach(item => {
+            later(() => { setPhase('revealing'); revealCard(item.index); }, revealAt + revealOffset);
+            revealOffset += item.rank >= Core.RARITIES.special.rank ? 1900 : (fast ? 120 : 500);
+        });
+        later(finishReveal, revealAt + revealOffset + (fast ? 150 : 450));
+        return true;
+    }
+
+    Core.distribution(catalog).filter(item => item.probability > 0).forEach(item => {
+        const cell = element('div', 'odds-item');
+        palette(cell, item.rarity);
+        const percent = Number((item.probability * 100).toFixed(2));
+        cell.append(element('span', '', Core.RARITIES[item.rarity].label), element('strong', '', percent + '%'), element('small', '', item.count + ' cartas'));
+        $('odds-grid').append(cell);
+    });
+    function attachPlayback(signal, duration, start, allowDelivery = false) {
+        if (cloudPlayback || (state.phase !== 'idle' && !(allowDelivery && state.phase === 'delivery'))) return Promise.reject(new Error('El escenario está ocupado.'));
+        if (signal?.aborted) return Promise.reject(new Error('El turno fue cancelado.'));
+        if (!start()) return Promise.reject(new Error('No se pudo iniciar la animación.'));
+        return new Promise((resolve, reject) => {
+            const cancel = () => resetStage('aborted');
+            cloudPlayback = { resolve, reject, duration, cleanup: () => signal?.removeEventListener('abort', cancel) };
+            signal?.addEventListener('abort', cancel, { once: true });
+        });
+    }
+    function showOwnedCards(ids, options = {}) {
+        const cards = ids.slice(0, 5).map(id => catalog.find(card => card.id === Number(id)));
+        if (!cards.length || cards.some(card => !card)) return Promise.reject(new Error('No se encontraron las cartas ganadas.'));
+        return attachPlayback(options.signal, options.duration || 12000, () => {
+            resetStage();
+            setLayout('collection', true);
+            state.pack = { mode: 'collection', cards, highestRarity: Core.highestRarity(cards) };
+            renderCards(state.pack);
+            cardsStage.classList.add('owned-carousel');
+            setPhase('collection');
+            let current = 0;
+            const position = () => slots.forEach((slot, index) => {
+                let offset = (index - current + cards.length) % cards.length;
+                if (offset > cards.length / 2) offset -= cards.length;
+                const distance = Math.abs(offset);
+                slot.style.transform = `translate3d(${offset * 235}px, 0, ${-distance * 85}px) rotateY(${-offset * 16}deg) scale(${1 - distance * .12})`;
+                slot.style.opacity = String(1 - distance * .14);
+                slot.style.zIndex = String(10 - distance);
+            });
+            slots.forEach(slot => { slot.classList.add('flipped', 'state-revealed', 'collection-card'); slot.tabIndex = -1; });
+            position();
+            const duration = options.duration || 12000;
+            for (let at = 2200; at < duration; at += 2200) later(() => { current = (current + 1) % cards.length; position(); }, at);
+            later(() => { slots.forEach(slot => { slot.style.opacity = '0'; slot.style.transform = 'translate3d(0, 60px, -250px) scale(.2)'; }); }, duration);
+            later(() => resetStage('completed'), duration + 900);
+            return true;
+        });
+    }
+
+    // Una diapositiva por sobre pagado, sin invocar ni rasgar otro envoltorio.
+    // Todas las cartas se conservan en la pila hasta su única salida conjunta.
+    function playBatch(packs, options = {}) {
+        if (!Array.isArray(packs) || packs.length < 6 || packs.length > 20 || packs.some(pack => !Array.isArray(pack) || pack.length !== 3)) return Promise.reject(new Error('La presentación requiere entre 6 y 20 sobres de tres cartas.'));
+        const awarded = packs.map(pack => pack.map(id => catalog.find(card => card.id === Number(id))));
+        if (awarded.some(pack => pack.some(card => !card))) return Promise.reject(new Error('Una carta del recibo no está en el catálogo.'));
+        const startIndex = Math.max(0, Math.min(awarded.length, Math.floor(Number(options.startIndex) || 0)));
+        return attachPlayback(options.signal, 0, () => {
+            resetStage('cleared', true);
+            const generation = state.generation;
+            cardsStage.classList.add('batch-slides');
+            canvas.dataset.batchCount = String(awarded.length);
+            const makeSlide = index => {
+                state.pack = { mode: 'batch', cards: awarded[index], highestRarity: Core.highestRarity(awarded[index]) };
+                canvas.dataset.mode = 'batch';
+                canvas.dataset.batchIndex = String(index);
+                canvas.dataset.highestRarity = state.pack.highestRarity;
+                palette(canvas, state.pack.highestRarity);
+                renderCards(state.pack, true);
+                cardsStage.setAttribute('aria-hidden', 'false');
+                slots.forEach((slot, offset) => {
+                    slot.dataset.packIndex = String(index);
+                    slot.style.setProperty('--pile-x', (index * 3 + offset) * .7 + 'px');
+                    slot.style.setProperty('--pile-y', (index * 3 + offset) * -.45 + 'px');
+                    slot.classList.add('batch-slide', 'flipped');
+                    slot.setAttribute('aria-label', '#' + awarded[index][offset].num + ' ' + awarded[index][offset].title);
+                });
+            };
+            const stackSlide = () => slots.forEach(slot => {
+                slot.classList.remove('state-spread', 'state-revealed', 'double-emphasis');
+                slot.classList.add('batch-stacked');
+                slot.setAttribute('aria-hidden', 'true');
+            });
+            const finishBatch = () => {
+                setPhase('batch-gathering');
+                setLayout('compact');
+                cardsStage.classList.add('batch-gathered');
+                aura.classList.remove('active'); rays.classList.remove('active');
+                playSound('exit');
+                later(() => cardsStage.classList.add('batch-departing'), 650);
+                later(() => resetStage('completed'), 1650);
+            };
+            const nextSlide = index => {
+                if (generation !== state.generation || options.signal?.aborted) return;
+                if (index >= awarded.length) { finishBatch(); return; }
+                makeSlide(index);
+                setPhase('batch');
+                const high = state.pack.highestRarity !== 'common';
+                setLayout(high ? 'expanded' : 'compact');
+                setReserveCount(awarded.length - index - 1);
+                aura.classList.toggle('active', high);
+                rays.classList.toggle('active', high);
+                later(() => slots.forEach((slot, offset) => {
+                    slot.classList.add('state-spread');
+                    if (awarded[index][offset].rarity !== 'common') revealCard(offset);
+                    else slot.classList.add('state-revealed');
+                }), 40);
+                later(async () => {
+                    stackSlide();
+                    aura.classList.remove('active'); rays.classList.remove('active');
+                    try {
+                        await options.onCheckpoint?.(index + 1);
+                        if (generation !== state.generation || options.signal?.aborted) return;
+                        later(() => nextSlide(index + 1), 250);
+                    } catch (error) {
+                        console.warn('[TCG diapositivas]', error.message);
+                        if (generation === state.generation) resetStage('failed');
+                    }
+                }, high ? 2400 : 1000);
+            };
+            // Al recuperar un turno, reconstruir la pila ya mostrada sin repetir diapositivas.
+            for (let index = 0; index < startIndex; index++) { makeSlide(index); stackSlide(); }
+            nextSlide(startIndex);
+            return true;
+        }, true);
+    }
+    const legendProbability = Core.distribution(catalog).find(item => item.rarity === 'legendary').probability;
+    $('legendary-pack-chance').textContent = (Core.chanceInPack(legendProbability) * 100).toFixed(2) + '%';
+
+    $('btn-open-pack').addEventListener('click', () => openPack());
+    $('btn-test-effect').addEventListener('click', () => openPack({ mode: 'preview', rarity: $('test-rarity').value }));
+    $('btn-reset').addEventListener('click', () => { resetStage(); showPanel(); });
+    $('btn-test-carousel').addEventListener('click', () => { showPanel(false); showOwnedCards(catalog.slice(-5).map(card => card.id)).catch(error => console.warn(error.message)); });
+    $('close-panel').addEventListener('click', () => { showPanel(false); $('reopen-panel').focus({ preventScroll: true }); });
+    $('reopen-panel').addEventListener('click', () => showPanel(panel.hidden));
+    $('display-time').addEventListener('input', event => { $('display-time-label').textContent = event.target.value + ' s'; updateAutoExit(); });
+    $('hold-cards').addEventListener('change', updateAutoExit);
+    $('sound-enabled').addEventListener('change', event => {
+        if (!event.target.checked) { audioNodes.forEach(node => { try { node.stop(); } catch (_) {} }); audioNodes.clear(); }
+    });
+    canvas.addEventListener('click', event => {
+        if (cloudPlayback) return;
+        if (event.target.closest('button, input, select, summary, #sim-config-panel')) return;
+        if (controlsEnabled) showPanel();
+        else openPack();
+    });
+    addEventListener('keydown', event => {
+        if (cloudPlayback) return;
+        if (event.key === 'Escape') {
+            if (controlsEnabled && !panel.hidden) { showPanel(false); $('reopen-panel').focus({ preventScroll: true }); }
+            else resetStage();
+            return;
+        }
+        if (event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+        if (event.key.toLowerCase() === 'h' && controlsEnabled) { event.preventDefault(); showPanel(panel.hidden); }
+        if (event.key.toLowerCase() === 'n') { event.preventDefault(); openPack(); }
+    });
+    addEventListener('pagehide', resetStage);
+
+    loadArtwork($('pack-front-art'), Core.PACK_ART.front);
+    loadArtwork($('pack-back-art'), Core.PACK_ART.back);
+    loadArtwork($('pack-seal-art'), Core.PACK_ART.front);
+    palette(canvas, 'common');
+    setPhase('idle');
+    setLayout('compact', true);
+    if (controlsEnabled) showPanel();
+    // API local de simulación para pruebas. No escucha los comandos del mostrador.
+    window.JikoBooster = Object.freeze({
+        open: openPack,
+        clear: () => { setReserveCount(0); deliveryJobId = null; resetStage(); },
+        gather: gatherCards,
+        showPanel,
+        playAwarded: (ids, options = {}) => {
+            const high = ids.some(id => catalog.find(card => card.id === Number(id))?.rarity !== 'common');
+            const duration = options.fast ? (high ? 1800 : 650) : (options.duration || 8000);
+            return attachPlayback(options.signal, duration, () => openPack({ awardedCards: ids, fast: options.fast, docked: true }), true);
+        },
+        playBatch,
+        prepareDelivery,
+        setReserveCount,
+        clearDelivery: () => { setReserveCount(0); deliveryJobId = null; if (state.phase === 'delivery') resetStage(); },
+        showOwned: showOwnedCards,
+        setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
+        setCloudProduct: product => { if (product?.img && $('pack-front-art').getAttribute('src') !== product.img) { loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && $('pack-back-art').getAttribute('src') !== product.packBack) loadArtwork($('pack-back-art'), product.packBack); },
+        setQueueLocked: locked => { queueLocked = !!locked; },
+        snapshot: () => ({ phase: state.phase, layout: canvas.dataset.layout, reserveCount, deliveryJobId, mode: state.pack?.mode || null, highestRarity: state.pack?.highestRarity || null, cards: state.pack?.cards.map(card => ({ id: card.id, num: card.num, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })) || [], stats: { packs: state.packs, cards: state.cards, legendary: state.legendary }, pendingTimers: timers.size, particles: particles.length, controlsEnabled, panelOpen: !panel.hidden, failedImages: failedAssets.size, loadedImages: loadedAssets.size })
+    });
+    // El consumidor de Firebase se integra debajo en el mismo HTML.
+})();
+
+</script>
+<script type="module" id="tarjetero-firebase">
+import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js';
+
+const params = new URLSearchParams(location.search);
+const live = !params.has('preview') && (params.get('controls') !== 'true' || params.get('obs') === 'true') && parent === window;
+await initializeTcg();
+TcgCloud.subscribe(service => {
+    window.JikoBooster?.setCloudCatalog(service.catalog);
+    window.JikoBooster?.setCloudProduct(service.product);
+    if (!live || !window.JikoBooster) return;
+    const head = window.JikoTcgEngine.pending(service.control)[0];
+    if (head?.type === 'purchase' && head.status === 'delivering' && window.JikoBooster.prepareDelivery(head.id, head.receipt.packs.length)) {
+        service.markPresentationReady(head.id).catch(error => console.warn('[TCG entrega]', error.message));
+    }
+    if (!head) window.JikoBooster.clearDelivery();
+});
+
+if (live) {
+    await import('../mini_widgets/js/jiko_widget_sync.js');
+    TcgCloud.startWorker('cards', async (job, signal, checkpoint) => {
+        const widget = window.JikoBooster;
+        widget.setCloudCatalog(TcgCloud.catalog);
+        widget.setQueueLocked(true);
+        window.JikoWidgetSync?.acquire('tarjetero', job.user, 180000);
+        try {
+            if (job.type === 'collection') {
+                await widget.showOwned(job.cards, { signal, duration: TcgCloud.settings.collectionDurationMs });
+            } else if (job.receipt.packs.length > 5) {
+                await widget.playBatch(job.receipt.packs, { signal, startIndex: job.packIndex || 0, onCheckpoint: checkpoint });
+            } else {
+                for (let index = job.packIndex || 0; index < job.receipt.packs.length; index++) {
+                    if (signal.aborted) throw new Error('Turno cancelado.');
+                    widget.setReserveCount(job.receipt.packs.length - index - 1);
+                    await widget.playAwarded(job.receipt.packs[index], { signal, duration: TcgCloud.settings.revealDurationMs, fast: job.receipt.packs.length >= 2 });
+                    await checkpoint(index + 1);
+                }
+            }
+        } finally { widget.clearDelivery(); widget.setQueueLocked(false); window.JikoWidgetSync?.release('tarjetero'); }
+    }, () => {
+        if (!['idle', 'delivery'].includes(window.JikoBooster?.snapshot().phase)) return false;
+        const lock = window.JikoWidgetSync?.getActiveLock();
+        return !lock || lock.widget === 'tarjetero';
+    });
+}
+window.JikoTarjeteroCommands = Object.freeze({
+    mostrarCartas: (user, rarity = '') => TcgCloud.showCollection(user, rarity)
+});
+addEventListener('message', event => {
+    if (event.origin !== location.origin || event.data?.type !== 'TARJETERO_COMMAND') return;
+    const command = String(event.data.command || '').match(/^!mostrarcartas(?:\s+(.+))?$/i);
+    if (!command || !live) return;
+    window.JikoTarjeteroCommands.mostrarCartas(event.data.user, command[1] || '').catch(error => console.warn('[TCG comando]', error.message));
+});
+addEventListener('pagehide', () => TcgCloud.destroy(), { once: true });
+
+</script>
 </body>
 </html>

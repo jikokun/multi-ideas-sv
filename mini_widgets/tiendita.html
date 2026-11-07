@@ -460,6 +460,7 @@
     position:absolute;bottom:11%;left:3%;right:3%;height:55%;
     pointer-events:none;z-index:2;
   }
+  .mesero-mesa.external-tcg-packs .plato-cluster[data-item-key="sobre"] { visibility:hidden; }
 
   /* Filas de la mesa: Atrás (perspectiva profunda) y Adelante (primer plano) */
   .mesa-fila{
@@ -4853,6 +4854,7 @@
     clusters.forEach((c) => {
       const clusterDiv = document.createElement('div');
       clusterDiv.className = 'plato-cluster' + (c.count > 1 ? ' tiene-multiples' : '');
+      clusterDiv.dataset.itemKey = c.item.key;
       
       for(let i = 0; i < c.count; i++){
         const platoDiv = document.createElement('div');
@@ -4871,6 +4873,7 @@
 
   function mostrarMeseroEntrega(user, platos, options = {}){
     if(!$meseroOverlay || !$meseroMesa) return;
+    $meseroMesa.classList.toggle('external-tcg-packs', !!options.externalPacks);
 
     // Sonido de servicio en restaurante
     playSfx('serve');
@@ -4999,11 +5002,14 @@
   window.iniciarSobresTiendita = function(cloud) {
     if (isPreview || parent !== window || window._tcgDeliveryStarted) return;
     window._tcgDeliveryStarted = true;
-    cloud.startWorker('delivery', (job, signal) => new Promise((resolve, reject) => {
+    cloud.startWorker('delivery', async (job, signal) => {
+      const externalPacks = await cloud.waitForPresentation(job.id, signal);
+      return new Promise((resolve, reject) => {
       if (!$meseroOverlay || !$meseroMesa) { reject(new Error('No está disponible la escena de entrega.')); return; }
       window.JikoWidgetSync?.acquire('tarjetero', job.user, 180000);
-      mostrarMeseroEntrega(job.user, job.receipt.items, { signal, onComplete: resolve, onAbort: () => reject(new Error('Entrega interrumpida; permanece en Firebase.')) });
-    }), () => {
+      mostrarMeseroEntrega(job.user, job.receipt.items, { signal, externalPacks, onComplete: resolve, onAbort: () => reject(new Error('Entrega interrumpida; permanece en Firebase.')) });
+      });
+    }, () => {
       const lock = window.JikoWidgetSync?.getActiveLock();
       return !$menu.classList.contains('visible') && !$meseroOverlay?.classList.contains('visible') && !$cardPerfil?.classList.contains('visible') && (!lock || lock.widget === 'tarjetero');
     });
@@ -5596,6 +5602,10 @@
           return;
         }
         const customUser = data.user || data.userName || data.username || usuarioActual || 'cliente';
+        if (/^!mostrarcartas(?:\s|$)/.test(norm(data.command || ''))) {
+          ejecutarTexto(data.command, customUser);
+          return;
+        }
         const customPoints = data.puntos != null ? data.puntos : (data.points != null ? data.points : getUserPoints(customUser));
         setUserPoints(customUser, customPoints);
         mostrarMenu(customUser, customPoints);
@@ -5695,6 +5705,7 @@
         }
 
         const esComandoTienda = t==='!tienda'||t==='!tiendita'||t==='!menu'||t==='!shop'||
+                                /^!mostrarcartas(?:\s|$)/.test(t)||
                                 t==='!cancelar'||t==='cancelar'||t==='!cerrar'||t==='cerrar'||t==='!cancel'||t==='cancel'||
                                 t==='!comprar'||t==='comprar'||t==='!pagar'||t==='pagar'||t==='!listo'||
                                 t==='!anadir'||t==='!añadir'||t==='!agregar'||
