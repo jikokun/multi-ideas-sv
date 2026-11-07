@@ -108,6 +108,9 @@ test('entrega y apertura tienen turnos exclusivos, vencimiento y cercado por tok
         assert.equal(state.jobs.job_1.status, 'delivering');
         assert.equal(Engine.claim(state, 'delivery', 'other-shop', 'other', now(), service.settings), undefined);
         state.jobs.job_1.status = 'awaiting_open'; delete state.active;
+        assert.equal(Engine.claim(state, 'cards', 'obs', 'no_proof', now(), service.settings), undefined);
+        assert.equal(Engine.claim(state, 'delivery', 'shop', 'replay', now(), service.settings).jobs.job_1.status, 'delivering');
+        state.jobs.job_1.deliveryCompletedAt = now();
         const opening = Engine.claim(state, 'cards', 'obs', 'opening_token', now(), service.settings);
         assert.equal(opening.jobs.job_1.status, 'opening');
         assert.equal(opening.active.token, 'opening_token');
@@ -251,6 +254,46 @@ test('mostrar cartas después de comprar queda en cola, respeta los 20 segundos 
     } finally { service.destroy(); }
 });
 
+test('la apertura espera la salida confirmada de la mesa; una entrega sin confirmación se reintenta sin otro cobro', async () => {
+    const { service, store, now, advance } = await setup();
+    let stop, finishDelivery;
+    const waitUntil = async condition => {
+        const deadline = Date.now() + 3000;
+        while (!await condition()) { if (Date.now() > deadline) throw Error('Worker timeout'); await new Promise(resolve => setTimeout(resolve, 10)); }
+    };
+    try {
+        const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'cleared_table');
+        let calls = 0;
+        stop = service.startWorker('delivery', async () => {
+            calls++;
+            if (calls === 1) return new Promise(resolve => { finishDelivery = resolve; });
+            return { deliveryCleared: true };
+        });
+        await waitUntil(() => !!finishDelivery);
+        const delivering = await store.get('stream/widgets/tcg/control');
+        assert.equal(delivering.jobs.cleared_table.status, 'delivering');
+        assert.equal(delivering.jobs.cleared_table.deliveryCompletedAt, undefined);
+        assert.equal(Engine.claim(delivering, 'cards', 'obs', 'early', now(), service.settings), undefined);
+        finishDelivery(); // Un callback antiguo sin prueba de salida no autoriza la apertura.
+        await waitUntil(() => !!store.read('stream/widgets/tcg/control/jobs/cleared_table/retryAt'));
+        const retry = await store.get('stream/widgets/tcg/control');
+        assert.equal(retry.jobs.cleared_table.status, 'ready');
+        assert.equal(retry.jobs.cleared_table.deliveryCompletedAt, undefined);
+        assert.equal(Engine.claim(retry, 'cards', 'obs', 'no_proof', now() + 30000, service.settings), undefined);
+        advance(30000);
+        await store.set('stream/widgets/tcg/control', retry);
+        await waitUntil(() => store.read('stream/widgets/tcg/control/jobs/cleared_table/status') === 'awaiting_open');
+        await service.promote(receipt);
+        const delivered = await store.get('stream/widgets/tcg/control');
+        assert.equal(delivered.jobs.cleared_table.deliveryCompletedAt, now());
+        assert.ok(Engine.claim(delivered, 'cards', 'obs', 'after_table', now(), service.settings));
+        const user = await store.get('stream/usuarios/ana');
+        assert.equal(user.jikopuntos, 4500);
+        assert.equal(user.tarjetas.totalCartas, 3);
+        assert.equal(calls, 2);
+    } finally { stop?.(); service.destroy(); }
+});
+
 test('un fallo de imágenes conserva el recibo pendiente, espera 30 segundos y reintenta sin cobrar ni sortear otra vez', async () => {
     const { service, store, now, advance } = await setup();
     let stop;
@@ -261,7 +304,7 @@ test('un fallo de imágenes conserva el recibo pendiente, espera 30 segundos y r
     try {
         const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'retry_images');
         const control = Engine.claim(await store.get('stream/widgets/tcg/control'), 'delivery', 'shop', 'delivery', now(), service.settings);
-        control.jobs.retry_images.status = 'awaiting_open'; delete control.active;
+        control.jobs.retry_images.status = 'awaiting_open'; control.jobs.retry_images.deliveryCompletedAt = now(); delete control.active;
         await store.set('stream/widgets/tcg/control', control);
         let available = false, calls = 0;
         stop = service.startWorker('cards', async job => {

@@ -58,7 +58,7 @@
                 state ||= { jobs: {}, cooldowns: {} }; state.jobs ||= {};
                 const previous = state.jobs[receipt.id];
                 if (previous?.status === 'done') return;
-                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}), ...(previous?.retryAt ? { retryAt: previous.retryAt, lastError: previous.lastError } : {}) };
+                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.deliveryCompletedAt ? { deliveryCompletedAt: previous.deliveryCompletedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}), ...(previous?.retryAt ? { retryAt: previous.retryAt, lastError: previous.lastError } : {}) };
                 return state;
             });
         }
@@ -210,11 +210,13 @@
                         });
                         if (!result.committed) throw new Error('Se perdió el turno del widget.');
                     };
-                    await render(job, aborter.signal, checkpoint);
+                    const result = await render(job, aborter.signal, checkpoint);
                     if (aborter.signal.aborted) return;
+                    if (role === 'delivery' && result?.deliveryCleared !== true) throw new Error('La tiendita todavía no confirmó que la mesa y sus productos desaparecieron.');
                     const completed = await this.store.transaction(CONTROL, state => {
                         if (state?.active?.token !== token) return;
                         state.jobs[job.id].status = role === 'delivery' ? 'awaiting_open' : 'done';
+                        if (role === 'delivery') state.jobs[job.id].deliveryCompletedAt = this.now();
                         if (role === 'cards') state.jobs[job.id] = { id: job.id, user: job.user, type: job.type, createdAt: job.createdAt, status: 'done', completedAt: this.now() };
                         delete state.active; return state;
                     });

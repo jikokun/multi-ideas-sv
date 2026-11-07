@@ -132,11 +132,15 @@
         if (state.active && state.active.expiresAt > now) return;
         const job = pending(state)[0];
         if (!job || job.status === 'reserved' || Math.max(job.retryAt || 0, job.notBefore || 0) > now) return;
-        const expected = job.type === 'collection' || ['opening', 'awaiting_open'].includes(job.status) ? 'cards' : 'delivery';
+        // Una apertura exige el comprobante de que la mesa quedó vacía.
+        // Los trabajos antiguos sin comprobante vuelven a entregar sus mismos
+        // productos, sin repetir cobro ni sorteo.
+        const delivered = Number(job.deliveryCompletedAt) > 0;
+        const expected = job.type === 'collection' || (delivered && ['opening', 'awaiting_open'].includes(job.status)) ? 'cards' : 'delivery';
         if (role !== expected || (!job.startedAt && (state.nextStartAt || 0) > now)) return;
         if (!job.startedAt) { job.startedAt = now; state.nextStartAt = now + settings.globalCooldownMs; }
         delete job.retryAt; delete job.lastError;
-        if (role === 'delivery') job.deliveryAttemptAt = now;
+        if (role === 'delivery') { job.deliveryAttemptAt = now; delete job.deliveryCompletedAt; }
         job.status = role === 'delivery' ? 'delivering' : job.type === 'collection' ? 'showing' : 'opening';
         state.active = { jobId: job.id, role, owner, token, expiresAt: now + 30000 };
         return state;

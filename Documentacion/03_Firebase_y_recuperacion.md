@@ -38,6 +38,8 @@ La fuente Tiendita es la única que toma el turno de entrega. La fuente Tarjeter
 
 Durante `delivering`, la tiendita dibuja todos los productos de la mesa, incluidos los sobres. Al finalizar la salida del mesero, vacía las filas de productos y confirma la entrega; entonces el trabajo pasa a `awaiting_open`. El tarjetero obtiene el turno exclusivo `opening` y comienza la invocación del sobre en su posición compacta. Las imágenes se cargan antes de iniciar esa animación. Cada fuente muestra su parte de la secuencia en el turno correspondiente.
 
+La confirmación exige que la mesa tenga visibilidad oculta, que no queden productos y que hayan transcurrido dos cuadros de renderizado después de la limpieza. Solo entonces el servicio guarda `deliveryCompletedAt` y libera el turno. El tarjetero mantiene ocultas la escena de apertura y la reserva de sobres hasta tener un turno de cartas con esa confirmación. Un trabajo antiguo sin `deliveryCompletedAt` vuelve a entregar los mismos productos antes de abrir: conserva el recibo, el cobro y el sorteo originales. Una entrega que termina sin confirmación registra un error y espera 30 segundos para reintentarse.
+
 Si una fuente se cierra, el turno vence y otra puede recuperar la solicitud. Las aperturas ya terminadas de una compra múltiple tienen un punto de control. Una interrupción justo antes de guardar ese punto puede repetir la animación del mismo premio; no repite el cobro, las cartas ni la XP.
 
 Para compras de más de cinco sobres se guarda `packIndex` después de cada diapositiva. Al recuperar el turno, se reconstruye la pila de cartas ya mostradas y se continúa desde el siguiente trío. Al terminar, todas las cartas salen juntas y se confirma el recibo una sola vez.

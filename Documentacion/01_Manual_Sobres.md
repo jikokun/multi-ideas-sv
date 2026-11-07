@@ -9,6 +9,11 @@
 
 La tiendita muestra el sobre como cualquier producto, junto con la mesa y el mesero. Cuando desaparecen por completo la mesa, el mesero y sus productos, el tarjetero invoca el sobre con su animación de entrada en la zona compacta y comienza la apertura. Si no hay un tarjetero disponible, el recibo queda esperando apertura. No hace falta un segundo comando.
 
+La apertura exige una confirmación de salida de la tiendita guardada en Firebase. Hasta recibirla, la capa del sobre permanece oculta. Para cargar esta actualización en OBS, publica los cambios y utiliza estos enlaces en ambas fuentes:
+
+- Tiendita: `https://multiideassv.com/mini_widgets/tiendita.html?overlay=true&v=20261107-delivery4`
+- Cartas: `https://multiideassv.com/laboratorio/tarjetero.html?obs=true&v=20261107-delivery4`
+
 El carrusel, las aperturas, los estilos y la recepción de turnos están integrados en **`laboratorio/tarjetero.html`**. La fuente ocupa un lienzo transparente de 1920 × 1080, pero las aperturas comunes se concentran abajo a la izquierda, en la zona de la mesa. Una especial o superior amplía el sobre y las cartas para conservar su animación destacada. `!mostrarcartas [rareza]` utiliza un carrusel pequeño junto al borde inferior izquierdo.
 
 También funciona `!mostrarcarta [rareza]`, en singular. Si se solicita el carrusel mientras sigue pendiente una compra del mismo usuario, se coloca una única solicitud después de esa compra y espera el cooldown correspondiente.

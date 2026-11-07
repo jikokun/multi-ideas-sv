@@ -1,4 +1,4 @@
-import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-media3';
+import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-delivery4';
 const $ = id => document.getElementById(id);
 const fields = { duplicateXpPercent: 'tcg-duplicate-xp', userCooldownMs: 'tcg-user-cooldown', globalCooldownMs: 'tcg-global-cooldown', collectionDurationMs: 'tcg-carousel-duration', revealDurationMs: 'tcg-reveal-duration', maxQueue: 'tcg-queue-capacity', maxPacksPerPurchase: 'tcg-max-packs' };
 const seconds = new Set(['userCooldownMs', 'globalCooldownMs', 'collectionDurationMs', 'revealDurationMs']);

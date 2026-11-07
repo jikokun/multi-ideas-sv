@@ -33,6 +33,7 @@ button:focus-visible, summary:focus-visible, select:focus-visible, input:focus-v
 [hidden] { display: none !important; }
 button { -webkit-tap-highlight-color: transparent; }
 #obs-canvas { --compact-x: 650px; --compact-y: 875px; --compact-scale: .5; --scene-x: var(--compact-x); --scene-y: var(--compact-y); --scene-scale: var(--compact-scale); width: 1920px; height: 1080px; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) scale(var(--canvas-fit)); transform-origin: center; overflow: hidden; background: transparent; isolation: isolate; }
+#obs-canvas[data-presentation-allowed="false"] :is(#opening-scene, #pack-reserve) { visibility: hidden !important; }
 #opening-scene { position: absolute; inset: 0; z-index: 10; transform-origin: 960px 475.2px; transform: translate3d(calc(var(--scene-x) - 960px), calc(var(--scene-y) - 475.2px), 0) scale(var(--scene-scale)); transition: transform .85s cubic-bezier(.2, .8, .2, 1); }
 #opening-scene.layout-snap { transition: none; }
 #obs-canvas[data-layout="expanded"] { --scene-x: 960px; --scene-y: 475.2px; --scene-scale: 1; }
@@ -225,7 +226,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
 
     </style>
     <script src="../data/tarjetas_default_data.js"></script>
-    <script src="tarjetero_sobres_core.js?v=20261107-media3"></script>
+    <script src="tarjetero_sobres_core.js?v=20261107-delivery4"></script>
 
 </head>
 <body class="clean-overlay">
@@ -1124,6 +1125,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
         setCloudProduct: product => { if (product?.img && packArtwork.front !== product.img) { packArtwork.front = product.img; loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && packArtwork.back !== product.packBack) { packArtwork.back = product.packBack; loadArtwork($('pack-back-art'), product.packBack); } },
         setQueueLocked: locked => { queueLocked = !!locked; },
+        setPresentationAllowed: allowed => { canvas.dataset.presentationAllowed = String(!!allowed); },
         snapshot: () => ({ phase: state.phase, layout: canvas.dataset.layout, reserveCount, deliveryJobId, loadingImages: !!assetPreparation || state.phase === 'loading', lastAssetError, mode: state.pack?.mode || null, highestRarity: state.pack?.highestRarity || null, cards: state.pack?.cards.map(card => ({ id: card.id, num: card.num, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })) || [], stats: { packs: state.packs, cards: state.cards, legendary: state.legendary }, pendingTimers: timers.size, particles: particles.length, controlsEnabled, panelOpen: !panel.hidden, failedImages: failedAssets.size, loadedImages: loadedAssets.size })
     });
     // El consumidor de Firebase se integra debajo en el mismo HTML.
@@ -1131,16 +1133,20 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
 
 </script>
 <script type="module" id="tarjetero-firebase">
-import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-media3';
+import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261107-delivery4';
 
 const params = new URLSearchParams(location.search);
 const live = !params.has('preview') && (params.get('controls') !== 'true' || params.get('obs') === 'true') && parent === window;
+if (live) window.JikoBooster?.setPresentationAllowed(false);
 await initializeTcg();
 TcgCloud.subscribe(service => {
     window.JikoBooster?.setCloudCatalog(service.catalog);
     window.JikoBooster?.setCloudProduct(service.product);
     if (!live || !window.JikoBooster) return;
     const head = window.JikoTcgEngine.pending(service.control)[0];
+    const active = service.control.active;
+    const allowed = head && active?.jobId === head.id && active.role === 'cards' && (head.type === 'collection' || (head.status === 'opening' && Number(head.deliveryCompletedAt) > 0));
+    window.JikoBooster.setPresentationAllowed(allowed);
     if (!head) window.JikoBooster.clearDelivery();
 });
 
@@ -1154,6 +1160,8 @@ if (live) {
         let completed = false;
         let remaining = Math.max(0, (job.receipt?.packs.length || 0) - (job.packIndex || 0));
         try {
+            if (job.type === 'purchase' && !(Number(job.deliveryCompletedAt) > 0)) throw new Error('Falta la confirmación de salida de la mesa.');
+            widget.setPresentationAllowed(true);
             if (job.type === 'collection') {
                 await widget.showOwned(job.cards, { signal, duration: TcgCloud.settings.collectionDurationMs });
             } else if (job.receipt.packs.length > 5) {
@@ -1170,6 +1178,7 @@ if (live) {
             }
             completed = true;
         } finally {
+            widget.setPresentationAllowed(false);
             widget.clearDelivery();
             if (!completed && !signal.aborted && job.type === 'purchase') {
                 const done = TcgCloud.control.jobs?.[job.id]?.packIndex || 0;

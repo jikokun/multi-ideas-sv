@@ -2478,7 +2478,7 @@
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
-  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261107-media3';
+  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261107-delivery4';
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
@@ -4967,6 +4967,9 @@
     // Activar mesero a pantalla completa (sin fondo, solo mesero.png y platos)
     document.body.classList.add('mesero-activo');
     $meseroOverlay.classList.remove('saliendo');
+    $meseroOverlay.style.removeProperty('transition');
+    $meseroOverlay.style.removeProperty('opacity');
+    $meseroOverlay.style.removeProperty('visibility');
     $meseroOverlay.classList.add('visible');
 
     console.log(`[Tiendita] 🍽️ Mesero entregando orden de @${user} (${totalPlatos} platillos):`, platos.map(p => p.nombre));
@@ -4987,13 +4990,24 @@
       $meseroOverlay.classList.add('saliendo');
       salidaTcgTimer = setTimeout(()=>{
         $meseroOverlay.classList.remove('visible', 'saliendo');
+        // Fijar el estado final incluso si OBS retrasó el compositor o la transición.
+        // visibility también tiene transición: desactivarla al cerrar evita
+        // confirmar mientras el navegador todavía devuelve "visible".
+        $meseroOverlay.style.transition = 'none';
+        $meseroOverlay.style.opacity = '0';
+        $meseroOverlay.style.visibility = 'hidden';
         document.body.classList.remove('mesero-activo');
         if($filaAtras) $filaAtras.innerHTML = '';
         if($filaAdelante) $filaAdelante.innerHTML = '';
         if(demoZone && (!isOverlayMode || isPreview)) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
-        options.signal?.removeEventListener('abort', abortDelivery);
-        options.onComplete?.();
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          if (options.signal?.aborted) return;
+          options.signal?.removeEventListener('abort', abortDelivery);
+          const clear = !$meseroOverlay.classList.contains('visible') && $meseroMesa.querySelectorAll('.plato-servido').length === 0 && getComputedStyle($meseroOverlay).visibility === 'hidden';
+          if (clear) options.onComplete?.({ deliveryCleared: true });
+          else options.onAbort?.();
+        }));
       }, 600);
     }, 9000);
   }
