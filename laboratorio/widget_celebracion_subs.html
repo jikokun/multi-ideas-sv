@@ -370,6 +370,8 @@
     animation: numberShineSweep 2.4s ease-in-out infinite;
   }
 
+  .epic-number-display, .epic-sub-display { white-space: nowrap; }
+
   /* Etiqueta inferior SUB / SUBS o KICK / KICKS con la misma fuente Bowlby One SC */
   .epic-sub-display {
     position: relative;
@@ -982,12 +984,17 @@
     return state.currentEventKind === "KICKS";
   }
 
+  function isSubscriberActive() {
+    return state.currentEventKind === "SUBSCRIBER";
+  }
+
   function isDefaultAquaSubColor() {
     var clean = String(state.shadowHex || "#4ee8fa").toLowerCase();
     return clean === "#4ee8fa" || clean === "#0d5466";
   }
 
   function getActiveDarkPalette() {
+    if (isSubscriberActive()) return ["#714000", "#9a5b00", "#c78609", "#e6a917", "#ffc83d", "#ffe28a"];
     if (isKickGreenActive()) return KICK_DARK_PALETTE;
     if (isDefaultAquaSubColor()) return AQUA_DARK_PALETTE;
     return [
@@ -1001,6 +1008,7 @@
   }
 
   function getActiveLightPalette() {
+    if (isSubscriberActive()) return ["#d99a16", "#ffc83d", "#ffe28a", "#fff1c2", "#ffffff"];
     if (isKickGreenActive()) return KICK_LIGHT_PALETTE;
     if (isDefaultAquaSubColor()) return AQUA_LIGHT_PALETTE;
     return [
@@ -1142,8 +1150,8 @@
 
     // KICKS usa EXCLUSIVAMENTE el color Verde Kick (#53fc18 / #062902).
     // SUBS usa el color variable / personalizable configurado en el panel (state.shadowHex / state.shadow3dHex).
-    var activeGlowHex = isKickGreenActive() ? "#53fc18" : state.shadowHex;
-    var active3dHex = isKickGreenActive() ? "#062902" : state.shadow3dHex;
+    var activeGlowHex = isSubscriberActive() ? "#ffc83d" : (isKickGreenActive() ? "#53fc18" : state.shadowHex);
+    var active3dHex = isSubscriberActive() ? "#593000" : (isKickGreenActive() ? "#062902" : state.shadow3dHex);
 
     rootStyle.setProperty("--shadow-blur-1", blur1 + "px");
     rootStyle.setProperty("--shadow-blur-2", blur2 + "px");
@@ -1160,7 +1168,18 @@
     // Actualizar colores de la fuente Bowlby One SC, haz de subida, ondas y anillo:
     // - Si es KICKS: siempre Verde Kick fijo (#53fc18)
     // - Si es SUBS: color personalizable del usuario (Acua Claro por defecto o cualquier color elegido)
-    if (isKickGreenActive()) {
+    if (isSubscriberActive()) {
+      ["num", "sub"].forEach(function (prefix) {
+        ["#ffffff", "#fff0b3", "#ffc83d", "#c7830a", "#754000"].forEach(function (color, index) {
+          rootStyle.setProperty("--" + prefix + "-grad-" + (index + 1), color);
+        });
+      });
+      rootStyle.setProperty("--theme-neon", "#ffc83d");
+      rootStyle.setProperty("--theme-bright", "#e6a917");
+      rootStyle.setProperty("--beam-mid", "rgba(199, 131, 10, 0.78)");
+      rootStyle.setProperty("--beam-top", "rgba(255, 200, 61, 0.92)");
+      rootStyle.setProperty("--ring-border", "rgba(255, 226, 138, 0.75)");
+    } else if (isKickGreenActive()) {
       rootStyle.setProperty("--num-grad-1", "#ffffff");
       rootStyle.setProperty("--num-grad-2", "#d6ffc2");
       rootStyle.setProperty("--num-grad-3", "#53fc18");
@@ -1813,18 +1832,18 @@
     var chosenKind = customKind
       ? String(customKind).toUpperCase()
       : (selectTestKind && selectTestKind.value ? selectTestKind.value.toUpperCase() : state.currentEventKind);
-    state.currentEventKind = (chosenKind === "SUBS" || chosenKind === "SUB") ? "SUBS" : "KICKS";
+    state.currentEventKind = chosenKind === "SUBSCRIBER" ? "SUBSCRIBER" : ((chosenKind === "SUBS" || chosenKind === "SUB") ? "SUBS" : "KICKS");
 
     // Aplicar de inmediato el tema de color correspondiente:
     // - Si es KICKS: Verde Kick fijo (#53fc18 / #062902)
     // - Si es SUBS: Color personalizable configurado para Subs (state.shadowHex / state.shadow3dHex)
     applyShadowSettings();
 
-    var chosenNumber = resolveRandomOrFixedNumber(customNumber);
+    var chosenNumber = isSubscriberActive() ? String(customNumber) : resolveRandomOrFixedNumber(customNumber);
     var numericVal = parseInt(String(chosenNumber).replace(/[^0-9]/g, ""), 10);
-    var labelWord = resolveEventLabel(chosenNumber, state.currentEventKind);
+    var labelWord = isSubscriberActive() ? "Se acaba de suscribir" : resolveEventLabel(chosenNumber, state.currentEventKind);
 
-    if (!isNaN(numericVal) && numericVal >= 1) {
+    if (!isSubscriberActive() && !isNaN(numericVal) && numericVal >= 1) {
       if (state.currentEventKind === "KICKS") {
         kicksEnviados = numericVal;
         window.kicksEnviados = numericVal;
@@ -1846,8 +1865,19 @@
     } else if (digitsLen >= 6) {
       effectiveFontSize = Math.round(baseSize * 0.62);
     }
+    if (isSubscriberActive()) {
+      var measure = document.createElement("canvas").getContext("2d");
+      var fitSize = function (text, maxSize, availableWidth, spacing) {
+        measure.font = maxSize + "px 'Bowlby One SC', sans-serif";
+        var width = measure.measureText(text).width + text.length * maxSize * spacing;
+        return Math.min(maxSize, Math.floor(maxSize * availableWidth / Math.max(1, width)));
+      };
+      effectiveFontSize = fitSize(chosenNumber, baseSize * 0.7, 1450, 0.01);
+      subText.style.fontSize = fitSize(labelWord, baseSize * 0.38, 1450, 0.05) + "px";
+    } else {
+      subText.style.fontSize = Math.round(baseSize * 0.38) + "px";
+    }
     numberText.style.fontSize = effectiveFontSize + "px";
-    subText.style.fontSize = Math.round(baseSize * 0.38) + "px";
 
     numberText.textContent = chosenNumber;
     numberText.setAttribute("data-value", chosenNumber);
@@ -2335,6 +2365,12 @@
       var gifter = extractGifterUsername(payload);
       var count = extractSubsCountFromPayload(payload, true);
       registerGiftSubEvent(count, gifter, isSubBomb);
+      return;
+    }
+
+    if ((source === "kick" && (evType === "subscription" || evType === "resubscription")) ||
+        (source === "twitch" && (evType === "sub" || evType === "resub" || evType === "subscription"))) {
+      procesarSuscripcion(extractGifterUsername(payload));
     }
   }
 
@@ -2390,6 +2426,8 @@
               "*"
             ],
             Twitch: [
+              "Sub",
+              "ReSub",
               "GiftSub",
               "GiftBomb",
               "SubGift",
@@ -2515,6 +2553,11 @@
     e.stopPropagation();
     var kind = selectTestKind && selectTestKind.value ? selectTestKind.value : "KICKS";
     triggerFullCelebration(undefined, kind);
+  });
+
+  document.getElementById("btn-test-subscriber").addEventListener("click", function (e) {
+    e.stopPropagation();
+    procesarSuscripcion("UsuarioDePrueba");
   });
 
   btnTest1Sub.addEventListener("click", function (e) {
@@ -2694,6 +2737,7 @@
       triggerFullCelebration(undefined, kind);
     }
   };
+  window.celebrarSuscripcion = procesarSuscripcion;
   window.celebrarSubsRegaladas = procesarSubsRegaladas;
   window.celebrarKicksEnviados = procesarKicksEnviados;
 
@@ -2701,7 +2745,9 @@
   window.addEventListener("message", function (event) {
     if (!event || !event.data) return;
     var d = event.data;
-    if (d.type === "GIFT_KICKS" || d.type === "TRIGGER_KICKS") {
+    if (d.type === "SUBSCRIPTION" || d.type === "TRIGGER_SUBSCRIPTION") {
+      procesarSuscripcion(d.user || d.username || "");
+    } else if (d.type === "GIFT_KICKS" || d.type === "TRIGGER_KICKS") {
       procesarKicksEnviados(d.kicks || d.amount || d.count || 100, d.user || "");
     } else if (d.type === "GIFT_SUBS" || d.type === "TRIGGER_SUBS") {
       procesarSubsRegaladas(d.subs || d.gifts || d.count || 1, d.user || "");
