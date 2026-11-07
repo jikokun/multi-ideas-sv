@@ -651,6 +651,11 @@
         </button>
       </div>
 
+      <div class="grid grid-cols-2 gap-2">
+        <button id="btn-test-subscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar suscripción</button>
+        <button id="btn-test-resubscriber" type="button" class="btn-aqua-secondary rounded-2xl py-2 text-xs font-bold text-[#ffc83d]">✨ Probar resuscripción (6 meses)</button>
+      </div>
+
       <!-- Conexión a Streamer.bot y Variables de Subs y Kicks -->
       <div class="grid grid-cols-12 gap-2.5 bg-[#01161e]/75 p-3 rounded-2xl border border-[#25c4d8]/35 items-end">
         <div class="col-span-4">
@@ -1841,7 +1846,7 @@
 
     var chosenNumber = isSubscriberActive() ? String(customNumber) : resolveRandomOrFixedNumber(customNumber);
     var numericVal = parseInt(String(chosenNumber).replace(/[^0-9]/g, ""), 10);
-    var labelWord = isSubscriberActive() ? (months !== undefined ? (months > 0 ? "Se re suscribi? x" + months + (months === 1 ? " mes" : " meses") : "Se re suscribi?") : "Se acaba de suscribir") : resolveEventLabel(chosenNumber, state.currentEventKind);
+    var labelWord = isSubscriberActive() ? (months !== undefined ? (months > 0 ? "Se re suscribió x" + months + (months === 1 ? " mes" : " meses") : "Se re suscribió") : "Se acaba de suscribir") : resolveEventLabel(chosenNumber, state.currentEventKind);
 
     if (!isSubscriberActive() && !isNaN(numericVal) && numericVal >= 1) {
       if (state.currentEventKind === "KICKS") {
@@ -1952,9 +1957,9 @@
     var name = String(username || "").trim();
     if (!name) return;
     var count = renewal ? (extractPositiveInt(months) || 0) : undefined;
-    var message = renewal ? (count ? " se re suscribi? x" + count + (count === 1 ? " mes" : " meses") : " se re suscribi?") : " se acaba de suscribir";
-    if (wsLastEvent) wsLastEvent.textContent = "? " + name + message;
-    if (labelLastSubsVar) labelLastSubsVar.textContent = name + " ? SUB";
+    var message = renewal ? (count ? " se re suscribió x" + count + (count === 1 ? " mes" : " meses") : " se re suscribió") : " se acaba de suscribir";
+    if (wsLastEvent) wsLastEvent.textContent = "✨ " + name + message;
+    if (labelLastSubsVar) labelLastSubsVar.textContent = name + " · SUB";
     if (state.isAnimating) state.giftQueue.push({ count: name, kind: "SUBSCRIBER", months: count });
     else triggerFullCelebration(name, "SUBSCRIBER", count);
   }
@@ -2458,7 +2463,10 @@
         try {
           var data = JSON.parse(event.data);
           handleStreamerBotMessage(data);
-        } catch (err) {}
+        } catch (err) {
+          console.error("[Celebración] No se pudo procesar el mensaje de Streamer.bot:", err);
+          if (wsLastEvent) wsLastEvent.textContent = "Error al procesar evento: " + err.message;
+        }
       };
 
       ws.onerror = function () {
