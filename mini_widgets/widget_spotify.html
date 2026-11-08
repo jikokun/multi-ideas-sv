@@ -1172,6 +1172,18 @@
             color: #ef4444;
             border-color: rgba(239, 68, 68, 0.3);
         }
+        .scene-embed, .scene-embed body { width:100%; height:100%; }
+        .scene-embed #widget-wrapper { pointer-events:none; }
+        .scene-embed #settings-panel, .scene-embed .resize-corner,
+        .scene-embed .resize-edge-e, .scene-embed .resize-edge-s { display:none !important; }
+        .scene-embed #player-card { box-shadow:none; border:0; padding:0; }
+        .scene-embed #alert-toast-container { left:0; right:0; bottom:4px; }
+        .scene-embed .alert-toast { font-size:14px; box-shadow:none; }
+        .scene-embed .cover-img:not([src]), .scene-embed .cover-img[src=""] { visibility:hidden; }
+        .scene-embed .cover-img-box:has(.cover-img[src=""])::before {
+            content:'♫'; position:absolute; inset:0; display:grid; place-items:center;
+            font-size:46px; color:#b9f9c8; background:#163d2e;
+        }
     </style>
 </head>
 <body>
@@ -1533,6 +1545,8 @@
         (function () {
             // Parámetros de URL en OBS Browser Source
             var urlParams = new URLSearchParams(window.location.search);
+            var sceneEmbed = urlParams.get('embed') === 'scene';
+            if (sceneEmbed) document.documentElement.classList.add('scene-embed');
             var initialUser = urlParams.get('user') || urlParams.get('spotify_user') || 'jikokun2';
             var paramToken = urlParams.get('token') || '';
             var paramRefresh = urlParams.get('refresh') || '';
@@ -1640,7 +1654,17 @@
             if (urlParams.get('style')) state.style = urlParams.get('style');
             if (urlParams.get('shape')) state.shape = urlParams.get('shape');
 
+            // Scene sizing is local to this instance; preserve the standalone widget settings.
+            if (sceneEmbed) {
+                Object.assign(state, { x: 0, y: 0, scale: 1, style: 'style-glass', shape: 'shape-standard',
+                    cardWidth: 600, cardHeight: 148, coverSize: 108, coverRadius: 18, cardRadius: 22,
+                    titleSize: 23, artistSize: 17, motion: '', autoHide: false, bgOpacity: 0,
+                    onlyCoverAndBar: false, showNumbers: true, showEq: true, usingLocalAudio: false,
+                    currentTrackId: '', currentTime: 0, isPlaying: false, textColor: '#f2fcfa' });
+            }
+
             function saveState() {
+                if (sceneEmbed) return;
                 try {
                     localStorage.setItem("obs_compact_music_v2", JSON.stringify(state));
                 } catch (e) {}
@@ -2393,7 +2417,7 @@
 
                 function tryPort(port) {
                     try {
-                        var wsUrl = "ws://127.0.0.1:" + port + "/";
+                        var wsUrl = "ws://" + (urlParams.get("ip") || "127.0.0.1") + ":" + port + "/";
                         streamerbotWs = new WebSocket(wsUrl);
 
                         streamerbotWs.onopen = function () {
@@ -3071,7 +3095,13 @@
 
             // Iniciar con la primera pista de demo de respaldo y consultar Spotify de inmediato
             var initialTrack = demoTracks[0];
-            loadTrackData(initialTrack.title, initialTrack.artist, initialTrack.cover, initialTrack.duration, state.color1, state.color2);
+            if (sceneEmbed) {
+                loadTrackData('La rocola está en espera', 'Pide tu siguiente canción con !addsong', '', 0, state.color1, state.color2);
+                state.duration = 0;
+                updateTimelineUI();
+            } else {
+                loadTrackData(initialTrack.title, initialTrack.artist, initialTrack.cover, initialTrack.duration, state.color1, state.color2);
+            }
             pollSpotifyPlayback();
         })();
     </script>
