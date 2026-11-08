@@ -40,21 +40,29 @@ function initKickChat() {
   function appendMessage(element) {
     const previous = [...chatContainer.children].map(node => [node, node.getBoundingClientRect().top]);
     chatContainer.appendChild(element);
-    const style = getComputedStyle(chatContainer);
-    const available = chatContainer.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-    const contentHeight = () => [...chatContainer.children].reduce((sum, node) => sum + node.offsetHeight, 0) + Math.max(0, chatContainer.children.length - 1) * parseFloat(style.rowGap);
-    while (chatContainer.children.length > 30 || (chatContainer.children.length > 1 && contentHeight() > available)) {
-      chatContainer.firstElementChild.remove();
-    }
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
       previous.forEach(([node, top]) => {
         if (!node.isConnected) return;
         const scale = chatContainer.getBoundingClientRect().height / chatContainer.offsetHeight || 1;
         const offset = (top - node.getBoundingClientRect().top) / scale;
-        if (offset) node.animate([{ translate:`0 ${offset}px` }, { translate:'0 0' }], { duration:420, easing:'cubic-bezier(.22,1,.36,1)' });
+        if (offset) {
+          const animation = node.animate([{ translate:`0 ${offset}px` }, { translate:'0 0' }], { duration:420, easing:'cubic-bezier(.22,1,.36,1)' });
+          animation.finished.then(pruneInvisibleMessages, () => {});
+        }
       });
     }
+    pruneInvisibleMessages();
   }
+
+  function pruneInvisibleMessages() {
+    // Keep the partially visible oldest entry. Only discard entries fully above the viewport.
+    while (chatContainer.children.length > 1) {
+      const first = chatContainer.firstElementChild;
+      if (first.getBoundingClientRect().bottom > chatContainer.getBoundingClientRect().top) break;
+      first.remove();
+    }
+  }
+  new ResizeObserver(pruneInvisibleMessages).observe(chatContainer);
 
   function conectarConStreamerBot() {
     console.log(`[Jikokun Chat] Intentando conectar a Streamer.bot WebSocket (ws://${SERVER_IP}:${SERVER_PORT})...`);
@@ -74,11 +82,7 @@ function initKickChat() {
         "request": "Subscribe",
         "id": "jikokun-glass-chat",
         "events": {
-          "Kick": [
-            "ChatMessage",
-            "Message",
-            "Follow"
-          ]
+          "Kick": ["*"]
         }
       };
       ws.send(JSON.stringify(payloadSuscripcion));
@@ -97,12 +101,11 @@ function initKickChat() {
           payload.type || payload.eventType || payload.name || ''
         ).toString().toLowerCase();
 
-        const isFollowEvent = eventName.includes('follow');
-
-        if (isFollowEvent && !payload.message && !payload.text && !payload.messageText) {
-          showFollowAlert(payload);
-          return;
-        }
+        const source = String(eventObj.source || rawPayload.source || payload.source || '').toLowerCase();
+        if (source && source !== 'kick') return;
+        // Dispatch by event metadata before reading text: subscription messages can include a message.
+        if (processActivity(eventName, payload, rawPayload)) return;
+        if (eventName && !['chatmessage', 'message', 'kick.chatmessage', 'kick.message'].includes(eventName)) return;
 
         if (payload.message || rawPayload.message || payload.text || payload.messageText || payload.content) {
           processMessage(payload);
@@ -197,33 +200,76 @@ function initKickChat() {
     appendMessage(msgElement);
     loadAvatar(msgElement.querySelector('.avatar'), usernameLower, avatarFrom(userObj) || avatarFrom(messageObj) || avatarFrom(data));
 
-    setTimeout(() => {
-      msgElement.classList.add('evaporating');
-      setTimeout(() => {
-        if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
-      }, 700);
-    }, 30000);
   }
 
-  function showFollowAlert(data) {
-    const username = data.user?.username || data.user?.name || data.user?.displayName || data.username || data.name || data.displayName || data.user_name || data.userName || 'Nuevo seguidor';
-    const msgElement = document.createElement('div');
-    msgElement.className = 'follow-alert';
-    msgElement.innerHTML = `
-      <div class="message-header">
-        <span class="username">${escapeHTML(username)}</span>
-      </div>
-      <div class="content">¡Gracias por seguir el canal! ✨</div>
-    `;
-    appendMessage(msgElement);
-
-    setTimeout(() => {
-      msgElement.classList.add('evaporating');
-      setTimeout(() => {
-        if (msgElement.parentNode) msgElement.parentNode.removeChild(msgElement);
-      }, 700);
-    }, 8000);
+  const recentActivity = new Map();
+  function userName(candidate) {
+    if (typeof candidate === 'string') return candidate.trim();
+    if (!candidate || typeof candidate !== 'object') return '';
+    return String(candidate.displayName || candidate.display_name || candidate.username || candidate.userName || candidate.user_name || candidate.name || '').trim();
   }
+  function positiveNumber(...values) {
+    for (const value of values) {
+      if (typeof value !== 'number' && typeof value !== 'string') continue;
+      const number = Number(value);
+      if (Number.isFinite(number) && number > 0) return number;
+    }
+    return null;
+  }
+  function processActivity(eventName, data, envelope = {}) {
+    const type = eventName.replace(/^kick[.:_-]/, '').replace(/[^a-z0-9]/g, '');
+    // Never interpret ordinary chat content or a username as an activity type.
+    if (!type || type === 'chatmessage' || type === 'message') return false;
+    let kind;
+    if (/follow/.test(type) && !/unfollow/.test(type)) kind = 'follow';
+    else if (/kicks|giftedkick|rewardgift|cheer|token/.test(type) ||
+      (type === 'gift' && (data.kicks != null || data.gifted_kicks != null || data.giftedKicks != null))) kind = 'kicks';
+    else if (/subbomb|giftsub|subscriptiongift|membershipgift|massgift/.test(type) || type === 'gift') kind = 'gift';
+    else if (/subscription|resub|^sub$/.test(type)) kind = 'sub';
+    else if (/raid/.test(type)) kind = 'raid';
+    else if (/donation|tip/.test(type)) kind = 'tip';
+    else return false;
+
+    // IDs are event IDs, not user IDs. Keep a bounded cache to ignore replayed packets.
+    const eventId = data.eventId || data.event_id || data.messageId || data.message_id || data.id || envelope.id;
+    if (eventId) {
+      const key = `${kind}:${eventId}`;
+      if (recentActivity.has(key)) return true;
+      recentActivity.set(key, true);
+      if (recentActivity.size > 300) recentActivity.delete(recentActivity.keys().next().value);
+    }
+    const sender = data.gifter || data.sender || data.user || data.follower || data.subscriber || data.donor || data;
+    const name = userName(sender) || userName(data) || 'Alguien de la manada';
+    const recipient = userName(data.recipient || data.recipientUser || data.recipient_name);
+    const amount = positiveNumber(data.kicks, data.gifted_kicks, data.giftedKicks, data.tokens, data.amount, data.bits, data.quantity);
+    const count = positiveNumber(data.gifts, data.totalGifts, data.giftCount, data.sub_count, data.count, data.quantity,
+      Array.isArray(data.recipients) ? data.recipients.length : null);
+    const months = positiveNumber(data.months, data.duration, data.cumulativeMonths, data.totalMonths);
+    const viewers = positiveNumber(data.viewers, data.viewerCount, data.viewer_count, data.count);
+    const number = value => value.toLocaleString('es-SV');
+    const details = {
+      follow: ['NUEVO SEGUIDOR', 'Se ha unido a la manada.', '✦'],
+      kicks: ['KICKS', amount ? `Envió ${number(amount)} Kicks. ¡Gracias por el apoyo!` : 'Envió Kicks. ¡Gracias por el apoyo!', '◆'],
+      sub: ['SUSCRIPCIÓN', months ? `Se suscribió por ${number(months)} ${months === 1 ? 'mes' : 'meses'}.` : '¡Gracias por suscribirte al canal!', '★'],
+      gift: ['SUBS REGALADAS', count && count > 1 ? `Regaló ${number(count)} suscripciones a la comunidad.` : recipient ? `Regaló una suscripción a ${recipient}.` : 'Regaló una suscripción a la comunidad.', '🎁'],
+      raid: ['RAID', viewers ? `Llegó con ${number(viewers)} personas. ¡Bienvenidos!` : 'Llegó con su comunidad. ¡Bienvenidos!', '↗'],
+      tip: ['APOYO', data.formatted_amount || data.formattedAmount ? `Envió ${String(data.formatted_amount || data.formattedAmount)}. ¡Gracias!` : amount ? `Envió ${number(amount)}${data.currency ? ' ' + String(data.currency) : ''}. ¡Gracias!` : '¡Gracias por apoyar el canal!', '♥']
+    }[kind];
+    const element = document.createElement('div');
+    element.className = `chat-activity activity-${kind}`;
+    const note = typeof data.message === 'string' ? data.message : typeof data.subMessage === 'string' ? data.subMessage : '';
+    element.innerHTML = `<div class="activity-top"><span class="activity-icon" aria-hidden="true">${details[2]}</span><span class="activity-label">${details[0]}</span></div>
+      <div class="activity-user">${escapeHTML(name)}</div>
+      <div class="activity-description">${escapeHTML(details[1])}</div>
+      ${note ? `<div class="activity-note">${escapeHTML(note)}</div>` : ''}`;
+    appendMessage(element);
+    return true;
+  }
+
+  // Preview uses the same event parser as the WebSocket; it never sends an action to Kick.
+  window.simularAlertaKick = (type = 'Follow', data = {}) => processActivity(String(type).toLowerCase(), {
+    user: { username: 'Luna' }, ...data
+  });
 
   function generarColorElegante(str) {
     let hash = 0;

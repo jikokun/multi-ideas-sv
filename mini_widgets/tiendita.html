@@ -2459,7 +2459,7 @@
           <button type="button" id="demo-carousel-toggle" aria-pressed="false">⏸ Pausar</button>
         </label>
         <label class="dz-carousel-speed" for="demo-carousel-speed"><span>Velocidad de desplazamiento <output id="demo-carousel-speed-value">1.00×</output></span>
-          <input id="demo-carousel-speed" type="range" min="0.15" max="1.50" step="0.05" value="0.55">
+          <input id="demo-carousel-speed" type="range" min="0.15" max="1.80" step="0.05" value="0.90">
         </label>
         <div class="dz-carousel-actions">
           <button type="button" id="demo-carousel-open">👁 Mostrar vitrina</button>
@@ -2475,10 +2475,12 @@
 <!-- Módulo Maestro de Sincronización y Exclusión Mutua de Widgets (Anti-sobreposiciones) -->
 <script src="./js/jiko_tcg_profile.js?v=20261107-profile1"></script>
 <script src="./js/jiko_widget_sync.js"></script>
+<script src="./js/tienda_vitrina.js"></script>
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
+  import { resolverCategorias, escucharCategorias } from './js/tienda_categorias.js';
   import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261107-delivery4';
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
@@ -2488,6 +2490,16 @@
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
   window.extraerUsuarioDeBienvenidaGlobal = extraerUsuarioDeBienvenidaGlobal;
   StreamDB.init().then(() => {
+    StreamDB.onTransmisionesStats?.(stats => {
+      if (stats.isLive && stats.streamActivoId) window.establecerDirectoVitrina?.(stats.streamActivoId);
+    });
+    let categoriasGuardadas = [];
+    window.resolverCategoriasTienda = items => resolverCategorias(categoriasGuardadas, items);
+    escucharCategorias(StreamDB, categorias => {
+      categoriasGuardadas = categorias;
+      window.renderCategoriasTienda?.();
+    });
+    window.renderCategoriasTienda?.();
     console.log('[Tiendita] 🔥 Firebase RTDB StreamDB inicializado correctamente (nodo: stream)');
     if (typeof StreamDB.obtenerUsuarios === 'function') {
       StreamDB.obtenerUsuarios().then(users => {
@@ -4163,6 +4175,30 @@
   let isAutoScrolling = true;
   let carouselRafId = null;
   let carouselHalfWidth = 0;
+  let ordenVitrina = [];
+  let estadoVitrina = { streamId: null, abierta: false, anteriores: [] };
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('tiendita_vitrina_v1') || 'null');
+    if (saved && Array.isArray(saved.anteriores)) estadoVitrina = saved;
+  } catch (_) {}
+  function guardarEstadoVitrina() {
+    try { sessionStorage.setItem('tiendita_vitrina_v1', JSON.stringify(estadoVitrina)); } catch (_) {}
+  }
+  window.establecerDirectoVitrina = function(streamId) {
+    if (!streamId || estadoVitrina.streamId === streamId) return;
+    estadoVitrina = { streamId, abierta: false, anteriores: [] };
+    guardarEstadoVitrina();
+  };
+  function prepararVitrina() {
+    ordenVitrina = JikoVitrina.ordenar(ITEMS, !estadoVitrina.abierta, estadoVitrina.anteriores);
+    if (ordenVitrina.length) {
+      estadoVitrina.abierta = true;
+      estadoVitrina.anteriores = ordenVitrina.slice(0, 5);
+      guardarEstadoVitrina();
+    }
+    window.filtrarCategoriaTienda('todos');
+    establecerAutoScrollCarrusel(true);
+  }
 
   function recalcularAnchoCarrusel(){
     const cards = $track ? $track.querySelectorAll('.item-card') : [];
@@ -4191,7 +4227,8 @@
   }
 
   function actualizarContadoresCategorias() {
-    const counts = { todos: 0, comida: 0, bebida: 0, postre: 0, especial: 0, recurso: 0 };
+    const counts = { todos: 0 };
+    document.querySelectorAll('#categorias-nav-bar [data-cat]').forEach(button => { counts[button.dataset.cat] = 0; });
     ITEMS.forEach(it => {
       if (it.activo !== false) {
         counts.todos++;
@@ -4205,8 +4242,35 @@
     }
   }
 
+  window.renderCategoriasTienda = function() {
+    if (!window.resolverCategoriasTienda) return;
+    const categorias = window.resolverCategoriasTienda(ITEMS);
+    const nav = document.getElementById('categorias-nav-bar');
+    nav.replaceChildren();
+    for (const c of [{ key: 'todos', nombre: 'Todos', emoji: '🍽️' }, ...categorias]) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'cat-pill' + (categoriaActiva === c.key ? ' active' : '');
+      button.dataset.cat = c.key;
+      button.append(document.createTextNode(`${c.emoji} ${c.nombre} (`));
+      const count = document.createElement('span');
+      count.id = 'cat-count-' + c.key;
+      button.append(count, document.createTextNode(')'));
+      button.onclick = () => filtrarCategoriaTienda(c.key);
+      nav.appendChild(button);
+    }
+    const select = document.getElementById('demo-carousel-category');
+    if (select) {
+      select.replaceChildren(new Option('Todas', 'todos'), ...categorias.map(c => new Option(c.nombre, c.key)));
+      select.value = categoriaActiva;
+    }
+    actualizarContadoresCategorias();
+  };
+
   function renderCarouselTrack() {
     let itemsActivos = ITEMS.filter(it => it.activo !== false && (it.precio > 0 || it.key === 'mesero'));
+    const posiciones = new Map(ordenVitrina.map((key, index) => [key, index]));
+    itemsActivos.sort((a, b) => (posiciones.get(a.key) ?? Infinity) - (posiciones.get(b.key) ?? Infinity));
     if (categoriaActiva && categoriaActiva !== 'todos') {
       itemsActivos = itemsActivos.filter(it => (it.categoria || 'comida') === categoriaActiva);
     }
@@ -4243,6 +4307,7 @@
     console.log(`[Tiendita] 🔄 Catálogo actualizado en tiempo real desde Firebase (${itemsDb.length} ítems)`);
     ITEMS = itemsDb;
     window.ITEMS = itemsDb;
+    window.renderCategoriasTienda();
     renderCarouselTrack();
   };
 
@@ -4283,7 +4348,9 @@
   }
 
   /* ═══════════ LÓGICA DE CARRUSEL CONTINUO & CENTRADO ═══════════ */
-  let scrollSpeed = 0.55; // velocidad por defecto; el simulador permite ajustarla temporalmente
+  const VELOCIDAD_CARRUSEL = 0.90;
+  let scrollSpeed = VELOCIDAD_CARRUSEL;
+  let ultimoFrameCarrusel = null;
 
   function getHalfWidth(){
     return carouselHalfWidth;
@@ -4304,6 +4371,7 @@
 
   function establecerAutoScrollCarrusel(activo){
     isAutoScrolling = Boolean(activo);
+    ultimoFrameCarrusel = null;
     actualizarControlPausaCarrusel();
     if(isAutoScrolling){
       programarFrameCarrusel();
@@ -4313,11 +4381,13 @@
     }
   }
 
-  function loopCarousel(){
+  function loopCarousel(time){
     carouselRafId = null;
     if(!isAutoScrolling || !$track) return;
 
-    scrollPos -= scrollSpeed;
+    const frames = ultimoFrameCarrusel === null ? 1 : Math.min(3, Math.max(0, (time - ultimoFrameCarrusel) / (1000 / 60)));
+    ultimoFrameCarrusel = time;
+    scrollPos -= scrollSpeed * frames;
     if(carouselHalfWidth > 0 && Math.abs(scrollPos) >= carouselHalfWidth){
       scrollPos += carouselHalfWidth;
     }
@@ -5785,6 +5855,7 @@
   let unsubscribeLiveUser = null;
 
   function mostrarMenu(user, puntos=null){
+    const nuevaApertura = !$menu.classList.contains('visible');
     estadoPago();
     initAudio();
     playSfx('open');
@@ -5798,6 +5869,7 @@
     animarPuntos(saldoActual);
 
     $menu.classList.add('visible');
+    if (nuevaApertura) prepararVitrina();
     if($cardJp && $cardJp.classList.contains('visible')) $cardJp.classList.add('arriba');
     if($cardPl && $cardPl.classList.contains('visible')) $cardPl.classList.add('arriba');
     if($cardPerfil && $cardPerfil.classList.contains('visible')) $cardPerfil.classList.add('arriba');
@@ -5918,10 +5990,10 @@
   }
   if(demoCarouselSpeed){
     demoCarouselSpeed.addEventListener('input', () => {
-      scrollSpeed = Number(demoCarouselSpeed.value) || 0.55;
+      scrollSpeed = Number(demoCarouselSpeed.value) || VELOCIDAD_CARRUSEL;
       if(demoCarouselSpeedValue){
-        demoCarouselSpeedValue.value = `${(scrollSpeed / 0.55).toFixed(2)}×`;
-        demoCarouselSpeedValue.textContent = `${(scrollSpeed / 0.55).toFixed(2)}×`;
+        demoCarouselSpeedValue.value = `${(scrollSpeed / VELOCIDAD_CARRUSEL).toFixed(2)}×`;
+        demoCarouselSpeedValue.textContent = `${(scrollSpeed / VELOCIDAD_CARRUSEL).toFixed(2)}×`;
       }
     });
   }
@@ -5948,8 +6020,8 @@
       if(typeof window.filtrarCategoriaTienda === 'function') window.filtrarCategoriaTienda('todos');
     }
     if(demoCarouselSpeed){
-      demoCarouselSpeed.value = '0.55';
-      scrollSpeed = 0.55;
+      demoCarouselSpeed.value = String(VELOCIDAD_CARRUSEL);
+      scrollSpeed = VELOCIDAD_CARRUSEL;
       if(demoCarouselSpeedValue){
         demoCarouselSpeedValue.value = '1.00×';
         demoCarouselSpeedValue.textContent = '1.00×';

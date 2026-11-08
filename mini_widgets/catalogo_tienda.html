@@ -1130,6 +1130,7 @@
     </div>
 
     <div class="header-actions">
+      <button type="button" class="btn btn-secondary" onclick="abrirCategorias()">🏷️ Categorías</button>
       <button type="button" class="btn btn-primary-oro" onclick="abrirModalCrear()">
         <span>➕</span> Nuevo Producto
       </button>
@@ -1209,12 +1210,7 @@
       <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
         <div class="filter-pills-row" id="category-pills">
           <span style="font-family:var(--f-tech); font-size:0.75rem; color:var(--text-dim); text-transform:uppercase;">Categoría:</span>
-          <button type="button" class="filter-pill active" data-cat="todos" onclick="setCategoria('todos', this)">🔘 Todos</button>
-          <button type="button" class="filter-pill" data-cat="comida" onclick="setCategoria('comida', this)">🫓 Comidas</button>
-          <button type="button" class="filter-pill" data-cat="bebida" onclick="setCategoria('bebida', this)">☕ Bebidas</button>
-          <button type="button" class="filter-pill" data-cat="postre" onclick="setCategoria('postre', this)">🍰 Postres</button>
-          <button type="button" class="filter-pill" data-cat="especial" onclick="setCategoria('especial', this)">⭐ Especiales</button>
-          <button type="button" class="filter-pill" data-cat="recurso" onclick="setCategoria('recurso', this)">🐺 Recursos</button>
+
         </div>
 
         <div class="filter-pills-row" id="stock-pills">
@@ -1320,11 +1316,6 @@
                 <div class="form-group">
                   <label>Categoría</label>
                   <select id="input-categoria" class="form-control" style="font-family:var(--f-tech);">
-                    <option value="comida">🫓 Comida Típica</option>
-                    <option value="bebida">☕ Bebida / Refresco</option>
-                    <option value="postre">🍰 Postre / Dulce</option>
-                    <option value="especial">⭐ Especial / Combo</option>
-                    <option value="recurso">🐺 Recurso / Mesero</option>
                   </select>
                 </div>
 
@@ -1374,20 +1365,132 @@
   </div>
 
   <!-- Toast Zone -->
+  <div class="modal-overlay" id="category-modal" onclick="if(event.target===this) cerrarCategorias()">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="category-title" style="max-width:540px;">
+      <div class="modal-header">
+        <div class="modal-title" id="category-title">🏷️ Categorías</div>
+        <button type="button" class="modal-close-btn" onclick="cerrarCategorias()" aria-label="Cerrar categorías">✕</button>
+      </div>
+      <form id="category-form" onsubmit="guardarCategoriaForm(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="category-select">Editar una categoría o crear una nueva</label>
+            <select id="category-select" class="form-control" onchange="seleccionarCategoria(this.value)"></select>
+          </div>
+          <div class="form-group">
+            <label for="category-name">Nombre</label>
+            <input id="category-name" class="form-control" maxlength="50" required placeholder="Ej. Snacks">
+          </div>
+          <div class="form-group">
+            <label for="category-emoji">Ícono (emoji)</label>
+            <input id="category-emoji" class="form-control" maxlength="16" placeholder="🏷️">
+          </div>
+          <p style="color:var(--text-dim);font-size:.85rem;">Al editar el nombre, los productos conservan su categoría.</p>
+          <p id="category-error" role="status" style="color:var(--rojo);margin-top:12px;"></p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="cerrarCategorias()">Cerrar</button>
+          <button type="submit" id="category-submit" class="btn btn-primary-oro">Guardar categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
   <div class="toast-zone" id="toast-zone"></div>
 
   <!-- ═══════════ SCRIPTS & LÓGICA EN TIEMPO REAL ═══════════ -->
   <script type="module">
+    import { resolverCategorias, escucharCategorias, guardarCategoria } from './js/tienda_categorias.js';
     import StreamDB, { norm } from "./js/stream_firebase.js?v=20261016_3";
 
     // Endpoint Google Apps Script desplegado por el usuario para almacenar en Google Drive
     const APPS_SCRIPT_UPLOAD_URL = 'https://script.google.com/macros/s/AKfycbzNecmcTaKWcMp2S0uzXWNmpTbALXjr29PANsRXI5clQ19myT31bs8bYVBvltYeLO2Y/exec';
 
     let productosCache = [];
+    let categoriasGuardadas = [];
+    let categoriaEditando = null;
+    let guardandoCategoria = false;
     let filtroCategoria = 'todos';
     let filtroStock = 'todos';
     let busquedaTexto = '';
     let itemEditandoKey = null;
+
+    function escapeCategoria(value) {
+      const element = document.createElement('span');
+      element.textContent = value;
+      return element.innerHTML;
+    }
+    function renderizarCategorias() {
+      const categorias = resolverCategorias(categoriasGuardadas, productosCache);
+      const pills = document.getElementById('category-pills');
+      pills.querySelectorAll('button').forEach(button => button.remove());
+      for (const categoria of [{ key: 'todos', nombre: 'Todos', emoji: '🔘' }, ...categorias]) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'filter-pill' + (filtroCategoria === categoria.key ? ' active' : '');
+        button.dataset.cat = categoria.key;
+        button.textContent = `${categoria.emoji} ${categoria.nombre}`;
+        button.onclick = () => setCategoria(categoria.key, button);
+        pills.appendChild(button);
+      }
+      const select = document.getElementById('input-categoria');
+      const selected = select.value;
+      select.replaceChildren(...categorias.map(c => new Option(`${c.emoji} ${c.nombre}`, c.key)));
+      if (categorias.some(c => c.key === selected)) select.value = selected;
+      const editor = document.getElementById('category-select');
+      editor.replaceChildren(new Option('＋ Nueva categoría', ''), ...categorias.map(c => new Option(`${c.emoji} ${c.nombre}`, c.key)));
+      editor.value = categoriaEditando || '';
+    }
+
+    window.abrirCategorias = function() {
+      seleccionarCategoria('');
+      renderizarCategorias();
+      document.getElementById('category-modal').classList.add('active');
+      document.getElementById('category-select').focus();
+    };
+    window.cerrarCategorias = function() {
+      if (guardandoCategoria) return;
+      document.getElementById('category-modal').classList.remove('active');
+    };
+    window.seleccionarCategoria = function(key) {
+      categoriaEditando = key || null;
+      const categoria = resolverCategorias(categoriasGuardadas, productosCache).find(c => c.key === key);
+      document.getElementById('category-name').value = categoria?.nombre || '';
+      document.getElementById('category-emoji').value = categoria?.emoji || '🏷️';
+      document.getElementById('category-error').textContent = '';
+    };
+    window.guardarCategoriaForm = async function(event) {
+      event.preventDefault();
+      if (guardandoCategoria) return;
+      const error = document.getElementById('category-error');
+      error.style.color = 'var(--rojo)';
+      const nombre = document.getElementById('category-name').value.trim();
+      const emoji = document.getElementById('category-emoji').value.trim();
+      const slug = norm(nombre).replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      const key = categoriaEditando || slug;
+      const categorias = resolverCategorias(categoriasGuardadas, productosCache);
+      if (!nombre || !key || key === 'todos') { error.textContent = 'Escribe un nombre de categoría válido.'; return; }
+      if (categorias.some(c => c.key !== categoriaEditando && (norm(c.nombre) === norm(nombre) || c.key === key))) {
+        error.textContent = 'Ya existe una categoría con ese nombre.'; return;
+      }
+      guardandoCategoria = true;
+      document.getElementById('category-submit').disabled = true;
+      document.getElementById('category-select').disabled = true;
+      error.textContent = '';
+      try {
+        await guardarCategoria(StreamDB, { key, nombre, emoji });
+        categoriasGuardadas = [...categoriasGuardadas.filter(c => c.key !== key), { key, nombre, emoji }];
+        categoriaEditando = key;
+        renderizarCategorias();
+        error.style.color = 'var(--kick)';
+        error.textContent = 'Categoría guardada.';
+      } catch (err) {
+        error.textContent = 'No se pudo guardar la categoría: ' + err.message;
+      } finally {
+        guardandoCategoria = false;
+        document.getElementById('category-submit').disabled = false;
+        document.getElementById('category-select').disabled = false;
+      }
+    };
 
     // Toast helper
     function showToast(msg, duration = 3500) {
@@ -1409,6 +1512,11 @@
     async function inicializar() {
       try {
         await StreamDB.init();
+        escucharCategorias(StreamDB, categorias => {
+          categoriasGuardadas = categorias;
+          renderizarCategorias();
+          renderizarCatalogo();
+        }, err => { document.getElementById('category-error').textContent = 'No se pudieron cargar las categorías: ' + err.message; });
         document.getElementById('status-dot').style.background = 'var(--kick)';
         document.getElementById('status-text').textContent = 'Conectado en tiempo real a Firebase RTDB (stream/tienda/items)';
 
@@ -1462,6 +1570,7 @@
 
     // Renderizar Cuadrícula
     function renderizarCatalogo() {
+      renderizarCategorias();
       const grid = document.getElementById('products-grid');
       if (!grid) return;
 
@@ -1522,7 +1631,7 @@
         return `
           <div class="product-card ${!isActivo ? 'inactive' : ''}" id="card-${it.key}">
             <div class="product-img-box">
-              <span class="card-floating-badge badge-category">${it.categoria || 'comida'}</span>
+              <span class="card-floating-badge badge-category">${escapeCategoria(resolverCategorias(categoriasGuardadas, productosCache).find(c => c.key === (it.categoria || 'comida'))?.nombre || it.categoria || 'comida')}</span>
               <span class="card-floating-badge badge-status ${isActivo ? 'active' : 'inactive'}">
                 ${isActivo ? '● ACTIVO' : '○ INACTIVO'}
               </span>
@@ -1922,10 +2031,11 @@
 
     // Tecla Escape para cerrar modal
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') cerrarModal();
+      if (e.key === 'Escape') { if (document.getElementById('category-modal').classList.contains('active')) cerrarCategorias(); else cerrarModal(); }
     });
 
     // Iniciar al cargar
+    renderizarCategorias();
     inicializar();
   </script>
 </body>

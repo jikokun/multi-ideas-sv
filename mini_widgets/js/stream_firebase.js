@@ -4561,6 +4561,10 @@ class StreamFirebaseService {
     await this.init();
     if (!item || !item.key) throw new Error('El ítem debe tener una clave única (key)');
     const key = norm(item.key);
+    const previous = await get(ref(this.rtdb, `${NODE_TIENDA_ITEMS}/${key}`));
+    const existing = previous.exists() ? previous.val() : null;
+    // Creation stays fixed across price, stock and other product edits.
+    const createdAt = existing ? (existing.createdAt ?? existing.fechaCreacion ?? existing.ultimaActualizacion ?? 0) : Date.now();
     const itemData = {
       key: key,
       nombre: item.nombre || key,
@@ -4576,6 +4580,7 @@ class StreamFirebaseService {
       comando: item.comando || `!${key}`,
       aliases: Array.isArray(item.aliases) ? item.aliases : (typeof item.aliases === 'string' ? item.aliases.split(',').map(s=>norm(s)).filter(Boolean) : []),
       descripcion: item.descripcion || `${item.nombre || key} en la Tiendita`,
+      createdAt,
       ultimaActualizacion: Date.now()
     };
 
