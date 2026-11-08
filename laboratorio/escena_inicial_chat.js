@@ -82,7 +82,6 @@ function initKickChat() {
         }
       };
       ws.send(JSON.stringify(payloadSuscripcion));
-      document.getElementById('chat-status').textContent = 'EN LÍNEA';
       document.getElementById('chat-panel').classList.add('connected');
     };
 
@@ -119,7 +118,6 @@ function initKickChat() {
     };
 
     ws.onclose = () => {
-      document.getElementById('chat-status').textContent = 'CONECTANDO';
       document.getElementById('chat-panel').classList.remove('connected');
       console.warn("[Jikokun Chat] Desconectado de Streamer.bot. Reintentando en 5 segundos...");
       setTimeout(conectarConStreamerBot, 5000);
