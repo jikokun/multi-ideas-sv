@@ -29,6 +29,14 @@ https://sensunshopweb.web.app/spotify/play?user=jikokun2
 https://sensunshopweb.web.app/spotify/pause?user=jikokun2
 ```
 
+Alternar pausa/reproducción con un solo enlace (`!playpause`):
+
+```text
+https://sensunshopweb.web.app/spotify/toggle?user=jikokun2
+```
+
+Consulta el estado real: si está reproduciendo, pausa; si está pausado, reanuda. Devuelve `Música pausada.` o `Música reanudada.`. Usa `format=json` para recibir también `action` e `is_playing`. Admite el alias `playpause` y la terminación `.php`. Ignora llamadas simultáneas y repeticiones durante 2.5 segundos después de cada intento para evitar que un doble Fetch revierta el cambio. Si Spotify no tiene sesión activa, intenta reanudar en un dispositivo disponible; si no hay ninguno, devuelve un mensaje para abrir Spotify. El endpoint nuevo requiere publicar la función `spotifyControl`.
+
 Para estas respuestas de texto, usa `respuestaSpotify` como Variable Name y deja desmarcado Parse Results as JSON. Puedes enviar `%respuestaSpotify%` al chat. La variable `rawInputUrlEncoded` debe contener el texto solicitado codificado para URL; si tu acción aún no la genera, créala a partir de la entrada del comando o canje antes del Fetch.
 
 El panel Spotify de `laboratorio/index.html#card-spotify-widget` conserva los enlaces con botones Copiar y las pruebas Fetch manuales. Las rutas con `.php` también son compatibles: Firebase las redirige a la misma función, no son un controlador adicional. Para obtener JSON al consultar o añadir, usa `format=json`.

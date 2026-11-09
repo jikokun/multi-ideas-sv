@@ -11,6 +11,7 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+const { toggleSpotifyPlayback } = require("./spotify_toggle");
 
 // Inicializar SDK de Administración de Firebase con credenciales nativas del servidor
 admin.initializeApp();
@@ -426,6 +427,7 @@ exports.onUserDeleted = functions.auth.user().onDelete(async (userRecord) => {
  *  - /api/spotify/skip?user=jikokun2
  *  - /api/spotify/play?user=jikokun2
  *  - /api/spotify/pause?user=jikokun2
+ *  - /api/spotify/toggle?user=jikokun2
  *  - /api/spotify/status?user=jikokun2
  *  - /api/spotify/refresh_token?user=jikokun2
  *  - /api/spotify/save_token?user=jikokun2&refresh_token=...
@@ -765,6 +767,15 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
             await db.ref(`stream/spotify_auth/${user}`).update(updateObj);
             return res.status(200).send(`Tokens actualizados exitosamente para el usuario ${user}`);
+        }
+
+        // Alternar según el estado real; conservar los endpoints play/pause independientes.
+        if (action === "toggle" || action === "playpause") {
+            res.set("Cache-Control", "no-store");
+            const { status, ...result } = await toggleSpotifyPlayback({ user, db, spotifyApiFetch, getFallbackDeviceId });
+            return (req.query.format || "").toLowerCase() === "json"
+                ? res.status(status).json(result)
+                : res.status(status).send(result.message);
         }
 
         // Obtener datos de cooldown atómico para prevenir duplicados rápidos de Streamer.bot / Botrix
@@ -1181,7 +1192,7 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
         }
 
         // Si la acción no coincide con ninguna
-        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: exchange_code, save_token, add_to_queue, skip, play, pause, song, status, refresh_token.`);
+        return res.status(400).send(`Comando desconocido: '${action}'. Acciones válidas: exchange_code, save_token, add_to_queue, skip, play, pause, toggle, playpause, song, status, refresh_token.`);
 
     } catch (err) {
         console.error(`[spotifyControl] ❌ Error ejecutando acción '${action}':`, err);

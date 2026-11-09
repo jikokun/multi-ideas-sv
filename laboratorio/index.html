@@ -1049,6 +1049,17 @@
                         </button>
                     </div>
 
+                    <!-- Alternar pausa/reproducción con un solo Fetch -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(0,245,212,0.25); border-radius: 12px; padding: 14px;">
+                        <div style="font-weight: 800; font-size: 0.88rem; color: #00f5d4; margin-bottom: 8px;">⏯️ Pausar / Reanudar (!playpause)</div>
+                        <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 10px;">Cambia al estado opuesto al actual de Spotify. Evita repeticiones rápidas durante 2.5 segundos.</p>
+                        <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                            <input type="text" id="linkToggleDirect" readonly class="gate-input" style="flex: 1; font-size: 0.76rem; font-family: monospace; text-align: left; padding: 6px 10px; background: rgba(0,0,0,0.5);" aria-label="Enlace para alternar pausa y reproducción">
+                            <button type="button" class="test-btn" onclick="copyTextDirect(document.getElementById('linkToggleDirect').value, this)" style="padding: 6px 10px; font-size: 0.76rem; color: #00f5d4;">📋 Copiar</button>
+                        </div>
+                        <button type="button" class="test-btn" onclick="testSpotifyNativeFetch('toggle')" style="width: 100%; padding: 8px; font-size: 0.8rem; color: #00f5d4;">⚡ Probar Fetch Pausar / Reanudar</button>
+                    </div>
+
                     <!-- 5. !song / !cancion -->
                     <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255, 47, 208, 0.25); border-radius: 12px; padding: 14px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -4346,6 +4357,7 @@
             const skipDir = document.getElementById('linkSkipDirect');
             const playDir = document.getElementById('linkPlayDirect');
             const pauseDir = document.getElementById('linkPauseDirect');
+            const toggleDir = document.getElementById('linkToggleDirect');
             const songDir = document.getElementById('linkSongDirect');
 
             const isCloudFunction = baseUrl.includes('cloudfunctions.net');
@@ -4356,6 +4368,7 @@
                 if (skipDir) skipDir.value = `${baseUrl}?cmd=skip&user=${encodeURIComponent(user)}`;
                 if (playDir) playDir.value = `${baseUrl}?cmd=play&user=${encodeURIComponent(user)}`;
                 if (pauseDir) pauseDir.value = `${baseUrl}?cmd=pause&user=${encodeURIComponent(user)}`;
+                if (toggleDir) toggleDir.value = `${baseUrl}?cmd=toggle&user=${encodeURIComponent(user)}`;
                 if (songDir) songDir.value = `${baseUrl}?cmd=song&user=${encodeURIComponent(user)}`;
             } else {
                 // Endpoints nativos Multi Ideas (Firebase Functions + Hosting)
@@ -4364,6 +4377,7 @@
                 if (skipDir) skipDir.value = `${baseUrl}/spotify/skip.php?user=${encodeURIComponent(user)}`;
                 if (playDir) playDir.value = `${baseUrl}/spotify/play.php?user=${encodeURIComponent(user)}`;
                 if (pauseDir) pauseDir.value = `${baseUrl}/spotify/pause.php?user=${encodeURIComponent(user)}`;
+                if (toggleDir) toggleDir.value = `${baseUrl}/spotify/toggle?user=${encodeURIComponent(user)}`;
                 if (songDir) songDir.value = `${baseUrl}/spotify/song.php?user=${encodeURIComponent(user)}`;
             }
         };
@@ -4388,6 +4402,9 @@
             } else if (action === 'pause') {
                 url = isCloudFunction ? `${baseUrl}?cmd=pause&user=${encodeURIComponent(user)}` : `${baseUrl}/spotify/pause.php?user=${encodeURIComponent(user)}`;
                 label = 'Pausando música (!pausa)';
+            } else if (action === 'toggle') {
+                url = isCloudFunction ? `${baseUrl}?cmd=toggle&user=${encodeURIComponent(user)}` : `${baseUrl}/spotify/toggle?user=${encodeURIComponent(user)}`;
+                label = 'Alternando pausa / reproducción (!playpause)';
             } else if (action === 'song') {
                 url = isCloudFunction ? `${baseUrl}?cmd=song&user=${encodeURIComponent(user)}` : `${baseUrl}/spotify/song.php?user=${encodeURIComponent(user)}`;
                 label = 'Obteniendo canción actual (!song)';
