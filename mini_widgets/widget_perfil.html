@@ -2246,6 +2246,8 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
   /* ═══════════ GESTIÓN DE TARJETA DE PERFIL (0ms LATENCIA & PRECARGA) ═══════════ */
   const perfilImagePreloadCache = new Map();
   let perfilRenderToken = 0;
+  let perfilExitTimer = null;
+  let perfilPreparing = false;
 
   function precargarImagenPerfil(url, timeoutMs = 400) {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -2289,6 +2291,11 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
   function limpiarEstadoTarjetaPerfil() {
     const root = document.getElementById('card-root');
     if (!root) return;
+    ++perfilRenderToken;
+    perfilPreparing = false;
+    if (perfilExitTimer) clearTimeout(perfilExitTimer);
+    perfilExitTimer = null;
+    delete root.dataset.username;
     if (cardHideTimer) {
       clearTimeout(cardHideTimer);
       cardHideTimer = null;
@@ -2324,7 +2331,6 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
   async function mostrarTarjetaPerfil(usernameOObjeto, options = {}) {
     const root = document.getElementById('card-root');
     if (!root) return;
-    const currentToken = ++perfilRenderToken;
     const isLiveUpdate = Boolean(options && options.isLiveUpdate);
 
     let clean = 'usuario';
@@ -2334,13 +2340,19 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       clean = String(usernameOObjeto || 'usuario').replace(/^@/, '').trim().toLowerCase();
     }
 
-    // Si la tarjeta ya estaba visible y es para OTRO usuario (o nuevo comando),
-    // limpiar de inmediato el estilo y los elementos anteriores para evitar mutación en vivo
-    const currentUserEl = document.getElementById('card-display-name') || document.getElementById('test-card-username');
-    const currentShowing = currentUserEl ? currentUserEl.textContent.replace(/^@/, '').trim().toLowerCase() : '';
-    if (root.classList.contains('visible') && (!isLiveUpdate || currentShowing !== clean)) {
-      limpiarEstadoTarjetaPerfil();
+    // Las actualizaciones refrescan datos, pero nunca reinician ni resucitan el turno.
+    if (isLiveUpdate && (!root.classList.contains('visible') || root.classList.contains('saliendo') || root.dataset.username !== clean)) return;
+    if (!isLiveUpdate && !isAdminPreview && (perfilPreparing || root.classList.contains('visible'))) {
+      window.JikoWidgetSync?.enqueue({ widget: 'perfil', command: '!perfil', sender: clean, target: clean, meta: options.meta });
+      return;
     }
+    if (!isLiveUpdate) {
+      limpiarEstadoTarjetaPerfil();
+      perfilPreparing = true;
+      root.dataset.username = clean;
+      if (!isAdminPreview) window.JikoWidgetSync?.acquire('perfil', clean, 30000);
+    }
+    const currentToken = ++perfilRenderToken;
 
     let uData = null;
     if (typeof usernameOObjeto === 'object' && usernameOObjeto !== null) {
@@ -2385,11 +2397,6 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
     // Cancelar si otro comando !perfil se ejecutó mientras se obtenían datos
     if (currentToken !== perfilRenderToken) return;
-
-    // Proteger pantalla adquiriendo lock de exclusión mutua
-    if (!isAdminPreview && window.JikoWidgetSync) {
-      window.JikoWidgetSync.acquire('perfil', clean, (DURATION_SEC + 1) * 1000);
-    }
 
     let d;
     try {
@@ -2440,7 +2447,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
     // Asignar clases de modo y temas (aislamiento estricto)
     const modoClase = d.useTestDesign ? 'modo-gamer test-card-design' : 'modo-clasico';
-    root.className = `card-wrapper ${d.themeClass} ${modoClase}`;
+    root.className = `card-wrapper ${d.themeClass} ${modoClase}${isLiveUpdate ? ' visible' : ''}`;
     document.getElementById('card-theme-label').textContent = d.themeLabel;
 
     // Foto de perfil Kick oficial (clásica)
@@ -2451,7 +2458,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       } else {
         avEl.innerHTML = `<span style="font-size:36px; display:flex; align-items:center; justify-content:center; width:100%; height:100%;">🐺</span>`;
         obtenerAvatarKick(d.username).then(pic => {
-          if (pic && root.classList.contains('visible')) {
+          if (pic && currentToken === perfilRenderToken && root.classList.contains('visible')) {
             avEl.innerHTML = crearAvatarImgHtml(pic, d.displayName);
           }
         });
@@ -2496,7 +2503,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
       } else {
         gamerAvatar.textContent = (d.displayName || d.username || '?').slice(0, 1).toUpperCase();
         obtenerAvatarKick(d.username).then(url => {
-          if (url && gamerAvatar.isConnected) gamerAvatar.innerHTML = crearAvatarImgHtml(url, d.displayName);
+          if (url && currentToken === perfilRenderToken && root.classList.contains('visible')) gamerAvatar.innerHTML = crearAvatarImgHtml(url, d.displayName);
         });
       }
     }
@@ -2580,6 +2587,9 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     document.getElementById('card-xp-ratio').textContent = `${d.xpTotal.toLocaleString()} XP (${d.xpPct}%)`;
     document.getElementById('card-xp-fill').style.width = d.xpPct + '%';
 
+    if (isLiveUpdate) return;
+    perfilPreparing = false;
+
     // Mostrar en pantalla con animación y reflow
     root.style.display = 'block';
     void root.offsetWidth; // Forzar reflow
@@ -2613,9 +2623,13 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
   function ocultarTarjetaPerfil() {
     const root = document.getElementById('card-root');
-    if (!root) return;
+    if (!root || root.classList.contains('saliendo')) return;
+    ++perfilRenderToken; // Invalidar lecturas y precargas que terminan durante la salida.
+    perfilPreparing = false;
+    if (cardHideTimer) clearTimeout(cardHideTimer);
+    cardHideTimer = null;
     root.classList.add('saliendo');
-    setTimeout(() => {
+    perfilExitTimer = setTimeout(() => {
       limpiarEstadoTarjetaPerfil();
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('perfil');
@@ -2674,9 +2688,10 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
             return;
           }
 
+          perfilCooldowns.set(normU, ahora + COOLDOWN_PERFIL_MS);
           const cardEl = document.getElementById('card-root');
           const isCardCurrentlyShowing = cardEl && cardEl.classList.contains('visible');
-          const isBusyScreen = isCardCurrentlyShowing || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', u));
+          const isBusyScreen = perfilPreparing || isCardCurrentlyShowing || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', u));
 
           if (isBusyScreen) {
             console.log(`[WidgetPerfil] ⏳ Pantalla ocupada. Perfil de @${u} encolado.`);
@@ -2751,10 +2766,12 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
             rol: userObj.rol || (userObj.mod ? 'moderador' : (userObj.subscribed ? 'suscriptor' : (userObj.vip ? 'vip' : 'espectador')))
           } : null;
 
+          perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
+
           // REGLA DE COLA INTELIGENTE: Si la tarjeta actual está visible O la pantalla está ocupada por otro widget, encolar
           const cardElChat = document.getElementById('card-root');
           const isCardCurrentlyShowingChat = cardElChat && cardElChat.classList.contains('visible');
-          const isBusyScreenChat = isCardCurrentlyShowingChat || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', target));
+          const isBusyScreenChat = perfilPreparing || isCardCurrentlyShowingChat || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', target));
 
           if (isBusyScreenChat) {
             console.log(`[WidgetPerfil] ⏳ Pantalla ocupada. !perfil para @${target} puesto en cola acumulativa.`);

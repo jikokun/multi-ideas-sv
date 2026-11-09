@@ -188,7 +188,7 @@
     notifyQueueChange(q);
   }
 
-  function enqueue({ widget, command, sender, params = [], raw = '', extra = {} }) {
+  function enqueue({ widget, command, sender, target, meta, params = [], raw = '', extra = {} }) {
     const cleanSender = String(sender || 'usuario').replace(/^@/, '').trim();
     const cleanCmd = String(command || '').trim();
     const now = Date.now();
@@ -207,6 +207,8 @@
       widget: widget,
       command: cleanCmd,
       sender: cleanSender,
+      target: target,
+      meta: meta,
       params: Array.isArray(params) ? params : [],
       raw: raw || cleanCmd,
       extra: extra || {},

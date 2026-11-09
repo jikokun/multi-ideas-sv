@@ -3239,6 +3239,8 @@
   /* ═══════════ GESTIÓN DE TARJETA DE PERFIL (0ms LATENCIA & PRECARGA) ═══════════ */
   const perfilImagePreloadCache = new Map();
   let perfilRenderToken = 0;
+  let perfilExitTimer = null;
+  let perfilPreparing = false;
 
   function precargarImagenPerfil(url, timeoutMs = 400) {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -3281,6 +3283,11 @@
 
   function limpiarEstadoTarjetaPerfilTiendita() {
     if (!$cardPerfil) return;
+    ++perfilRenderToken;
+    perfilPreparing = false;
+    if (perfilExitTimer) clearTimeout(perfilExitTimer);
+    perfilExitTimer = null;
+    delete $cardPerfil.dataset.username;
     if (cardPerfilTimer) {
       clearTimeout(cardPerfilTimer);
       cardPerfilTimer = null;
@@ -3313,7 +3320,6 @@
 
   async function mostrarCardPerfilTiendita(targetUser, options = {}) {
     if (!$cardPerfil) return;
-    const currentToken = ++perfilRenderToken;
     const isLiveUpdate = Boolean(options && options.isLiveUpdate);
 
     let cleanUser = 'usuario';
@@ -3324,11 +3330,19 @@
     }
     const userNorm = norm(cleanUser);
 
-    // Si la tarjeta ya estaba visible y es para OTRO usuario (o nuevo comando),
-    // limpiar de inmediato el estilo y los elementos anteriores para evitar mutación en vivo
-    if ($cardPerfil.classList.contains('visible') && (!isLiveUpdate || norm($cardPerfil.dataset.username || '') !== userNorm)) {
-      limpiarEstadoTarjetaPerfilTiendita();
+    // Las actualizaciones refrescan datos, pero nunca reinician ni resucitan el turno.
+    if (isLiveUpdate && (!$cardPerfil.classList.contains('visible') || $cardPerfil.classList.contains('saliendo') || $cardPerfil.dataset.username !== userNorm)) return;
+    if (!isLiveUpdate && (perfilPreparing || $cardPerfil.classList.contains('visible'))) {
+      window.JikoWidgetSync?.enqueue({ widget: 'perfil', command: '!perfil', sender: userNorm, target: userNorm, meta: options.meta });
+      return;
     }
+    if (!isLiveUpdate) {
+      limpiarEstadoTarjetaPerfilTiendita();
+      perfilPreparing = true;
+      $cardPerfil.dataset.username = userNorm;
+      window.JikoWidgetSync?.acquire('perfil', userNorm, 30000);
+    }
+    const currentToken = ++perfilRenderToken;
 
     let uData = null;
     if (typeof targetUser === 'object' && targetUser !== null) {
@@ -3366,11 +3380,6 @@
 
     // Cancelar si otro comando !perfil se ejecutó mientras se obtenían datos
     if (currentToken !== perfilRenderToken) return;
-
-    // Proteger tarjeta de perfil adquiriendo lock de sincronización
-    if (window.JikoWidgetSync) {
-      window.JikoWidgetSync.acquire('perfil', cleanUser, (PERFIL_DURATION_SEC + 1) * 1000);
-    }
 
     let d;
     try {
@@ -3424,7 +3433,7 @@
 
     const tiendaAbierta = $menu && $menu.classList.contains('visible');
     const modoClase = d.useTestDesign ? 'modo-gamer test-card-design' : 'modo-clasico';
-    $cardPerfil.className = `perfil-card-wrap ${d.themeClass} ${modoClase}${tiendaAbierta ? ' arriba' : ''}`;
+    $cardPerfil.className = `perfil-card-wrap ${d.themeClass} ${modoClase}${tiendaAbierta ? ' arriba' : ''}${isLiveUpdate ? ' visible' : ''}`;
 
     const lblEl = document.getElementById('ti-card-theme-label');
     if (lblEl) lblEl.textContent = d.themeLabel;
@@ -3611,6 +3620,9 @@
     const testNextLvl = document.getElementById('ti-test-card-next-level');
     if (testNextLvl) testNextLvl.textContent = `SIGUIENTE: NIVEL ${d.nivel + 1}`;
 
+    if (isLiveUpdate) return;
+    perfilPreparing = false;
+
     // Mostrar en pantalla con reflow forzado
     $cardPerfil.style.display = 'block';
     void $cardPerfil.offsetWidth; // Forzar reflow
@@ -3622,6 +3634,7 @@
 
     $cardPerfil.classList.remove('saliendo');
     $cardPerfil.classList.add('visible');
+    window.JikoWidgetSync?.acquire('perfil', cleanUser, (PERFIL_DURATION_SEC + 1) * 1000);
 
     const timerBar = document.getElementById('ti-card-timer-bar');
     if (timerBar) {
@@ -3639,9 +3652,13 @@
   }
 
   function ocultarCardPerfilTiendita() {
-    if (!$cardPerfil) return;
+    if (!$cardPerfil || $cardPerfil.classList.contains('saliendo')) return;
+    ++perfilRenderToken; // Invalidar lecturas y precargas que terminan durante la salida.
+    perfilPreparing = false;
+    if (cardPerfilTimer) clearTimeout(cardPerfilTimer);
+    cardPerfilTimer = null;
     $cardPerfil.classList.add('saliendo');
-    setTimeout(() => {
+    perfilExitTimer = setTimeout(() => {
       limpiarEstadoTarjetaPerfilTiendita();
       if (window.JikoWidgetSync) {
         window.JikoWidgetSync.release('perfil');
@@ -5204,6 +5221,7 @@
 
     // 0.0 Comando de Perfil Flotante: !perfil / !perfill (o !perfil @usuario / !perfill @usuario) con Cooldown de 1 minuto
     if(t === '!perfil' || t === '!perfill' || t.startsWith('!perfil ') || t.startsWith('!perfill ')){
+      if (window.JikoWidgetSync?.hasStandalonePerfil()) return;
       const normSender = norm(user);
       const ahora = Date.now();
 
@@ -5226,8 +5244,10 @@
       const isSenderTarget = (normSender === norm(targetUser));
       const targetMeta = isSenderTarget ? meta : null;
 
+      perfilCooldowns.set(normSender, ahora + COOLDOWN_PERFIL_MS);
+
       // Comprobar si hay otro widget activo en pantalla (Tiendita abierta, perfil actual mostrándose o Cajero JikoBank en uso)
-      const cardLocalShowing = $cardPerfil && $cardPerfil.classList.contains('visible');
+      const cardLocalShowing = perfilPreparing || ($cardPerfil && $cardPerfil.classList.contains('visible'));
       const tiendaEstaAbierta = $menu && $menu.classList.contains('visible');
       if (cardLocalShowing || tiendaEstaAbierta || (window.JikoWidgetSync && JikoWidgetSync.isBusy('perfil', targetUser))) {
         const lock = window.JikoWidgetSync ? JikoWidgetSync.getActiveLock() : { widget: tiendaEstaAbierta ? 'tienda' : 'perfil' };
@@ -6495,6 +6515,7 @@
     });
 
     window.JikoWidgetSync.onExecute('perfil', (item) => {
+      if (window.JikoWidgetSync.hasStandalonePerfil()) return;
       console.log('[Tiendita] 🪪 Despachando perfil encolado para @' + (item.target || item.sender));
       mostrarCardPerfilTiendita(item.target || item.sender, { meta: item.meta });
     });
