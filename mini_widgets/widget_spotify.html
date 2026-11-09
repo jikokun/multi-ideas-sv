@@ -1490,8 +1490,8 @@
                         <span class="status-badge" id="spotify-status-badge">🟢 Spotify Conectado</span>
                     </div>
                     <div class="row-2">
-                        <button class="btn-action" id="btn-play-pause">⏯️ Pausar / Reanudar</button>
-                        <button class="btn-secondary" id="btn-next-demo">⏭️ Saltar Canción</button>
+                        <button class="btn-action" id="btn-play-pause">⏯️ Pausar / Reanudar audio local</button>
+                        <button class="btn-secondary" id="btn-next-demo">⏭️ Siguiente demo</button>
                     </div>
                 </div>
 
@@ -2103,9 +2103,8 @@
             }, 3000);
 
             // =========================================================
-            // CONTROLADOR NATIVO DE COMANDOS KICK / STREAMER.BOT / LABORATORIO
+            // ALERTAS VISUALES DE KICK / STREAMER.BOT / LABORATORIO
             // =========================================================
-            var controlMode = (urlParams.get("control_mode") || urlParams.get("skip_mode") || "hybrid").toLowerCase();
             var kickModerators = ["jikokun", "broadcaster", "streamer", "simuladorlab"];
             try {
                 var modsParam = urlParams.get("mods");
@@ -2134,241 +2133,39 @@
                 return false;
             }
 
-            // Candados anti-duplicado para evitar doble salto o doble encolado
+            // Evitar alertas repetidas por eventos de chat duplicados
             var recentChatKeys = new Set();
-            var lastSkipExecTime = 0;
-            var isExecutingAddSong = false;
             var lastSeenFirebaseActionTime = Date.now() - 2000;
 
-            // Ejecutar comando contra Backend Nativo con Fallback directo a Spotify Web API
-            async function executeSpotifyAction(action, queryParam, username) {
-                var user = state.spotifyUser || "jikokun2";
-
-                if (action === "add") {
-                    if (!queryParam) {
-                        showFloatingAlert("Escribe el nombre de la canción: !addsong <canción>", "warning", username);
-                        return;
-                    }
-                    if (isExecutingAddSong) return;
-                    isExecutingAddSong = true;
-                    showFloatingAlert('Buscando "' + queryParam + '" en Spotify...', "info", username);
-
-                    try {
-                        // 1. Intentar vía Backend Cloud Function (maneja token refresh, popularidad y anti-spam)
-                        var addUrl = "https://sensunshopweb.web.app/spotify/add_to_queue?user=" + encodeURIComponent(user) + "&song_name=" + encodeURIComponent(queryParam) + "&format=json";
-                        var res = await fetch(addUrl, { cache: "no-store" });
-                        if (res.ok) {
-                            var data = await res.json();
-                            if (data && data.song) {
-                                lastSeenFirebaseActionTime = Date.now() + 3000;
-                                showFloatingAlert('Añadida a la cola: "' + data.song + '" (' + (data.artist || "Spotify") + ')', "add", username);
-                                isExecutingAddSong = false;
-                                return;
-                            }
-                        }
-
-                        // 2. Fallback directo con el token local del navegador si existe
-                        if (!state.spotifyToken) await refreshSpotifyTokenFromBackend();
-                        if (state.spotifyToken) {
-                            var byMatchW = queryParam.match(/^(.+?)\s+(?:by|de|-)\s+(.+)$/i);
-                            var tPart = byMatchW ? byMatchW[1].trim() : queryParam.trim();
-                            var aPart = byMatchW ? byMatchW[2].trim() : "";
-                            var searchQW = byMatchW ? ("track:" + tPart + " artist:" + aPart) : queryParam;
-
-                            var searchRes = await fetch("https://api.spotify.com/v1/search?q=" + encodeURIComponent(searchQW) + "&type=track&limit=10", {
-                                headers: { "Authorization": "Bearer " + state.spotifyToken }
-                            });
-                            if (searchRes.ok) {
-                                var sData = await searchRes.json();
-                                var items = (sData && sData.tracks && sData.tracks.items) || [];
-                                if (items.length > 0) {
-                                    var normalizeCandidateText = function (value) {
-                                        return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/&/g, " and ").replace(/[^\p{L}\p{N}]+/gu, " ").trim().replace(/\s+/g, " ");
-                                    };
-                                    var wantedTitle = normalizeCandidateText(tPart);
-                                    var wantedArtist = normalizeCandidateText(aPart);
-                                    var wantedQuery = normalizeCandidateText(queryParam);
-                                    var junkTerms = ["karaoke", "tribute", "instrumental", "cover", "backing track", "made famous", "made popular", "in the style of", "remake", "parody", "sped up", "slowed", "nightcore", "8d", "lo fi", "lofi", "ringtone", "acapella"];
-                                    var chosen = items.map(function (track, searchRank) {
-                                        var title = normalizeCandidateText(track.name);
-                                        var artists = (track.artists || []).map(function (artist) { return normalizeCandidateText(artist.name); });
-                                        var score = 0;
-                                        if (title === wantedTitle) score += 1000;
-                                        else if (title.indexOf(wantedTitle) === 0) score += 550;
-                                        else if (title.indexOf(wantedTitle) !== -1) score += 250;
-                                        if (wantedArtist) {
-                                            if (artists.some(function (artist) { return artist === wantedArtist; })) score += 350;
-                                            else if (artists.some(function (artist) { return artist.indexOf(wantedArtist) !== -1 || wantedArtist.indexOf(artist) !== -1; })) score += 175;
-                                            else score -= 700;
-                                        }
-                                        junkTerms.forEach(function (term) {
-                                            var normalizedTerm = normalizeCandidateText(term);
-                                            if (!wantedQuery.includes(normalizedTerm) && title.includes(normalizedTerm)) score -= 600;
-                                        });
-                                        if (!wantedQuery.includes("live") && !wantedQuery.includes("vivo") && (title.includes("live") || title.includes("en vivo") || title.includes("directo"))) score -= 250;
-                                        if (!wantedQuery.includes("remix") && (title.includes("remix") || title.includes("rmx") || title.includes("club mix"))) score -= 250;
-                                        if (!wantedQuery.includes("acoustic") && !wantedQuery.includes("acustic") && (title.includes("acoustic") || title.includes("acustico"))) score -= 200;
-                                        if (typeof track.popularity === "number") score += track.popularity * 3;
-                                        return { track: track, searchRank: searchRank, score: score };
-                                    }).sort(function (a, b) { return (b.score - a.score) || (a.searchRank - b.searchRank); })[0].track;
-                                    var artistName = (chosen.artists && chosen.artists[0] && chosen.artists[0].name) || "Artista";
-                                    var qRes = await fetch("https://api.spotify.com/v1/me/player/queue?uri=" + encodeURIComponent(chosen.uri), {
-                                        method: "POST",
-                                        headers: { "Authorization": "Bearer " + state.spotifyToken }
-                                    });
-                                    if (qRes.status === 204 || qRes.ok) {
-                                        showFloatingAlert('Añadida a la cola: "' + chosen.name + '" (' + artistName + ') 🎵', "add", username);
-                                        isExecutingAddSong = false;
-                                        return;
-                                    }
-                                }
-                            }
-                        }
-                        showFloatingAlert('No se pudo encolar "' + queryParam + '". Verifica que Spotify esté activo.', "warning", username);
-                    } catch (errAdd) {
-                        showFloatingAlert('Error al añadir "' + queryParam + '"', "warning", username);
-                    }
-                    isExecutingAddSong = false;
-                    return;
-                }
-
-                if (action === "skip") {
-                    var now = Date.now();
-                    if (now - lastSkipExecTime < 3500) {
-                        showFloatingAlert("Espera unos segundos antes de volver a saltar", "warning", username);
-                        return;
-                    }
-                    lastSkipExecTime = now;
-                    lastSeenFirebaseActionTime = now + 3000;
-                    showFloatingAlert("Saltando a la siguiente pista...", "skip", username);
-
-                    try {
-                        var skipRes = await fetch("https://sensunshopweb.web.app/spotify/skip?user=" + encodeURIComponent(user), { cache: "no-store" });
-                        if (!skipRes.ok && state.spotifyToken) {
-                            await fetch("https://api.spotify.com/v1/me/player/next", {
-                                method: "POST",
-                                headers: { "Authorization": "Bearer " + state.spotifyToken }
-                            });
-                        }
-                    } catch (eSkip) {
-                        if (state.spotifyToken) {
-                            fetch("https://api.spotify.com/v1/me/player/next", {
-                                method: "POST",
-                                headers: { "Authorization": "Bearer " + state.spotifyToken }
-                            }).catch(function () {});
-                        }
-                    }
-                    setTimeout(pollSpotifyPlayback, 900);
-                    setTimeout(pollSpotifyPlayback, 2200);
-                    return;
-                }
-
-                if (action === "play") {
-                    lastSeenFirebaseActionTime = Date.now() + 3000;
-                    showFloatingAlert("Música reanudada ▶️", "play", username);
-                    state.isPlaying = true;
-                    applyVisualStyles();
-                    try {
-                        var playRes = await fetch("https://sensunshopweb.web.app/spotify/play?user=" + encodeURIComponent(user), { cache: "no-store" });
-                        if (!playRes.ok && state.spotifyToken) {
-                            await fetch("https://api.spotify.com/v1/me/player/play", {
-                                method: "PUT",
-                                headers: { "Authorization": "Bearer " + state.spotifyToken }
-                            });
-                        }
-                    } catch (ePlay) {}
-                    setTimeout(pollSpotifyPlayback, 900);
-                    return;
-                }
-
-                if (action === "pause") {
-                    lastSeenFirebaseActionTime = Date.now() + 3000;
-                    showFloatingAlert("Música pausada ⏸️", "pause", username);
-                    state.isPlaying = false;
-                    applyVisualStyles();
-                    try {
-                        var pauseRes = await fetch("https://sensunshopweb.web.app/spotify/pause?user=" + encodeURIComponent(user), { cache: "no-store" });
-                        if (!pauseRes.ok && state.spotifyToken) {
-                            await fetch("https://api.spotify.com/v1/me/player/pause", {
-                                method: "PUT",
-                                headers: { "Authorization": "Bearer " + state.spotifyToken }
-                            });
-                        }
-                    } catch (ePause) {}
-                    setTimeout(pollSpotifyPlayback, 900);
-                    return;
-                }
-            }
-
+            // OBS solo muestra solicitudes; Streamer.bot ejecuta los Fetch de control.
+            // Los modos antiguos y las simulaciones nunca habilitan escrituras a Spotify.
             async function handleKickChatCommand(rawText, username, badges, isSimulated, explicitModFlag) {
                 var clean = String(rawText || "").trim();
                 if (!clean.startsWith("!")) return;
-
                 var parts = clean.split(/\s+/);
                 var cmd = parts[0].toLowerCase();
                 var argText = parts.slice(1).join(" ").trim();
-                var shouldExecuteApi = isSimulated || controlMode !== "streamerbot";
+                var prefix = isSimulated ? "Simulación: " : "";
 
                 if (cmd === "!song" || cmd === "!cancion" || cmd === "!currentsong") {
                     await pollSpotifyPlayback();
                     var curTitle = trackTitle.getAttribute("data-raw") || trackTitle.textContent || "Spotify";
                     var curArtist = trackArtist.textContent || "";
-                    showFloatingAlert("Sonando: " + curTitle + (curArtist ? " - " + curArtist : ""), "info", username);
+                    showFloatingAlert(prefix + "Sonando: " + curTitle + (curArtist ? " - " + curArtist : ""), "info", username);
                     return;
                 }
-
                 if (cmd === "!addsong" || cmd === "!songrequest" || cmd === "!sr" || cmd === "!pedir") {
-                    if (shouldExecuteApi) {
-                        await executeSpotifyAction("add", argText, username);
-                    } else {
-                        showFloatingAlert(argText ? 'Añadiendo a la cola: "' + argText + '" 🎵' : "Canción agregada a la cola 🎵", "add", username);
-                    }
+                    showFloatingAlert(prefix + (argText ? 'Solicitud de canción: "' + argText + '" 🎵' : "Solicitud de canción recibida 🎵"), "info", username);
                     return;
                 }
-
-                if (cmd === "!skipsong" || cmd === "!skip" || cmd === "!next") {
-                    if (!checkIsModerator(username, badges, explicitModFlag)) {
-                        showFloatingAlert("Solo moderadores autorizados pueden usar !skipsong", "warning", username);
-                        return;
-                    }
-                    if (shouldExecuteApi) {
-                        await executeSpotifyAction("skip", "", username);
-                    } else {
-                        showFloatingAlert("Saltando a la siguiente pista...", "skip", username);
-                        setTimeout(pollSpotifyPlayback, 1200);
-                    }
-                    return;
-                }
-
-                if (cmd === "!play" || cmd === "!resume" || cmd === "!reanudar") {
-                    if (!checkIsModerator(username, badges, explicitModFlag)) {
-                        showFloatingAlert("Solo moderadores autorizados pueden usar !play", "warning", username);
-                        return;
-                    }
-                    if (shouldExecuteApi) {
-                        await executeSpotifyAction("play", "", username);
-                    } else {
-                        showFloatingAlert("Música reanudada", "play", username);
-                        state.isPlaying = true;
-                        applyVisualStyles();
-                    }
-                    return;
-                }
-
-                if (cmd === "!pausa" || cmd === "!pause") {
-                    if (!checkIsModerator(username, badges, explicitModFlag)) {
-                        showFloatingAlert("Solo moderadores autorizados pueden usar !pausa", "warning", username);
-                        return;
-                    }
-                    if (shouldExecuteApi) {
-                        await executeSpotifyAction("pause", "", username);
-                    } else {
-                        showFloatingAlert("Música pausada", "pause", username);
-                        state.isPlaying = false;
-                        applyVisualStyles();
-                    }
-                    return;
-                }
+                var action = null;
+                if (cmd === "!skipsong" || cmd === "!skip" || cmd === "!next") action = "skip";
+                else if (cmd === "!play" || cmd === "!resume" || cmd === "!reanudar") action = "play";
+                else if (cmd === "!pausa" || cmd === "!pause") action = "pause";
+                if (!action || !checkIsModerator(username, badges, explicitModFlag)) return;
+                var labels = { skip: "Solicitud de salto recibida", play: "Solicitud de reproducción recibida", pause: "Solicitud de pausa recibida" };
+                showFloatingAlert(prefix + labels[action], "info", username);
+                if (!isSimulated) setTimeout(pollSpotifyPlayback, 1200);
             }
 
             // Sincronizar alertas cuando Streamer.bot o el Laboratorio ejecutan Fetch directo al Backend
@@ -2409,7 +2206,7 @@
             });
 
             // =========================================================
-            // CONEXIÓN WEBSOCKET STREAMER.BOT (EJECUCIÓN + ALERTAS SIN DUPLICADOS)
+            // CONEXIÓN WEBSOCKET STREAMER.BOT (SOLO ALERTAS VISUALES)
             // =========================================================
             var streamerbotWs = null;
             function initStreamerbotWS() {
@@ -2951,30 +2748,19 @@
                 saveState();
             });
 
-            // Controles de Música y Demo
-            document.getElementById("btn-play-pause").addEventListener("click", async function () {
-                state.isPlaying = !state.isPlaying;
-                if (state.usingLocalAudio) {
-                    if (state.isPlaying) localAudio.play();
-                    else localAudio.pause();
-                } else if (state.spotifyUser) {
-                    var action = state.isPlaying ? "play" : "pause";
-                    try {
-                        fetch("https://sensunshopweb.web.app/spotify/" + action + "?user=" + encodeURIComponent(state.spotifyUser));
-                    } catch(e) {}
+            // Los controles del widget solo afectan al audio local y a las demos.
+            document.getElementById("btn-play-pause").addEventListener("click", function () {
+                if (!state.usingLocalAudio) {
+                    showFloatingAlert("Controla Spotify desde Streamer.bot con los enlaces Fetch del laboratorio", "info");
+                    return;
                 }
+                state.isPlaying = !state.isPlaying;
+                if (state.isPlaying) localAudio.play();
+                else localAudio.pause();
                 applyVisualStyles();
             });
 
-            document.getElementById("btn-next-demo").addEventListener("click", async function () {
-                if (state.spotifyUser) {
-                    try {
-                        fetch("https://sensunshopweb.web.app/spotify/skip?user=" + encodeURIComponent(state.spotifyUser));
-                        showFloatingAlert("Saltando pista en Spotify...", "skip");
-                        setTimeout(pollSpotifyPlayback, 1200);
-                        return;
-                    } catch(e) {}
-                }
+            document.getElementById("btn-next-demo").addEventListener("click", function () {
                 state.usingLocalAudio = false;
                 localAudio.pause();
                 state.demoIndex = (state.demoIndex + 1) % demoTracks.length;

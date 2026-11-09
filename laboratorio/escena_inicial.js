@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const minutes = Number.isFinite(requested) ? Math.min(180, Math.max(0, requested)) : 5;
   initCountdownTimer(Math.round(minutes * 60));
   initKickChat();
-  initSpotifyController(params);
+  initSpotifyVisualizer(params);
 });
 function initCountdownTimer(totalSeconds) {
   // Wall time avoids drift when OBS throttles a background source.
@@ -41,12 +41,13 @@ function initCountdownTimer(totalSeconds) {
   update();
   if (totalSeconds > 0) interval = setInterval(update, 250);
 }
-function initSpotifyController(params) {
+function initSpotifyVisualizer(params) {
   const url = new URL('../mini_widgets/widget_spotify.html', location.href);
   url.searchParams.set('embed', 'scene');
   url.searchParams.set('ws_port', params.get('port') || '4445');
   url.searchParams.set('user', params.get('user') || params.get('spotify_user') || localStorage.getItem('spotify_user') || 'jikokun2');
-  for (const key of ['ip','token','refresh','control_mode','skip_mode']) {
+  url.searchParams.set('control_mode', 'streamerbot');
+  for (const key of ['ip','token','refresh']) {
     if (params.has(key)) url.searchParams.set(key, params.get(key));
   }
   document.getElementById('spotify-controller').src = url.href;
