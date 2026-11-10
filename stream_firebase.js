@@ -1178,7 +1178,7 @@ class StreamFirebaseService {
         timestamp: data.created_at ? new Date(data.created_at).getTime() : Date.now(),
         color: data.sender?.identity?.color || '#53fc18',
         badges: Array.isArray(data.sender?.identity?.badges) ? data.sender.identity.badges : [],
-        esBot: (norm(sender) === 'lobitomensajero' || norm(sender) === 'lobito_mensajero'),
+        esBot: ['lobitomensajero', 'lobito_mensajero', 'jikobot'].includes(norm(sender)),
         raw: data
       };
 
