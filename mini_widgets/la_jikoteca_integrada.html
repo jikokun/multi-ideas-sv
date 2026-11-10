@@ -4534,18 +4534,6 @@ html,body{
     return USER_DEFAULT_POINTS;
   }
 
-  function setUserPoints(user, pts, motivo = 'ajuste') {
-    try {
-      const key = norm(user);
-      const puntosNum = Math.max(0, parseInt(pts, 10) || 0);
-      const storageKey = 'tiendita_pts_' + key;
-      localStorage.setItem(storageKey, puntosNum);
-      if (window.StreamDB && typeof window.StreamDB.setJikopuntos === 'function') {
-        window.StreamDB.setJikopuntos(key, puntosNum, motivo);
-      }
-    } catch(e) {}
-  }
-
   /* ═══════════ SINTETIZADOR DE SONIDO WEB AUDIO API ═══════════ */
   let audioCtx = null;
   function initAudio() {
@@ -8152,6 +8140,7 @@ html,body{
   }
 
   /* ═══════════ PROCESAMIENTO DE COMPRA DE ENTRADA (!ticket) ═══════════ */
+  const ticketSessionId = 'entrada_v1';
   async function processTicketPurchase(user, pic = null) {
     const cleanUser = norm(user);
     if (!cleanUser) return;
@@ -8171,8 +8160,12 @@ html,body{
     }
 
     // Deducción de puntos y otorgación de ticket VIP sincronizado con Firebase RTDB
-    const newPts = currentPts - TICKET_PRICE;
-    setUserPoints(cleanUser, newPts, 'ticket_jikoteca');
+    try {
+      if (!window.StreamDB?.registrarCompra) throw new Error('La Jikoteca todavía está conectando.');
+      await window.StreamDB.registrarCompra({ comprador: user, items: ['Entrada Jikoteca'],
+        itemsKeys: ['ticket_jikoteca'], costoTotal: TICKET_PRICE,
+        operacionId: 'ticket:' + cleanUser + ':' + ticketSessionId });
+    } catch (error) { showHud(error.message, '⚠️', true); return; }
     ticketHolders.add(cleanUser);
     try {
       localStorage.setItem('jikoteca_tickets', JSON.stringify([...ticketHolders]));
@@ -8276,7 +8269,7 @@ html,body{
   document.getElementById('bar-close-btn').onclick = () => closeBar();
 
   // Comprar trago en el bar
-  function purchaseDrink(user, drinkKey) {
+  async function purchaseDrink(user, drinkKey) {
     const clean = norm(user);
     if (!ticketHolders.has(clean)) {
       playSfx('error');
@@ -8298,21 +8291,14 @@ html,body{
       return;
     }
 
-    // Cobro de la bebida con sincronización en Firebase RTDB
-    const newPts = pts - drink.precio;
-    setUserPoints(clean, newPts, 'bar_' + drink.key);
-
-    // Registro analítico de compra y XP ajustada por nivel en Firebase RTDB
-    if (window.StreamDB && typeof window.StreamDB.registrarCompra === 'function') {
-      window.StreamDB.registrarCompra({
-        comprador: user,
-        items: [drink.nombre],
-        itemsKeys: [drink.key],
-        cantidad: 1,
-        costoTotal: drink.precio,
-        nuevoSaldo: newPts,
-        xpGanada: Math.round(drink.precio * 0.5)
-      }).catch(()=>{});
+    let newPts;
+    try {
+      if (!window.StreamDB?.registrarCompra) throw new Error('El bar todavía está conectando.');
+      const receipt = await window.StreamDB.registrarCompra({ comprador: user,
+        items: [drink.nombre], itemsKeys: [drink.key], cantidad: 1, costoTotal: drink.precio });
+      newPts = receipt.nuevoSaldo;
+    } catch (error) {
+      playSfx('error'); showHud(error.message, '⚠️', true); return;
     }
 
     // Si el bar está abierto con este usuario, refrescar puntos en pantalla
@@ -8750,38 +8736,8 @@ html,body{
       return;
     }
 
-    // 6. Otorgar Jikopuntos (Admin: Jikokun): !darjikopuntos <usuario> <cantidad>
-    if (t.startsWith('!darjikopuntos')) {
-      const emisor = norm(user);
-      if (emisor !== 'jikokun' && emisor !== 'broadcaster') {
-        showHud(`⛔ Solo <b>@Jikokun</b> puede regalar jikopuntos.`, '⚠️', true);
-        return;
-      }
-      const partes = raw.split(/\s+/);
-      if (partes.length < 3) return;
-      const receptor = partes[1].replace(/^@/, '').trim();
-      const cant = parseInt(partes[2], 10);
-      if (receptor && !isNaN(cant) && cant > 0) {
-        const nuevo = getUserPoints(receptor) + cant;
-        setUserPoints(receptor, nuevo, 'regalo_jikokun');
-
-        if (window.StreamDB && typeof window.StreamDB.registrarTransferencia === 'function') {
-          window.StreamDB.registrarTransferencia({
-            admin: emisor,
-            receptor: receptor,
-            cantidad: cant,
-            motivo: 'Regalo en La Jikoteca'
-          }).catch(()=>{});
-        }
-
-        playSfx('ticket');
-        showHud(`⚡ ¡<b>@Jikokun</b> le regaló <b>+${cant} Jikopuntos</b> a <b>@${receptor}</b>! (Saldo: <b>${nuevo} pts</b>)`, '🪙');
-        if (currentBarUser && norm(currentBarUser) === norm(receptor)) {
-          document.getElementById('bar-user-points').textContent = nuevo;
-        }
-      }
-      return;
-    }
+    // Los regalos económicos se procesan exclusivamente en JikoBank.
+    if (/^!darjikopuntos(?:\s|$)/.test(t)) return;
 
     // 7. Si no es comando, y el usuario es un muñeco activo en la discoteca: mostrar globo de diálogo
     showDancerSpeechBubble(user, raw);

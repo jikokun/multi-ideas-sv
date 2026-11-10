@@ -160,3 +160,34 @@ test('la compra de sobres conserva el turno al cerrar la tienda y excluye !pagar
   assert.equal(h.queued.length, 0);
   assert.equal(h.shown.length, 0);
 });
+
+test('el banco deduplica antes de encolar y conserva el ID del mensaje al otorgar puntos', async () => {
+  const grants = [];
+  const h = setup({ widget: 'tienda', user: 'codigo_r' }, realDb({
+    darJikopuntosUsuario: async data => { grants.push(data); return { nuevoSaldo: 5000 }; },
+    getUser: async user => ({ displayName: user, jikopuntos: 5000 })
+  }));
+  h.context.parsearUsuarioYCantidad = (user, amount) => ({ usuario: user, cantidad: Number(amount) });
+  const message = { comando: '!darjikopuntos', sender: 'jikokun', params: ['codigo_r', '5000'], operacionId: 'kick_message_1' };
+  await h.context.procesarComando(message);
+  await h.context.procesarComando(message);
+  assert.equal(h.queued.length, 1);
+  assert.equal(h.queued[0].extra.operacionId, message.operacionId);
+  await h.context.procesarComando({ ...message, fromQueue: true });
+  assert.equal(grants.length, 1);
+  assert.equal(grants[0].operacionId, message.operacionId);
+});
+
+test('la tienda delega regalos y donaciones sin modificar puntos aunque estén cargados sus servicios', () => {
+  const start = storeHtml.indexOf('  function ejecutarTexto(');
+  const end = storeHtml.indexOf('  function setStatus(', start);
+  const context = vm.createContext({
+    console: { log() {} }, pagoTcgPendiente: false, usuarioActual: 'codigo_r',
+    norm: value => String(value).toLowerCase(), extraerUsuarioDeBienvenida: () => null,
+    window: { StreamDB: new Proxy({}, { get() { throw new Error('La tienda no debe ejecutar operaciones bancarias'); } }) }
+  });
+  vm.runInContext(storeHtml.slice(start, end), context);
+  for (const command of ['!darjikopuntos codigo_r 5000', '!darjikopuntos todos 5000', '!regalar bea 5000', '!donar bea 5000']) {
+    context.ejecutarTexto(command, 'jikokun');
+  }
+});

@@ -3847,10 +3847,8 @@
           const insignia = record.insigniaEmoji || '🐾';
           const rango = record.rangoTitulo || 'Cachorro';
 
-          if (!record.yaRegistrado && nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
-            setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
-          } else if (nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
-            // Solo sincronizar en caché local sin sobreescribir Firebase
+          // La asistencia ya se acredit? en Firebase: actualizar solo la vista local.
+          if (nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
             try { localStorage.setItem('tiendita_pts_' + userNorm, nuevoSaldo); } catch(e){}
           }
 
@@ -3903,7 +3901,8 @@
           }
         }).catch(err => console.warn('[Tiendita] Error registrando asistencia en Firebase:', err));
       } else {
-        // Fallback local en caso de que Firebase esté desconectado
+        if (!isPreview && parent === window) return;
+        // Simulación local sin modificar saldos en vivo.
         const asistPrev = 0;
         const nivelInfo = window.calcularNivelUsuario ? window.calcularNivelUsuario(asistPrev + 1) : { nivel: 1, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', bonoExtra: 0, puntosPorAsistencia: 500 };
         const ptsGanados = nivelInfo.puntosPorAsistencia;
@@ -4075,6 +4074,10 @@
     if(!user) return USER_DEFAULT_POINTS;
     try {
       const key = norm(user);
+      if (isPreview || parent !== window) {
+        const demo = localStorage.getItem('tiendita_demo_pts_' + key);
+        if (demo !== null) return Number(demo);
+      }
       if (window.StreamDB) {
         const cached = window.StreamDB.getCachedPoints(key);
         if (cached !== null && cached !== undefined && !isNaN(cached)) return cached;
@@ -4092,19 +4095,11 @@
     } catch(e){}
     return USER_DEFAULT_POINTS;
   }
-  function setUserPoints(user, pts, motivo = 'ajuste'){
-    try {
-      const key = norm(user);
-      if (pts === undefined || pts === null || isNaN(pts)) {
-        console.warn(`[Tiendita] ⚠️ Intento de asignar puntos inválidos (${pts}) a @${key}. Abortado para proteger el saldo.`);
-        return;
-      }
-      const puntosNum = Math.max(0, parseInt(pts, 10));
-      localStorage.setItem('tiendita_pts_' + key, puntosNum);
-      if (window.StreamDB) {
-        window.StreamDB.setJikopuntos(key, puntosNum, motivo);
-      }
-    } catch(e){}
+  function setUserPoints(user, pts, motivo = 'ajuste') {
+    // Las pruebas tienen saldo aislado. Los cobros y premios reales pasan por StreamDB.
+    if (!isPreview && parent === window) return;
+    if (!Number.isSafeInteger(Number(pts)) || Number(pts) < 0) return;
+    try { localStorage.setItem('tiendita_demo_pts_' + norm(user), String(pts)); } catch(e){}
   }
 
   /* ═══════════ EFECTOS DE SONIDO WEB AUDIO ═══════════ */
@@ -4771,87 +4766,47 @@
     }
     const total = ordenActual.reduce((acc, it) => acc + it.precio, 0);
     const user = usuarioActual;
-
-    // Verificar saldo
-    if(saldoActual < total){
-      playSfx('error');
-      toast(`❌ <b>@${user}</b>: Puntos insuficientes. Tienes <b>${saldoActual} pts</b> y la orden cuesta <b>${total} pts</b>`,'err');
-      const card = document.querySelector(`.item-card.seleccionado`);
-      if(card){
-        card.style.animation = 'none'; void card.offsetWidth;
-        card.style.animation = 'flashSaldo .4s ease';
-      }
-      return;
-    }
-
-    // Pago exitoso
     const platosAServir = [...ordenActual];
-    saldoActual -= total;
-    setUserPoints(user, saldoActual, 'compra_tiendita');
-    animarPuntos(saldoActual);
-    playSfx('buy');
-
-    // ⭐ Recompensa de Experiencia (XP): 10% base del gasto, reducido según el nivel
-    const nivelUsuario = window.StreamDB?.usersCache?.get(norm(user))?.nivel || 1;
-    const xpGanada = window.calcularXpCompra
-      ? window.calcularXpCompra(total, nivelUsuario)
-      : Math.round(total * 0.1 * (window.calcularFactorXpNivel?.(nivelUsuario) ?? 1));
-
-    // Registrar en Firebase Realtime Database (stream/tienda/transacciones y estadísticas)
-    if (window.StreamDB) {
-      window.StreamDB.registrarCompra({
-        comprador: user,
-        items: platosAServir.map(i => i.nombre),
-        itemsKeys: platosAServir.map(i => i.key),
-        cantidad: platosAServir.length,
-        costoTotal: total,
-        nuevoSaldo: saldoActual,
-        xpGanada: xpGanada
-      }).then(res => {
-        if (res && res.subioNivel) {
-          playSfx('success');
-          setTimeout(() => {
-            toast(`👑 ¡SUBIDA DE NIVEL! <b>@${user}</b> ascendió a <b>NIVEL ${res.nuevoNivel}</b> (${res.rangoTitulo}) ${res.insigniaEmoji}`);
-          }, 1800);
-        }
-      }).catch(err => console.warn('[Tiendita] Error al registrar compra en Firebase:', err));
-
-      // Decrementar stock en tiempo real en Firebase RTDB si el producto tiene stock finito
-      if (typeof window.StreamDB.decrementarStockItem === 'function') {
-        platosAServir.forEach(plato => {
-          window.StreamDB.decrementarStockItem(plato.key, 1).catch(()=>{});
-        });
-      }
-    }
-
-    // Notificar a Streamer.bot
-    if(socket && socket.readyState === 1){
-      socket.send(JSON.stringify({
-        request:'DoAction',
-        action:{name:'Tiendita_ConfirmarCompra'},
-        args:{
-          comprador: user,
-          items: platosAServir.map(i => i.nombre).join(', '),
-          itemsKeys: platosAServir.map(i => i.key),
-          cantidad: platosAServir.length,
-          costoTotal: total,
-          nuevoSaldo: saldoActual,
-          xpGanada: xpGanada
-        },
-        id:'compra-orden-ok'
-      }));
-    }
-
-    toast(`🎉 ¡PAGO ACEPTADO! <b>@${user}</b> compró ${platosAServir.length} platillos <span style="color:var(--oro)">−${total} pts</span> <span style="color:var(--kick,#53fc18); font-weight:800;">+${xpGanada} XP ⚡</span>`);
-
-    vaciarOrden();
-
-    // 1. Ocultar la vitrina de la tienda suavemente
-    $menu.classList.remove('visible');
+    pagoTcgPendiente = true;
+    if (btnPagar) btnPagar.disabled = true;
     cancelAnimationFrame(cdRaf);
-
-    // 2. Mostrar la escena del mesero con los platos sobre la mesa
-    mostrarMeseroEntrega(user, platosAServir);
+    try {
+      let receipt;
+      if (isPreview || parent !== window) {
+        if (saldoActual < total) throw new Error('Puntos insuficientes.');
+        receipt = { nuevoSaldo: saldoActual - total, experienciaGanada: 0 };
+      } else {
+        if (!window.StreamDB?.registrarCompra) throw new Error('La tienda todavía está conectando. Intenta de nuevo.');
+        pagoTcgId ||= 'tienda_' + Date.now() + '_' + Math.random().toString(36).slice(2);
+        receipt = await window.StreamDB.registrarCompra({ comprador: user,
+          items: platosAServir.map(i => i.nombre), itemsKeys: platosAServir.map(i => i.key),
+          cantidad: platosAServir.length, costoTotal: total, operacionId: pagoTcgId });
+      }
+      saldoActual = receipt.nuevoSaldo;
+      animarPuntos(saldoActual);
+      playSfx('buy');
+      if (!isPreview && parent === window && !receipt.duplicadoIgnorado) {
+        platosAServir.forEach(plato => window.StreamDB?.decrementarStockItem?.(plato.key, 1).catch(() => {}));
+        if(socket && socket.readyState === 1) socket.send(JSON.stringify({
+          request: 'DoAction', action: { name: 'Tiendita_ConfirmarCompra' }, id: pagoTcgId,
+          args: { comprador: user, items: platosAServir.map(i => i.nombre).join(', '),
+            itemsKeys: platosAServir.map(i => i.key), cantidad: platosAServir.length,
+            costoTotal: total, nuevoSaldo: saldoActual, xpGanada: receipt.experienciaGanada }
+        }));
+      }
+      estadoPago();
+      pagoTcgId = null;
+      vaciarOrden();
+      $menu.classList.remove('visible');
+      mostrarMeseroEntrega(user, platosAServir);
+    } catch (error) {
+      estadoPago(String(error.message || 'No se pudo confirmar el pago.'));
+      playSfx('error');
+    } finally {
+      pagoTcgPendiente = false;
+      if (btnPagar) btnPagar.disabled = false;
+      if ($menu.classList.contains('visible')) reanudarCd();
+    }
   }
 
   /* ═══════════ PARSER DE COMANDOS CON CANTIDAD / BLOQUES ═══════════ */
@@ -5214,7 +5169,7 @@
                               t.startsWith('!cajero') || t.startsWith('!prestamo') || t.startsWith('!firmar') ||
                               t.startsWith('!aceptar') || t.startsWith('!pagarprestamo') ||
                               t.startsWith('!perdonarprestamos') || t.startsWith('!perdonardeudas') ||
-                              t.startsWith('!deuda') ||
+                              t.startsWith('!deuda') || t.startsWith('!regalar') || t.startsWith('!donar') || t.startsWith('!darjikopuntos') ||
                               (!$menu.classList.contains('visible') && (t === '!pagar' || t.startsWith('!pagar ')));
     if (esComandoBancario) {
       console.log(`[Tiendita] ℹ️ Comando bancario "${t}" ignorado en Tiendita (atendido exclusivamente por JikoBank)`);
@@ -5306,179 +5261,7 @@
       return;
     }
 
-    // 0.35 Comando de Regalo Solidario entre usuarios: !regalar @usuario XXXX / !donar @usuario XXXX
-    if(t.startsWith('!regalar') || t.startsWith('!donar')){
-      const partes = raw.trim().split(/\s+/);
-      if(partes.length < 3){
-        toast(`⚠️ Uso: <b>!regalar &lt;@usuario&gt; &lt;cantidad&gt;</b> o <b>!regalar &lt;cantidad&gt; &lt;@usuario&gt;</b>`,'err');
-        playSfx('error');
-        return;
-      }
-      const parsed = parsearUsuarioYCantidad(partes[1], partes[2]);
-      const receptor = parsed.usuario;
-      const cantidad = parsed.cantidad;
-      const remitenteNorm = norm(user);
-      const receptorNorm = norm(receptor);
-
-      if(!receptor || isNaN(cantidad) || cantidad <= 0){
-        toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!regalar @amigo 500</b> o <b>!regalar 500 @amigo</b>`,'err');
-        playSfx('error');
-        return;
-      }
-      if(remitenteNorm === receptorNorm){
-        toast(`⚠️ No puedes regalarte puntos a ti mismo.`,'err');
-        playSfx('error');
-        return;
-      }
-
-      const saldoRemAntes = getUserPoints(remitenteNorm);
-      if(saldoRemAntes < cantidad && remitenteNorm !== 'jikokun'){
-        toast(`⛔ <b>@${user}</b> no tiene suficientes puntos (Saldo: <b>${saldoRemAntes} pts</b>, Desea regalar: <b>${cantidad} pts</b>)`,'err');
-        playSfx('error');
-        return;
-      }
-
-      const nuevoRem = Math.max(0, saldoRemAntes - cantidad);
-      const saldoRecAntes = getUserPoints(receptorNorm);
-      const nuevoRec = saldoRecAntes + cantidad;
-
-      setUserPoints(remitenteNorm, nuevoRem, `!regalar a @${receptor}`);
-      setUserPoints(receptorNorm, nuevoRec, `!regalar de @${user}`);
-
-      if (window.StreamDB && typeof window.StreamDB.regalarJikopuntos === 'function') {
-        window.StreamDB.regalarJikopuntos({
-          remitente: user,
-          receptor: receptor,
-          cantidad: cantidad
-        }).catch(err => console.warn('[Tiendita] Error procesando regalo en Firebase:', err));
-      }
-
-      // Si el usuario activo en la pantalla de la tiendita es el remitente: mostrar descuento animado
-      if(norm(usuarioActual) === remitenteNorm){
-        saldoActual = nuevoRem;
-        animarPuntos(saldoActual);
-        const bar = document.getElementById('user-bar');
-        if(bar){ bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
-        toast(`💸 Regalaste <b>-${cantidad} pts</b> a <b>@${receptor}</b> (Tu saldo: <b>${saldoActual} pts</b>)`);
-      }
-      // Si el usuario activo en la pantalla de la tiendita es el receptor: mostrar abono animado
-      else if(norm(usuarioActual) === receptorNorm){
-        saldoActual = nuevoRec;
-        animarPuntos(saldoActual);
-        const bar = document.getElementById('user-bar');
-        if(bar){ bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
-        toast(`🎁 ¡<b>@${user}</b> te regaló <b>+${cantidad} pts</b>! (Tu saldo: <b>${saldoActual} pts</b>)`);
-      }
-      // Si es un tercero viendo la tiendita
-      else {
-        toast(`🎁 ¡Regalo Solidario! <b>@${user}</b> le regaló <b>+${cantidad} pts</b> a <b>@${receptor}</b>`);
-      }
-
-      playSfx('buy');
-      const panel = document.getElementById('panel');
-      if(panel) explosión(panel);
-      return;
-    }
-
-    // 0.4 Comando exclusivo para Jikokun: !darjikopuntos usuario XXXX (siempre permitido)
-    if(t.startsWith('!darjikopuntos')){
-      const emisorNorm = norm(user);
-      const esAdmin = emisorNorm === 'jikokun' || emisorNorm === 'broadcaster';
-
-      if(!esAdmin){
-        console.warn(`[Tiendita] 🚫 Intento no autorizado de regalar puntos por [@${user}]`);
-        toast(`⛔ Solo <b>@Jikokun</b> puede regalar jikopuntos.`,'err');
-        playSfx('error');
-        return;
-      }
-
-      const partes = raw.trim().split(/\s+/);
-      if(partes.length < 3){
-        toast(`⚠️ Uso: <b>!darjikopuntos &lt;usuario&gt; &lt;cantidad&gt;</b>`,'err');
-        playSfx('error');
-        return;
-      }
-
-      let receptor = (partes[1] || '').trim().replace(/^@/, '');
-      let cantidad = parseInt(partes[2], 10) || 0;
-
-      // Soporte para formato inverso si el streamer escribe !darjikopuntos 500 @usuario
-      if (!isNaN(parseInt(partes[1], 10)) && isNaN(parseInt(partes[2], 10))) {
-        cantidad = parseInt(partes[1], 10) || 0;
-        receptor = (partes[2] || '').trim().replace(/^@/, '');
-      }
-
-      if(!receptor || isNaN(cantidad) || cantidad <= 0){
-        toast(`⚠️ Cantidad o usuario inválido. Ej: <b>!darjikopuntos ${receptor || 'usuario'} 500</b>`,'err');
-        playSfx('error');
-        return;
-      }
-
-      // Caso 1: Bono masivo a toda la comunidad (!darjikopuntos todos 1000)
-      if (receptor.toLowerCase() === 'todos' || receptor.toLowerCase() === 'all') {
-        if (window.StreamDB && typeof window.StreamDB.darJikopuntosTodos === 'function') {
-          window.StreamDB.darJikopuntosTodos({ admin: user, cantidad: cantidad }).then(res => {
-            if (res && !res.duplicadoIgnorado) {
-              toast(`🌟 ¡LLUVIA DE JIKOPUNTOS! <b>@Jikokun</b> regaló <b>+${cantidad} pts</b> a toda la manada presente.`);
-            }
-          }).catch(err => console.warn('[Tiendita] Error en darJikopuntosTodos:', err));
-        }
-        playSfx('buy');
-        return;
-      }
-
-      // Caso 2: Entrega individual a un usuario con deduplicación atómica en Firebase
-      let nuevoSaldoCalculado = getUserPoints(receptor) + cantidad;
-      if (window.StreamDB && typeof window.StreamDB.darJikopuntosUsuario === 'function') {
-        window.StreamDB.darJikopuntosUsuario({
-          admin: user,
-          targetUser: receptor,
-          cantidad: cantidad
-        }).then(res => {
-          if (res && res.nuevoSaldo !== undefined) {
-            nuevoSaldoCalculado = res.nuevoSaldo;
-            try {
-              localStorage.setItem('tiendita_pts_' + norm(receptor), nuevoSaldoCalculado);
-            } catch(e){}
-            if(norm(usuarioActual) === norm(receptor)){
-              saldoActual = nuevoSaldoCalculado;
-              animarPuntos(saldoActual);
-              const bar = document.getElementById('user-bar');
-              if(bar){
-                bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
-              }
-            }
-          }
-        }).catch(err => console.warn('[Tiendita] Error en darJikopuntosUsuario:', err));
-      } else {
-        // Fallback local únicamente cuando StreamDB no está disponible
-        setUserPoints(receptor, nuevoSaldoCalculado, '!darjikopuntos');
-        if(norm(usuarioActual) === norm(receptor)){
-          saldoActual = nuevoSaldoCalculado;
-          animarPuntos(saldoActual);
-          const bar = document.getElementById('user-bar');
-          if(bar){
-            bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash');
-          }
-        }
-      }
-
-      playSfx('buy');
-      const panel = document.getElementById('panel');
-      if(panel) explosión(panel);
-
-      toast(`⚡ ¡JIKOPUNTOS OTORGADOS! <b>@Jikokun</b> le regaló <b>+${cantidad} pts</b> a <b>@${receptor}</b> (Total: <b>${nuevoSaldo} pts</b>)`);
-
-      if(socket && socket.readyState === 1){
-        socket.send(JSON.stringify({
-          request:'DoAction',
-          action:{name:'Tiendita_RegalarPuntos'},
-          args:{admin:user, receptor:receptor, cantidad:cantidad, nuevoSaldo:nuevoSaldo},
-          id:'regalo-puntos-ok'
-        }));
-      }
-      return;
-    }
+    // JikoBank es el único consumidor de comandos económicos; la tienda escucha el saldo confirmado.
 
     const userNorm = norm(user);
     const actualNorm = norm(usuarioActual);
@@ -5710,8 +5493,8 @@
           return;
         }
         const customPoints = data.puntos != null ? data.puntos : (data.points != null ? data.points : getUserPoints(customUser));
-        setUserPoints(customUser, customPoints);
-        mostrarMenu(customUser, customPoints);
+        if (isPreview || parent !== window) setUserPoints(customUser, customPoints);
+        mostrarMenu(customUser, isPreview || parent !== window ? customPoints : getUserPoints(customUser));
         return;
       }
 

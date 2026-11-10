@@ -25,6 +25,8 @@ import {
   limitToLast
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+import './jiko_points_engine.js';
+
 // Normalizador estándar de nombres de usuario (minúsculas, sin acentos ni @)
 export const norm = s => {
   if (!s || s === 'undefined' || s === 'null') return '';
@@ -608,7 +610,7 @@ class StreamFirebaseService {
       return finalUser;
     } catch (err) {
       console.warn(`[StreamDB] Error al consultar usuario @${key}, usando fallback local:`, err);
-      const fallbackPts = this._getLocalCache(key) || USER_DEFAULT_POINTS;
+      const fallbackPts = this._getLocalCache(key) ?? USER_DEFAULT_POINTS;
       return {
         username: key,
         displayName: String(username).replace(/^@/, '').trim(),
@@ -635,7 +637,7 @@ class StreamFirebaseService {
       throw new Error(`El usuario @${key} ya existe en la base de datos.`);
     }
 
-    const pts = Math.max(0, parseInt(jikopuntos, 10) || USER_DEFAULT_POINTS);
+    const pts = globalThis.JikoPointsEngine.balance(jikopuntos);
     const asistencias = Math.max(0, parseInt(asistenciasCount, 10) || 0);
     const xp = (experiencia !== null && experiencia !== undefined)
       ? Math.max(0, parseInt(experiencia, 10) || 0)
@@ -1066,68 +1068,48 @@ class StreamFirebaseService {
   }
 
   async setJikopuntos(username, points, motivo = 'ajuste') {
-    const key = norm(username);
+    const key = this.resolverUsuarioReal(norm(username));
     if (!key) return false;
-    if (points === undefined || points === null || isNaN(points)) {
-      console.warn(`[StreamDB] ⚠️ Intento de setJikopuntos con valor inválido (${points}) para @${key}. Operación abortada.`);
-      return false;
-    }
-    const pts = Math.max(0, parseInt(points, 10));
-
-    this._updateLocalCache(key, pts);
-    if (this.usersCache.has(key)) {
-      this.usersCache.get(key).jikopuntos = pts;
-    }
-
     try {
-      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
-      await update(userRef, {
-        jikopuntos: pts,
-        ultimaActividad: Date.now()
-      });
+      const pts = globalThis.JikoPointsEngine.integer(points);
+      if (pts < 0) throw new Error('Saldo no válido');
+      await update(ref(this.rtdb, NODE_USERS + '/' + key), { jikopuntos: pts, ultimaActividad: Date.now() });
+      await this.getUser(key, true);
       return true;
-    } catch (err) {
-      console.warn(`[StreamDB] No se pudo guardar puntos de @${key}:`, err);
+    } catch (error) {
+      console.warn('[StreamDB] Ajuste no confirmado:', error.message);
       return false;
     }
   }
 
-  async addJikopuntos(username, cantidad, motivo = 'premio') {
-    const key = norm(username);
-    if (!key) return 0;
-    const delta = parseInt(cantidad, 10) || 0;
-
+  async _operarPuntos(username, delta, { operacionId = null, firma = 'ajuste', deduplicar = false, modificar = null, idExplicito = !!operacionId } = {}) {
+    await this.init();
+    const P = globalThis.JikoPointsEngine;
+    const key = this.resolverUsuarioReal(norm(username));
+    if (!key) throw new Error('Usuario no válido');
+    delta = P.integer(delta);
+    await this.getUser(key, true);
+    const userRef = ref(this.rtdb, NODE_USERS + '/' + key);
+    const operation = { id: operacionId || push(ref(this.rtdb, NODE_TRANSFERS)).key, idExplicito, firma, delta, deduplicar, timestamp: Date.now() };
+    let stop, duplicate = false;
     try {
-      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}/jikopuntos`);
-      let nuevoSaldo = USER_DEFAULT_POINTS;
+      await new Promise((resolve, reject) => { stop = onValue(userRef, resolve, reject); });
+      const result = await runTransaction(userRef, user => {
+        duplicate = !!P.previous(user, operation);
+        return P.apply(user, operation, modificar);
+      }, { applyLocally: false });
+      const user = result.snapshot.val();
+      const receipt = P.previous(user, operation);
+      if (!result.committed || !receipt) throw new Error('No se pudo confirmar el movimiento de Jikopuntos.');
+      this.usersCache.set(key, user);
+      this._updateLocalCache(key, user.jikopuntos);
+      return { ...receipt, nuevoSaldo: user.jikopuntos, duplicadoIgnorado: duplicate, success: true };
+    } finally { stop?.(); }
+  }
 
-      const res = await runTransaction(userRef, (actual) => {
-        const prev = (actual === null || actual === undefined) ? USER_DEFAULT_POINTS : actual;
-        nuevoSaldo = Math.max(0, prev + delta);
-        return nuevoSaldo;
-      });
-
-      if (res.committed) {
-        this._updateLocalCache(key, nuevoSaldo);
-        if (this.usersCache.has(key)) {
-          this.usersCache.get(key).jikopuntos = nuevoSaldo;
-        }
-
-        if (delta > 0) {
-          await runTransaction(ref(this.rtdb, `${NODE_USERS}/${key}/totalGanado`), (prev) => (prev || 0) + delta);
-        }
-
-        await update(ref(this.rtdb, `${NODE_USERS}/${key}`), { ultimaActividad: Date.now() });
-        return nuevoSaldo;
-      }
-    } catch (err) {
-      console.warn(`[StreamDB] Error en addJikopuntos @${key}:`, err);
-    }
-
-    const cur = this.getCachedPoints(key);
-    const fallback = Math.max(0, cur + delta);
-    this._updateLocalCache(key, fallback);
-    return fallback;
+  async addJikopuntos(username, cantidad, motivo = 'premio', options = {}) {
+    const receipt = await this._operarPuntos(username, cantidad, { ...options, firma: options.firma || motivo });
+    return receipt.nuevoSaldo;
   }
 
   onUser(username, callback) {
@@ -1858,49 +1840,23 @@ class StreamFirebaseService {
 
   // Acreditar combustible acumulado de chat y permanencia a un usuario en Firebase RTDB
   async acreditarCombustibleChat(username, { puntos = 0, xp = 0, tiempoMinutos = 0, motivo = 'combustible_chat', streamId = null } = {}) {
-    await this.init();
-    const key = norm(username);
-    if (!key) throw new Error('Usuario no válido');
-
-    let user = await this.getUser(key);
-    const ptsDelta = Math.max(0, Math.round(Number(puntos) || 0));
-    const xpDelta = Math.max(0, Math.round(Number(xp) || 0));
-    const minsDelta = Math.max(0, Math.round(Number(tiempoMinutos) || 0));
-
-    if (!user) {
-      // Auto-crear perfil para el espectador en su primera interacción
-      user = await this.crearUsuario({
-        username: key,
-        displayName: username,
-        jikopuntos: USER_DEFAULT_POINTS,
-        experiencia: 0
-      });
-    }
-
-    const updates = {};
-    if (ptsDelta > 0) {
-      updates.jikopuntos = (user.jikopuntos || 0) + ptsDelta;
-      updates.totalGanado = (user.totalGanado || 0) + ptsDelta;
-    }
-    if (xpDelta > 0) {
-      const prevXp = user.experiencia !== undefined ? user.experiencia : ((user.asistenciasCount || 0) * 200);
-      updates.experiencia = prevXp + xpDelta;
-    }
-    if (minsDelta > 0) {
-      updates.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minsDelta;
-    }
-
-    if (Object.keys(updates).length > 0) {
-      return this.actualizarUsuario(key, updates);
-    }
-    return user;
+    const P = globalThis.JikoPointsEngine;
+    const pts = P.balance(Math.round(Number(puntos) || 0));
+    const experience = P.balance(Math.round(Number(xp) || 0));
+    const minutes = P.balance(Math.round(Number(tiempoMinutos) || 0));
+    if (motivo === 'cierre_directo_kick' && !streamId) throw new Error('Falta la transmisión para acreditar el combustible una sola vez.');
+    await this._operarPuntos(username, pts, {
+      operacionId: streamId ? 'combustible:' + streamId + ':' + norm(username) : null,
+      firma: motivo, modificar: user => {
+        user.experiencia = (user.experiencia ?? (user.asistenciasCount || 0) * 200) + experience;
+        user.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minutes;
+        const level = calcularNivelUsuario(user);
+        for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
+      }
+    });
+    return this.getUser(username, true);
   }
 
-  // ══════════════════════════════════════════════════════════════════════════
-  // 3. TIEMPO, DURACIÓN DEL DIRECTO & MULTIPLICADOR JUSTO DE EXPERIENCIA (XP)
-  // ══════════════════════════════════════════════════════════════════════════
-
-  // Obtener estado y duración activa del stream actual (en minutos y horas)
   getStreamDuracionActual() {
     const ahora = Date.now();
     let isLive = this.kickIsLive;
@@ -2001,11 +1957,15 @@ class StreamFirebaseService {
 
       // Otorgar combustible de permanencia (+5 Jikopuntos por minuto activo de stream)
       const ptsGanados = 5 * minutosDelta;
-      await this.addJikopuntos(key, ptsGanados, 'interaccion_tiempo_stream');
-
-      // Persistir XP y tiempo visto en Firebase
-      await this.addExperiencia(key, xpGanada, 'interaccion_tiempo_stream');
-      await this.addTiempoVisto(key, minutosDelta);
+      await this._operarPuntos(key, ptsGanados, {
+        operacionId: 'actividad:' + key + ':' + Math.floor(ahora / 60000), firma: 'interaccion_tiempo_stream',
+        modificar: user => {
+          user.experiencia = (user.experiencia ?? (user.asistenciasCount || 0) * 200) + xpGanada;
+          user.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minutosDelta;
+          const level = calcularNivelUsuario(user);
+          for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
+        }
+      });
 
       userTrack.ultimaXpAsignada = ahora;
       userTrack.minutosInteractuados += minutosDelta;
@@ -2149,274 +2109,51 @@ class StreamFirebaseService {
 
   // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
   async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero', streamId = null }) {
-    const key = norm(usuario);
-    if (!key) return null;
-
-    // Mutex concurrente: Evitar que dos eventos concurrentes (Pusher y Streamer.bot) procesen al mismo usuario a la vez
-    if (!this._asistenciaLocks) {
-      this._asistenciaLocks = new Map();
-    }
-    const ahora = Date.now();
-    const lastLock = this._asistenciaLocks.get(key) || 0;
-    if (ahora - lastLock < 15000) {
-      console.log(`[StreamDB] ⏳ Saludo para @${key} ignorado por lock concurrente (${ahora - lastLock}ms).`);
-      return null;
-    }
-    this._asistenciaLocks.set(key, ahora);
-
-    const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
-
-    if (!this._streamLocalInicioTimestamp) {
-      this._streamLocalInicioTimestamp = ahora;
-    }
-    if (!this.interaccionesUsuarios) {
-      this.interaccionesUsuarios = new Map();
-    }
-    if (!this.interaccionesUsuarios.has(key)) {
-      this.interaccionesUsuarios.set(key, {
-        usuario: key,
-        primeraInteraccion: ahora,
-        ultimaInteraccion: ahora,
-        ultimaXpAsignada: ahora,
-        minutosInteractuados: 0,
-        xpGanadaEnDirecto: 200,
-        asistio: true
-      });
-    }
-
-    try {
-      // 1. Obtener stream activo si existe, o usar el streamId especificado
-      let streamActivoId = streamId || null;
-      let numeroStream = null;
-      if (!streamActivoId) {
-        try {
-          const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
-          if (statsSnap.exists()) {
-            const stats = statsSnap.val();
-            if (stats.isLive === true && stats.streamActivoId) {
-              streamActivoId = stats.streamActivoId;
-              numeroStream = stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null;
-            }
-          }
-        } catch (e) {}
-      } else {
-        try {
-          const sSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/numeroStream`));
-          numeroStream = sSnap.exists() ? sSnap.val() : null;
-        } catch(e) {}
+    await this.init();
+    const key = this.resolverUsuarioReal(norm(usuario));
+    if (!key || ['botrix', 'lobito_mensajero', 'lobitomensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'].includes(key)) return null;
+    const stats = (await get(ref(this.rtdb, NODE_TRANS_STATS))).val() || {};
+    streamId ||= stats.isLive && stats.streamActivoId || await this.asegurarStreamActivoAuto('asistencia_lobito');
+    if (!streamId) throw new Error('No hay transmisión para registrar la asistencia.');
+    // El historial antiguo también cuenta como asistencia: actualizar el código no vuelve a premiar ese stream.
+    const user = await this.getUser(key, true);
+    const old = (await get(ref(this.rtdb, NODE_TRANSMISSIONS + '/' + streamId + '/asistentes/' + key))).val();
+    if (old || user.historialTransmisiones?.[streamId]) return { ...(old || {}), yaRegistrado: true, nuevoSaldo: user.jikopuntos, puntosOtorgados: 0, experienciaGanada: 0 };
+    const levelBefore = calcularNivelUsuario(user);
+    const xp = levelBefore.nivel >= MAX_NIVEL ? 0 : Math.max(1, Math.round(200 * calcularFactorXpNivel(levelBefore.nivel)));
+    const afterLevel = calcularNivelUsuario({ ...user, experiencia: (user.experiencia ?? (user.asistenciasCount || 0) * 200) + xp });
+    const receipt = await this._operarPuntos(key, afterLevel.puntosPorAsistencia, {
+      operacionId: 'asistencia:' + streamId + ':' + key, firma: 'asistencia:' + streamId,
+      modificar: current => {
+        current.experiencia = (current.experiencia ?? (current.asistenciasCount || 0) * 200) + xp;
+        current.asistenciasCount = (current.asistenciasCount || 0) + 1;
+        current.historialTransmisiones ||= {}; current.historialTransmisiones[streamId] = true;
+        const level = calcularNivelUsuario(current);
+        for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) current[field] = level[field];
+        return { puntosOtorgados: afterLevel.puntosPorAsistencia, experienciaGanada: xp, experienciaTotal: current.experiencia,
+          nivelUsuario: level.nivel, rangoTitulo: level.rangoTitulo, insigniaEmoji: level.insigniaEmoji };
       }
-
-      // Si no hay stream activo pero estamos recibiendo un saludo de Lobito en vivo:
-      // Auto-iniciar o asegurar la sesión de transmisión activa
-      if (!streamActivoId) {
-        streamActivoId = await this.asegurarStreamActivoAuto('asistencia_lobito');
-        try {
-          const sSnap = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/streamActual/numeroStream`));
-          numeroStream = sSnap.exists() ? sSnap.val() : null;
-        } catch(e) {}
-      }
-
-      // Si ya está registrado en este stream activo específico, no duplicar puntos pero devolver saldo real
-      if (streamActivoId) {
-        try {
-          const streamUserSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`));
-          if (streamUserSnap.exists()) {
-            console.log(`[StreamDB] ℹ️ @${usuario} ya tiene asistencia registrada en stream activo ${streamActivoId}`);
-            const currentUser = await this.getUser(usuario);
-            const dataSnap = streamUserSnap.val() || {};
-            const saldoSeguro = (currentUser && currentUser.jikopuntos !== undefined && currentUser.jikopuntos !== null)
-              ? currentUser.jikopuntos
-              : (this._getLocalCache(key) || USER_DEFAULT_POINTS);
-            return {
-              ...dataSnap,
-              yaRegistrado: true,
-              nuevoSaldo: saldoSeguro,
-              puntosOtorgados: 0,
-              experienciaGanada: 0,
-              nivelUsuario: currentUser?.nivel || dataSnap.nivel || 1,
-              insigniaEmoji: currentUser?.insigniaEmoji || dataSnap.insigniaEmoji || '🐾',
-              rangoTitulo: currentUser?.rangoTitulo || dataSnap.rangoTitulo || 'Cachorro'
-            };
-          }
-        } catch(e) {}
-      }
-
-      // 2. Obtener perfil del usuario y calcular nivel
-      const user = await this.getUser(usuario);
-      const prevAsistencias = user ? (user.asistenciasCount || 0) : 0;
-      const nuevoTotalAsistencias = prevAsistencias + 1;
-
-      // Calcular XP según nivel: curva progresiva donde niveles altos reciben menos puntos de XP
-      const nvlPrev = user?.nivel || 1;
-      const factorNvl = calcularFactorXpNivel(nvlPrev);
-      const xpGanadaAsistencia = nvlPrev >= MAX_NIVEL ? 0 : Math.max(1, Math.round(200 * factorNvl));
-
-      const prevXp = (user && user.experiencia !== undefined && user.experiencia !== null)
-        ? user.experiencia
-        : (prevAsistencias * 200);
-      const nuevoTotalXp = prevXp + xpGanadaAsistencia;
-
-      // Calcular nuevo nivel del usuario tras ganar XP en esta transmisión
-      const nivelInfo = calcularNivelUsuario({
-        experiencia: nuevoTotalXp,
-        asistenciasCount: nuevoTotalAsistencias,
-        tituloPersonalizado: user?.tituloPersonalizado
-      });
-
-      const puntosOtorgados = nivelInfo.puntosPorAsistencia; // 500 base + bono de lealtad
-      const nuevoSaldo = (user && user.jikopuntos !== undefined ? user.jikopuntos : USER_DEFAULT_POINTS) + puntosOtorgados;
-
-      // 3. Guardar registro inmutable en stream/tienda/asistencias
-      const asisRef = push(ref(this.rtdb, NODE_ATTENDANCE));
-      const record = {
-        id: asisRef.key,
-        usuario: usuario,
-        usuarioNorm: key,
-        puntosOtorgados: puntosOtorgados,
-        bonoExtraNivel: nivelInfo.bonoExtra,
-        experienciaGanada: xpGanadaAsistencia,
-        experienciaTotal: nuevoTotalXp,
-        nivelUsuario: nivelInfo.nivel,
-        rangoTitulo: nivelInfo.rangoTitulo,
-        tituloAutomatico: nivelInfo.tituloAutomatico,
-        tituloPersonalizado: nivelInfo.tituloPersonalizado,
-        insigniaEmoji: nivelInfo.insigniaEmoji,
-        nuevoSaldo: nuevoSaldo,
-        botEmisor: botEmisor,
-        streamId: streamActivoId,
-        numeroStream: numeroStream,
-        timestamp: ahora,
-        fechaLegible: fechaLegible
-      };
-      await set(asisRef, record);
-
-      // 4. Si hay un stream activo, vincular la asistencia en stream/transmisiones/{streamId}/asistentes/{user}
-      if (streamActivoId) {
-        const streamUserRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}/asistentes/${key}`);
-        await set(streamUserRef, {
-          username: usuario,
-          usuarioNorm: key,
-          hora: new Date(ahora).toLocaleTimeString('es-SV', { hour: '2-digit', minute: '2-digit' }),
-          timestamp: ahora,
-          experiencia: nuevoTotalXp,
-          nivel: nivelInfo.nivel,
-          rangoTitulo: nivelInfo.rangoTitulo,
-          insigniaEmoji: nivelInfo.insigniaEmoji,
-          puntosOtorgados: puntosOtorgados
-        });
-
-        // Actualizar contadores del stream
-        const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamActivoId}`);
-        await runTransaction(transRef, (s) => {
-          if (s) {
-            if (!s.asistentes) s.asistentes = {};
-            s.totalAsistentes = Object.keys(s.asistentes).length;
-            s.puntosRepartidos = (s.puntosRepartidos || 0) + puntosOtorgados;
-          }
-          return s;
-        });
-      }
-
-      // 5. Actualizar usuario con su nuevo nivel e historial de stream de forma atómica
-      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
-      let userSaldoFinal = nuevoSaldo;
-      let userXpFinal = nuevoTotalXp;
-      let userAsistFinal = nuevoTotalAsistencias;
-
-      await runTransaction(userRef, (u) => {
-        if (!u) {
-          u = {
-            username: key,
-            displayName: usuario,
-            jikopuntos: nuevoSaldo,
-            totalGanado: nuevoSaldo,
-            asistenciasCount: nuevoTotalAsistencias,
-            experiencia: nuevoTotalXp,
-            tiempoVistoMinutos: 0,
-            tituloPersonalizado: null,
-            nivel: nivelInfo.nivel,
-            rangoTitulo: nivelInfo.rangoTitulo,
-            tituloAutomatico: nivelInfo.tituloAutomatico,
-            insigniaEmoji: nivelInfo.insigniaEmoji,
-            bonoAsistencia: nivelInfo.puntosPorAsistencia,
-            ultimaActividad: ahora
-          };
-          userSaldoFinal = nuevoSaldo;
-          userXpFinal = nuevoTotalXp;
-          userAsistFinal = nuevoTotalAsistencias;
-        } else {
-          u.jikopuntos = (u.jikopuntos || 0) + puntosOtorgados;
-          u.totalGanado = (u.totalGanado || 0) + puntosOtorgados;
-          userSaldoFinal = u.jikopuntos;
-          u.asistenciasCount = (u.asistenciasCount || 0) + 1;
-          userAsistFinal = u.asistenciasCount;
-
-          const userXp = (u.experiencia !== undefined && u.experiencia !== null)
-            ? u.experiencia
-            : ((u.asistenciasCount - 1) * 200);
-          const finalXp = userXp + xpGanadaAsistencia;
-          u.experiencia = finalXp;
-          userXpFinal = finalXp;
-
-          const freshNivelInfo = calcularNivelUsuario({
-            experiencia: finalXp,
-            asistenciasCount: u.asistenciasCount,
-            tituloPersonalizado: u.tituloPersonalizado
-          });
-          u.nivel = freshNivelInfo.nivel;
-          u.rangoTitulo = freshNivelInfo.rangoTitulo;
-          u.tituloAutomatico = freshNivelInfo.tituloAutomatico;
-          u.insigniaEmoji = freshNivelInfo.insigniaEmoji;
-          u.bonoAsistencia = freshNivelInfo.puntosPorAsistencia;
-          u.porcentajeProgreso = freshNivelInfo.porcentajeProgreso;
-          u.xpEnNivel = freshNivelInfo.xpEnNivel;
-          u.xpParaSubir = freshNivelInfo.xpParaSubir;
-          u.xpFaltante = freshNivelInfo.xpFaltante;
-          u.ultimaActividad = ahora;
-
-          if (!u.historialTransmisiones) u.historialTransmisiones = {};
-          if (streamActivoId) {
-            u.historialTransmisiones[streamActivoId] = true;
-          }
-        }
-        return u;
-      });
-
-      this._updateLocalCache(key, userSaldoFinal);
-      if (this.usersCache.has(key)) {
-        const cached = this.usersCache.get(key);
-        cached.jikopuntos = userSaldoFinal;
-        cached.asistenciasCount = userAsistFinal;
-        cached.experiencia = userXpFinal;
-        cached.nivel = nivelInfo.nivel;
-        cached.rangoTitulo = nivelInfo.rangoTitulo;
-        cached.insigniaEmoji = nivelInfo.insigniaEmoji;
-      }
-
-      // 6. Actualizar métricas agregadas globales
-      const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
-      await runTransaction(resumenRef, (res) => {
-        if (!res) res = {};
-        res.totalAsistenciasRegistradas = (res.totalAsistenciasRegistradas || 0) + 1;
-        res.totalPuntosOtorgados = (res.totalPuntosOtorgados || 0) + puntosOtorgados;
-        res.ultimaActualizacion = ahora;
-        return res;
-      });
-
-      console.log(`[StreamDB] 🐺 Asistencia @${usuario}: ${nivelInfo.insigniaEmoji} ${nivelInfo.rangoTitulo} (Nivel ${nivelInfo.nivel} • ${userXpFinal} XP) +${puntosOtorgados} pts -> Saldo: ${userSaldoFinal}`);
-      if (!user?.avatar || !String(user.avatar).startsWith('http')) {
-        this.absorberAvatarKick(usuario).catch(() => {});
-      }
-      record.nuevoSaldo = userSaldoFinal;
-      record.experienciaTotal = userXpFinal;
-      return record;
-    } catch (err) {
-      console.warn(`[StreamDB] Error al registrar asistencia @${usuario}:`, err);
-      return null;
+    });
+    const record = { ...receipt, usuario, usuarioNorm: key, streamId, botEmisor,
+      numeroStream: stats.streamActual?.numeroStream || stats.totalStreamsPrendidos || null,
+      yaRegistrado: receipt.duplicadoIgnorado };
+    const recordKey = globalThis.JikoPointsEngine.key(receipt.id);
+    await set(ref(this.rtdb, NODE_ATTENDANCE + '/' + recordKey), record);
+    await set(ref(this.rtdb, NODE_TRANSMISSIONS + '/' + streamId + '/asistentes/' + key), {
+      username: usuario, usuarioNorm: key, timestamp: receipt.timestamp,
+      puntosOtorgados: receipt.puntosOtorgados, nivel: receipt.nivelUsuario
+    });
+    if (!receipt.duplicadoIgnorado) {
+      await runTransaction(ref(this.rtdb, NODE_TRANSMISSIONS + '/' + streamId), current => current ? ({ ...current,
+        totalAsistentes: Object.keys(current.asistentes || {}).length,
+        puntosRepartidos: (current.puntosRepartidos || 0) + receipt.puntosOtorgados }) : current);
+      await runTransaction(ref(this.rtdb, NODE_STATS + '/resumen'), current => ({ ...(current || {}),
+        totalAsistenciasRegistradas: (current?.totalAsistenciasRegistradas || 0) + 1,
+        totalPuntosOtorgados: (current?.totalPuntosOtorgados || 0) + receipt.puntosOtorgados, ultimaActualizacion: Date.now() }));
     }
+    return record;
   }
 
-  // Asegurar que un usuario esté vinculado a la sesión de stream activa
   async asegurarAsistenteEnStreamActivo(usuario) {
     const key = norm(usuario);
     if (!key) return null;
@@ -2667,215 +2404,59 @@ class StreamFirebaseService {
   // 4. TIENDA DE JIKO: REGISTRO DE COMPRAS, TRANSFERENCIAS Y ESTADÍSTICAS
   // ==========================================================================
 
-  async registrarCompra({ comprador, items, itemsKeys = [], cantidad, costoTotal, nuevoSaldo, xpGanada = null }) {
-    const key = norm(comprador);
-    const ahora = Date.now();
-    const fechaLegible = new Date().toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'medium' });
-
-    const gastoPuntos = Math.max(0, parseInt(costoTotal, 10) || 0);
-    let xpOtorgada = 0;
-
-    let nivelPrevio = 1;
-    let nuevoNivel = 1;
-    let totalXpUsuario = 0;
-    let subioNivel = false;
-    let rangoTituloNuevo = 'Cachorro';
-    let insigniaEmojiNueva = '🐾';
-
-    const transaccion = {
-      usuario: comprador,
-      usuarioNorm: key,
-      items: Array.isArray(items) ? items.join(', ') : String(items || ''),
-      itemsKeys: itemsKeys,
-      cantidadPlatos: cantidad || itemsKeys.length || 1,
-      costoTotal: gastoPuntos,
-      nuevoSaldo: nuevoSaldo,
-      experienciaGanada: xpOtorgada,
-      timestamp: ahora,
-      fechaLegible: fechaLegible,
-      origen: 'tiendita_widget'
-    };
-
-    this._updateLocalCache(key, nuevoSaldo);
-    if (this.usersCache.has(key)) {
-      this.usersCache.get(key).jikopuntos = nuevoSaldo;
+  async registrarCompra({ comprador, items, itemsKeys = [], cantidad, costoTotal, operacionId = null, soloHistorial = false, nuevoSaldo = null }) {
+    const P = globalThis.JikoPointsEngine;
+    const cost = P.integer(costoTotal, true);
+    const key = this.resolverUsuarioReal(norm(comprador));
+    if (soloHistorial) {
+      const target = operacionId ? ref(this.rtdb, NODE_TRANSACTIONS + '/' + P.key(operacionId)) : push(ref(this.rtdb, NODE_TRANSACTIONS));
+      const record = { usuario: comprador, usuarioNorm: key, items, itemsKeys, costoTotal: cost, nuevoSaldo, timestamp: Date.now(), origen: 'importacion_historial' };
+      await set(target, record);
+      return record;
     }
-
+    const count = cantidad || itemsKeys.length || 1;
+    const receipt = await this._operarPuntos(key, -cost, { operacionId,
+      firma: 'compra:' + key + ':' + itemsKeys.join(',') + ':' + cost,
+      modificar: user => {
+        const before = calcularNivelUsuario(user);
+        const oldXp = user.experiencia ?? (user.asistenciasCount || 0) * 200;
+        const xp = calcularXpCompra(cost, before.nivel);
+        user.experiencia = oldXp + xp;
+        const level = calcularNivelUsuario(user);
+        for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
+        user.totalCompras = (user.totalCompras || 0) + 1;
+        user.widgets ||= {}; user.widgets.tiendita ||= {};
+        const store = user.widgets.tiendita;
+        store.pedidosCount = (store.pedidosCount || 0) + 1;
+        store.platillosTotales = (store.platillosTotales || 0) + count;
+        store.ultimoPedido = Date.now();
+        user.stats ||= {}; user.stats.platosConsumidos ||= {};
+        for (const item of itemsKeys) user.stats.platosConsumidos[item] = (user.stats.platosConsumidos[item] || 0) + 1;
+        const ranked = Object.entries(user.stats.platosConsumidos).sort((a, b) => b[1] - a[1]);
+        if (ranked.length) store.platoFavorito = ranked[0][0];
+        return { experienciaGanada: xp, experienciaTotal: user.experiencia, nivelPrevio: before.nivel,
+          nuevoNivel: level.nivel, subioNivel: level.nivel > before.nivel,
+          rangoTitulo: level.rangoTitulo, insigniaEmoji: level.insigniaEmoji };
+      }
+    });
+    const record = { ...receipt, usuario: comprador, usuarioNorm: key, items: Array.isArray(items) ? items.join(', ') : String(items || ''),
+      itemsKeys, cantidadPlatos: count, costoTotal: cost, origen: 'tiendita_widget' };
+    // Los informes son secundarios: su fallo no deshace ni repite el cobro confirmado.
     try {
-      const txRef = push(ref(this.rtdb, NODE_TRANSACTIONS));
-      transaccion.id = txRef.key;
-      await set(txRef, transaccion);
-
-      const userRef = ref(this.rtdb, `${NODE_USERS}/${key}`);
-      await runTransaction(userRef, (u) => {
-        const prevXpReal = (u?.experiencia !== undefined && u?.experiencia !== null)
-          ? Math.max(0, parseInt(u.experiencia, 10) || 0)
-          : ((u?.asistenciasCount || 0) * 200);
-        const nivelActual = calcularNivelUsuario({
-          experiencia: prevXpReal,
-          asistenciasCount: u?.asistenciasCount || 0,
-          tituloPersonalizado: u?.tituloPersonalizado || null
-        }).nivel;
-        xpOtorgada = calcularXpCompra(gastoPuntos, nivelActual);
-
-        if (!u) {
-          totalXpUsuario = xpOtorgada;
-          const nivelInfo = calcularNivelUsuario({ experiencia: totalXpUsuario, asistenciasCount: 0 });
-          nuevoNivel = nivelInfo.nivel;
-          rangoTituloNuevo = nivelInfo.rangoTitulo;
-          insigniaEmojiNueva = nivelInfo.insigniaEmoji;
-          u = {
-            username: key,
-            displayName: comprador,
-            jikopuntos: nuevoSaldo,
-            totalGastado: gastoPuntos,
-            totalCompras: 1,
-            experiencia: totalXpUsuario,
-            nivel: nuevoNivel,
-            rangoTitulo: rangoTituloNuevo,
-            insigniaEmoji: insigniaEmojiNueva,
-            porcentajeProgreso: nivelInfo.porcentajeProgreso,
-            xpEnNivel: nivelInfo.xpEnNivel,
-            xpParaSubir: nivelInfo.xpParaSubir,
-            xpFaltante: nivelInfo.xpFaltante,
-            ultimaActividad: ahora,
-            widgets: { tiendita: { pedidosCount: 1, platillosTotales: transaccion.cantidadPlatos, ultimoPedido: ahora } },
-            stats: { platosConsumidos: {} }
-          };
-        } else {
-          u.jikopuntos = nuevoSaldo;
-          u.totalGastado = (u.totalGastado || 0) + gastoPuntos;
-          u.totalCompras = (u.totalCompras || 0) + 1;
-          u.ultimaActividad = ahora;
-
-          // XP de compra: 10% del gasto, reducida además por el nivel actual.
-          nivelPrevio = nivelActual;
-          totalXpUsuario = prevXpReal + xpOtorgada;
-          u.experiencia = totalXpUsuario;
-
-          const nivelInfo = calcularNivelUsuario({
-            experiencia: totalXpUsuario,
-            asistenciasCount: u.asistenciasCount || 0,
-            tituloPersonalizado: u.tituloPersonalizado || null
-          });
-          nuevoNivel = nivelInfo.nivel;
-          rangoTituloNuevo = nivelInfo.rangoTitulo;
-          insigniaEmojiNueva = nivelInfo.insigniaEmoji;
-          subioNivel = nuevoNivel > nivelPrevio;
-
-          u.nivel = nuevoNivel;
-          u.rangoTitulo = rangoTituloNuevo;
-          u.insigniaEmoji = insigniaEmojiNueva;
-          u.porcentajeProgreso = nivelInfo.porcentajeProgreso;
-          u.xpEnNivel = nivelInfo.xpEnNivel;
-          u.xpParaSubir = nivelInfo.xpParaSubir;
-          u.xpFaltante = nivelInfo.xpFaltante;
-
-          if (!u.widgets) u.widgets = {};
-          if (!u.widgets.tiendita) u.widgets.tiendita = {};
-          u.widgets.tiendita.pedidosCount = (u.widgets.tiendita.pedidosCount || 0) + 1;
-          u.widgets.tiendita.platillosTotales = (u.widgets.tiendita.platillosTotales || 0) + transaccion.cantidadPlatos;
-          u.widgets.tiendita.ultimoPedido = ahora;
-
-          if (!u.stats) u.stats = {};
-          if (!u.stats.platosConsumidos) u.stats.platosConsumidos = {};
-
-          itemsKeys.forEach(k => {
-            u.stats.platosConsumidos[k] = (u.stats.platosConsumidos[k] || 0) + 1;
-          });
-
-          let fav = null;
-          let maxCount = 0;
-          for (const [pk, count] of Object.entries(u.stats.platosConsumidos)) {
-            if (count > maxCount) {
-              maxCount = count;
-              fav = pk;
-            }
-          }
-          if (fav) u.widgets.tiendita.platoFavorito = fav;
-        }
-        return u;
-      });
-
-      transaccion.experienciaGanada = xpOtorgada;
-      transaccion.experienciaTotal = totalXpUsuario;
-      transaccion.nivelPrevio = nivelPrevio;
-      transaccion.nuevoNivel = nuevoNivel;
-      transaccion.subioNivel = subioNivel;
-      transaccion.rangoTitulo = rangoTituloNuevo;
-      transaccion.insigniaEmoji = insigniaEmojiNueva;
-      await update(txRef, {
-        experienciaGanada: xpOtorgada,
-        experienciaTotal: totalXpUsuario,
-        nivelPrevio,
-        nuevoNivel,
-        subioNivel,
-        rangoTitulo: rangoTituloNuevo,
-        insigniaEmoji: insigniaEmojiNueva
-      });
-
-      const resumenRef = ref(this.rtdb, `${NODE_STATS}/resumen`);
-      await runTransaction(resumenRef, (res) => {
-        if (!res) res = {};
-        res.totalVentasPts = (res.totalVentasPts || 0) + gastoPuntos;
-        res.totalOrdenes = (res.totalOrdenes || 0) + 1;
-        res.totalPlatillosServidos = (res.totalPlatillosServidos || 0) + transaccion.cantidadPlatos;
-        res.ultimoPedidoTimestamp = ahora;
-        res.ultimaActualizacion = ahora;
-        return res;
-      });
-
-      for (const k of itemsKeys) {
-        const prodRef = ref(this.rtdb, `${NODE_STATS}/rankingProductos/${k}`);
-        await runTransaction(prodRef, (p) => {
-          if (!p) p = { key: k, totalVendidos: 0 };
-          p.totalVendidos = (p.totalVendidos || 0) + 1;
-          p.ultimoVendido = ahora;
-          return p;
-        });
+      await set(ref(this.rtdb, NODE_TRANSACTIONS + '/' + P.key(receipt.id)), record);
+      if (!receipt.duplicadoIgnorado) {
+        await runTransaction(ref(this.rtdb, NODE_STATS + '/resumen'), value => ({ ...(value || {}),
+          totalVentasPts: (value?.totalVentasPts || 0) + cost, totalOrdenes: (value?.totalOrdenes || 0) + 1,
+          totalPlatillosServidos: (value?.totalPlatillosServidos || 0) + count, ultimaActualizacion: Date.now() }));
+        for (const item of itemsKeys) await runTransaction(ref(this.rtdb, NODE_STATS + '/rankingProductos/' + item), value => ({ ...(value || {}),
+          key: item, totalVendidos: (value?.totalVendidos || 0) + 1, ultimoVendido: Date.now() }));
+        await runTransaction(ref(this.rtdb, NODE_STATS + '/rankingUsuarios/' + key), value => ({ ...(value || {}),
+          username: key, displayName: comprador, totalGastado: (value?.totalGastado || 0) + cost,
+          comprasCount: (value?.comprasCount || 0) + 1, platillosCount: (value?.platillosCount || 0) + count,
+          saldoActual: receipt.nuevoSaldo, experienciaTotal: receipt.experienciaTotal, nivel: receipt.nuevoNivel, ultimoGastoTimestamp: Date.now() }));
       }
-
-      const rankingUserRef = ref(this.rtdb, `${NODE_STATS}/rankingUsuarios/${key}`);
-      await runTransaction(rankingUserRef, (ru) => {
-        if (!ru) {
-          ru = {
-            username: key,
-            displayName: comprador,
-            totalGastado: gastoPuntos,
-            comprasCount: 1,
-            platillosCount: transaccion.cantidadPlatos,
-            saldoActual: nuevoSaldo,
-            experienciaTotal: totalXpUsuario,
-            nivel: nuevoNivel,
-            ultimoGastoTimestamp: ahora
-          };
-        } else {
-          ru.totalGastado = (ru.totalGastado || 0) + gastoPuntos;
-          ru.comprasCount = (ru.comprasCount || 0) + 1;
-          ru.platillosCount = (ru.platillosCount || 0) + transaccion.cantidadPlatos;
-          ru.saldoActual = nuevoSaldo;
-          ru.experienciaTotal = totalXpUsuario;
-          ru.nivel = nuevoNivel;
-          ru.ultimoGastoTimestamp = ahora;
-        }
-        return ru;
-      });
-
-      if (this.usersCache.has(key)) {
-        const cached = this.usersCache.get(key);
-        cached.jikopuntos = nuevoSaldo;
-        cached.experiencia = totalXpUsuario;
-        cached.nivel = nuevoNivel;
-        cached.rangoTitulo = rangoTituloNuevo;
-        cached.insigniaEmoji = insigniaEmojiNueva;
-      }
-
-      console.log(`[StreamDB] 🛒 Compra registrada para @${comprador}: -${gastoPuntos} pts | +${xpOtorgada} XP (10% base, ajustado por nivel) -> Total XP: ${totalXpUsuario} (Nvl ${nuevoNivel})`);
-      return transaccion;
-    } catch (err) {
-      console.error('[StreamDB] Error al registrar compra:', err);
-      return transaccion;
-    }
+    } catch (error) { console.warn('[StreamDB] Compra confirmada; informe pendiente:', error.message); }
+    return record;
   }
 
   async registrarTransferencia({ admin, receptor, cantidad, motivo = 'Regalo de streamer' }) {
@@ -3641,14 +3222,13 @@ class StreamFirebaseService {
         const fbUser = firebaseUsers[uKey];
 
         if (fbUser) {
-          // El usuario ya existe en Firebase: sincronizar puntos respetando el saldo mayor para no perder puntos de Firebase
+          // Firebase conserva el saldo confirmado; localStorage solo aporta metadatos.
           const asistencias = Math.max(fbUser.asistenciasCount || 0, localData.asistenciasCount || 0);
           const nivelInfo = calcularNivelUsuario(asistencias);
-          const safePts = Math.max(Number(fbUser.jikopuntos) || 0, localPts);
+          const safePts = Math.max(0, Number(fbUser.jikopuntos) || 0);
           const totalGanado = Math.max(fbUser.totalGanado || 0, safePts + (fbUser.totalGastado || 0));
 
           const userUpdates = {
-            jikopuntos: safePts,
             totalGanado: totalGanado,
             asistenciasCount: asistencias,
             nivel: nivelInfo.nivel,
@@ -3717,9 +3297,10 @@ class StreamFirebaseService {
             }
           };
 
-          await set(ref(this.rtdb, `${NODE_USERS}/${uKey}`), newUser);
+          const created = await runTransaction(ref(this.rtdb, NODE_USERS + '/' + uKey), current => current || newUser, { applyLocally: false });
+          Object.assign(newUser, created.snapshot.val());
 
-          this._updateLocalCache(uKey, localPts);
+          this._updateLocalCache(uKey, newUser.jikopuntos);
           this.usersCache.set(uKey, newUser);
 
           statsResult.nuevosEnFirebase++;
@@ -3737,7 +3318,7 @@ class StreamFirebaseService {
         await update(rankingUserRef, {
           username: localData.displayName || uKey,
           usuarioNorm: uKey,
-          saldoActual: localPts,
+          saldoActual: this.usersCache.get(uKey)?.jikopuntos ?? localPts,
           ultimaActividad: Date.now()
         });
 
@@ -3749,7 +3330,7 @@ class StreamFirebaseService {
     // 7. Asegurar que usuarios existentes en Firebase que no estaban en localStorage se guarden localmente
     for (const [fbKey, fbUser] of Object.entries(firebaseUsers)) {
       if (fbKey && fbKey !== 'undefined' && !localUsersMap.has(fbKey)) {
-        this._updateLocalCache(fbKey, fbUser.jikopuntos || USER_DEFAULT_POINTS);
+        this._updateLocalCache(fbKey, fbUser.jikopuntos ?? USER_DEFAULT_POINTS);
       }
     }
 
@@ -3826,7 +3407,7 @@ class StreamFirebaseService {
     const rawKey = norm(username);
     const key = this.resolverUsuarioReal(rawKey);
     if (!key) return null;
-    const user = await this.getUser(key);
+    const user = await this.getUser(key, true);
     if (!user) return null;
 
     const saldoBruto = Math.max(0, parseInt(user.jikopuntos, 10) || 0);
@@ -3849,66 +3430,35 @@ class StreamFirebaseService {
   }
 
   // Solicitar un préstamo (P2P entre usuarios o directo a JikoBank)
-  async solicitarPrestamo({ solicitante, acreedor, monto }) {
+  async solicitarPrestamo({ solicitante, acreedor = 'jikobank', monto, operacionId = null }) {
     await this.init();
-    const solNorm = norm(solicitante);
-    const montoNum = Math.max(1, parseInt(monto, 10) || 0);
-
-    if (!solNorm) throw new Error('Usuario solicitante inválido');
-    if (montoNum <= 0) throw new Error('El monto debe ser mayor a 0');
-
-    const acrNorm = norm(acreedor);
-    const esBanco = (acrNorm === 'jikobank' || acrNorm === 'jiko' || acrNorm === 'banco');
-
-    if (!esBanco && solNorm === acrNorm) {
-      throw new Error('No puedes pedirte un préstamo a ti mismo');
-    }
-
-    // Calcular tasa de interés del 2%
-    const interesMonto = Math.max(1, Math.round(montoNum * TASA_INTERES_PRESTAMO));
-    const totalAPagar = montoNum + interesMonto;
-    const ahora = Date.now();
-
-    // Asegurar perfiles en Firebase
-    await this.getUser(solNorm);
-    if (!esBanco) {
-      const acreedorUser = await this.getUser(acrNorm);
-      if (!acreedorUser || (acreedorUser.jikopuntos || 0) < montoNum) {
-        throw new Error(`@${acrNorm} no cuenta con saldo suficiente (${montoNum} JP) para prestarte.`);
-      }
-    }
-
-    const nuevoPrestamo = {
-      solicitante: solNorm,
-      acreedor: esBanco ? 'jikobank' : acrNorm,
-      montoOriginal: montoNum,
-      interesTasa: TASA_INTERES_PRESTAMO,
-      interesMonto: interesMonto,
-      totalAPagar: totalAPagar,
-      saldoPendiente: totalAPagar,
-      tipo: esBanco ? 'banco' : 'p2p',
-      estado: esBanco ? 'pendiente_firma' : 'pendiente',
-      timestamp: ahora,
-      fechaSolicitud: ahora,
-      fechaSolicitudLegible: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })
-    };
-
-    const prestamoRef = push(ref(this.rtdb, NODE_LOANS));
-    const prestamoId = prestamoRef.key;
-    await set(prestamoRef, { ...nuevoPrestamo, id: prestamoId });
-
-    console.log(`[StreamDB] 🏦 Préstamo #${prestamoId} registrado (${nuevoPrestamo.tipo}): @${solNorm} solicita ${montoNum} JP a ${nuevoPrestamo.acreedor}`);
-
-    return {
-      success: true,
-      prestamoId: prestamoId,
-      prestamo: { ...nuevoPrestamo, id: prestamoId },
-      esBanco: esBanco,
-      interesPorcentaje: '2%'
-    };
+    const P = globalThis.JikoPointsEngine;
+    const sender = this.resolverUsuarioReal(norm(solicitante));
+    const bank = ['jikobank', 'jiko', 'banco'].includes(norm(acreedor));
+    const lender = bank ? 'jikobank' : this.resolverUsuarioReal(norm(acreedor));
+    const amount = P.integer(monto, true);
+    if (!sender || !lender || sender === lender) throw new Error('Solicitante o acreedor no válido.');
+    await this.getUser(sender, true);
+    if (!bank && (await this.getUser(lender, true)).jikopuntos < amount) throw new Error('El acreedor no tiene saldo suficiente.');
+    const now = Date.now();
+    const generated = operacionId ? P.key('solicitud:' + operacionId) : push(ref(this.rtdb, NODE_LOANS)).key;
+    let target = generated;
+    const result = await runTransaction(ref(this.rtdb, NODE_LOANS), loans => {
+      loans ||= {};
+      const previous = Object.entries(loans).find(([id, loan]) => id === generated ||
+        (!operacionId && loan.solicitante === sender && loan.acreedor === lender && loan.montoOriginal === amount && now - loan.timestamp < 5000));
+      if (previous) { target = previous[0]; return loans; }
+      const interest = Math.round(amount * TASA_INTERES_PRESTAMO);
+      loans[generated] = { id: generated, solicitante: sender, acreedor: lender, montoOriginal: amount,
+        interesTasa: TASA_INTERES_PRESTAMO, interesMonto: interest, totalAPagar: amount + interest, saldoPendiente: amount + interest,
+        tipo: bank ? 'banco' : 'p2p', estado: bank ? 'pendiente_firma' : 'pendiente', timestamp: now, fechaSolicitud: now };
+      target = generated;
+      return loans;
+    }, { applyLocally: false });
+    if (!result.committed) throw new Error('No se pudo guardar la solicitud.');
+    return { success: true, prestamoId: target, prestamo: result.snapshot.val()[target], esBanco: bank, interesPorcentaje: '2%' };
   }
 
-  // Confirmar/Aceptar/Firmar préstamo pendiente
   async confirmarPrestamo({ autorizador, prestamoId = null }) {
     await this.init();
     const autNorm = norm(autorizador);
@@ -3958,42 +3508,15 @@ class StreamFirebaseService {
     const totalAPagar = pData.totalAPagar;
     const ahora = Date.now();
 
-    // 1. Si es P2P, verificar y debitar fondos del acreedor
-    if (!esBanco) {
-      const acrNorm = norm(pData.acreedor);
-      const acrRef = ref(this.rtdb, `${NODE_USERS}/${acrNorm}`);
-      let fondosSuficientes = true;
-
-      await runTransaction(acrRef, (actual) => {
-        if (!actual || (actual.jikopuntos || 0) < monto) {
-          fondosSuficientes = false;
-          return actual;
-        }
-        actual.jikopuntos = (actual.jikopuntos || 0) - monto;
-        actual.totalGastado = (actual.totalGastado || 0) + monto;
-        actual.ultimaActividad = ahora;
-        return actual;
-      });
-
-      if (!fondosSuficientes) {
-        throw new Error(`@${acrNorm} no tiene suficientes Jikopuntos (${monto} JP) para completar el préstamo.`);
-      }
-      this._updateLocalCache(acrNorm, (await this.getUser(acrNorm))?.jikopuntos);
-    }
-
-    // 2. Acreditar monto original al solicitante y cargar deuda total (capital + 2% interés)
-    const solRef = ref(this.rtdb, `${NODE_USERS}/${solNorm}`);
-    await runTransaction(solRef, (actual) => {
-      if (!actual) return actual;
-      actual.jikopuntos = (actual.jikopuntos || 0) + monto;
-      actual.totalGanado = (actual.totalGanado || 0) + monto;
-      actual.deudaTotal = Math.max(0, (actual.deudaTotal || 0) + totalAPagar);
-      actual.ultimaActividad = ahora;
-      return actual;
+    // El ID del préstamo protege cada débito/crédito incluso con dos widgets o reintentos.
+    if (!esBanco) await this._operarPuntos(norm(pData.acreedor), -monto, {
+      operacionId: 'prestamo:' + targetKey + ':acreedor', firma: 'prestamo_otorgado:' + targetKey
     });
-
-    const solUserActualizado = await this.getUser(solNorm);
-    this._updateLocalCache(solNorm, solUserActualizado?.jikopuntos);
+    await this._operarPuntos(solNorm, monto, {
+      operacionId: 'prestamo:' + targetKey + ':solicitante', firma: 'prestamo_recibido:' + targetKey,
+      modificar: user => { user.deudaTotal = (user.deudaTotal || 0) + totalAPagar; }
+    });
+    const solUserActualizado = await this.getUser(solNorm, true);
 
     // 3. Actualizar estado del préstamo a activo
     const pRef = ref(this.rtdb, `${NODE_LOANS}/${targetKey}`);
@@ -4083,207 +3606,117 @@ class StreamFirebaseService {
   }
 
   // Pagar deuda / amortizar préstamos activos (!pagarprestamo [monto])
-  async pagarPrestamo({ deudor, monto = null }) {
+  async pagarPrestamo({ deudor, monto = null, operacionId = null }) {
     await this.init();
-    const dNorm = norm(deudor);
-    if (!dNorm) throw new Error('Usuario deudor inválido');
-
-    const user = await this.getUser(dNorm);
-    if (!user) throw new Error('Usuario no encontrado');
-
-    const deudaTotal = Math.max(0, parseInt(user.deudaTotal, 10) || 0);
-    if (deudaTotal <= 0) {
-      throw new Error(`¡Felicidades @${dNorm}! No tienes ninguna deuda pendiente en JikoBank.`);
-    }
-
-    const saldoActual = Math.max(0, parseInt(user.jikopuntos, 10) || 0);
-    if (saldoActual <= 0) {
-      throw new Error(`@${dNorm}, no tienes Jikopuntos disponibles para abonar a tu deuda.`);
-    }
-
-    // Determinar cuánto se puede pagar
-    let montoDeseado = monto !== null ? Math.max(1, parseInt(monto, 10) || 0) : deudaTotal;
-    const montoAPagar = Math.min(saldoActual, deudaTotal, montoDeseado);
-
-    if (montoAPagar <= 0) {
-      throw new Error('El monto a pagar debe ser mayor a 0');
-    }
-
-    const ahora = Date.now();
-
-    // 1. Obtener préstamos activos del deudor para amortizarlos en orden FIFO
-    const snap = await get(ref(this.rtdb, NODE_LOANS));
-    const prestamosActivos = [];
-    if (snap.exists()) {
-      snap.forEach(child => {
-        const p = child.val();
-        if (p && norm(p.solicitante) === dNorm && p.estado === 'activo' && (p.saldoPendiente || 0) > 0) {
-          prestamosActivos.push({ ...p, id: child.key });
+    const P = globalThis.JikoPointsEngine;
+    const userKey = this.resolverUsuarioReal(norm(deudor));
+    const requested = monto === null ? null : P.integer(monto, true);
+    const signature = 'pago_prestamo:' + userKey + ':' + (requested ?? 'total');
+    let user = await this.getUser(userKey, true);
+    const existing = operacionId && user.operacionesPuntos?.[P.key(operacionId)];
+    const recent = user.ultimasOperacionesPuntos?.[P.key(signature)];
+    let receipt = existing || (user.pagoBancoPendiente ? user.operacionesPuntos?.[P.key(user.pagoBancoPendiente)] : null) || (!operacionId && recent && Date.now() - recent.timestamp < 5000
+      ? user.operacionesPuntos?.[P.key(recent.id)] : null);
+    if (receipt && receipt.firma !== signature) throw new Error('El mensaje pertenece a otra operación.');
+    if (user.pagoBancoPendiente && user.pagoBancoPendiente !== receipt?.id) throw new Error('Hay un pago pendiente de confirmar. Reintenta el mismo pago antes de iniciar otro.');
+    if (!receipt) {
+      const amount = Math.min(P.balance(user.jikopuntos), P.balance(user.deudaTotal), requested ?? Number.MAX_SAFE_INTEGER);
+      if (amount <= 0) throw new Error('No hay saldo o deuda disponible para este pago.');
+      const loans = (await get(ref(this.rtdb, NODE_LOANS))).val() || {};
+      const active = Object.entries(loans).filter(([, loan]) => norm(loan.solicitante) === userKey && loan.estado === 'activo' && loan.saldoPendiente > 0)
+        .sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+      let remaining = amount;
+      const payments = [];
+      for (const [id, loan] of active) {
+        const abono = Math.min(remaining, P.balance(loan.saldoPendiente));
+        if (abono > 0) payments.push({ id, abono, acreedor: norm(loan.acreedor), tipo: loan.tipo });
+        remaining -= abono;
+        if (!remaining) break;
+      }
+      const actual = amount - remaining;
+      if (!actual) throw new Error('No se encontraron préstamos activos para aplicar el pago.');
+      const id = operacionId || push(ref(this.rtdb, NODE_TRANSFERS)).key;
+      receipt = await this._operarPuntos(userKey, -actual, { operacionId: id, firma: signature, deduplicar: true,
+        modificar: current => {
+          if (current.pagoBancoPendiente || P.balance(current.deudaTotal) < actual) throw new Error('Otro pago está en curso. Reintenta cuando termine.');
+          current.deudaTotal = P.balance(current.deudaTotal) - actual;
+          current.pagoBancoPendiente = id;
+          return { pagos: payments, montoPagado: actual };
         }
       });
-      prestamosActivos.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
     }
-
-    let restantePorDistribuir = montoAPagar;
-
-    for (const p of prestamosActivos) {
-      if (restantePorDistribuir <= 0) break;
-
-      const deudaEstePrestamo = Math.max(0, parseInt(p.saldoPendiente, 10) || 0);
-      const abono = Math.min(restantePorDistribuir, deudaEstePrestamo);
-      const nuevoSaldoPrestamo = deudaEstePrestamo - abono;
-      const pagadoTotalmente = nuevoSaldoPrestamo <= 0;
-
-      // Si fue préstamo P2P a otro usuario, devolverle su capital/intereses amortizados
-      if (p.tipo === 'p2p' && p.acreedor && norm(p.acreedor) !== 'jikobank') {
-        const acrNorm = norm(p.acreedor);
-        const acrRef = ref(this.rtdb, `${NODE_USERS}/${acrNorm}`);
-        await runTransaction(acrRef, (actual) => {
-          if (!actual) return actual;
-          actual.jikopuntos = (actual.jikopuntos || 0) + abono;
-          actual.totalGanado = (actual.totalGanado || 0) + abono;
-          actual.ultimaActividad = ahora;
-          return actual;
+    // El saldo del deudor ya está descontado. Los pasos siguientes se pueden reanudar sin volver a cobrar.
+    for (const payment of receipt.pagos) {
+      const loanRef = ref(this.rtdb, NODE_LOANS + '/' + payment.id);
+      const applied = await runTransaction(loanRef, loan => {
+        if (!loan) return;
+        loan.pagosAplicados ||= {};
+        if (loan.pagosAplicados[P.key(receipt.id)]) return loan;
+        if (P.balance(loan.saldoPendiente) < payment.abono) throw new Error('El préstamo cambió mientras se confirmaba el pago.');
+        loan.saldoPendiente -= payment.abono;
+        loan.estado = loan.saldoPendiente === 0 ? 'pagado' : 'activo';
+        loan.pagosAplicados[P.key(receipt.id)] = payment.abono;
+        loan.ultimoPagoTimestamp = receipt.timestamp;
+        loan.ultimoAbono = payment.abono;
+        return loan;
+      }, { applyLocally: false });
+      if (!applied.committed) throw new Error('No se pudo confirmar el abono del préstamo.');
+      if (payment.tipo === 'p2p' && payment.acreedor !== 'jikobank') {
+        await this._operarPuntos(payment.acreedor, payment.abono, {
+          operacionId: receipt.id + ':' + payment.id + ':acreedor', firma: 'cobro_prestamo:' + userKey
         });
-        this._updateLocalCache(acrNorm, (await this.getUser(acrNorm))?.jikopuntos);
       }
-
-      // Actualizar estado del préstamo
-      await update(ref(this.rtdb, `${NODE_LOANS}/${p.id}`), {
-        saldoPendiente: nuevoSaldoPrestamo,
-        estado: pagadoTotalmente ? 'pagado' : 'activo',
-        ultimoPagoTimestamp: ahora,
-        ultimoAbono: abono,
-        ...(pagadoTotalmente ? { fechaPagoCompleto: ahora } : {})
-      });
-
-      restantePorDistribuir -= abono;
     }
-
-    // 2. Debitar del deudor y rebajar deudaTotal
-    const deudorRef = ref(this.rtdb, `${NODE_USERS}/${dNorm}`);
-    await runTransaction(deudorRef, (actual) => {
-      if (!actual) return actual;
-      actual.jikopuntos = Math.max(0, (actual.jikopuntos || 0) - montoAPagar);
-      actual.totalGastado = (actual.totalGastado || 0) + montoAPagar;
-      actual.deudaTotal = Math.max(0, (actual.deudaTotal || 0) - montoAPagar);
-      actual.ultimaActividad = ahora;
-      return actual;
-    });
-
-    const userFinal = await this.getUser(dNorm);
-    this._updateLocalCache(dNorm, userFinal?.jikopuntos);
-
-    console.log(`[StreamDB] 💳 Pago completado por @${dNorm}: Abono de ${montoAPagar} JP. Deuda restante: ${userFinal.deudaTotal} JP.`);
-
-    return {
-      success: true,
-      deudor: dNorm,
-      montoPagado: montoAPagar,
-      deudaRestante: userFinal.deudaTotal || 0,
-      saldoRestante: userFinal.jikopuntos || 0,
-      totalmenteSaldado: (userFinal.deudaTotal || 0) === 0
-    };
+    await runTransaction(ref(this.rtdb, NODE_USERS + '/' + userKey), current => {
+      if (current?.pagoBancoPendiente === receipt.id) { delete current.pagoBancoPendiente; }
+      return current;
+    }, { applyLocally: false });
+    user = await this.getUser(userKey, true);
+    return { success: true, deudor: userKey, montoPagado: receipt.montoPagado,
+      deudaRestante: user.deudaTotal || 0, saldoRestante: user.jikopuntos, totalmenteSaldado: !user.deudaTotal };
   }
 
-  // Regalo Solidario (!regalar @usuario [cantidad]) - 0% interés, no genera deuda
-  async regalarJikopuntos({ remitente, receptor, cantidad }) {
+  async regalarJikopuntos({ remitente, receptor, cantidad, operacionId = null }) {
     await this.init();
-    let recRaw = receptor;
-    let cantRaw = cantidad;
-
-    // Protección defensiva en caso de argumentos invertidos (ej: { receptor: '12', cantidad: '@user' })
-    if ((typeof recRaw === 'number' || /^\d+$/.test(String(recRaw || '').trim())) && 
-        (typeof cantRaw === 'string' && (cantRaw.startsWith('@') || !/^\d+$/.test(cantRaw.trim())))) {
-      const temp = recRaw;
-      recRaw = cantRaw;
-      cantRaw = temp;
-    }
-
-    const remNorm = norm(remitente);
-    const recNorm = norm(recRaw);
-    const cantNum = Math.max(1, parseInt(cantRaw, 10) || 0);
-
-    if (!remNorm) throw new Error('Remitente no válido');
-    if (!recNorm) throw new Error('Debes especificar a qué usuario regalarle');
-    if (remNorm === recNorm) throw new Error('No puedes regalarte Jikopuntos a ti mismo');
-    if (cantNum <= 0) throw new Error('La cantidad a regalar debe ser mayor a 0');
-
-    const remUser = await this.getUser(remNorm);
-    if (!remUser || (remUser.jikopuntos || 0) < cantNum) {
-      throw new Error(`Saldo insuficiente. Tienes ${remUser?.jikopuntos || 0} JP y deseas regalar ${cantNum} JP.`);
-    }
-
-    const recUser = await this.getUser(recNorm); // Asegurar existencia del receptor
-    const ahora = Date.now();
-    const saldoRemAntes = remUser?.jikopuntos || 0;
-    const saldoRecAntes = recUser?.jikopuntos || 0;
-
-    // Debitar de remitente
-    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${remNorm}`), (u) => {
-      if (!u) return u;
-      u.jikopuntos = Math.max(0, (u.jikopuntos || 0) - cantNum);
-      u.totalGastado = (u.totalGastado || 0) + cantNum;
-      u.ultimaActividad = ahora;
-      return u;
+    const P = globalThis.JikoPointsEngine;
+    const sender = this.resolverUsuarioReal(norm(remitente));
+    const target = this.resolverUsuarioReal(norm(receptor));
+    const amount = P.integer(cantidad, true);
+    if (!sender || !target || sender === target) throw new Error('Remitente o receptor no válido.');
+    await this.getUser(target, true);
+    // Una transferencia incompleta conserva el ID aunque se vuelva a escribir el comando en el chat.
+    const signature = 'regalo:' + sender + ':' + target + ':' + amount;
+    const senderUser = await this.getUser(sender, true);
+    const pendingId = senderUser.regalosPendientes?.[P.key(signature)];
+    const transferId = pendingId || operacionId || push(ref(this.rtdb, NODE_TRANSFERS)).key;
+    const debit = await this._operarPuntos(sender, -amount, { operacionId: transferId,
+      idExplicito: !!(pendingId || operacionId), firma: signature, deduplicar: true,
+      modificar: user => {
+        user.regalosPendientes ||= {};
+        const pending = user.regalosPendientes[P.key(signature)];
+        if (pending && pending !== transferId) throw new Error('Ese regalo todavía se está confirmando. Reintenta al terminar.');
+        user.regalosPendientes[P.key(signature)] = transferId;
+      }
     });
-
-    // Acreditar a receptor
-    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${recNorm}`), (u) => {
-      if (!u) return u;
-      u.jikopuntos = (u.jikopuntos || 0) + cantNum;
-      u.totalGanado = (u.totalGanado || 0) + cantNum;
-      u.ultimaActividad = ahora;
-      return u;
-    });
-
-    const [finalRem, finalRec] = await Promise.all([
-      this.getUser(remNorm),
-      this.getUser(recNorm)
-    ]);
-
-    this._updateLocalCache(remNorm, finalRem?.jikopuntos);
-    this._updateLocalCache(recNorm, finalRec?.jikopuntos);
-
-    // Registrar en transferencias de tienda
-    try {
-      const transRef = push(ref(this.rtdb, NODE_TRANSFERS));
-      await set(transRef, {
-        remitente: remNorm,
-        receptor: recNorm,
-        cantidad: cantNum,
-        tipo: 'regalo_solidario',
-        timestamp: ahora,
-        fechaLegible: new Date(ahora).toLocaleString('es-SV', { dateStyle: 'short', timeStyle: 'short' })
-      });
-      await this._incrementarEstadistica('totalTransferencias', 1);
-    } catch(e) {}
-
-    console.log(`[StreamDB] 🎁 Regalo solidario: @${remNorm} regaló ${cantNum} JP a @${recNorm} (Rem: ${saldoRemAntes} -> ${finalRem?.jikopuntos}, Rec: ${saldoRecAntes} -> ${finalRec?.jikopuntos})`);
-
-    return {
-      success: true,
-      exito: true,
-      remitente: remNorm,
-      receptor: recNorm,
-      cantidad: cantNum,
-      monto: cantNum,
-      saldoRemitenteAntes: saldoRemAntes,
-      saldoRemitenteDespues: finalRem?.jikopuntos || 0,
-      saldoRemitente: finalRem?.jikopuntos || 0,
-      saldoReceptorAntes: saldoRecAntes,
-      saldoReceptorDespues: finalRec?.jikopuntos || 0,
-      saldoReceptor: finalRec?.jikopuntos || 0,
-      nuevoSaldoRemitente: finalRem?.jikopuntos || 0,
-      nuevoSaldoReceptor: finalRec?.jikopuntos || 0,
-      avatarRemitente: finalRem?.avatar,
-      avatarReceptor: finalRec?.avatar,
-      deudaRemitente: finalRem?.deudaTotal || 0,
-      deudaReceptor: finalRec?.deudaTotal || 0
-    };
+    const credit = await this._operarPuntos(target, amount, { operacionId: debit.id + ':receptor', firma: 'regalo_recibido:' + sender });
+    const [from, to] = await Promise.all([this.getUser(sender, true), this.getUser(target, true)]);
+    await set(ref(this.rtdb, NODE_TRANSFERS + '/' + P.key(debit.id)), {
+      remitente: sender, receptor: target, cantidad: amount, tipo: 'regalo_solidario', timestamp: debit.timestamp
+    }).catch(error => console.warn('[StreamDB] Transferencia confirmada; informe pendiente:', error.message));
+    await runTransaction(ref(this.rtdb, NODE_USERS + '/' + sender), user => {
+      if (user?.regalosPendientes?.[P.key(signature)] === debit.id) delete user.regalosPendientes[P.key(signature)];
+      return user;
+    }, { applyLocally: false });
+    return { success: true, exito: true, remitente: sender, receptor: target, cantidad: amount, monto: amount,
+      duplicadoIgnorado: debit.duplicadoIgnorado && credit.duplicadoIgnorado,
+      saldoRemitenteAntes: debit.saldoAnterior, saldoRemitenteDespues: from.jikopuntos,
+      saldoReceptorAntes: credit.saldoAnterior, saldoReceptorDespues: to.jikopuntos,
+      saldoRemitente: from.jikopuntos, saldoReceptor: to.jikopuntos,
+      nuevoSaldoRemitente: from.jikopuntos, nuevoSaldoReceptor: to.jikopuntos,
+      avatarRemitente: from.avatar || '', avatarReceptor: to.avatar || '',
+      deudaRemitente: from.deudaTotal || 0, deudaReceptor: to.deudaTotal || 0 };
   }
 
-  // Absolución de Deudas / Perdón (!perdonarprestamos [@usuario]) - Solo Broadcaster Jikokun
   async perdonarPrestamos({ admin, targetUser = null }) {
     await this.init();
     const admNorm = norm(admin);
@@ -4379,150 +3812,35 @@ class StreamFirebaseService {
   }
 
   // Entregar Jikopuntos a todos los asistentes (!darjikopuntos todos [cantidad]) - Solo Broadcaster Jikokun
-  async darJikopuntosTodos({ admin, cantidad }) {
+  async darJikopuntosTodos({ admin, cantidad, operacionId = null }) {
     await this.init();
-    const admNorm = norm(admin);
-    if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') {
-      throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
+    if (!['jikokun', 'broadcaster'].includes(norm(admin))) throw new Error('Comando exclusivo del due?o del canal.');
+    const cantNum = globalThis.JikoPointsEngine.integer(cantidad, true);
+    const stats = (await get(ref(this.rtdb, NODE_TRANS_STATS))).val();
+    const asistentes = stats?.streamActivoId
+      ? (await get(ref(this.rtdb, NODE_TRANSMISSIONS + '/' + stats.streamActivoId + '/asistentes'))).val() : null;
+    const users = asistentes && Object.keys(asistentes).length ? asistentes : (await get(ref(this.rtdb, NODE_USERS))).val() || {};
+    const lista = [];
+    for (const target of new Set(Object.keys(users).map(key => this.resolverUsuarioReal(norm(key))).filter(Boolean))) {
+      const result = await this._operarPuntos(target, cantNum, {
+        operacionId, firma: 'regalo_todos:' + cantNum, deduplicar: true
+      });
+      if (!result.duplicadoIgnorado) lista.push(target);
     }
-
-    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
-    if (cantNum <= 0) throw new Error('La cantidad de puntos debe ser mayor a 0');
-
-    // Deduplicación atómica para bonificación masiva
-    const ahora = Date.now();
-    if (this._darPuntosTodosLock && (ahora - this._darPuntosTodosLock < 5000)) {
-      console.log(`[StreamDB] ℹ️ darJikopuntosTodos duplicado ignorado (${cantNum} pts ya repartidos hace <5s)`);
-      return {
-        success: true,
-        cantidad: cantNum,
-        usuariosBeneficiados: 0,
-        duplicadoIgnorado: true
-      };
-    }
-    this._darPuntosTodosLock = ahora;
-
-    let usuariosBeneficiados = 0;
-    const listaUsuarios = [];
-
-    // Prioridad 1: Asistentes del stream activo
-    try {
-      const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
-      const streamId = statsSnap.exists() ? statsSnap.val().streamActivoId : null;
-      if (streamId) {
-        const asistSnap = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}/asistentes`));
-        if (asistSnap.exists()) {
-          const asistentes = asistSnap.val();
-          for (const key of Object.keys(asistentes)) {
-            const uNorm = norm(key);
-            if (!uNorm) continue;
-            await runTransaction(ref(this.rtdb, `${NODE_USERS}/${uNorm}`), (u) => {
-              if (!u) return u;
-              u.jikopuntos = (u.jikopuntos || 0) + cantNum;
-              u.totalGanado = (u.totalGanado || 0) + cantNum;
-              u.ultimaActividad = ahora;
-              return u;
-            });
-            usuariosBeneficiados++;
-            listaUsuarios.push(uNorm);
-          }
-        }
-      }
-    } catch(e) {}
-
-    // Si no había stream activo o ningún asistente conectado, aplicar a todos los usuarios registrados
-    if (usuariosBeneficiados === 0) {
-      const usersSnap = await get(ref(this.rtdb, NODE_USERS));
-      if (usersSnap.exists()) {
-        const users = usersSnap.val();
-        for (const [key, u] of Object.entries(users)) {
-          const uNorm = norm(key);
-          if (!uNorm) continue;
-          await runTransaction(ref(this.rtdb, `${NODE_USERS}/${uNorm}`), (userObj) => {
-            if (!userObj) return userObj;
-            userObj.jikopuntos = (userObj.jikopuntos || 0) + cantNum;
-            userObj.totalGanado = (userObj.totalGanado || 0) + cantNum;
-            userObj.ultimaActividad = ahora;
-            return userObj;
-          });
-          usuariosBeneficiados++;
-          listaUsuarios.push(uNorm);
-        }
-      }
-    }
-
-    console.log(`[StreamDB] 🎁 ¡Regalo Masivo de Jikokun! ${cantNum} JP entregados a ${usuariosBeneficiados} usuarios.`);
-
-    return {
-      success: true,
-      cantidad: cantNum,
-      usuariosBeneficiados: usuariosBeneficiados,
-      lista: listaUsuarios
-    };
+    return { success: true, cantidad: cantNum, usuariosBeneficiados: lista.length, lista, duplicadoIgnorado: lista.length === 0 };
   }
 
-  // Entregar Jikopuntos a un usuario específico (!darjikopuntos @usuario [cantidad]) - Solo Broadcaster Jikokun
-  async darJikopuntosUsuario({ admin, targetUser, cantidad }) {
-    await this.init();
+  async darJikopuntosUsuario({ admin, targetUser, cantidad, operacionId = null }) {
     const admNorm = norm(admin);
-    if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') {
-      throw new Error('Comando exclusivo del dueño del canal (@jikokun).');
-    }
-
-    const targetNorm = norm(targetUser);
-    const cantNum = Math.max(1, parseInt(cantidad, 10) || 0);
-
-    if (!targetNorm) throw new Error('Usuario destino no válido');
-    if (cantNum <= 0) throw new Error('La cantidad debe ser mayor a 0');
-
-    // Deduplicación atómica para evitar que múltiples widgets en OBS dupliquen los puntos
-    if (!this._darPuntosLocks) {
-      this._darPuntosLocks = new Map();
-    }
-    const ahora = Date.now();
-    const dedupeKey = `${targetNorm}_${cantNum}`;
-    const lastExec = this._darPuntosLocks.get(dedupeKey) || 0;
-    if (ahora - lastExec < 4000) {
-      console.log(`[StreamDB] ℹ️ darJikopuntosUsuario duplicado ignorado para @${targetNorm} (+${cantNum} pts ya procesados en los últimos 4s)`);
-      const existingUser = await this.getUser(targetNorm);
-      return {
-        success: true,
-        targetUser: targetNorm,
-        cantidad: cantNum,
-        nuevoSaldo: existingUser?.jikopuntos || 0,
-        duplicadoIgnorado: true
-      };
-    }
-    this._darPuntosLocks.set(dedupeKey, ahora);
-
-    await this.getUser(targetNorm); // asegurar que existe
-
-    await runTransaction(ref(this.rtdb, `${NODE_USERS}/${targetNorm}`), (u) => {
-      if (!u) return u;
-      u.jikopuntos = (u.jikopuntos || 0) + cantNum;
-      u.totalGanado = (u.totalGanado || 0) + cantNum;
-      u.ultimaActividad = ahora;
-      return u;
+    if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') throw new Error('Comando exclusivo del due?o del canal.');
+    const cantNum = globalThis.JikoPointsEngine.integer(cantidad, true);
+    const target = this.resolverUsuarioReal(norm(targetUser));
+    const receipt = await this._operarPuntos(target, cantNum, {
+      operacionId, firma: 'regalo_admin:' + target + ':' + cantNum, deduplicar: true
     });
-
-    const userFinal = await this.getUser(targetNorm);
-    this._updateLocalCache(targetNorm, userFinal?.jikopuntos);
-
-    console.log(`[StreamDB] 🎁 @jikokun otorgó ${cantNum} JP a @${targetNorm}. Saldo final: ${userFinal.jikopuntos} JP.`);
-
-    return {
-      success: true,
-      targetUser: targetNorm,
-      cantidad: cantNum,
-      nuevoSaldo: userFinal?.jikopuntos || 0
-    };
+    return { ...receipt, targetUser: target, cantidad: cantNum };
   }
 
-  // ==========================================================================
-  // 8.5 MÓDULO CATÁLOGO & STOCK DINÁMICO DE TIENDITA EN TIEMPO REAL
-  // ==========================================================================
-
-  // Obtener catálogo completo de ítems
   async obtenerTiendaItems() {
     await this.init();
     try {

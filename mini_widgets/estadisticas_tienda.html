@@ -6836,13 +6836,13 @@
       const key = norm(usuarioEncontradoActual.username);
       const val = localStorage.getItem('tiendita_pts_' + key);
       if (val !== null) {
-        const pts = parseInt(val, 10);
-        await StreamDB.setJikopuntos(key, pts, 'Sincronizado desde localStorage modal');
+        const pts = (await StreamDB.getUser(key, true)).jikopuntos;
+        localStorage.setItem('tiendita_pts_' + key, pts);
         usuarioEncontradoActual.jikopuntos = pts;
         document.getElementById('m-upc-balance').textContent = pts.toLocaleString() + ' pts';
         const upcBal = document.getElementById('upc-balance');
         if (upcBal) upcBal.textContent = pts.toLocaleString() + ' pts';
-        showToast(`🔄 Puntos locales (<b>${pts.toLocaleString()} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName || key}`);
+        showToast(`🔄 Saldo confirmado (<b>${pts.toLocaleString()} pts</b>) sincronizado desde Firebase para @${usuarioEncontradoActual.displayName || key}`);
       } else {
         showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName || key}`);
       }
@@ -7171,11 +7171,11 @@
       const key = norm(usuarioEncontradoActual.username);
       const val = localStorage.getItem('tiendita_pts_' + key);
       if (val !== null) {
-        const pts = parseInt(val, 10);
-        await StreamDB.setJikopuntos(key, pts, 'Sincronizado desde localStorage');
+        const pts = (await StreamDB.getUser(key, true)).jikopuntos;
+        localStorage.setItem('tiendita_pts_' + key, pts);
         usuarioEncontradoActual.jikopuntos = pts;
         document.getElementById('upc-balance').textContent = pts.toLocaleString() + ' pts';
-        showToast(`🔄 Puntos locales (<b>${pts.toLocaleString()} pts</b>) sincronizados con Firebase para @${usuarioEncontradoActual.displayName}`);
+        showToast(`🔄 Saldo confirmado (<b>${pts.toLocaleString()} pts</b>) sincronizado desde Firebase para @${usuarioEncontradoActual.displayName}`);
       } else {
         showToast(`ℹ️ No hay saldo local guardado para @${usuarioEncontradoActual.displayName}`);
       }
@@ -7281,6 +7281,8 @@
         for (const tx of Object.values(seed.stream.tienda.transacciones)) {
           await StreamDB.registrarCompra({
             comprador: tx.usuario,
+            soloHistorial: true,
+            operacionId: tx.id || null,
             items: tx.items,
             itemsKeys: tx.itemsKeys,
             cantidad: tx.cantidadPlatos,

@@ -2040,7 +2040,7 @@
     btnSpin.disabled = state.isSpinning;
   }
 
-  function placeBetOnZone(betKey, removeMode, customAmount) {
+  async function placeBetOnZone(betKey, removeMode, customAmount) {
     if (state.isSpinning || state.chatTransactionPending) return;
     if (!removeMode && !state.bets[betKey] && Object.keys(state.bets).filter(function(key) { return state.bets[key] > 0; }).length >= MAX_ROULETTE_BETS) return;
 
@@ -2077,11 +2077,19 @@
     state.points -= chip;
     state.bets[betKey] = (state.bets[betKey] || 0) + chip;
     if (window.StreamDB && typeof window.StreamDB.addJikopuntos === 'function') {
-      state.syncedChatStake += chip;
+      state.chatTransactionPending = true;
       try {
-        var stakeRequest = window.StreamDB.addJikopuntos(norm(state.activePlayer.username), -chip, 'Apuesta en Ruleta Casino');
-        if (stakeRequest && typeof stakeRequest.catch === 'function') stakeRequest.catch(function() {});
-      } catch(e) {}
+        var confirmedPoints = await window.StreamDB.addJikopuntos(norm(state.activePlayer.username), -chip, 'Apuesta en Ruleta Casino');
+        state.syncedChatStake += chip;
+        state.points = confirmedPoints;
+      } catch(error) {
+        state.points += chip;
+        state.bets[betKey] -= chip;
+        if (state.bets[betKey] <= 0) delete state.bets[betKey];
+        console.warn('[Ruleta] Apuesta rechazada; no se jugará ni reembolsará una ficha sin cobrar:', error.message);
+        updateBettingUI();
+        return;
+      } finally { state.chatTransactionPending = false; }
     }
     playChipSound();
     updateBettingUI();
@@ -2243,6 +2251,10 @@
       return;
     }
 
+    if (window.StreamDB?.addJikopuntos && state.syncedChatStake < totalStaked) {
+      console.warn('[Ruleta] Las apuestas todavía no tienen un cobro confirmado.');
+      return;
+    }
     mostrarRuleta();
     state.isSpinning = true;
     state.syncedChatStake = 0;
@@ -2726,7 +2738,7 @@
 
       var userObj = null;
       if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
-        try { userObj = await window.StreamDB.getUser(sNorm); } catch(e) {}
+        try { userObj = await window.StreamDB.getUser(sNorm, true); } catch(e) {}
       }
       if (!userObj) {
         userObj = mockDB[sNorm] || { displayName: userSender, jikopuntos: 1000, avatar: null };

@@ -3630,7 +3630,7 @@
       var userObj = null;
       if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
         try {
-          userObj = await window.StreamDB.getUser(sNorm);
+          userObj = await window.StreamDB.getUser(sNorm, true);
         } catch(e) {}
       }
       if (!userObj) {
@@ -3700,6 +3700,9 @@
         return;
       }
 
+      if (state.spinStartPending) return;
+      state.spinStartPending = true;
+
       // Cancelar temporizador de inactividad mientras se prepara el giro
       cancelarTemporizadorInactividad();
 
@@ -3725,6 +3728,7 @@
 
       // Validar Saldo
       if (saldoActualizado < state.bet) {
+        state.spinStartPending = false;
         playLoseSound();
         mostrarResultadoStatus('insufficient', saldoActualizado);
 
@@ -3738,6 +3742,7 @@
         ? window.JikoWidgetSync.consumeCasinoSpin(sNorm)
         : { allowed: true };
       if (!spinUsage.allowed) {
+        state.spinStartPending = false;
         console.warn('[Tragamonedas] Límite alcanzado: máximo 20 giros combinados en 15 minutos por usuario.');
         mostrarResultadoStatus('ready');
         iniciarTemporizadorInactividad(15);
@@ -3755,12 +3760,14 @@
           await window.StreamDB.addJikopuntos(sNorm, -state.bet, 'Apuesta en Tragamonedas');
         } catch(e) {
           console.warn('[Tragamonedas] Error al descontar apuesta:', e);
+          state.spinStartPending = false;
           iniciarTemporizadorInactividad(state.tiempoInactividad);
           return;
         }
       }
 
       // Iniciar el giro (al terminar el tiempo de aparición, se reactiva el timer sin cooldown)
+      state.spinStartPending = false;
       triggerSpin(forcedMode || null, async function(resultado) {
         if (resultado.win && resultado.amount > 0) {
           console.log('[Tragamonedas] 🏆 Usuario @' + sNorm + ' ganó ' + resultado.amount + ' JP!');
@@ -4185,7 +4192,7 @@
           params: parts
         });
       },
-      status: function() { return { visible: ruletaVisible, spinning: state.isSpinning, pending: false }; },
+      status: function() { return { visible: ruletaVisible, spinning: state.isSpinning, pending: !!state.spinStartPending }; },
       show: mostrarRuleta,
       close: function() {
         if (state.isSpinning) return;
