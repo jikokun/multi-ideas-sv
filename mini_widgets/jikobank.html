@@ -2480,7 +2480,7 @@
     // ==========================================================================
     // PROCESAMIENTO DE COMANDOS DEL STREAM (CON INTEGRACIÓN FIREBASE O FALLBACK)
     // ==========================================================================
-    async function procesarComando({ comando, sender, params = [], force = false, fromQueue = false }) {
+    async function procesarComando({ comando, sender, params = [], force = false, fromQueue = false, simulacion = false }) {
       const c = comando.toLowerCase().trim();
       const sNorm = norm(sender);
       console.log(`[JikoBank] 🔔 Comando: "${c}" de @${sender} (force: ${force}, fromQueue: ${fromQueue})`);
@@ -2492,11 +2492,17 @@
                                  c === '!perdonardeudas' || c === '!darjikopuntos');
       if (!esComandoJikoBank) return;
 
+      const lockActual = window.JikoWidgetSync ? window.JikoWidgetSync.getActiveLock() : null;
+      // !pagar sin monto confirma la orden del comprador; no debe encolarse como un abono.
+      // El tarjetero conserva el mismo turno desde el cobro hasta terminar la apertura.
+      if (!simulacion && c === '!pagar' && params.length === 0 &&
+          (lockActual?.widget === 'tienda' || lockActual?.widget === 'tarjetero') &&
+          norm(lockActual.user) === sNorm) return;
+
       // REGLA DE EXCLUSIÓN MUTUA & COLA SECUENCIAL (ANTI-SOBREPOSICIONES):
       // Si el cajero ya está en pantalla mostrando a un usuario o hay otro widget en uso,
       // encolar pacientemente para que espere su turno y NO quite ni sobreponga la visual de nadie.
       const cajeroEnPantalla = atmVisible || elAtm.classList.contains('state-visible') || elTerminal.classList.contains('state-open');
-      const lockActual = window.JikoWidgetSync ? window.JikoWidgetSync.getActiveLock() : null;
       const otroWidgetOcupado = window.JikoWidgetSync ? window.JikoWidgetSync.isBusy('cajero', sender) : false;
       const debeEncolar = !force && !fromQueue && !loanEnEspera && (cajeroEnPantalla || otroWidgetOcupado);
 
@@ -2515,7 +2521,7 @@
       }
 
       // ── MODO 1: INTEGRACIÓN FIREBASE RTDB EN TIEMPO REAL ──
-      if (window.StreamDB && typeof window.StreamDB.solicitarPrestamo === 'function') {
+      if (!simulacion && window.StreamDB && typeof window.StreamDB.solicitarPrestamo === 'function') {
         try {
           if (c === '!saldo' || c === '!jikopuntos' || c === '!puntos' || c === '!points' || c === '!misjikopuntos' || c === '!banco' || c === '!cajero') {
             let target = sNorm;
@@ -2783,11 +2789,20 @@
             }
           }
         } catch(err) {
-          console.warn('[JikoBank] Fallback a simulación local tras:', err.message);
+          console.warn('[JikoBank] No se pudo procesar el comando con datos reales:', err.message);
         }
       }
 
-      // ── MODO 2: FALLBACK LOCAL EN MEMORIA (PRUEBAS Y SIMULADOR) ──
+      // Una desconexión, consulta vacía o pago rechazado nunca debe mostrar saldos ficticios.
+      if (!simulacion) {
+        console.warn('[JikoBank] Comando sin confirmar; no se mostrará el simulador en vivo.');
+        if (fromQueue && !atmVisible && lockActual?.widget === 'cajero' && norm(lockActual.user) === sNorm) {
+          window.JikoWidgetSync?.release('cajero');
+        }
+        return;
+      }
+
+      // ── MODO 2: DATOS LOCALES SOLO PARA PRUEBAS EXPLÍCITAS ──
       let uData = mockDB[sNorm] || (mockDB[sNorm] = { displayName: sender, saldo: 1200, deuda: 0, nivel: 1, rango: 'Cachorro', emoji: '🐾', rol: 'espectador', avatar: null });
 
       if (c === '!saldo' || c === '!jikopuntos' || c === '!banco' || c === '!cajero') {
@@ -3137,7 +3152,7 @@
       const parts = textoComando.trim().split(/\s+/);
       const comando = parts[0];
       const params = parts.slice(1);
-      procesarComando({ comando, sender, params, force: true });
+      procesarComando({ comando, sender, params, force: true, simulacion: true });
     };
 
     window.simularComandoConDeuda = function(username, saldo = 1500, deuda = 306) {
