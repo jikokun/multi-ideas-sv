@@ -6,7 +6,8 @@
 })(typeof globalThis !== 'undefined' ? globalThis : this, function () {
     'use strict';
     const RARITIES = ['common', 'special', 'rare', 'epic', 'legendary', 'mythic'];
-    const DEFAULT_CONFIG = Object.freeze({ duplicateXpPercent: 1, userCooldownMs: 20000, globalCooldownMs: 20000, collectionDurationMs: 12000, revealDurationMs: 8000, maxQueue: 20, maxPacksPerPurchase: 20 });
+    const MAX_PACKS_PER_STREAM = 10;
+    const DEFAULT_CONFIG = Object.freeze({ duplicateXpPercent: 1, userCooldownMs: 20000, globalCooldownMs: 20000, collectionDurationMs: 12000, revealDurationMs: 8000, maxQueue: 20, maxPacksPerPurchase: 10 });
     const copy = value => JSON.parse(JSON.stringify(value));
     const count = value => Math.max(0, Math.floor(Number(value) || 0));
     function userKey(value) {
@@ -16,7 +17,12 @@
     }
     function config(value = {}) {
         const number = (key, min, max) => Math.min(max, Math.max(min, Number(value[key] ?? DEFAULT_CONFIG[key]) || DEFAULT_CONFIG[key]));
-        return { duplicateXpPercent: number('duplicateXpPercent', .1, 5), userCooldownMs: number('userCooldownMs', 20000, 300000), globalCooldownMs: number('globalCooldownMs', 20000, 300000), collectionDurationMs: number('collectionDurationMs', 6000, 15000), revealDurationMs: number('revealDurationMs', 4000, 20000), maxQueue: Math.floor(number('maxQueue', 1, 30)), maxPacksPerPurchase: Math.floor(number('maxPacksPerPurchase', 1, 20)) };
+        return { duplicateXpPercent: number('duplicateXpPercent', .1, 5), userCooldownMs: number('userCooldownMs', 20000, 300000), globalCooldownMs: number('globalCooldownMs', 20000, 300000), collectionDurationMs: number('collectionDurationMs', 6000, 15000), revealDurationMs: number('revealDurationMs', 4000, 20000), maxQueue: Math.floor(number('maxQueue', 1, 30)), maxPacksPerPurchase: Math.floor(number('maxPacksPerPurchase', 1, MAX_PACKS_PER_STREAM)) };
+    }
+    function packLimitError() {
+        const error = new Error('Límite de 10 sobres por transmisión alcanzado.');
+        error.code = 'PACK_LIMIT_REACHED';
+        return error;
     }
     function inventory(user) {
         const data = copy(user?.tarjetas || {});
@@ -43,6 +49,12 @@
             if (cards.compras[request.id].fingerprint !== request.fingerprint) throw new Error('El identificador pertenece a otra compra.');
             return user;
         }
+        const boughtThisStream = Object.values(cards.compras).reduce((total, receipt) => {
+            const fromThisStream = receipt.streamId === request.streamId ||
+                (!receipt.streamId && request.streamStart && Number(receipt.timestamp) >= request.streamStart && Number(receipt.timestamp) <= request.now);
+            return total + (fromThisStream ? (receipt.packs?.length || 0) : 0);
+        }, 0);
+        if (boughtThisStream + request.packs.length > MAX_PACKS_PER_STREAM) throw packLimitError();
         if (count(user.jikopuntos) < request.total) throw new Error('Jikopuntos insuficientes para esta compra.');
         let duplicates = 0, unique = 0;
         const awarded = [];
@@ -87,7 +99,7 @@
         cards.sobresComprados = count(cards.sobresComprados) + request.packs.length;
         cards.xpRepetidas = count(cards.xpRepetidas) + bonus;
         cards.pendiente = true;
-        const receipt = { id: request.id, user: request.user, fingerprint: request.fingerprint, timestamp: request.now, costoTotal: request.total, precioSobre: request.packPrice, nuevoSaldo: user.jikopuntos, xpRepetidas: bonus, xpGanada: bonus + foodXp, nuevas: unique, repetidas: duplicates, packs: request.packs.map(pack => pack.map(card => card.id)), items: request.items, cartas: awarded, entregado: false };
+        const receipt = { id: request.id, user: request.user, streamId: request.streamId, fingerprint: request.fingerprint, timestamp: request.now, costoTotal: request.total, precioSobre: request.packPrice, nuevoSaldo: user.jikopuntos, xpRepetidas: bonus, xpGanada: bonus + foodXp, nuevas: unique, repetidas: duplicates, packs: request.packs.map(pack => pack.map(card => card.id)), items: request.items, cartas: awarded, entregado: false };
         cards.compras[request.id] = receipt;
         cards.entregasPendientes[request.id] = true;
         user.tarjetas = cards;
@@ -145,5 +157,5 @@
         state.active = { jobId: job.id, role, owner, token, expiresAt: now + 30000 };
         return state;
     }
-    return Object.freeze({ RARITIES, DEFAULT_CONFIG, copy, userKey, config, inventory, applyPurchase, recentCards, pending, reserve, claim });
+    return Object.freeze({ RARITIES, MAX_PACKS_PER_STREAM, DEFAULT_CONFIG, copy, userKey, config, packLimitError, inventory, applyPurchase, recentCards, pending, reserve, claim });
 });

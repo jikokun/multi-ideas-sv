@@ -45,6 +45,7 @@ async function setup() {
     const helpers = { level: user => ({ nivel: Math.floor(user.experiencia / 1000) + 1 }), factor: () => 1, purchaseXp: cost => Math.floor(cost * .1) };
     const service = new Service(store, fixedCore, { now: () => time, helpers });
     await service.init(catalog);
+    await store.set('stream/transmisiones_stats', { isLive: true, streamActivoId: 'stream_primero' });
     await store.set('stream/usuarios/ana', { username: 'ana', jikopuntos: 6000, experiencia: 0, avatar: 'preserve-me', stats: { other: 2 } });
     return { service, store, advance: ms => { time += ms; }, now: () => time };
 }
@@ -196,7 +197,7 @@ test('sin conexión no se reserva cola ni se modifica el saldo', async () => {
     } finally { service.destroy(); }
 });
 
-test('seis sobres cobran una vez y guardan sus 18 cartas; el límite administrable llega hasta veinte', async () => {
+test('seis sobres cobran una vez y guardan sus 18 cartas; el límite por orden llega hasta diez', async () => {
     const { service, store } = await setup();
     try {
         await store.set('stream/usuarios/ana', { username: 'ana', jikopuntos: 60000, experiencia: 0 });
@@ -211,12 +212,54 @@ test('seis sobres cobran una vez y guardan sus 18 cartas; el límite administrab
         assert.equal(user.tarjetas.inventario['001'].cantidad, 18);
         assert.equal(user.tarjetas.repetidas, 17);
         assert.equal(user.tarjetas.xpRepetidas, 255);
-        assert.equal(Engine.config({ maxPacksPerPurchase: 99 }).maxPacksPerPurchase, 20);
+        assert.equal(Engine.config({ maxPacksPerPurchase: 99 }).maxPacksPerPurchase, 10);
         await store.set('stream/widgets/tcg/config', Engine.config({ maxPacksPerPurchase: 5 }));
         await store.set('stream/usuarios/beto', { username: 'beto', jikopuntos: 60000 });
         await assert.rejects(service.purchase('beto', cart, 'bulk_reject'), /entre 1 y 5/);
         assert.equal((await store.get('stream/usuarios/beto')).jikopuntos, 60000);
         assert.equal(await store.get('stream/widgets/tcg/control/jobs/bulk_reject'), null);
+    } finally { service.destroy(); }
+});
+
+test('diez sobres por usuario y transmisión; rechaza el exceso sin cobrar y reinicia en otro directo', async () => {
+    const { service, store, advance } = await setup();
+    try {
+        await store.set('stream/usuarios/ana', { username: 'ana', jikopuntos: 60000 });
+        const packs = count => Array.from({ length: count }, () => ({ key: 'sobre' }));
+        const first = await service.purchase('ana', packs(6), 'stream_first');
+        assert.equal(first.streamId, 'stream_primero');
+        let control = await store.get('stream/widgets/tcg/control');
+        control.jobs.stream_first.status = 'done';
+        await store.set('stream/widgets/tcg/control', control);
+        advance(20001);
+        await service.purchase('ana', packs(4), 'stream_second');
+        control = await store.get('stream/widgets/tcg/control');
+        control.jobs.stream_second.status = 'done';
+        await store.set('stream/widgets/tcg/control', control);
+        advance(20001);
+        await assert.rejects(service.purchase('ana', packs(1), 'stream_eleventh'), error => error.code === 'PACK_LIMIT_REACHED');
+        assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 45000);
+        assert.equal((await store.get('stream/usuarios/ana')).tarjetas.sobresComprados, 10);
+        assert.equal((await store.get('stream/widgets/tcg/control/jobs/stream_eleventh')).status, 'cancelled');
+        await store.set('stream/transmisiones_stats', { isLive: true, streamActivoId: 'stream_segundo' });
+        await service.purchase('ana', packs(1), 'next_stream');
+        assert.equal((await store.get('stream/usuarios/ana')).tarjetas.compras.next_stream.streamId, 'stream_segundo');
+        assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 43500);
+    } finally { service.destroy(); }
+});
+
+test('cuenta los recibos previos del mismo directo aunque todavía no tengan streamId', async () => {
+    const { service, store } = await setup();
+    try {
+        await store.set('stream/transmisiones_stats', { isLive: true, streamActivoId: 'stream_primero', streamActual: { id: 'stream_primero', inicioTimestamp: 100000 } });
+        await store.set('stream/usuarios/ana', { username: 'ana', jikopuntos: 60000, tarjetas: {
+            compras: { anterior: { timestamp: 150000, packs: Array.from({ length: 9 }, () => [1, 2, 3]) } }
+        } });
+        await assert.rejects(service.purchase('ana', [{ key: 'sobre' }, { key: 'sobre' }], 'legacy_excess'), error => error.code === 'PACK_LIMIT_REACHED');
+        assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 60000);
+        const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'legacy_tenth');
+        assert.equal(receipt.streamId, 'stream_primero');
+        assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 58500);
     } finally { service.destroy(); }
 });
 

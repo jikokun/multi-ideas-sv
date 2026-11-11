@@ -602,6 +602,21 @@
   /* ════════════ TOASTS (DESACTIVADOS) ════════════ */
   #toast-zone{display:none !important}
 
+  #sobre-limit-alert{
+    position:fixed;top:24px;right:24px;z-index:10010;
+    width:min(370px,calc(100vw - 32px));padding:17px 20px;
+    border:2px solid var(--oro);border-radius:18px;
+    background:linear-gradient(135deg,#302007 0%,#17200b 55%,#0b160d 100%);
+    box-shadow:0 15px 38px rgba(0,0,0,.75),0 0 25px rgba(255,211,92,.35);
+    color:#fff;text-align:center;pointer-events:none;
+    opacity:0;transform:translateY(-18px) scale(.94);
+    transition:opacity .25s ease,transform .35s cubic-bezier(.2,1.4,.4,1);
+  }
+  #sobre-limit-alert.visible{opacity:1;transform:translateY(0) scale(1)}
+  #sobre-limit-alert strong{display:block;font:800 clamp(16px,2vw,20px)/1.35 var(--f-display);color:var(--oro);text-shadow:0 0 12px rgba(255,211,92,.45)}
+  #sobre-limit-alert span{display:block;margin-top:7px;font:700 14px/1.3 var(--f-cuerpo);color:var(--kick-soft)}
+  @media (max-width:480px){#sobre-limit-alert{top:16px;right:16px}}
+
   .spark{
     position:fixed;width:7px;height:7px;border-radius:50%;z-index:80;pointer-events:none;
     background:var(--kick);box-shadow:0 0 10px var(--kick);animation:chispaVuela .85s ease-out forwards;
@@ -2417,6 +2432,10 @@
   </div>
 
   <div id="toast-zone"></div>
+  <div id="sobre-limit-alert" role="alert" aria-live="assertive" aria-hidden="true">
+    <strong>✋ ¡No más sobres por hoy, agárrala suave XD!</strong>
+    <span>Máximo 10 por transmisión. ¡Dejá unos para la manada! 🐺</span>
+  </div>
 
   <!-- Panel de prueba / simulación interactiva OBS -->
   <div id="demo-zone">
@@ -2481,7 +2500,7 @@
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
   import { resolverCategorias, escucharCategorias } from './js/tienda_categorias.js';
-  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261107-delivery4';
+  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261110-packlimit';
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
@@ -4716,6 +4735,17 @@
   /* ═══════════ PROCESAR PAGO DE LA ORDEN & MOSTRAR MESERO ═══════════ */
   let pagoTcgPendiente = false;
   let pagoTcgId = null;
+  let sobreLimitAlertTimer = null;
+  function mostrarAlertaLimiteSobres() {
+    const alert = document.getElementById('sobre-limit-alert');
+    clearTimeout(sobreLimitAlertTimer);
+    alert.classList.add('visible');
+    alert.setAttribute('aria-hidden', 'false');
+    sobreLimitAlertTimer = setTimeout(() => {
+      alert.classList.remove('visible');
+      alert.setAttribute('aria-hidden', 'true');
+    }, 6500);
+  }
   function estadoPago(text = '') {
     const status = document.getElementById('payment-status');
     status.textContent = text;
@@ -4756,6 +4786,7 @@
       } catch (error) {
         console.error('[TCG pago]', error);
         estadoPago(String(error.message || 'No se pudo confirmar el pago. Intenta de nuevo.'));
+        if (error.code === 'PACK_LIMIT_REACHED' || /Límite de 10 sobres por transmisión/.test(error.message || '')) mostrarAlertaLimiteSobres();
       } finally {
         pagoTcgPendiente = false;
         $confirmBox.removeAttribute('aria-busy');

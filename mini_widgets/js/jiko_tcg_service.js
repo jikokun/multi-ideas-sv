@@ -98,8 +98,13 @@
                 return { key: item.key, nombre: String(item.nombre || item.key), precio: Math.round(Number(item.precio)), img: String(item.img || item.driveUrl || ''), localImg: String(item.localImg || '') };
             });
             const quantity = items.filter(item => item.key === 'sobre').length;
+            if (quantity > E.MAX_PACKS_PER_STREAM) throw E.packLimitError();
             if (quantity < 1 || quantity > cfg.maxPacksPerPurchase) throw new Error('Puedes comprar entre 1 y ' + cfg.maxPacksPerPurchase + ' sobres por orden.');
             if (items.length > 20) throw new Error('La orden supera el límite de 20 productos.');
+            const stats = await this.store.get('stream/transmisiones_stats');
+            const streamId = stats?.isLive === true ? stats.streamActivoId : null;
+            if (!streamId) throw new Error('No hay una transmisión activa para comprar sobres.');
+            const streamStart = stats.streamActual?.id === streamId ? Number(stats.streamActual.inicioTimestamp) || 0 : 0;
             const now = this.now();
             const job = { id, user, type: 'purchase', status: 'reserved', createdAt: now };
             await this.store.transaction(CONTROL, state => E.reserve(state, job, cfg, now));
@@ -111,7 +116,7 @@
                 const packPrice = items.find(item => item.key === 'sobre').precio;
                 const total = items.reduce((sum, item) => sum + item.precio, 0);
                 const foodCost = items.filter(item => item.key !== 'sobre').reduce((sum, item) => sum + item.precio, 0);
-                const request = { id, user, fingerprint, now, packs, packPrice, total, foodCost, items, config: cfg };
+                const request = { id, user, streamId, streamStart, fingerprint, now, packs, packPrice, total, foodCost, items, config: cfg };
                 const result = await this.store.transaction(userPath(user), current => E.applyPurchase(current, request, this.helpers));
                 if (!result.committed) throw new Error('La compra no pudo confirmarse.');
                 committed = true;
