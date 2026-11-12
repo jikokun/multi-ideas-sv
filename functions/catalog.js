@@ -19,7 +19,7 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
             try { claims = match && await verifyToken(match[1]); } catch (_) { claims = null; }
             if (!claims || claims.admin !== true) return res.status(403).json({ error: "Se requiere una cuenta administradora autorizada." });
             const { businessId, business, catalog } = req.body || {};
-            if (typeof businessId !== "string" || !/^[a-z0-9_-]{1,128}$/.test(businessId) || !business || typeof business !== "object" || Array.isArray(business) || !catalog || typeof catalog.enabled !== "boolean") {
+            if (typeof businessId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(businessId) || !business || typeof business !== "object" || Array.isArray(business) || !catalog || typeof catalog.enabled !== "boolean") {
                 return res.status(400).json({ error: "Datos del negocio o catálogo inválidos." });
             }
             const cleanBusiness = {};
@@ -58,20 +58,30 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
     };
 }
 
+function mergeBusiness(current, business, linkage) {
+    if (!linkage && (!current || current.hasCatalog !== true || typeof current.catalogUid !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(current.catalogUid))) return;
+    return { ...(current || {}), ...business, ...(linkage || {}) };
+}
+
 function wolfApp() {
     return admin.apps.find(app => app.name === "wolftrack-validation") || admin.initializeApp({ credential: admin.credential.applicationDefault(), projectId: WOLF_PROJECT, databaseURL: WOLF_DATABASE }, "wolftrack-validation");
 }
 const handler = createHandler({
     verifyToken: token => admin.auth().verifyIdToken(token, true),
     getWolfUser: uid => admin.auth(wolfApp()).getUser(uid),
-    getWolfRecord: async uid => (await admin.database(wolfApp()).ref(`wolftrack/users/${uid}`).once("value")).val(),
+    getWolfRecord: async uid => {
+        const userRef = admin.database(wolfApp()).ref(`wolftrack/users/${uid}`);
+        const [code, email] = await Promise.all([
+            userRef.child("catalogCode").once("value"),
+            userRef.child("catalogEmail").once("value")
+        ]);
+        return { catalogCode: code.val(), catalogEmail: email.val() };
+    },
     saveBusiness: async (id, business, linkage) => {
-        const result = await admin.database().ref(`sensunshop/businesses/${id}`).transaction(current => {
-            if (!linkage && (!current || current.hasCatalog !== true || !current.catalogUid)) return;
-            return { ...(current || {}), ...business, ...(linkage || {}) };
-        });
+        const result = await admin.database().ref(`sensunshop/businesses/${id}`).transaction(current => mergeBusiness(current, business, linkage));
         return result.committed;
     }
 });
 exports.saveBusinessCatalog = functions.https.onRequest(handler);
 exports.createHandler = createHandler;
+exports.mergeBusiness = mergeBusiness;

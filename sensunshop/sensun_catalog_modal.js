@@ -1424,7 +1424,7 @@
             const resp = await fetch(url);
             if (!resp.ok) {
                 console.warn(`[WolfTrack RTDB] HTTP Error: ${resp.status}`);
-                return [];
+                throw new Error(`WolfTrack HTTP ${resp.status}`);
             }
             const data = await resp.json() || {};
             
@@ -1436,7 +1436,7 @@
             return validItems;
         } catch (err) {
             console.error("[WolfTrack RTDB Fetch Error]:", err);
-            return [];
+            throw err;
         }
     }
 
@@ -2044,8 +2044,13 @@
         currentFilter = "all";
         currentSearch = "";
         
-        cachedMaterials = await fetchWolfTrackMaterials(catalogUid);
-        renderCatalogGrid();
+        try {
+            cachedMaterials = await fetchWolfTrackMaterials(catalogUid);
+            renderCatalogGrid();
+        } catch (error) {
+            cachedMaterials = [];
+            if (bodyEl) bodyEl.innerHTML = '<div class="ss-cat-empty-state"><h3>No se pudo cargar el catálogo</h3><p>Comprueba el acceso al inventario e inténtalo de nuevo.</p></div>';
+        }
     };
 
     // Cierra el catálogo
