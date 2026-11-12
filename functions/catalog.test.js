@@ -3,9 +3,9 @@ const assert = require('node:assert/strict');
 const { createHandler, mergeBusiness } = require('./catalog');
 function fixture(overrides = {}) {
   let saved = null;
-  const handler = createHandler({ verifyToken: async () => ({ admin: true }), getWolfUser: async () => ({ email: 'TEST@EXAMPLE.COM', emailVerified: true }), getWolfRecord: async () => ({ catalogCode: 'WT-AbC123', catalogEmail: ' test@example.com ' }), saveBusiness: async (...args) => { saved = args; return true; }, ...overrides });
-  async function run(catalog, token = 'Bearer token', business = { title: 'Tienda' }, businessId = 'emp-002') {
-    const req = { method: 'POST', headers: { authorization: token }, body: { businessId, business, catalog } };
+  const handler = createHandler({ verifyToken: async () => ({ admin: true }), getWolfUser: async () => ({ email: 'TEST@EXAMPLE.COM', emailVerified: true }), getWolfRecord: async () => ({ catalogCode: 'WT-AbC123', catalogEmail: ' test@example.com ' }), saveBusiness: async (...args) => { saved = args; return {committed:true, conflict:false}; }, ...overrides });
+  async function run(catalog, token = 'Bearer token', business = { title: 'Tienda' }, businessId = 'emp-002', createOnly = false) {
+    const req = { method: 'POST', headers: { authorization: token }, body: { businessId, business, catalog, createOnly } };
     const res = { statusCode: 200, set() {}, status(n) { this.statusCode = n; return this; }, json(v) { this.body = v; return this; }, send() { return this; } };
     await handler(req, res); return res;
   }
@@ -14,6 +14,18 @@ function fixture(overrides = {}) {
 test('validates matching verified account, preserving UID case', async () => {
  const f = fixture(); const r = await f.run({enabled: true, code: 'WT-AbC123', email: ' Test@Example.com '});
  assert.equal(r.statusCode, 200); assert.deepEqual(f.saved[2], {hasCatalog:true,catalogUid:'AbC123',catalogUrl:'https://multiideassv.com/wolftrack.html?uid=AbC123'});
+});
+test('allows Android business fields and reports exclusive creation conflicts', async () => {
+ const f = fixture();
+ const r = await f.run({enabled:false}, 'Bearer token', {whatsappMsg:'Hola', accentColor:'#123456'}, 'nuevo-1', true);
+ assert.equal(r.statusCode, 200); assert.equal(f.saved[1].whatsappMsg, 'Hola'); assert.equal(f.saved[1].accentColor, '#123456'); assert.equal(f.saved[3], true);
+ const existing = {title:'Anterior', hasCatalog:true, catalogUid:'abc'};
+ assert.equal(mergeBusiness(existing, {title:'Cambio'}, {hasCatalog:false}, true), undefined);
+ assert.deepEqual(mergeBusiness(null, {id:'nuevo-1'}, {hasCatalog:false}, true), {id:'nuevo-1', hasCatalog:false});
+ const g = fixture({saveBusiness: async () => ({committed:false, conflict:true})});
+ const conflict = await g.run({enabled:false}, 'Bearer token', {}, 'nuevo-1', true);
+ assert.equal(conflict.statusCode, 409); assert.equal(conflict.body.error, 'Ya existe un negocio con ese identificador.');
+ const invalid = await f.run({enabled:false}, 'Bearer token', {}, 'nuevo-1', 'true'); assert.equal(invalid.statusCode, 400);
 });
 test('preserves the exact business key and rejects protected fields and invalid UIDs', async () => {
  const f = fixture();

@@ -3,7 +3,7 @@ const admin = require("firebase-admin");
 
 const WOLF_PROJECT = "com-example-jikopuntos-f9ff5";
 const WOLF_DATABASE = "https://com-example-jikopuntos-f9ff5-default-rtdb.firebaseio.com";
-const allowedFields = new Set(["id", "code", "title", "type", "category", "badge", "description", "imgSrc", "imageUrl", "whatsapp", "phone", "websiteUrl", "facebookUrl", "locationUrl", "lat", "lng", "tags", "hasOffer", "offerMsg", "offerCode", "offerStyle", "offerExpiry", "isActive"]);
+const allowedFields = new Set(["id", "code", "title", "type", "category", "badge", "description", "imgSrc", "imageUrl", "whatsapp", "whatsappMsg", "accentColor", "phone", "websiteUrl", "facebookUrl", "locationUrl", "lat", "lng", "tags", "hasOffer", "offerMsg", "offerCode", "offerStyle", "offerExpiry", "isActive"]);
 const normalizeEmail = value => typeof value === "string" ? value.trim().toLowerCase() : "";
 
 function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }) {
@@ -18,8 +18,8 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
             let claims;
             try { claims = match && await verifyToken(match[1]); } catch (_) { claims = null; }
             if (!claims || claims.admin !== true) return res.status(403).json({ error: "Se requiere una cuenta administradora autorizada." });
-            const { businessId, business, catalog } = req.body || {};
-            if (typeof businessId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(businessId) || !business || typeof business !== "object" || Array.isArray(business) || !catalog || typeof catalog.enabled !== "boolean") {
+            const { businessId, business, catalog, createOnly = false } = req.body || {};
+            if (typeof businessId !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(businessId) || !business || typeof business !== "object" || Array.isArray(business) || !catalog || typeof catalog.enabled !== "boolean" || typeof createOnly !== "boolean") {
                 return res.status(400).json({ error: "Datos del negocio o catálogo inválidos." });
             }
             const cleanBusiness = {};
@@ -48,8 +48,9 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
             } else if (!catalog.enabled) {
                 linkage = { hasCatalog: false };
             }
-            const saved = await saveBusiness(businessId, cleanBusiness, linkage);
-            if (!saved) return res.status(400).json({ error: "Ingresa el correo y el código para vincular el catálogo." });
+            const saved = await saveBusiness(businessId, cleanBusiness, linkage, createOnly);
+            if (saved.conflict) return res.status(409).json({ error: "Ya existe un negocio con ese identificador." });
+            if (!saved.committed) return res.status(400).json({ error: "Ingresa el correo y el código para vincular el catálogo." });
             return res.status(200).json({ success: true });
         } catch (error) {
             console.error("Error al guardar negocio o validar WolfTrack", error);
@@ -58,7 +59,8 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
     };
 }
 
-function mergeBusiness(current, business, linkage) {
+function mergeBusiness(current, business, linkage, createOnly = false) {
+    if (createOnly && current !== null) return;
     if (!linkage && (!current || current.hasCatalog !== true || typeof current.catalogUid !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(current.catalogUid))) return;
     return { ...(current || {}), ...business, ...(linkage || {}) };
 }
@@ -77,9 +79,9 @@ const handler = createHandler({
         ]);
         return { catalogCode: code.val(), catalogEmail: email.val() };
     },
-    saveBusiness: async (id, business, linkage) => {
-        const result = await admin.database().ref(`sensunshop/businesses/${id}`).transaction(current => mergeBusiness(current, business, linkage));
-        return result.committed;
+    saveBusiness: async (id, business, linkage, createOnly) => {
+        const result = await admin.database().ref(`sensunshop/businesses/${id}`).transaction(current => mergeBusiness(current, business, linkage, createOnly));
+        return { committed: result.committed, conflict: !result.committed && createOnly && result.snapshot.exists() };
     }
 });
 exports.saveBusinessCatalog = functions.https.onRequest(handler);
