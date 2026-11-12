@@ -50,8 +50,13 @@ function createHandler({ verifyToken, getWolfUser, getWolfRecord, saveBusiness }
                     return res.status(400).json({ error: "El código o correo no coincide con una cuenta verificada de WolfTrack." });
                 }
                 linkage = { hasCatalog: true, catalogUid: uid, catalogUrl: `https://multiideassv.com/wolftrack.html?businessId=${encodeURIComponent(businessId)}` };
+            } else if (catalog.enabled) {
+                // Cat?logo habilitado pendiente de vincular; el endpoint p?blico seguir? devolviendo 404 sin UID v?lido.
+                linkage = { hasCatalog: true };
             } else if (!catalog.enabled) {
-                linkage = { hasCatalog: false };
+                // Deshabilitar desde el panel también elimina la asociación: el catálogo
+                // público deja de resolver el UID y la próxima carga devuelve 404.
+                linkage = { hasCatalog: false, catalogUid: null, catalogUrl: null };
             }
             const saved = await saveBusiness(businessId, cleanBusiness, linkage, createOnly);
             if (saved.conflict) return res.status(409).json({ error: "Ya existe un negocio con ese identificador." });
