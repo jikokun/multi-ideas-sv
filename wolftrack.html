@@ -1065,17 +1065,15 @@
             const btnNewItem = document.getElementById("btnNewItem");
             const tabMateriales = document.getElementById("tabMateriales");
             const boxMateriales = document.getElementById("boxMateriales");
-            const activeProfileLabel = document.getElementById("activeProfileLabel");
             btnNewItem.style.display = "none";
             document.getElementById("btnSeedDemo").style.display = "none";
             tabMateriales.style.display = "none";
-            boxMateriales.style.display = "none";
+            if (boxMateriales) boxMateriales.style.display = "none";
 
             if (user) {
                 currentUserId = user.uid;
                 isOwner = !queryBusinessId && (!queryUid || queryUid === user.uid) && (user.email === "joel.claroso@gmail.com" || user.email?.toLowerCase().includes("claros"));
                 
-                activeProfileLabel.innerHTML = `${user.displayName || 'Isaí Claros'} (${user.email}) <button onclick="navigator.clipboard.writeText('${user.uid}'); alert('UID copiado: ${user.uid}')" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:4px; padding:2px 6px; font-size:0.7rem; cursor:pointer; margin-left:6px;" title="Copiar UID para Android Studio">📋 Copiar UID</button>`;
 
                 authContainer.innerHTML = `
                     <div class="user-chip" onclick="logoutGoogle()" title="Clic para cerrar sesión">
@@ -1091,7 +1089,7 @@
                     btnNewItem.style.display = "flex";
                     document.getElementById("btnSeedDemo").style.display = "flex";
                     tabMateriales.style.display = "flex";
-                    boxMateriales.style.display = "block";
+                    if (boxMateriales) boxMateriales.style.display = "block";
                 }
             } else {
                 currentUserId = null;
@@ -1099,7 +1097,7 @@
                 btnNewItem.style.display = "none";
                 document.getElementById("btnSeedDemo").style.display = "none";
                 tabMateriales.style.display = "none";
-                boxMateriales.style.display = "none";
+                if (boxMateriales) boxMateriales.style.display = "none";
                 authContainer.innerHTML = `
                     <button class="btn-auth" onclick="window.loginWithGoogle()">
                         <span>🔑</span>
@@ -1128,8 +1126,6 @@
             const grid = document.getElementById("catalogGrid");
             allItems = [];
             publicBusinessPhone = "";
-            document.getElementById("countProductos").innerText = "0";
-            document.getElementById("countServicios").innerText = "0";
             publicCatalogError = "";
             grid.innerHTML = '<div class="empty-state"><h3>Cargando catálogo...</h3></div>';
             try {
@@ -1140,14 +1136,20 @@
                 let phone = "";
                 try {
                     const businessResponse = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/sensunshop/businesses/${encodeURIComponent(queryBusinessId)}.json`, {cache: "no-store"});
-                    if (businessResponse.ok) { const business = await businessResponse.json(); phone = String(business?.whatsapp || business?.phone || '').replace(/\D/g, ''); publicBusinessName = String(business?.title || 'Negocio'); }
+                    if (businessResponse.ok) {
+                        const business = await businessResponse.json();
+                        phone = String(business?.whatsapp || business?.phone || '').replace(/\D/g, '');
+                        publicBusinessName = String(business?.title || 'Negocio');
+                        document.getElementById("catalogBusinessName").textContent = publicBusinessName;
+                        const logo = document.getElementById("catalogBusinessImage");
+                        const imageUrl = business?.imgSrc || business?.image || business?.logo || business?.photoURL || '';
+                        if (imageUrl) { logo.src = normalizeImageUrl(imageUrl); logo.style.display = "block"; }
+                    }
                 } catch (_) { /* El catálogo se muestra aunque el contacto no esté disponible. */ }
                 if (request !== publicCatalogRequest) return;
                 publicBusinessPhone = phone;
                 allItems = data.items;
                 document.getElementById("syncStatusText").innerText = "Catálogo actualizado";
-                document.getElementById("countProductos").innerText = allItems.filter(item => item.type === "Producto").length;
-                document.getElementById("countServicios").innerText = allItems.filter(item => item.type === "Servicio").length;
                 renderCatalog();
             } catch (error) {
                 if (request !== publicCatalogRequest) return;
@@ -1188,9 +1190,12 @@
                 ({ productos, servicios, materiales, totalItems }) => {
                     statusText.innerText = `🟢 En vivo (${totalItems} ítems)`;
                     
-                    document.getElementById("countProductos").innerText = productos.length;
-                    document.getElementById("countServicios").innerText = servicios.length;
-                    document.getElementById("countMateriales").innerText = materiales.length;
+                    const countProductos = document.getElementById("countProductos");
+                    const countServicios = document.getElementById("countServicios");
+                    const countMateriales = document.getElementById("countMateriales");
+                    if (countProductos) countProductos.innerText = productos.length;
+                    if (countServicios) countServicios.innerText = servicios.length;
+                    if (countMateriales) countMateriales.innerText = materiales.length;
 
                     // Unificar colección para los filtros
                     allItems = [...productos, ...servicios, ...materiales];
