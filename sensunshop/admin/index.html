@@ -3749,7 +3749,12 @@
                     <div class="form-group">
                         <label class="form-label">Codigo de catalogo WolfTrack</label>
                         <input type="text" class="form-input" id="bizCatalogCode" placeholder="WT-UID" autocomplete="off">
-                        <small id="catalogStatusHint" style="display: block; margin-top: 6px; line-height: 1.4;">Para conservar una vinculacion existente, deja ambos campos vacios. Para asignar o cambiar el catalogo, completa ambos.</small>
+                        <small id="catalogStatusHint" style="display: block; margin-top: 6px; line-height: 1.4;">Para asignar o cambiar el catalogo, completa ambos campos. Para desvincular, desmarca el switch o usa el boton desvincular.</small>
+                    </div>
+                    <div id="catalogUnlinkContainer" style="display: none; margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(239, 68, 68, 0.35);">
+                        <button type="button" class="btn" id="btnUnlinkCatalog" onclick="unlinkCatalogFromCurrentBusiness()" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); font-size: 12.5px; padding: 7px 14px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;">
+                            🔗❌ Desvincular Catálogo de este Negocio
+                        </button>
                     </div>
                 </div>
 
@@ -5034,9 +5039,13 @@
                 document.getElementById("bizCatalogEmail").value = "";
                 document.getElementById("bizCatalogCode").value = "";
                 const catalogHint = document.getElementById("catalogStatusHint");
+                const unlinkBtnContainer = document.getElementById("catalogUnlinkContainer");
+                if (unlinkBtnContainer) {
+                    unlinkBtnContainer.style.display = (hasCatalog && b.catalogUid) ? "block" : "none";
+                }
                 if (catalogHint) {
                     if (hasCatalog && b.catalogUid) {
-                        catalogHint.innerHTML = `🟢 <b>Catálogo actualmente vinculado y activo</b> (UID: <code>${b.catalogUid}</code>).<br>Si no deseas cambiar de cuenta, déjalos vacíos. Para cambiar o reactivar la cuenta, ingresa el correo y nuevo código.`;
+                        catalogHint.innerHTML = `🟢 <b>Catálogo actualmente vinculado y activo</b> (UID: <code>${b.catalogUid}</code>).<br>Para mantenerlo deja los campos vacíos o completa los nuevos si vas a cambiarlo. Para eliminar la vinculación, haz clic abajo en <b>Desvincular Catálogo</b> o desactiva el switch.`;
                         catalogHint.style.color = "#059669";
                     } else {
                         catalogHint.innerHTML = `Para asignar el catálogo de WolfTrack, completa ambos campos con una cuenta verificada.`;
@@ -5092,6 +5101,13 @@
                 document.getElementById("bizHasCatalog").checked = false;
                 document.getElementById("bizCatalogEmail").value = "";
                 document.getElementById("bizCatalogCode").value = "";
+                const unlinkBtnContainer = document.getElementById("catalogUnlinkContainer");
+                if (unlinkBtnContainer) unlinkBtnContainer.style.display = "none";
+                const catalogHint = document.getElementById("catalogStatusHint");
+                if (catalogHint) {
+                    catalogHint.innerHTML = `Para asignar el catálogo de WolfTrack, completa ambos campos con una cuenta verificada.`;
+                    catalogHint.style.color = "#6b7280";
+                }
                 toggleCatalogFieldsVisibility(false);
 
                 document.getElementById("bizIsActive").checked = true;
@@ -5189,6 +5205,53 @@
             } catch (err) {
                 console.error("Error al guardar negocio:", err);
                 showToast("❌ Error al guardar en Firebase: " + err.message, true);
+            }
+        };
+
+        window.unlinkCatalogFromCurrentBusiness = async function() {
+            if (!currentEditBizId) return;
+            const existingBiz = (window.allBusinessesList || []).find(b => b.id === currentEditBizId);
+            if (!existingBiz || !existingBiz.hasCatalog) {
+                showToast("ℹ️ Este negocio no tiene un catálogo vinculado actualmente.", true);
+                return;
+            }
+            if (!confirm(`¿Deseas desvincular el catálogo de WolfTrack del negocio "${existingBiz.title || currentEditBizId}"? Los productos ya no se mostrarán en su perfil.`)) {
+                return;
+            }
+            try {
+                const user = auth.currentUser;
+                if (!user || user.isAnonymous) throw new Error("Inicia sesión con una cuenta administradora autorizada.");
+                
+                showToast("⏳ Desvinculando catálogo en Firebase...");
+                const response = await fetch("https://us-central1-sensunshopweb.cloudfunctions.net/saveBusinessCatalog", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${await user.getIdToken()}` },
+                    body: JSON.stringify({
+                        businessId: currentEditBizId,
+                        business: {},
+                        catalog: { enabled: false },
+                        createOnly: false
+                    })
+                });
+                const result = await response.json();
+                if (!response.ok) throw new Error(result.error || "No se pudo desvincular el catálogo.");
+
+                // Actualizar UI del modal
+                document.getElementById("bizHasCatalog").checked = false;
+                document.getElementById("bizCatalogEmail").value = "";
+                document.getElementById("bizCatalogCode").value = "";
+                const unlinkBtnContainer = document.getElementById("catalogUnlinkContainer");
+                if (unlinkBtnContainer) unlinkBtnContainer.style.display = "none";
+                const catalogHint = document.getElementById("catalogStatusHint");
+                if (catalogHint) {
+                    catalogHint.innerHTML = `⚪ <i>Catálogo desvinculado con éxito.</i> Completa ambos campos si deseas conectar uno nuevo.`;
+                    catalogHint.style.color = "#6b7280";
+                }
+                toggleCatalogFieldsVisibility(false);
+                showToast("✅ Catálogo desvinculado exitosamente");
+            } catch (err) {
+                console.error("Error al desvincular catálogo:", err);
+                showToast("❌ Error al desvincular: " + err.message, true);
             }
         };
 
