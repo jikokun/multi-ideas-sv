@@ -13,8 +13,10 @@
     if (window.sensunCatalogModalLoaded) return;
     window.sensunCatalogModalLoaded = true;
 
-    const WOLFTRACK_RTDB_BASE = "https://com-example-jikopuntos-f9ff5-default-rtdb.firebaseio.com";
-    let activeCatalogUid = null;
+    const CATALOG_API = "https://us-central1-sensunshopweb.cloudfunctions.net/getBusinessCatalog";
+    let catalogRequestId = 0;
+    let catalogReady = false;
+    let catalogError = '';
     let activeBusinessData = null;
     let cachedMaterials = [];
     let currentFilter = "all"; // 'all', 'Producto', 'Servicio'
@@ -26,6 +28,8 @@
     let configVariantIndex = 0;
     let configExtrasSelected = new Set();
     let configQuantity = 1;
+    const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+    const safeId = value => encodeURIComponent(value).replace(/'/g, '%27');
 
     // Helper: Transformar enlaces de Google Drive a CDN de alto rendimiento
     function optimizeGoogleDriveUrl(url) {
@@ -1249,14 +1253,14 @@
                         <div class="ss-cat-header-info">
                             <h2>
                                 <span id="ssCatModalTitle">Catálogo Digital</span>
-                                <span class="ss-cat-live-pill"><span class="ss-cat-live-dot"></span> En Vivo</span>
                             </h2>
                             <p>
-                                <span>⚡ Sincronizado en tiempo real con WolfTrack</span>
+                                <span>⚡ Catálogo WolfTrack</span>
                             </p>
                         </div>
                     </div>
                     <div class="ss-cat-header-actions">
+                        <button type="button" class="ss-cat-btn-cart" onclick="window.reloadSensunCatalog()" title="Recargar catálogo">↻ Recargar</button>
                         <button type="button" class="ss-cat-btn-cart" onclick="window.openSensunCart()" title="Ver carrito de compras">
                             <span>🛒 Carrito</span>
                             <span class="ss-cat-cart-badge" id="ssHeaderCartCount">0</span>
@@ -1417,33 +1421,19 @@
     }
 
     // Conectar a Firebase RTDB para obtener los ítems en vivo
-    async function fetchWolfTrackMaterials(catalogUid) {
-        if (!catalogUid) return [];
-        try {
-            const url = `${WOLFTRACK_RTDB_BASE}/wolftrack/materials/${catalogUid}.json`;
-            const resp = await fetch(url);
-            if (!resp.ok) {
-                console.warn(`[WolfTrack RTDB] HTTP Error: ${resp.status}`);
-                throw new Error(`WolfTrack HTTP ${resp.status}`);
-            }
-            const data = await resp.json() || {};
-            
-            // Regla de Filtrado: Solo "Producto" y "Servicio". Se excluye "Material".
-            const validItems = Object.entries(data)
-                .map(([key, val]) => ({ id: key, ...val }))
-                .filter(item => item.type === "Producto" || item.type === "Servicio");
-
-            return validItems;
-        } catch (err) {
-            console.error("[WolfTrack RTDB Fetch Error]:", err);
-            throw err;
-        }
+    async function fetchWolfTrackMaterials(businessId) {
+        const response = await fetch(`${CATALOG_API}?businessId=${encodeURIComponent(businessId)}`, { cache: "no-store" });
+        if (!response.ok) { const error = new Error("No se pudo cargar el catálogo"); error.status = response.status; throw error; }
+        const data = await response.json();
+        if (!Array.isArray(data.items)) throw new Error("Respuesta de catálogo inválida");
+        return data.items;
     }
 
     // Renderizar Cuadrícula con TAMAÑO UNIFORME
     function renderCatalogGrid() {
         const bodyEl = document.getElementById('ssCatBody');
         if (!bodyEl) return;
+        if (catalogError) { bodyEl.textContent = catalogError; return; }
 
         const countAllEl = document.getElementById('ssCatCountAll');
         const countProdEl = document.getElementById('ssCatCountProd');
@@ -1486,7 +1476,7 @@
 
         filtered.forEach(item => {
             const isProducto = item.type === 'Producto';
-            const isAgotado = isProducto && Boolean(item.trackStock) && (parseInt(item.quantity, 10) <= 0);
+            const isAgotado = item.available !== true;
             const displayImgUrl = optimizeGoogleDriveUrl(item.imageUrl);
 
             const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
@@ -1513,10 +1503,10 @@
             }
 
             html += `
-                <div class="ss-cat-card ${isAgotado ? 'agotado' : ''}" id="cat-card-${item.id}">
+                <div class="ss-cat-card ${isAgotado ? 'agotado' : ''}" id="cat-card-${escapeHTML(item.id)}">
                     <div class="ss-cat-card-img-wrap">
                         ${displayImgUrl ? `
-                            <img src="${displayImgUrl}" alt="${item.name}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <img src="${escapeHTML(displayImgUrl)}" alt="${escapeHTML(item.name)}" loading="lazy" decoding="async" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
                             <div class="ss-cat-card-placeholder" style="display: none;">${isProducto ? '📦' : '⚡'}</div>
                         ` : `
                             <div class="ss-cat-card-placeholder">${isProducto ? '📦' : '⚡'}</div>
@@ -1529,7 +1519,7 @@
                                 <span class="ss-cat-badge-stock out-stock">Agotado 🚫</span>
                             ` : `
                                 <span class="ss-cat-badge-stock in-stock">
-                                    ${item.trackStock ? `Stock: ${item.quantity}` : `Disponible ✅`}
+                                    Disponible ✅
                                 </span>
                             `}
                         ` : `
@@ -1538,8 +1528,8 @@
                     </div>
 
                     <div class="ss-cat-card-content">
-                        <h4 class="ss-cat-card-title" title="${item.name}">${item.name}</h4>
-                        <p class="ss-cat-card-desc" title="${item.description || ''}">${item.description || 'Sin descripción disponible'}</p>
+                        <h4 class="ss-cat-card-title" title="${escapeHTML(item.name)}">${escapeHTML(item.name)}</h4>
+                        <p class="ss-cat-card-desc" title="${escapeHTML(item.description)}">${escapeHTML(item.description || 'Sin descripción disponible')}</p>
                         
                         ${optsHintHtml}
 
@@ -1553,7 +1543,7 @@
                                 <span>Agotado 🚫</span>
                             </button>
                         ` : `
-                            <button type="button" class="ss-cat-btn-add" onclick="window.handleAddToCartClick('${item.id}')">
+                            <button type="button" class="ss-cat-btn-add" onclick="window.handleAddToCartClick(decodeURIComponent('${safeId(item.id)}'))">
                                 <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
                                 <span>Añadir al Carrito</span>
                             </button>
@@ -1571,7 +1561,7 @@
     // Manejar Clic en "Añadir al Carrito"
     window.handleAddToCartClick = function(itemId) {
         const item = cachedMaterials.find(x => x.id === itemId);
-        if (!item) return;
+        if (!item || item.available !== true) return;
 
         const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
         const hasExtras = Array.isArray(item.extras) && item.extras.length > 0;
@@ -1595,7 +1585,7 @@
                 itemTotal: unitPrice
             };
             addToCartList(cartItem);
-            showToast(`✅ <b>${item.name}</b> añadido al carrito`);
+            showToast(`✅ <b>${escapeHTML(item.name)}</b> añadido al carrito`);
         }
     };
 
@@ -1614,10 +1604,10 @@
 
         let html = `
             <div class="ss-config-item-preview">
-                ${displayImg ? `<img src="${displayImg}" class="ss-config-preview-img" alt="${item.name}">` : `<div class="ss-config-preview-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">📦</div>`}
+                ${displayImg ? `<img src="${escapeHTML(displayImg)}" class="ss-config-preview-img" alt="${escapeHTML(item.name)}">` : `<div class="ss-config-preview-img" style="display:flex;align-items:center;justify-content:center;font-size:24px;">📦</div>`}
                 <div class="ss-config-preview-info">
-                    <h4>${item.name}</h4>
-                    <p>${item.description || item.type}</p>
+                    <h4>${escapeHTML(item.name)}</h4>
+                    <p>${escapeHTML(item.description || item.type)}</p>
                 </div>
             </div>
         `;
@@ -1631,7 +1621,7 @@
                         <label class="ss-config-option-row ${idx === 0 ? 'selected' : ''}" id="cfg-var-row-${idx}" onclick="window.selectConfigVariant(${idx})">
                             <div style="display:flex; align-items:center;">
                                 <input type="radio" name="cfg_variant" value="${idx}" ${idx === 0 ? 'checked' : ''}>
-                                <span>${v.name}</span>
+                                <span>${escapeHTML(v.name)}</span>
                             </div>
                             <strong style="color: #0f172a;">$${parseFloat(v.price).toFixed(2)}</strong>
                         </label>
@@ -1649,7 +1639,7 @@
                         <label class="ss-config-option-row" id="cfg-extra-row-${idx}">
                             <div style="display:flex; align-items:center;">
                                 <input type="checkbox" value="${idx}" onchange="window.toggleConfigExtra(${idx}, this.checked)">
-                                <span>${ex.name}</span>
+                                <span>${escapeHTML(ex.name)}</span>
                             </div>
                             <strong style="color: #ff6b35;">+$${parseFloat(ex.price).toFixed(2)}</strong>
                         </label>
@@ -1725,7 +1715,7 @@
         if (!currentConfigItem) return 0;
         let unit = parseFloat(currentConfigItem.sellingPrice) || 0;
         if (configVariantIndex >= 0 && Array.isArray(currentConfigItem.variants) && currentConfigItem.variants[configVariantIndex]) {
-            unit = parseFloat(currentConfigItem.variants[configVariantIndex].price) || unit;
+            unit = Number(currentConfigItem.variants[configVariantIndex].price);
         }
 
         let extrasTotal = 0;
@@ -1748,13 +1738,13 @@
 
     // Confirmar y Añadir el Ítem Configurado al Carrito
     window.confirmAddToCart = function() {
-        if (!currentConfigItem) return;
+        if (!catalogReady || !currentConfigItem || !cachedMaterials.some(item => item.id === currentConfigItem.id && item.available === true)) return;
 
         let selectedVariantObj = null;
         let unitPrice = parseFloat(currentConfigItem.sellingPrice) || 0;
         if (configVariantIndex >= 0 && Array.isArray(currentConfigItem.variants) && currentConfigItem.variants[configVariantIndex]) {
             selectedVariantObj = currentConfigItem.variants[configVariantIndex];
-            unitPrice = parseFloat(selectedVariantObj.price) || unitPrice;
+            unitPrice = Number(selectedVariantObj.price);
         }
 
         let selectedExtrasList = [];
@@ -1859,20 +1849,20 @@
 
             let optionsHtml = '';
             if (it.variant) {
-                optionsHtml += `<div class="ss-cart-item-pill">🔹 <b>Opción:</b> ${it.variant.name} ($${parseFloat(it.variant.price).toFixed(2)})</div>`;
+                optionsHtml += `<div class="ss-cart-item-pill">🔹 <b>Opción:</b> ${escapeHTML(it.variant.name)} ($${parseFloat(it.variant.price).toFixed(2)})</div>`;
             }
             if (Array.isArray(it.extras) && it.extras.length > 0) {
                 it.extras.forEach(ex => {
-                    optionsHtml += `<div class="ss-cart-item-pill">➕ <b>Extra:</b> ${ex.name} (+$${parseFloat(ex.price).toFixed(2)})</div>`;
+                    optionsHtml += `<div class="ss-cart-item-pill">➕ <b>Extra:</b> ${escapeHTML(ex.name)} (+$${parseFloat(ex.price).toFixed(2)})</div>`;
                 });
             }
 
             html += `
                 <div class="ss-cart-item-card">
                     <div class="ss-cart-item-header">
-                        ${it.imageUrl ? `<img src="${it.imageUrl}" class="ss-cart-item-thumb" alt="${it.name}">` : `<div class="ss-cart-item-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;">📦</div>`}
+                        ${it.imageUrl ? `<img src="${escapeHTML(it.imageUrl)}" class="ss-cart-item-thumb" alt="${escapeHTML(it.name)}">` : `<div class="ss-cart-item-thumb" style="display:flex;align-items:center;justify-content:center;font-size:20px;">📦</div>`}
                         <div class="ss-cart-item-details">
-                            <h4>${it.name}</h4>
+                            <h4>${escapeHTML(it.name)}</h4>
                             ${optionsHtml}
                         </div>
                         <button type="button" class="ss-cart-btn-trash" onclick="window.removeCartItemAt(${idx})" title="Eliminar ítem">🗑️</button>
@@ -1929,6 +1919,10 @@
     // Compilar y Enviar Pedido a WhatsApp con la Plantilla Oficial
     window.sendWhatsAppCartOrder = function() {
         if (cart.length === 0) return;
+        if (!catalogReady || cart.some(entry => !cachedMaterials.some(item => item.id === entry.id && item.available === true))) {
+            showToast("Recarga el catálogo y retira los productos que ya no estén disponibles.");
+            return;
+        }
 
         const bizName = (activeBusinessData && activeBusinessData.businessName) || "Multi Ideas SV";
         const phone = (activeBusinessData && (activeBusinessData.businessPhone || activeBusinessData.whatsapp)) || "50372359113";
@@ -1999,8 +1993,6 @@
         const overlay = ensureModalDOM();
         
         activeBusinessData = bizData;
-        const catalogUid = bizData.catalogUid || '';
-        activeCatalogUid = catalogUid;
 
         // Cargar Carrito guardado
         loadCart();
@@ -2010,18 +2002,18 @@
         const avatarEl = document.getElementById('ssCatModalAvatar');
         const linkEl = document.getElementById('ssCatModalDirectLink');
 
-        if (titleEl) titleEl.textContent = `${bizData.businessName || 'Negocio'} — Catálogo en Vivo`;
+        if (titleEl) titleEl.textContent = `${bizData.businessName || 'Negocio'} — Catálogo`;
         
         if (avatarEl) {
             if (bizData.businessImg) {
-                avatarEl.innerHTML = `<img src="${bizData.businessImg}" alt="${bizData.businessName}">`;
+                avatarEl.innerHTML = `<img src="${escapeHTML(bizData.businessImg)}" alt="${escapeHTML(bizData.businessName)}">`;
             } else {
                 avatarEl.innerHTML = `🛍️`;
             }
         }
 
         // URL directa a pantalla completa
-        const directUrl = bizData.catalogUrl || (catalogUid ? `https://multiideassv.com/wolftrack.html?uid=${catalogUid}` : '#');
+        const directUrl = `https://multiideassv.com/wolftrack.html?businessId=${encodeURIComponent(bizData.businessId || '')}`;
         if (linkEl) linkEl.href = directUrl;
 
         // Mostrar Modal
@@ -2035,7 +2027,7 @@
                 <div class="ss-cat-loading-state">
                     <div class="ss-cat-spinner"></div>
                     <p style="font-weight: 600; color: #1e293b;">Sincronizando inventario en tiempo real con WolfTrack...</p>
-                    <small style="color: #94a3b8; font-size: 0.78rem;">Consultando nodo: wolftrack/materials/${catalogUid}</small>
+                    <small style="color: #94a3b8; font-size: 0.78rem;">Consultando catálogo del negocio</small>
                 </div>
             `;
         }
@@ -2044,17 +2036,35 @@
         currentFilter = "all";
         currentSearch = "";
         
+        await window.reloadSensunCatalog();
+    };
+
+    window.reloadSensunCatalog = async function() {
+        const businessId = activeBusinessData && activeBusinessData.businessId;
+        const requestId = ++catalogRequestId;
+        const bodyEl = document.getElementById('ssCatBody');
+        catalogReady = false;
+        catalogError = '';
+        cachedMaterials = [];
+        for (const id of ['ssCatCountAll', 'ssCatCountProd', 'ssCatCountServ']) { const el = document.getElementById(id); if (el) el.textContent = '0'; }
+        if (bodyEl) bodyEl.innerHTML = '<div class="ss-cat-loading-state">Cargando catálogo...</div>';
         try {
-            cachedMaterials = await fetchWolfTrackMaterials(catalogUid);
+            const items = await fetchWolfTrackMaterials(businessId || '');
+            if (requestId !== catalogRequestId) return;
+            cachedMaterials = items;
+            catalogReady = true;
             renderCatalogGrid();
         } catch (error) {
-            cachedMaterials = [];
-            if (bodyEl) bodyEl.innerHTML = '<div class="ss-cat-empty-state"><h3>No se pudo cargar el catálogo</h3><p>Comprueba el acceso al inventario e inténtalo de nuevo.</p></div>';
+            if (requestId !== catalogRequestId) return;
+            catalogError = error.status === 404 ? 'Catálogo no disponible.' : 'No se pudo cargar el catálogo. Inténtalo de nuevo.';
+            renderCatalogGrid();
         }
     };
 
     // Cierra el catálogo
     window.closeSensunCatalogModal = function() {
+        catalogRequestId++;
+        catalogReady = false;
         const overlay = document.getElementById('sensunCatalogModalOverlay');
         if (overlay) {
             overlay.classList.remove('active');

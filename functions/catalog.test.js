@@ -13,7 +13,7 @@ function fixture(overrides = {}) {
 }
 test('validates matching verified account, preserving UID case', async () => {
  const f = fixture(); const r = await f.run({enabled: true, code: 'WT-AbC123', email: ' Test@Example.com '});
- assert.equal(r.statusCode, 200); assert.deepEqual(f.saved[2], {hasCatalog:true,catalogUid:'AbC123',catalogUrl:'https://multiideassv.com/wolftrack.html?uid=AbC123'});
+ assert.equal(r.statusCode, 200); assert.deepEqual(f.saved[2], {hasCatalog:true,catalogUid:'AbC123',catalogUrl:'https://multiideassv.com/wolftrack.html?businessId=emp-002'});
 });
 test('allows Android business fields and reports exclusive creation conflicts', async () => {
  const f = fixture();

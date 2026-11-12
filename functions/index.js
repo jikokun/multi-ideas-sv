@@ -1201,3 +1201,4 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 });
 
 exports.saveBusinessCatalog = require('./catalog').saveBusinessCatalog;
+exports.getBusinessCatalog = require('./public_catalog').getBusinessCatalog;

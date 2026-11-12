@@ -842,7 +842,7 @@
                 <h2>🐺 Prueba Piloto: Inventario WolfTrack <span style="font-size:0.8rem; background:rgba(6,182,212,0.15); color:var(--wolf-cyan); border:1px solid rgba(6,182,212,0.3); padding:2px 8px; border-radius:999px;">wolftrack/materials/{USER_ID}</span></h2>
                 <p>
                     Catálogo sincronizado directamente con la base de datos de la app Android <strong>WolfTrack</strong>. 
-                    Cualquier cambio de precio, stock o nuevo producto se actualiza al instante sin recargar la página.
+                    Consulta los productos disponibles y usa Recargar para ver los cambios recientes.
                 </p>
                 <div style="margin-top: 10px; font-size: 0.8rem; color: var(--text-sub);">
                     Perfil activo: <strong id="activeProfileLabel" style="color: var(--wolf-amber);">Isaí Claros (joel.claroso@gmail.com)</strong>
@@ -892,7 +892,8 @@
                 <button class="btn-action-primary" id="btnNewItem" onclick="openCreateModal()" style="display: none;">
                     <span>➕</span> Nuevo Ítem
                 </button>
-                <button class="btn-action-secondary" id="btnSeedDemo" onclick="seedDemoData()" title="Cargar 5 productos y servicios de prueba en RTDB">
+                <button class="btn-action-secondary" id="btnReloadCatalog" onclick="reloadPublicCatalog()" style="display: none;">↻ Recargar</button>
+                <button class="btn-action-secondary" id="btnSeedDemo" onclick="seedDemoData()" style="display: none;" title="Cargar 5 productos y servicios de prueba en RTDB">
                     <span>⚡</span> Semilla Demo
                 </button>
             </div>
@@ -1049,6 +1050,12 @@
         let selectedItemForOrder = null;
         let selectedVariant = null;
         let selectedExtras = [];
+        let publicCatalogError = "";
+        let publicCatalogRequest = 0;
+        let publicBusinessPhone = "";
+        let publicBusinessName = "Negocio";
+        const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+        const safeId = value => encodeURIComponent(value).replace(/'/g, '%27');
 
         // Función inteligente para transformar enlaces de Google Drive en CDN de alta velocidad
         function formatImageUrl(url, isService = false) {
@@ -1068,9 +1075,7 @@
         // Leer UID por parámetro URL (?uid=...) si un cliente entra directamente
         const urlParams = new URLSearchParams(window.location.search);
         const queryUid = urlParams.get('uid');
-        if (queryUid) {
-            currentUserId = queryUid;
-        }
+        const queryBusinessId = urlParams.get('businessId');
 
         // =====================================================================
         // AUTENTICACIÓN FIREBASE (PERFIL ISAI CLAROS / JOEL.CLAROSO@GMAIL.COM)
@@ -1081,10 +1086,14 @@
             const tabMateriales = document.getElementById("tabMateriales");
             const boxMateriales = document.getElementById("boxMateriales");
             const activeProfileLabel = document.getElementById("activeProfileLabel");
+            btnNewItem.style.display = "none";
+            document.getElementById("btnSeedDemo").style.display = "none";
+            tabMateriales.style.display = "none";
+            boxMateriales.style.display = "none";
 
             if (user) {
-                currentUserId = queryUid || user.uid;
-                isOwner = currentUserId === user.uid && (user.email === "joel.claroso@gmail.com" || user.email?.toLowerCase().includes("claros"));
+                currentUserId = user.uid;
+                isOwner = !queryBusinessId && (!queryUid || queryUid === user.uid) && (user.email === "joel.claroso@gmail.com" || user.email?.toLowerCase().includes("claros"));
                 
                 activeProfileLabel.innerHTML = `${user.displayName || 'Isaí Claros'} (${user.email}) <button onclick="navigator.clipboard.writeText('${user.uid}'); alert('UID copiado: ${user.uid}')" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:4px; padding:2px 6px; font-size:0.7rem; cursor:pointer; margin-left:6px;" title="Copiar UID para Android Studio">📋 Copiar UID</button>`;
 
@@ -1100,13 +1109,15 @@
 
                 if (isOwner) {
                     btnNewItem.style.display = "flex";
+                    document.getElementById("btnSeedDemo").style.display = "flex";
                     tabMateriales.style.display = "flex";
                     boxMateriales.style.display = "block";
                 }
             } else {
-                currentUserId = queryUid || null;
+                currentUserId = null;
                 isOwner = false;
                 btnNewItem.style.display = "none";
+                document.getElementById("btnSeedDemo").style.display = "none";
                 tabMateriales.style.display = "none";
                 boxMateriales.style.display = "none";
                 authContainer.innerHTML = `
@@ -1118,7 +1129,11 @@
             }
 
             // Iniciar sincronización con Firebase para el usuario activo
-            if (currentUserId) {
+            document.getElementById("btnReloadCatalog").style.display = queryBusinessId ? "flex" : "none";
+            if (queryBusinessId) {
+                if (unsubscribeRTDB) { unsubscribeRTDB(); unsubscribeRTDB = null; }
+                window.reloadPublicCatalog();
+            } else if (isOwner && currentUserId) {
                 startListeningRTDB(currentUserId);
             } else {
                 if (unsubscribeRTDB) { unsubscribeRTDB(); unsubscribeRTDB = null; }
@@ -1127,6 +1142,40 @@
                 renderCatalog();
             }
         });
+
+        window.reloadPublicCatalog = async () => {
+            const request = ++publicCatalogRequest;
+            const grid = document.getElementById("catalogGrid");
+            allItems = [];
+            publicBusinessPhone = "";
+            document.getElementById("countProductos").innerText = "0";
+            document.getElementById("countServicios").innerText = "0";
+            publicCatalogError = "";
+            grid.innerHTML = '<div class="empty-state"><h3>Cargando catálogo...</h3></div>';
+            try {
+                const response = await fetch(`https://us-central1-sensunshopweb.cloudfunctions.net/getBusinessCatalog?businessId=${encodeURIComponent(queryBusinessId)}`, {cache: "no-store"});
+                if (!response.ok) { const error = new Error("Catálogo no disponible"); error.status = response.status; throw error; }
+                const data = await response.json();
+                if (!Array.isArray(data.items)) throw new Error("Respuesta inválida");
+                let phone = "";
+                try {
+                    const businessResponse = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/sensunshop/businesses/${encodeURIComponent(queryBusinessId)}.json`, {cache: "no-store"});
+                    if (businessResponse.ok) { const business = await businessResponse.json(); phone = String(business?.whatsapp || business?.phone || '').replace(/\D/g, ''); publicBusinessName = String(business?.title || 'Negocio'); }
+                } catch (_) { /* El catálogo se muestra aunque el contacto no esté disponible. */ }
+                if (request !== publicCatalogRequest) return;
+                publicBusinessPhone = phone;
+                allItems = data.items;
+                document.getElementById("syncStatusText").innerText = "Catálogo actualizado";
+                document.getElementById("countProductos").innerText = allItems.filter(item => item.type === "Producto").length;
+                document.getElementById("countServicios").innerText = allItems.filter(item => item.type === "Servicio").length;
+                renderCatalog();
+            } catch (error) {
+                if (request !== publicCatalogRequest) return;
+                publicCatalogError = error.status === 404 ? "Catálogo no disponible" : "No se pudo cargar el catálogo. Inténtalo de nuevo.";
+                document.getElementById("syncStatusText").innerText = publicCatalogError;
+                renderCatalog();
+            }
+        };
 
         window.loginWithGoogle = async () => {
             try {
@@ -1200,6 +1249,7 @@
 
         function renderCatalog() {
             const grid = document.getElementById("catalogGrid");
+            if (publicCatalogError) { grid.textContent = publicCatalogError; return; }
             
             // 1. Filtrar según especificación técnica
             let filtered = allItems.filter(item => {
@@ -1237,7 +1287,7 @@
                 const isMaterial = item.type === "Material";
                 
                 // Regla 2: Si trackStock === true y quantity <= 0 ➔ Agotado (ignorado para servicios)
-                const isOutOfStock = !isService && item.trackStock && (item.quantity <= 0);
+                const isOutOfStock = isOwner ? (!isService && item.trackStock && (item.quantity <= 0)) : item.available !== true;
                 
                 let badgeClass = "badge-producto";
                 if (isService) badgeClass = "badge-servicio";
@@ -1246,6 +1296,8 @@
                 let stockMarkup = "";
                 if (isService) {
                     stockMarkup = `<span class="item-stock-badge stock-available" style="background:rgba(245,158,11,0.85);">⚡ Servicio</span>`;
+                } else if (!isOwner && isOutOfStock) {
+                    stockMarkup = `<span class="item-stock-badge stock-empty">Agotado</span>`;
                 } else if (item.trackStock) {
                     if (isOutOfStock) {
                         stockMarkup = `<span class="item-stock-badge stock-empty">🔴 Agotado</span>`;
@@ -1263,33 +1315,34 @@
                 const imgSrc = formatImageUrl(item.imageUrl, isService);
                 const hasVariants = Array.isArray(item.variants) && item.variants.length > 0;
                 const pricePrefix = hasVariants ? "Desde " : "";
+                const displayPrice = hasVariants ? Math.min(...item.variants.map(v => Number(v.price))) : Number(item.sellingPrice || 0);
 
                 return `
-                    <article class="item-card" data-id="${item.id}">
+                    <article class="item-card" data-id="${escapeHTML(item.id)}">
                         <div class="item-card-media">
-                            <img src="${imgSrc}" alt="${item.name}" loading="lazy" onerror="this.src='${fallbackImg}'">
+                            <img src="${escapeHTML(imgSrc)}" alt="${escapeHTML(item.name)}" loading="lazy" onerror="this.src='${fallbackImg}'">
                             <span class="item-type-badge ${badgeClass}">${item.type}</span>
                             ${stockMarkup}
                         </div>
 
                         <div class="item-card-body">
-                            <h3 class="item-title">${item.name}</h3>
-                            <p class="item-description">${item.description || 'Sin descripción detallada disponible.'}</p>
+                            <h3 class="item-title">${escapeHTML(item.name)}</h3>
+                            <p class="item-description">${escapeHTML(item.description || 'Sin descripción detallada disponible.')}</p>
                             
                             <div class="item-meta-row">
                                 <div class="price-container">
                                     <span class="price-sub">${pricePrefix}Precio</span>
-                                    <span class="price-val">$${(item.sellingPrice || 0).toFixed(2)}</span>
+                                    <span class="price-val">$${displayPrice.toFixed(2)}</span>
                                 </div>
 
                                 <div class="card-actions">
-                                    <button class="btn-order-wa" ${isOutOfStock ? 'disabled title="Producto actualmente agotado"' : ''} onclick="openOrderModal('${item.id}')">
+                                    <button class="btn-order-wa" ${isOutOfStock ? 'disabled title="Producto actualmente agotado"' : ''} onclick="openOrderModal(decodeURIComponent('${safeId(item.id)}'))">
                                         <span>🛒</span>
                                         <span>${isOutOfStock ? 'Agotado' : 'Ordenar'}</span>
                                     </button>
                                     
                                     ${isOwner ? `
-                                        <button onclick="handleDeleteItem('${item.id}')" style="background:rgba(244,63,94,0.15); border:1px solid rgba(244,63,94,0.3); color:var(--wolf-rose); border-radius:8px; padding:6px 10px; cursor:pointer;" title="Eliminar ítem">
+                                        <button onclick="handleDeleteItem(decodeURIComponent('${safeId(item.id)}'))" style="background:rgba(244,63,94,0.15); border:1px solid rgba(244,63,94,0.3); color:var(--wolf-rose); border-radius:8px; padding:6px 10px; cursor:pointer;" title="Eliminar ítem">
                                             🗑️
                                         </button>
                                     ` : ''}
@@ -1306,7 +1359,8 @@
         // =====================================================================
         window.openOrderModal = (itemId) => {
             const item = allItems.find(i => i.id === itemId);
-            if (!item) return;
+            if (!item || (!isOwner && item.available !== true)) return;
+            if (!isOwner && !publicBusinessPhone) { alert("El contacto de este negocio no está disponible."); return; }
 
             selectedItemForOrder = item;
             selectedVariant = (item.variants && item.variants.length > 0) ? item.variants[0] : null;
@@ -1328,7 +1382,7 @@
                     <label class="option-item">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <input type="radio" name="variantRadio" value="${idx}" ${idx === 0 ? 'checked' : ''} onchange="selectVariant(${idx})">
-                            <span style="font-size:0.85rem; color:#fff;">${v.name}</span>
+                            <span style="font-size:0.85rem; color:#fff;">${escapeHTML(v.name)}</span>
                         </div>
                         <span style="font-weight:700; color:var(--wolf-amber); font-size:0.88rem;">$${parseFloat(v.price).toFixed(2)}</span>
                     </label>
@@ -1346,7 +1400,7 @@
                     <label class="option-item">
                         <div style="display:flex; align-items:center; gap:8px;">
                             <input type="checkbox" value="${idx}" onchange="toggleExtra(${idx}, this.checked)">
-                            <span style="font-size:0.85rem; color:#fff;">${ex.name}</span>
+                            <span style="font-size:0.85rem; color:#fff;">${escapeHTML(ex.name)}</span>
                         </div>
                         <span style="font-weight:700; color:var(--wolf-cyan); font-size:0.85rem;">+$${parseFloat(ex.price).toFixed(2)}</span>
                     </label>
@@ -1393,7 +1447,8 @@
 
             // Actualizar enlace a WhatsApp
             const waLink = WolfTrackService.buildWhatsAppOrderLink({
-                phone: "50372300000", // Teléfono comercial de Multi Ideas SV
+                phone: isOwner ? "50372300000" : publicBusinessPhone,
+                businessName: isOwner ? "Multi Ideas SV" : publicBusinessName,
                 item: selectedItemForOrder,
                 variant: selectedVariant,
                 extras: selectedExtras,

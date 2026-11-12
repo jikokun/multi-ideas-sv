@@ -2560,7 +2560,7 @@ function setupBusinessesRealtimeSync() {
                 }
 
                 return {
-                    id: item.id || key,
+                    id: key,
                     code: item.code || "",
                     title: item.title || "Negocio",
                     type: item.type || "negocioslocales",
