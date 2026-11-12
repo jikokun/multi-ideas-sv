@@ -1040,8 +1040,7 @@
         import { WolfTrackService } from "./wolftrack_service.js";
 
         // Estado Global
-        const DEFAULT_UID = "PyVEtkbRXJgHyW3hEfjmMxS9e682";
-        let currentUserId = DEFAULT_UID;
+        let currentUserId = null;
         let allItems = [];
         let activeFilter = "all";
         let searchQuery = "";
@@ -1084,8 +1083,8 @@
             const activeProfileLabel = document.getElementById("activeProfileLabel");
 
             if (user) {
-                currentUserId = user.uid;
-                isOwner = (user.email === "joel.claroso@gmail.com" || user.email?.toLowerCase().includes("claros"));
+                currentUserId = queryUid || user.uid;
+                isOwner = currentUserId === user.uid && (user.email === "joel.claroso@gmail.com" || user.email?.toLowerCase().includes("claros"));
                 
                 activeProfileLabel.innerHTML = `${user.displayName || 'Isaí Claros'} (${user.email}) <button onclick="navigator.clipboard.writeText('${user.uid}'); alert('UID copiado: ${user.uid}')" style="background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); color:#fff; border-radius:4px; padding:2px 6px; font-size:0.7rem; cursor:pointer; margin-left:6px;" title="Copiar UID para Android Studio">📋 Copiar UID</button>`;
 
@@ -1105,6 +1104,7 @@
                     boxMateriales.style.display = "block";
                 }
             } else {
+                currentUserId = queryUid || null;
                 isOwner = false;
                 btnNewItem.style.display = "none";
                 tabMateriales.style.display = "none";
@@ -1118,7 +1118,14 @@
             }
 
             // Iniciar sincronización con Firebase para el usuario activo
-            startListeningRTDB(currentUserId);
+            if (currentUserId) {
+                startListeningRTDB(currentUserId);
+            } else {
+                if (unsubscribeRTDB) { unsubscribeRTDB(); unsubscribeRTDB = null; }
+                document.getElementById("syncStatusText").innerText = "Indica un catalogo o inicia sesion";
+                allItems = [];
+                renderCatalog();
+            }
         });
 
         window.loginWithGoogle = async () => {

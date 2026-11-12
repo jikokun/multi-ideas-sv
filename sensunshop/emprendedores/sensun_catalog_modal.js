@@ -1999,7 +1999,7 @@
         const overlay = ensureModalDOM();
         
         activeBusinessData = bizData;
-        const catalogUid = bizData.catalogUid || (bizData.businessId === 'emp-002' ? 'PyVEtkbRXJgHyW3hEfjmMxS9e682' : '');
+        const catalogUid = bizData.catalogUid || '';
         activeCatalogUid = catalogUid;
 
         // Cargar Carrito guardado

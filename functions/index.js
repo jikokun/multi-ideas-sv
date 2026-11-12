@@ -203,7 +203,7 @@ async function verifyAdminAuth(req) {
     if (!token) return false;
     try {
         const decoded = await admin.auth().verifyIdToken(token);
-        return decoded && (decoded.admin === true || decoded.email === "joel.claroso@gmail.com" || Boolean(decoded.uid));
+        return decoded && (decoded.admin === true);
     } catch (e) {
         return false;
     }
@@ -1199,3 +1199,5 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
         return res.status(500).send(`Error en servidor: ${err.message}`);
     }
 });
+
+exports.saveBusinessCatalog = require('./catalog').saveBusinessCatalog;
