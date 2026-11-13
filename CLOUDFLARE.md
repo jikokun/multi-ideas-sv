@@ -57,6 +57,27 @@ y `/sensunshop/admin` corresponden a sus HTML hermanos; las variantes con barra
 corresponden a sus respectivos `index.html`. El build genera una página 404 propia en `dist`,
 sin modificar las páginas del repositorio ni usar la portada como fallback.
 
+## Términos y condiciones
+
+La portada y Sensun Shop enlazan a `/terminos-y-condiciones.html`. Los documentos
+independientes son `/terminos-sensunshop.html`, `/terminos-fidelix.html` y
+`/terminos-green-play.html`. También se generan sus rutas sin extensión.
+Las páginas contienen el texto en HTML y no necesitan JavaScript ni autenticación.
+Su estilo compartido está en `terminos.css`; todos están en la lista pública del build.
+
+Antes de presentar las URLs en Google Play, confirmar el nombre legal y la dirección
+del operador, coherentes con la cuenta de desarrollador. Los documentos usan la marca
+y los canales de contacto existentes en el sitio. Las tres apps son gratuitas, sin
+cobros, suscripciones ni publicidad propia. Green Play es un visor WebView independiente
+de Kick; los servicios y anuncios de Kick se distinguen de los de la app.
+La política de privacidad existente de Sensun Shop aún describe pedidos y entregas:
+debe alinearse con su funcionamiento actual como catálogo con acceso mediante Google.
+También falta una política de privacidad específica de Green Play que refleje sus
+prácticas reales; los términos no sustituyen ese documento.
+La publicación de estas páginas no realiza la declaración de operador en Play Console.
+
+Referencia oficial: [Declaración del estado de operador](https://support.google.com/googleplay/android-developer/answer/17594752?hl=es).
+
 ## Alcance de la prueba
 
 La configuración no declara dominios, rutas de zona ni bindings de Firebase.

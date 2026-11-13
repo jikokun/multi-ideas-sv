@@ -12,6 +12,11 @@ export const MAX_ASSET_BYTES = 25 * 1024 * 1024;
 // seeder_firebase.html y estadisticas_tienda.html (datos de muestra).
 export const PUBLIC_FILES = Object.freeze(
 [
+  "terminos.css",
+  "terminos-y-condiciones.html",
+  "terminos-sensunshop.html",
+  "terminos-fidelix.html",
+  "terminos-green-play.html",
   "businesses_only.json",
   "callback.html",
   "callback/index.html",
