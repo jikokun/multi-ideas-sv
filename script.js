@@ -1297,6 +1297,74 @@ function initSensunInlineHeroSearch(depth = 0) {
 
     let businessesData = null;
     let debounceTimer = null;
+    let searchVersion = 0;
+    let positionFrame = 0;
+    const searchContainer = heroInput.closest(".sensun-search-container");
+    const supportsPopover = resultsPanel && typeof resultsPanel.showPopover === "function";
+
+    // The top layer escapes the hero's overflow and stacking contexts.
+    if (resultsPanel && !supportsPopover) document.body.appendChild(resultsPanel);
+
+    function positionResults() {
+        if (!resultsPanel || resultsPanel.style.display === "none") return;
+        const anchor = heroInput.getBoundingClientRect();
+        const container = searchContainer.getBoundingClientRect();
+        const viewport = window.visualViewport;
+        const viewportTop = viewport ? viewport.offsetTop : 0;
+        const viewportLeft = viewport ? viewport.offsetLeft : 0;
+        const viewportHeight = viewport ? viewport.height : window.innerHeight;
+        const viewportWidth = viewport ? viewport.width : window.innerWidth;
+        const gap = 8;
+        const bottom = viewportTop + viewportHeight - gap;
+        const top = viewportTop + gap;
+        if (anchor.bottom < top || anchor.top > bottom) {
+            hideResults();
+            return;
+        }
+        // Anchor to the input row so quick tags do not consume result space.
+        const row = heroInput.closest(".search-input-wrapper").getBoundingClientRect();
+        const spaceBelow = Math.max(0, bottom - row.bottom - gap);
+        const spaceAbove = Math.max(0, row.top - top - gap);
+        const above = spaceBelow < 240 && spaceAbove > spaceBelow;
+        const height = Math.min(440, above ? spaceAbove : spaceBelow);
+        const width = Math.min(container.width, viewportWidth - gap * 2);
+        resultsPanel.style.width = `${width}px`;
+        resultsPanel.style.left = `${Math.max(viewportLeft + gap, Math.min(container.left, viewportLeft + viewportWidth - width - gap))}px`;
+        resultsPanel.style.maxHeight = `${height}px`;
+        resultsPanel.style.top = above ? "auto" : `${row.bottom + gap}px`;
+        resultsPanel.style.bottom = above ? `${window.innerHeight - row.top + gap}px` : "auto";
+    }
+
+    function showResults() {
+        if (!resultsPanel) return;
+        resultsPanel.style.display = "flex";
+        if (supportsPopover && !resultsPanel.matches(":popover-open")) resultsPanel.showPopover();
+        heroInput.setAttribute("aria-expanded", "true");
+        positionResults();
+    }
+
+    function hideResults() {
+        clearTimeout(debounceTimer);
+        searchVersion++;
+        if (!resultsPanel) return;
+        if (supportsPopover && resultsPanel.matches(":popover-open")) resultsPanel.hidePopover();
+        resultsPanel.style.display = "none";
+        heroInput.setAttribute("aria-expanded", "false");
+    }
+
+    function schedulePosition() {
+        if (!resultsPanel || resultsPanel.style.display === "none" || positionFrame) return;
+        positionFrame = requestAnimationFrame(() => {
+            positionFrame = 0;
+            positionResults();
+        });
+    }
+    window.addEventListener("resize", schedulePosition, { passive: true });
+    window.addEventListener("scroll", schedulePosition, { passive: true });
+    if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", schedulePosition, { passive: true });
+        window.visualViewport.addEventListener("scroll", schedulePosition, { passive: true });
+    }
 
     const targetPages = [
         "negocioslocales.html",
@@ -1388,16 +1456,20 @@ function initSensunInlineHeroSearch(depth = 0) {
     async function performSearch(queryText) {
         const query = cleanString(queryText);
         if (!query) {
-            if (resultsPanel) resultsPanel.style.display = "none";
+            hideResults();
             if (card) card.classList.remove("has-text");
             return;
         }
 
         if (card) card.classList.add("has-text");
-        if (resultsPanel) resultsPanel.style.display = "block";
+        clearTimeout(debounceTimer);
+        const version = ++searchVersion;
+        if (resultsCount) resultsCount.textContent = "Buscando...";
+        showResults();
         if (resultsList) resultsList.innerHTML = '<div class="dynamic-status-message">Buscando negocios en Sensuntepeque...</div>';
 
         const data = await loadData();
+        if (version !== searchVersion) return;
         if (!data || data.length === 0) {
             if (resultsList) resultsList.innerHTML = '<div class="dynamic-status-message">No se pudo cargar el catálogo.</div>';
             return;
@@ -1458,7 +1530,7 @@ function initSensunInlineHeroSearch(depth = 0) {
             // Click listener
             resultsList.querySelectorAll(".search-result-item").forEach(el => {
                 el.addEventListener("click", (e) => {
-                    if (resultsPanel) resultsPanel.style.display = "none";
+                    hideResults();
                 });
             });
         }
@@ -1467,6 +1539,12 @@ function initSensunInlineHeroSearch(depth = 0) {
     // 3. Listeners del Input
     heroInput.addEventListener("input", () => {
         clearTimeout(debounceTimer);
+        searchVersion++;
+        if (!heroInput.value.trim()) {
+            hideResults();
+            if (card) card.classList.remove("has-text");
+            return;
+        }
         debounceTimer = setTimeout(() => {
             performSearch(heroInput.value);
         }, 180);
@@ -1483,7 +1561,7 @@ function initSensunInlineHeroSearch(depth = 0) {
         clearBtn.addEventListener("click", () => {
             heroInput.value = "";
             if (card) card.classList.remove("has-text");
-            if (resultsPanel) resultsPanel.style.display = "none";
+            hideResults();
             heroInput.focus();
         });
     }
@@ -1498,15 +1576,16 @@ function initSensunInlineHeroSearch(depth = 0) {
     // 6. Cerrar resultados
     if (closeResultsBtn) {
         closeResultsBtn.addEventListener("click", () => {
-            if (resultsPanel) resultsPanel.style.display = "none";
+            heroInput.focus({ preventScroll: true });
+            hideResults();
         });
     }
 
     // 7. Click fuera para cerrar panel
     document.addEventListener("click", (e) => {
         if (resultsPanel && resultsPanel.style.display !== "none") {
-            if (!heroInput.contains(e.target) && !resultsPanel.contains(e.target) && (!actionBtn || !actionBtn.contains(e.target))) {
-                resultsPanel.style.display = "none";
+            if (!searchContainer.contains(e.target) && !resultsPanel.contains(e.target)) {
+                hideResults();
             }
         }
     });
@@ -1526,12 +1605,15 @@ function initSensunInlineHeroSearch(depth = 0) {
 
     // 9. Atajo de teclado '/'
     document.addEventListener("keydown", (e) => {
-        if (e.key === "/" && document.activeElement !== heroInput && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
+        if (e.key === "Enter" && document.activeElement === heroInput) {
+            e.preventDefault();
+            performSearch(heroInput.value);
+        } else if (e.key === "/" && document.activeElement !== heroInput && !["INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) {
             e.preventDefault();
             heroInput.focus();
             heroInput.select();
         } else if (e.key === "Escape" && resultsPanel && resultsPanel.style.display !== "none") {
-            resultsPanel.style.display = "none";
+            hideResults();
         }
     });
 
