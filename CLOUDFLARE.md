@@ -78,6 +78,19 @@ La publicación de estas páginas no realiza la declaración de operador en Play
 
 Referencia oficial: [Declaración del estado de operador](https://support.google.com/googleplay/android-developer/answer/17594752?hl=es).
 
+## Colección navideña de overlays
+
+El laboratorio incluye un espacio **Overlays navideños** que abre
+`/overley_navideños/`. Contiene escenas independientes de inicio, chat, juego
+y cierre, con controles de nieve, luces y árbol, vista previa bajo demanda y
+enlaces individuales para fuentes Navegador de OBS de 1920 × 1080.
+Las luces y ventiscas admiten la señal musical existente. El modo juego reutiliza
+el marco original de cámara y muestra su tira Botrix 1 minuto, con 15 minutos de pausa.
+Los archivos de esta carpeta se incluyen explícitamente en el build público;
+también se generan sus rutas sin extensión. Las escenas originales se conservan.
+La guía de uso y los parámetros están en `overley_navideños/README.md` (documento
+local, no incluido en el paquete público).
+
 ## Alcance de la prueba
 
 La configuración no declara dominios, rutas de zona ni bindings de Firebase.

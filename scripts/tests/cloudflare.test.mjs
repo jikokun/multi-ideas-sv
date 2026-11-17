@@ -80,12 +80,16 @@ test('paquete público y rutas en el runtime local de Cloudflare', { timeout: 12
     }
     assert.equal(routes.has('/admin'), false);
     assert.equal(routes.get('/sensunshop'), '/sensunshop.html');
+    assert.equal(routes.get('/overley_navide%C3%B1os/'), '/overley_navide%C3%B1os/index.html');
+    assert.equal(redirects.get('/overley_navide%C3%B1os'), '/overley_navide%C3%B1os/');
   });
 
   await t.test('OAuth y fuentes OBS con parámetros conservan su URL y su contenido', async () => {
     for (const file of ['callback.html', 'callback/index.html', 'laboratorio/spotify_callback.html',
       'mini_widgets/widget_spotify.html', 'mini_widgets/widget_perfil.html',
-      'laboratorio/spotify_isla_widget.html', 'laboratorio/widget spotify mio.html']) {
+      'laboratorio/spotify_isla_widget.html', 'laboratorio/widget spotify mio.html',
+      'overley_navideños/escena_inicial_integrada.html', 'overley_navideños/modochat_integrado.html',
+      'overley_navideños/modojuego_integrado.html', 'overley_navideños/modomimir_integrado.html']) {
       await expectAsset(assetUrl(file) + '?code=prueba%2B123&state=estado%2Fobs&user=jikokun2', file);
     }
   });

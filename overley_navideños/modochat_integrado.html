@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jikokun · Navidad · Modo chat</title>
+  
+  <!-- Tipografías de Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Dela+Gothic+One&family=Luckiest+Guy&family=Orbitron:wght@700;900&family=Permanent+Marker&family=Rajdhani:wght@600;700;900&family=Sedgwick+Ave+Display&family=Frijole&display=swap" rel="stylesheet">
+  
+  <!-- Extracción Dinámica de Colores para Spotify -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/node-vibrant/3.1.6/vibrant.min.js"></script>
+  
+  <!-- Estilos CSS -->
+  <link rel="stylesheet" href="base_modochat.css">
+  <link rel="stylesheet" href="navidad.css">
+  <script src="musica.js" defer></script>
+<script src="luces.js" defer></script>
+<script src="nieve.js" defer></script>
+<script src="navidad.js" defer></script>
+</head>
+<body class="navidad-scene navidad-chat" data-scene="chat">
+  <div class="overlay-wrapper">
+    <!-- Escenario OBS Nativo 1920x1080 (Auto-escalable a cualquier resolución) -->
+    <div class="overlay-stage" id="overlay-stage">
+      
+      <!-- Capa 1: Canvas de Fondo (Partículas y Aura Radial Aqua) -->
+      <canvas id="bg-canvas"></canvas>
+
+      <!-- Capa 2: Marcos Geométricos Angulares en Esquinas -->
+      <div class="frame-container">
+        <!-- Esquina Superior Derecha -->
+        <div class="slash-shape top-right-main"></div>
+        <div class="slash-shape top-right-accent1"></div>
+        <div class="slash-shape top-right-accent2"></div>
+        <div class="slash-shape top-right-blade"></div>
+
+        <!-- Esquina Inferior Izquierda -->
+        <div class="slash-shape bottom-left-main"></div>
+        <div class="slash-shape bottom-left-accent1"></div>
+        <div class="slash-shape bottom-left-accent2"></div>
+        <div class="slash-shape bottom-left-blade"></div>
+
+        <!-- Líneas de Energía en Bordes -->
+        <div class="border-glow-line top"></div>
+        <div class="border-glow-line bottom"></div>
+        <div class="border-glow-line left"></div>
+        <div class="border-glow-line right"></div>
+      </div>
+
+      <!-- Capa 3: Canvas de Rayos Eléctricos y Chispas -->
+      <canvas id="electric-canvas"></canvas>
+
+      <!-- Capa 4: Marcos de Estructura Modo Chat (Sin Textos) -->
+      <div class="chatmode-container">
+        <!-- 1. Marco Principal de Cámara Web / Contenido -->
+        <div class="chatmode-frame frame-camera">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches"></div>
+        </div>
+
+        <!-- 2. Marco Alargado Derecho para Chat en Pantalla + Widget Spotify -->
+        <div class="chatmode-frame frame-chat">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+          <div class="frame-tech-notches vertical"></div>
+
+          <!-- Widget Spotify Isla Dinámica Integrada (Estilo Poligonal Sci-Fi Agrandado) -->
+          <div class="spotify-island-container">
+            <div id="spotify-wrapper" class="island-wrapper hidden">
+              <div id="spotify-island" class="island closed chatmode-frame">
+                <!-- Ícono Neón de Play (▶) -->
+                <div class="spotify-play-badge">
+                  <svg class="play-icon" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="6,4 20,12 6,20" />
+                  </svg>
+                </div>
+                <div class="cover">
+                  <img id="albumCover" src="" crossorigin="anonymous" alt="Portada" />
+                </div>
+                <div class="info">
+                  <div id="spotify-song-name" class="song-name">Cargando...</div>
+                  <div class="artist-bpm-row" style="display: flex; align-items: center; justify-content: space-between;">
+                    <div id="spotify-artist-name" class="artist-name">Spotify</div>
+                    <div id="spotify-bpm" class="spotify-bpm-badge">-- BPM</div>
+                  </div>
+                </div>
+                <!-- Ecualizador de Barras Neón Soundwave -->
+                <div class="soundwave-equalizer">
+                  <span></span><span></span><span></span><span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Área del Chat en Vivo (Kick / Streamer.bot) -->
+          <!-- OPCIÓN A: WebSocket Streamer.bot (Burbujas Neón Aqua en Tiempo Real - Activo por defecto) -->
+          <div class="chat-area" id="chat-container"></div>
+
+          <!-- OPCIÓN B: Widget iFrame de Botrix Live (Si prefieres usar el Chat Widget Oficial de Botrix) -->
+          <!-- 
+          <div class="chat-area">
+            <iframe 
+              src="https://botrix.live/widgets/chat?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-chat-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+          -->
+        </div>
+
+        <!-- 3. Espacio Dedicado para Alertas -->
+        <div class="chatmode-frame frame-alerts">
+          <div class="frame-corner-bracket top-l"></div>
+          <div class="frame-corner-bracket top-r"></div>
+          <div class="frame-corner-bracket bot-l"></div>
+          <div class="frame-corner-bracket bot-r"></div>
+
+          <!-- Encabezado Sci-Fi Centrado para Alertas -->
+          <div class="alerts-frame-header">
+            <span class="alerts-icon">⚡</span>
+            <span class="alerts-title">ALERTAS</span>
+          </div>
+
+          <!-- Contenido Widget Alertas Botrix Live -->
+          <div class="alerts-frame-content">
+            <iframe 
+              src="https://botrix.live/alerts?bid=542iomDnDN8s5%2BggVjdyVg" 
+              class="botrix-alerts-iframe"
+              frameborder="0"
+              scrolling="no"
+              allowtransparency="true">
+            </iframe>
+          </div>
+        </div>
+
+        <!-- 4. Contenedor de Espacios Varios para Eventos (4 Cajas de Eventos) -->
+        <div class="chatmode-events-grid">
+          <!-- Caja 1: Último Seguidor (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-1">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">✨</span>
+              <span class="event-title">ÚLTIMO SEGUIDOR</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoFollow&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+
+          <!-- Caja 2: Último Donador de Sub / Sub Regalado (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-2">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">🎁</span>
+              <span class="event-title">ÚLTIMO SUB REGALADO</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoGift) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoGift&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+          <!-- Caja 3: Último Suscriptor (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-3">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">⭐</span>
+              <span class="event-title">ÚLTIMO SUSCRIPTOR</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoSub) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bvalue%7D&font=Arial&type=ultimoSub&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+          <!-- Caja 4: Últimos Kicks Regalados (Botrix Label Widget Integrado) -->
+          <div class="chatmode-frame event-box event-box-4">
+            <div class="frame-corner-bracket top-l"></div>
+            <div class="frame-corner-bracket bot-r"></div>
+            
+            <!-- Encabezado Sci-Fi de la Caja -->
+            <div class="event-box-header">
+              <span class="event-icon">💚</span>
+              <span class="event-title">ÚLTIMOS KICKS REGALADOS</span>
+            </div>
+
+            <!-- Contenido Widget Botrix Live Label (ultimoKicks) -->
+            <div class="event-box-content">
+              <iframe 
+                src="https://botrix.live/widgets/labels?bid=542iomDnDN8s5%2BggVjdyVg&text=%7Bname%7D+-+%7Bamount%7D&font=Arial&type=ultimoKicks&platform=kick&style=&align=center&fontSize=32&fontWeight=700&fontStyle=normal&textDecoration=none&letterSpacing=0&lineHeight=1.2&color=%23ffffff&gradientAngle=90&animTheme=signal-break&animation=none&direction=normal&motion=none&motionDuration=8&motionDirection=left&motionDelay=0&emphasis=none&emphasisDuration=2.5&emphasisIntensity=50&fx=glitch-soft&fxDuration=1.9&fxIntensity=72&animationEasing=steps%2818%2C+end%29&animationIterationCount=infinite" 
+                class="botrix-label-iframe"
+                frameborder="0"
+                scrolling="no"
+                allowtransparency="true">
+              </iframe>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Script Principal JS -->
+  <script src="base_modochat.js" defer></script>
+</body>
+</html>
+
