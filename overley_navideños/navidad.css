@@ -134,9 +134,9 @@ html:has(.navidad-scene), body.navidad-scene, .navidad-scene .overlay-wrapper { 
 .navidad-lights-off .navidad-bulb::after { opacity: 0; }
 .navidad-lights-steady .navidad-bulb, .navidad-lights-steady .tree-light { animation: none; }
 .navidad-tree-hidden .navidad-tree { display: none; }
-.navidad-snowbank { position: absolute; bottom: 0; left: 0; width: 100%; height: 112px; pointer-events: none; }
+.navidad-snowbank, .navidad-game-snow-corners { position: absolute; bottom: 0; left: 0; width: 100%; height: 112px; pointer-events: none; }
 .navidad-inicial .footer { bottom: 24px; }
-.navidad-snow-off .navidad-snowbank, .navidad-snow-off .ingame-cam-tag::before { display: none; }
+.navidad-snow-off .navidad-snowbank, .navidad-snow-off .navidad-game-snow-corners, .navidad-snow-off .ingame-cam-tag::before { display: none; }
 .navidad-static *, .navidad-static *::before, .navidad-static *::after { animation: none !important; transition: none !important; }
 
 /* Zona central del juego y hueco de cámara con alfa real para OBS. */
@@ -144,6 +144,16 @@ html:has(.navidad-juego), body.navidad-juego, .navidad-juego .overlay-wrapper, .
 .navidad-juego .overlay-stage { flex-shrink: 0; }
 .navidad-juego .ingame-cam-frame { animation: none; box-shadow: none; }
 .navidad-juego .frame-corner-bracket { box-shadow: none; }
+.navidad-game-baubles { position: absolute; inset: 0; z-index: 35; pointer-events: none; }
+.navidad-game-baubles .bauble-cord { display: none; }
+.navidad-game-baubles .corner-right-gold { left: auto; top: auto; right: -13px; bottom: 9px; }
+.navidad-game-baubles .corner-right-red { left: auto; top: auto; right: 11px; bottom: -7px; }
+.navidad-juego .navidad-tree { left: -36px; top: auto; right: auto; bottom: -14px; width: 72px; height: 94px; z-index: 42; }
+.navidad-juego .navidad-tree svg { filter: drop-shadow(0 4px 5px #0005); }
+.navidad-juego .navidad-tree .tree-light { fill: #e5bf72; opacity: .7; animation: none; filter: none; }
+.navidad-juego .navidad-tree .tree-gift { display: none; }
+.navidad-juego .navidad-tree .tree-star { fill: #b89a58; filter: none; }
+.navidad-juego .navidad-tree.is-celebrating .tree-star { fill: #fff5b5; filter: drop-shadow(0 0 16px #ffe4a0); }
 .navidad-juego .cam-border-bg { stroke: #e5bf7260; }
 .navidad-juego .cam-border-stream.stream-main { stroke: var(--gold); stroke-width: 2; filter: drop-shadow(0 0 4px #e5bf7244); animation: camBorderFlowDynamic calc(var(--beat-duration, 1s) * 12) linear infinite; }
 .navidad-juego .cam-border-stream.stream-u-sweep { stroke: var(--holly); stroke-width: 1.5; filter: none; animation: camBorderUSweep calc(var(--beat-duration, 1s) * 8) ease-in-out infinite alternate; }
@@ -154,21 +164,26 @@ html:has(.navidad-juego), body.navidad-juego, .navidad-juego .overlay-wrapper, .
 .navidad-juego .ingame-cam-tag:hover { box-shadow: none; }
 .navidad-juego .navidad-snow { display: none; }
 .navidad-juego .navidad-lights { height: 30px; }
-.navidad-juego .navidad-bulb { width: 9px; height: 13px; margin-top: 5px; box-shadow: inset 1px 1px 2px #ffffff35, 0 0 calc(1px + var(--bulb-level) * 5px) color-mix(in srgb, var(--bulb) 65%, transparent); opacity: calc(.1 + var(--bulb-level) * .78); }
-.navidad-ticker { position: absolute; left: 40px; right: 40px; bottom: 24px; height: 58px; overflow: hidden; background: linear-gradient(90deg, #0a211af0, #14352df0, #0a211af0); border-top: 1px solid #e5bf7250; border-bottom: 1px solid #e5bf7230; z-index: 20; pointer-events: none; }
+.navidad-juego .navidad-bulb { width: 9px; height: 13px; margin-top: 5px; box-shadow: inset 1px 1px 2px #ffffff35, 0 0 calc(1px + var(--bulb-level) * 5px) color-mix(in srgb, var(--bulb) 65%, transparent); opacity: 1; }
+.navidad-juego.navidad-lights-off .navidad-bulb { box-shadow: none; filter: brightness(.25); }
+.navidad-ticker { --ticker-slot: 660px; position: absolute; left: 40px; right: 40px; bottom: 24px; height: 58px; overflow: hidden; background: linear-gradient(90deg, #0a211af0, #14352df0, #0a211af0); border-top: 1px solid #e5bf7250; border-bottom: 1px solid #e5bf7230; z-index: 20; pointer-events: none; }
 .navidad-ticker.is-hidden { visibility: hidden; opacity: 0; }
 .navidad-ticker-track { position: relative; height: 100%; }
-.navidad-ticker-item { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 18px; height: 58px; width: 520px; animation: navidad-news 32s linear infinite; animation-delay: calc(var(--item) * -8s); }
-.navidad-ticker-item > span { width: 165px; flex: none; color: var(--gold); font: 600 11px var(--font-tech, sans-serif); letter-spacing: 1px; white-space: nowrap; }
-.navidad-ticker-item iframe { width: 320px; height: 40px; border: 0; background: transparent; flex: none; }
+.navidad-ticker-item { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 20px; height: 100%; width: 620px; animation: navidad-news 32s linear infinite; animation-delay: calc(var(--item) * -8s); }
+.navidad-ticker-item > span { width: 280px; flex: none; color: var(--gold); font: 700 24px/1.1 Arial, sans-serif; letter-spacing: .7px; white-space: nowrap; }
+/* Botrix conserva 8px de margen por lado: 26px × 1.2 de línea + 16px. */
+.navidad-ticker-item iframe { width: 320px; height: calc(26px * 1.2 + 16px); border: 0; background: transparent; flex: none; }
 .navidad-ticker.is-hidden .navidad-ticker-item { animation-play-state: paused; }
 .navidad-juego.navidad-static .navidad-ticker-track { display: flex; }
-.navidad-juego.navidad-static .navidad-ticker-item { position: static; flex: 1; width: 25%; display: block; padding: 5px 14px; transform: none; }
-.navidad-juego.navidad-static .navidad-ticker-item iframe { width: 100%; height: 30px; }
-@keyframes navidad-news { from { transform: translateX(1840px); } to { transform: translateX(-520px); } }
+.navidad-juego.navidad-static .navidad-ticker { height: 86px; }
+.navidad-juego.navidad-static .navidad-ticker-item { position: static; flex: 1; width: 25%; flex-direction: column; align-items: stretch; justify-content: center; gap: 0; padding: 6px 14px; transform: none; }
+.navidad-juego.navidad-static .navidad-ticker-item > span { width: 100%; font-size: 22px; }
+.navidad-juego.navidad-static .navidad-ticker-item iframe { width: 100%; }
+/* Cuatro espacios de 660px conservan separación y la vuelta de 32 segundos. */
+@keyframes navidad-news { from { transform: translateX(1840px); } to { transform: translateX(calc(1840px - 4 * var(--ticker-slot))); } }
 @keyframes navidad-twinkle { 0%, 20% { opacity: .5; } 75%, 100% { opacity: 1; } }
 @keyframes navidad-star { 50% { transform: scale(1.25) rotate(10deg); filter: drop-shadow(0 0 25px #ffe4a0); } }
 @keyframes navidad-ornament { from { opacity: 0; } to { opacity: 1; } }
 @keyframes navidad-letter { to { transform: translateY(-3px); } }
 @keyframes navidad-border-beat { to { stroke-width: 2.5; opacity: .8; } }
-@media (prefers-reduced-motion: reduce) { .navidad-scene *, .navidad-scene *::before, .navidad-scene *::after { animation: none !important; transition: none !important; } .navidad-ticker-track { display: flex; } .navidad-ticker-item { position: static; flex: 1; width: 25%; display: block; padding: 5px 14px; transform: none; } .navidad-ticker-item iframe { width: 100%; height: 30px; } }
+@media (prefers-reduced-motion: reduce) { .navidad-scene *, .navidad-scene *::before, .navidad-scene *::after { animation: none !important; transition: none !important; } .navidad-ticker { height: 86px; } .navidad-ticker-track { display: flex; } .navidad-ticker-item { position: static; flex: 1; width: 25%; flex-direction: column; align-items: stretch; justify-content: center; gap: 0; padding: 6px 14px; transform: none; } .navidad-ticker-item > span { width: 100%; font-size: 22px; } .navidad-ticker-item iframe { width: 100%; } }

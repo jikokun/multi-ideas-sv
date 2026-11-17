@@ -15,7 +15,7 @@
     decor.className = 'navidad-decor';
     decor.innerHTML = `<canvas class="navidad-snow" width="1920" height="1080" aria-hidden="true"></canvas>
       <div class="navidad-lights" aria-hidden="true"></div>
-      ${mode === 'juego' ? '' : `<canvas class="navidad-snowbank" width="1920" height="112" aria-hidden="true"></canvas><div class="navidad-greenery left" aria-hidden="true"></div><div class="navidad-greenery right" aria-hidden="true"></div><div class="navidad-ribbon">${{ inicial: 'NAVIDAD CON LA MANADA', chat: 'CHARLAMOS EN FAMILIA', mimir: 'DULCES SUEÑOS, MANADA' }[mode]}</div>`}`;
+      ${mode === 'juego' ? '<canvas class="navidad-game-snow-corners" width="1920" height="112" aria-hidden="true"></canvas>' : `<canvas class="navidad-snowbank" width="1920" height="112" aria-hidden="true"></canvas><div class="navidad-greenery left" aria-hidden="true"></div><div class="navidad-greenery right" aria-hidden="true"></div><div class="navidad-ribbon">${{ inicial: 'NAVIDAD CON LA MANADA', chat: 'CHARLAMOS EN FAMILIA', mimir: 'DULCES SUEÑOS, MANADA' }[mode]}</div>`}`;
     const lights = decor.querySelector('.navidad-lights');
     for (let i = 0; i < 44; i++) {
       const light = document.createElement('span');
@@ -26,8 +26,24 @@
     stage.append(decor);
     const snowbank = decor.querySelector('.navidad-snowbank');
     if (snowbank) window.NavidadSnowbank?.render(snowbank);
-    const tree = mode === 'juego' ? null : createTree();
-    if (tree) decor.append(tree);
+    const snowCorners = decor.querySelector('.navidad-game-snow-corners');
+    if (snowCorners) window.NavidadSnowbank?.renderCorners(snowCorners);
+    const tree = createTree();
+    if (mode === 'juego') {
+      const camera = document.getElementById('camWrapper');
+      const baubles = document.createElement('div');
+      baubles.className = 'navidad-game-baubles';
+      baubles.setAttribute('aria-hidden', 'true');
+      for (const [color, x, y, size, corner = ''] of [
+        ['gold', -12, -18, 34], ['red', 14, -5, 28], ['green', 45, -14, 19],
+        ['gold', 0, 0, 29, 'corner-right-gold'], ['red', 0, 0, 22, 'corner-right-red']
+      ]) {
+        const ball = createBauble(color, x, y, size);
+        if (corner) ball.classList.add(corner);
+        baubles.append(ball);
+      }
+      camera?.append(baubles, tree);
+    } else decor.append(tree);
     let ornaments = 0;
     let celebrationTimer;
     let treeLights = params.get('treeLights') !== 'off';
@@ -59,6 +75,13 @@
 
     function celebrate(count = 1) {
       if (!tree || !settings.tree) return;
+      if (mode === 'juego') {
+        // En juego sólo se ilumina la estrella; no se añaden nodos ni destellos al marco.
+        tree.classList.add('is-celebrating');
+        clearTimeout(celebrationTimer);
+        celebrationTimer = setTimeout(() => tree.classList.remove('is-celebrating'), 1100);
+        return;
+      }
       tree.classList.remove('is-celebrating');
       // Reinicia la estrella incluso si llegan varios mensajes durante su animación.
       void tree.offsetWidth;
@@ -90,11 +113,15 @@
       if (count) celebrate(count);
     });
     if (chat) observer.observe(chat, { childList: true });
+    const gameChat = mode === 'juego' ? window.NavidadGameChat?.createHandler(celebrate, { filterCommands: params.get('filterCommands') !== 'false' }) : null;
     const onMessage = event => {
       if (event.origin !== location.origin || event.source !== window.parent || window.parent === window) return;
       if (event.data?.type === 'NAVIDAD_SETTINGS') applySettings(event.data.settings || {});
       if (event.data?.type === 'NAVIDAD_TEST_TREE') celebrate();
-      if (event.data?.type === 'NAVIDAD_TEST_CHAT') window.simularMensajeKick?.('¡Feliz Navidad, manada! 🎄', 'ManadaNavideña');
+      if (event.data?.type === 'NAVIDAD_TEST_CHAT') {
+        if (gameChat) gameChat({ event: { source: 'Kick', type: 'ChatMessage' }, data: { user: { username: 'ManadaNavideña' }, message: '¡Feliz Navidad, manada!' } });
+        else window.simularMensajeKick?.('¡Feliz Navidad, manada! 🎄', 'ManadaNavideña');
+      }
       if (event.data?.type === 'NAVIDAD_TEST_MUSIC') window.NavidadMusic?.preview(event.data.bpm, event.data.energy);
       if (event.data?.type === 'NAVIDAD_RESET_TREE' && tree) {
         ornaments = 0;
@@ -110,7 +137,7 @@
     reducedMotion.addEventListener('change', onMotionChange);
     applySettings({});
     themeSpotify();
-    window.navidadOverlay = Object.freeze({ celebrate, setSettings: applySettings, getSettings: () => ({ ...settings }) });
+    window.navidadOverlay = Object.freeze({ celebrate, onChatEvent: gameChat, setSettings: applySettings, getSettings: () => ({ ...settings }) });
     if (window.parent !== window) window.parent.postMessage({ type: 'NAVIDAD_READY', scene: mode }, location.origin);
     addEventListener('pagehide', () => {
       observer.disconnect();
@@ -136,14 +163,18 @@
       ['red', 180, 982, 82, -16, true], ['gold', 278, 1006, 62, 20, true]
     ];
     for (const [color, x, y, size, tilt = 0, resting = false] of pieces) {
-      const ball = document.createElement('div');
-      ball.className = `navidad-bauble bauble-${color}${resting ? ' is-resting' : ''}`;
-      for (const [name, value] of Object.entries({ x, y, size, drop: Math.max(0, y - size * .2) })) ball.style.setProperty(`--orb-${name}`, `${value}px`);
-      ball.style.setProperty('--orb-tilt', `${tilt}deg`);
-      ball.innerHTML = '<span class="bauble-cord"></span><span class="bauble-loop"></span><span class="bauble-shell"><span class="bauble-reflection"></span><span class="bauble-rim"></span></span><span class="bauble-cap"></span>';
-      layer.append(ball);
+      layer.append(createBauble(color, x, y, size, tilt, resting));
     }
     return layer;
+  }
+
+  function createBauble(color, x, y, size, tilt = 0, resting = false) {
+    const ball = document.createElement('div');
+    ball.className = `navidad-bauble bauble-${color}${resting ? ' is-resting' : ''}`;
+    for (const [name, value] of Object.entries({ x, y, size, drop: Math.max(0, y - size * .2) })) ball.style.setProperty(`--orb-${name}`, `${value}px`);
+    ball.style.setProperty('--orb-tilt', `${tilt}deg`);
+    ball.innerHTML = '<span class="bauble-cord"></span><span class="bauble-loop"></span><span class="bauble-shell"><span class="bauble-reflection"></span><span class="bauble-rim"></span></span><span class="bauble-cap"></span>';
+    return ball;
   }
 
   function createTree() {

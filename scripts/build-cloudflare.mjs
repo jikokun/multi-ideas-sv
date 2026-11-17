@@ -161,6 +161,7 @@ export const PUBLIC_FILES = Object.freeze(
   "overley_navideños/base_camara.css",
   "overley_navideños/base_camara.js",
   "overley_navideños/juego.js",
+  "overley_navideños/chat_juego.js",
   "overley_navideños/spotify-navidad.css",
   "laboratorio/one_chicago.html",
   "laboratorio/patrocinio_jikokun.html",

@@ -17,12 +17,13 @@
   function syncPreviewControls() {
     const game = selected === 'juego';
     for (const button of testButtons) {
-      button.hidden = game ? ['test-chat', 'test-tree', 'reset-tree'].includes(button.id) : button.id === 'test-ticker';
+      button.hidden = game ? ['test-tree', 'reset-tree'].includes(button.id) : button.id === 'test-ticker';
       button.disabled = !ready || button.hidden;
     }
-    form.elements.namedItem('tree').closest('label').hidden = game;
+    document.getElementById('test-chat').textContent = game ? '💬 Probar estrella con chat' : '💬 Mensaje de prueba';
+    form.elements.namedItem('tree').closest('label').querySelector('span').textContent = game ? 'Mostrar pinito del marco' : 'Mostrar árbol interactivo';
     document.querySelector('.preview-note').textContent = game
-      ? 'Cámara en su posición original, con nieve sobre el nombre. La tira de apoyos aparece 1 minuto y se oculta 15 minutos. Sin chat ni reproductor en pantalla.'
+      ? 'Bolitas estáticas y un pinito en el marco. Su estrella se ilumina con el chat, sin mostrar mensajes en pantalla. La tira de apoyos aparece 1 minuto y se oculta 15 minutos.'
       : 'El árbol se decora con el chat. Las ventiscas y las luces siguen la señal musical; la nieve acumulada permanece en la base. Haz clic en el árbol para alternar sus luces.';
   }
   for (const key of ['snow', 'lights', 'ip', 'port', 'minutes', 'user']) {

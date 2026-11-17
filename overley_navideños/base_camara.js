@@ -326,6 +326,7 @@
               request: "Subscribe",
               id: "cam-frame-spotify-rhythm",
               events: {
+                Kick: ["ChatMessage", "Message"],
                 General: ["Custom"],
                 Spotify: ["TrackChange", "PlaybackSync", "PlaybackStarted", "PlaybackPaused", "*"],
                 StreamerBot: ["Custom", "*"]
@@ -365,6 +366,7 @@
       }
 
       function handleStreamerBotEvent(msg) {
+        window.navidadOverlay?.onChatEvent?.(msg);
         window.NavidadMusic?.ingest(msg);
         if (!msg) return;
 

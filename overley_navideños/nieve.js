@@ -88,5 +88,40 @@
     }
     ctx.globalAlpha = 1;
   }
-  window.NavidadSnowbank = Object.freeze({ render });
+  function renderCorners(canvas) {
+    render(canvas);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const { width, height } = canvas;
+    const outline = new Path2D();
+    function corner(span, depth, exponent, right) {
+      const edge = right ? width : 0;
+      outline.moveTo(edge, height);
+      for (let distance = 0; distance <= span; distance += 2) {
+        const taper = (1 - distance / span) ** exponent;
+        const grains = Math.sin(distance * .047) * .78
+          + Math.sin(distance * .119) * .32 + Math.sin(distance * .61) * .14;
+        const x = right ? width - distance : distance;
+        outline.lineTo(x, height - (depth + grains) * taper);
+      }
+      outline.lineTo(right ? width - span : span, height);
+      outline.closePath();
+    }
+    corner(240, 25.7, 1.45, false);
+    corner(246, 22.2, 1.6, true);
+    // El grano original queda solo en dos montoncitos, que se disuelven hacia dentro.
+    const fade = ctx.createLinearGradient(0, 0, width, 0);
+    fade.addColorStop(0, '#fff');
+    fade.addColorStop(170 / width, '#fff');
+    fade.addColorStop(240 / width, '#fff0');
+    fade.addColorStop((width - 246) / width, '#fff0');
+    fade.addColorStop((width - 178) / width, '#fff');
+    fade.addColorStop(1, '#fff');
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = fade;
+    ctx.fill(outline);
+    ctx.restore();
+  }
+  window.NavidadSnowbank = Object.freeze({ render, renderCorners });
 })();
