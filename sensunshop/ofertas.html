@@ -945,7 +945,7 @@
     </style>
 </head>
 
-<body>
+<body data-sensun-offers>
     <!-- ENCABEZADO GLOBAL DINÁMICO DE SENSUN SHOP -->
     <header id="global-header"></header>
 
@@ -1045,8 +1045,8 @@
 
     <!-- LÓGICA DE SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE RTDB Y CONTROL DE CARTELERA -->
     <script type="module">
-        import { rtdb } from "../firebase-config.js";
-        import { ref, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { rtdb, subscribeWhilePageOpen } from "../firebase-config.js";
+        import { ref, onValue, query, orderByChild, equalTo, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Mapeo de Nombres de Estilos de Ofertas Oficiales de Sensun Shop
         const STYLE_LABELS = {
@@ -1374,50 +1374,55 @@
             renderCartelera();
         }
 
-        // Listener 1: sensunshop/businesses (Comercios de la App y Web)
-        try {
-            const bizRef = ref(rtdb, "sensunshop/businesses");
-            onValue(bizRef, (snapshot) => {
-                const data = snapshot.val() || {};
-                rawBusinessesList = Object.keys(data).map(key => {
-                    const item = data[key];
-                    return {
-                        id: item.id || key,
-                        title: item.title || "Comercio",
-                        category: item.category || "",
-                        type: item.type || "negocioslocales",
-                        badge: item.badge || "",
-                        imgSrc: item.imgSrc || item.imageUrl || "",
-                        imageUrl: item.imageUrl || item.imgSrc || "",
-                        whatsapp: item.whatsapp || "",
-                        locationUrl: item.locationUrl || "",
-                        hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
-                        offerDiscount: item.offerDiscount || "",
-                        offerMsg: item.offerMsg || "",
-                        offerDetail: item.offerDetail || "",
-                        offerCode: item.offerCode || "",
-                        offerBadge: item.offerBadge || "",
-                        offerDurationHours: Number(item.offerDurationHours) || 6,
-                        offerDistance: item.offerDistance || "",
-                        offerStyle: parseInt(item.offerStyle, 10) || 1,
-                        offerExpiry: item.offerExpiry || "",
-                        rating: item.rating ? String(item.rating) : "5.0",
-                        isActive: item.isActive,
-                        active: item.active
-                    };
-                });
-                unifyAndPublishOffers();
-            }, (error) => {
-                console.warn("Aviso: Error de conexión con sensunshop/businesses:", error);
+        function publishBusinessOffers(data) {
+            rawBusinessesList = Object.keys(data).map(key => {
+                const item = data[key];
+                return {
+                    id: item.id || key,
+                    title: item.title || "Comercio",
+                    category: item.category || "",
+                    type: item.type || "negocioslocales",
+                    badge: item.badge || "",
+                    imgSrc: item.imgSrc || item.imageUrl || "",
+                    imageUrl: item.imageUrl || item.imgSrc || "",
+                    whatsapp: item.whatsapp || "",
+                    locationUrl: item.locationUrl || "",
+                    hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
+                    offerDiscount: item.offerDiscount || "",
+                    offerMsg: item.offerMsg || "",
+                    offerDetail: item.offerDetail || "",
+                    offerCode: item.offerCode || "",
+                    offerBadge: item.offerBadge || "",
+                    offerDurationHours: Number(item.offerDurationHours) || 6,
+                    offerDistance: item.offerDistance || "",
+                    offerStyle: parseInt(item.offerStyle, 10) || 1,
+                    offerExpiry: item.offerExpiry || "",
+                    rating: item.rating ? String(item.rating) : "5.0",
+                    isActive: item.isActive,
+                    active: item.active
+                };
             });
-        } catch (err) {
-            console.error("Error al iniciar listener de negocios:", err);
+            unifyAndPublishOffers();
         }
 
-        // Listener 2: sensunshop/offers (Ofertas directas de la App y Admin)
+        // Los registros antiguos también representan hasOffer como texto o número.
+        const businesses = ref(rtdb, "sensunshop/businesses");
+        subscribeWhilePageOpen(() => {
+            const results = new Map();
+            const stops = [true, "true", 1].map(flag => {
+                const offers = query(businesses, orderByChild("hasOffer"), equalTo(flag));
+                return onValue(offers, snapshot => {
+                    results.set(flag, snapshot.val() || {});
+                    publishBusinessOffers(Object.assign({}, ...results.values()));
+                }, error => console.warn("[Sensun ofertas]", error.message));
+            });
+            return () => stops.forEach(stop => stop());
+        });
+
+        // Ofertas directas de la App y Admin
         try {
             const offersRef = ref(rtdb, "sensunshop/offers");
-            onValue(offersRef, (snapshot) => {
+            subscribeWhilePageOpen(() => onValue(offersRef, snapshot => {
                 const data = snapshot.val() || {};
                 rawDirectOffersList = Object.keys(data).map(key => {
                     const item = data[key];
@@ -1440,9 +1445,9 @@
                     };
                 });
                 unifyAndPublishOffers();
-            }, (error) => {
+            }, error => {
                 console.warn("Aviso: Error de conexión con sensunshop/offers:", error);
-            });
+            }));
         } catch (err) {
             console.error("Error al iniciar listener de ofertas:", err);
         }

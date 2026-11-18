@@ -2498,90 +2498,32 @@
 
 <!-- Integración Firebase Realtime Database para Stream / Widgets / Jikopuntos -->
 <script type="module">
+  import { subscribeWhilePageOpen } from '../firebase-config.js';
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
   import { resolverCategorias, escucharCategorias } from './js/tienda_categorias.js';
   import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261110-packlimit';
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
+  window.escucharUsuarioStream = (username, callback) => subscribeWhilePageOpen(() => StreamDB.onUser(username, callback));
+  window.escucharSaldoStream = (username, callback) => subscribeWhilePageOpen(() => StreamDB.onUserBalance(username, callback));
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
   window.extraerUsuarioDeBienvenidaGlobal = extraerUsuarioDeBienvenidaGlobal;
   StreamDB.init().then(() => {
-    StreamDB.onTransmisionesStats?.(stats => {
+    subscribeWhilePageOpen(() => StreamDB.onTransmisionesStats(stats => {
       if (stats.isLive && stats.streamActivoId) window.establecerDirectoVitrina?.(stats.streamActivoId);
-    });
+    }));
     let categoriasGuardadas = [];
     window.resolverCategoriasTienda = items => resolverCategorias(categoriasGuardadas, items);
-    escucharCategorias(StreamDB, categorias => {
+    subscribeWhilePageOpen(() => escucharCategorias(StreamDB, categorias => {
       categoriasGuardadas = categorias;
       window.renderCategoriasTienda?.();
-    });
+    }));
     window.renderCategoriasTienda?.();
     console.log('[Tiendita] 🔥 Firebase RTDB StreamDB inicializado correctamente (nodo: stream)');
-    if (typeof StreamDB.obtenerUsuarios === 'function') {
-      StreamDB.obtenerUsuarios().then(users => {
-        if (Array.isArray(users)) {
-          users.forEach(u => {
-            if (u && u.username && u.avatar && window.avatarCache) {
-              window.avatarCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
-            }
-          });
-        }
-      }).catch(() => {});
-    }
-    StreamDB.onUsers((users) => {
-      if (Array.isArray(users)) {
-        users.forEach(u => {
-          if (u && u.username) {
-            const uKey = norm(u.username);
-            if (u.avatar && window.avatarCache) {
-              const normAv = normalizarAvatarKickUrl(u.avatar);
-              window.avatarCache[uKey] = normAv;
-              if (typeof window.precargarImagenPerfil === 'function') {
-                window.precargarImagenPerfil(normAv, 1500);
-              }
-            }
-            if (u.fondoTarjetaUrl && typeof window.precargarImagenPerfil === 'function') {
-              window.precargarImagenPerfil(u.fondoTarjetaUrl, 1500);
-            }
-            // Si la tarjeta de perfil está actualmente visible en pantalla y es este usuario, refrescar en vivo
-            if (typeof $cardPerfil !== 'undefined' && $cardPerfil && $cardPerfil.classList.contains('visible') && norm($cardPerfil.dataset.username || '') === uKey) {
-              if (typeof window.aplicarActualizacionPerfilTiendita === 'function') {
-                window.aplicarActualizacionPerfilTiendita(uKey, u);
-              }
-            }
-            if (u.jikopuntos !== undefined && u.jikopuntos !== null) {
-              const pts = parseInt(u.jikopuntos, 10);
-              try { localStorage.setItem('tiendita_pts_' + uKey, pts); } catch(e){}
-              if (typeof usuarioActual !== 'undefined' && uKey === norm(usuarioActual)) {
-                if (typeof saldoActual !== 'undefined' && saldoActual !== pts) {
-                  saldoActual = pts;
-                  if (typeof animarPuntos === 'function') animarPuntos(saldoActual);
-                  const bar = document.getElementById('user-bar');
-                  if (bar) { bar.classList.remove('flash'); void bar.offsetWidth; bar.classList.add('flash'); }
-                }
-              }
-            }
-          }
-        });
-      }
-    });
-    // Carga inmediata y escucha en tiempo real del catálogo desde Firebase RTDB
-    StreamDB.obtenerTiendaItems().then(itemsDb => {
-      if (typeof window.actualizarCatalogoTiendita === 'function') {
-        window.actualizarCatalogoTiendita(itemsDb);
-      }
-    }).catch(err => {
-      console.warn('[Tiendita] Error al cargar tienda items:', err);
-    });
-
-    StreamDB.onTiendaItems((itemsDb) => {
-      if (typeof window.actualizarCatalogoTiendita === 'function') {
-        window.actualizarCatalogoTiendita(itemsDb);
-      }
-    });
+    subscribeWhilePageOpen(() => StreamDB.onTiendaItems(itemsDb => window.actualizarCatalogoTiendita?.(itemsDb)));
 
     if (typeof window.onStreamDBReady === 'function') {
       window.onStreamDBReady();
@@ -3260,6 +3202,7 @@
   let perfilRenderToken = 0;
   let perfilExitTimer = null;
   let perfilPreparing = false;
+  let stopPerfilLive = null;
 
   function precargarImagenPerfil(url, timeoutMs = 400) {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -3303,6 +3246,8 @@
   function limpiarEstadoTarjetaPerfilTiendita() {
     if (!$cardPerfil) return;
     ++perfilRenderToken;
+    stopPerfilLive?.();
+    stopPerfilLive = null;
     perfilPreparing = false;
     if (perfilExitTimer) clearTimeout(perfilExitTimer);
     perfilExitTimer = null;
@@ -3653,6 +3598,13 @@
 
     $cardPerfil.classList.remove('saliendo');
     $cardPerfil.classList.add('visible');
+    const profileKey = norm(uData.username || userNorm);
+    $cardPerfil.dataset.username = profileKey;
+    if (typeof targetUser !== 'object' || targetUser === null) {
+      stopPerfilLive = window.escucharUsuarioStream?.(profileKey, fresh => {
+        if (fresh) mostrarCardPerfilTiendita({ ...fresh, username: profileKey }, { isLiveUpdate: true, silent: true, meta: options.meta });
+      });
+    }
     window.JikoWidgetSync?.acquire('perfil', cleanUser, (PERFIL_DURATION_SEC + 1) * 1000);
 
     const timerBar = document.getElementById('ti-card-timer-bar');
@@ -3673,6 +3625,8 @@
   function ocultarCardPerfilTiendita() {
     if (!$cardPerfil || $cardPerfil.classList.contains('saliendo')) return;
     ++perfilRenderToken; // Invalidar lecturas y precargas que terminan durante la salida.
+    stopPerfilLive?.();
+    stopPerfilLive = null;
     perfilPreparing = false;
     if (cardPerfilTimer) clearTimeout(cardPerfilTimer);
     cardPerfilTimer = null;
@@ -4089,7 +4043,7 @@
   }
 
   /* ═══════════ GESTOR DE PUNTOS POR USUARIO (1000 PTS INICIALES) ═══════════ */
-  function getUserPoints(user){
+  function getUserPoints(user, loadIfMissing = true){
     if(!user) return USER_DEFAULT_POINTS;
     try {
       const key = norm(user);
@@ -4098,7 +4052,7 @@
         if (demo !== null) return Number(demo);
       }
       if (window.StreamDB) {
-        const cached = window.StreamDB.getCachedPoints(key);
+        const cached = window.StreamDB.getCachedPoints(key, loadIfMissing);
         if (cached !== null && cached !== undefined && !isNaN(cached)) return cached;
       }
       const storageKey = 'tiendita_pts_' + key;
@@ -4108,7 +4062,7 @@
         if (!isNaN(p) && p >= 0) return p;
       }
       localStorage.setItem(storageKey, USER_DEFAULT_POINTS);
-      if (window.StreamDB) {
+      if (loadIfMissing && window.StreamDB) {
         window.StreamDB.getUser(key).catch(()=>{});
       }
     } catch(e){}
@@ -4342,29 +4296,6 @@
     renderCarouselTrack();
   };
 
-  let catalogSubscribed = false;
-  function conectarCatalogoFirebase() {
-    if (window.StreamDB) {
-      if (typeof window.StreamDB.obtenerTiendaItems === 'function') {
-        window.StreamDB.obtenerTiendaItems().then(itemsDb => {
-          window.actualizarCatalogoTiendita(itemsDb);
-        }).catch(() => {});
-      }
-      if (!catalogSubscribed && typeof window.StreamDB.onTiendaItems === 'function') {
-        catalogSubscribed = true;
-        window.StreamDB.onTiendaItems((itemsDb) => {
-          window.actualizarCatalogoTiendita(itemsDb);
-        });
-      }
-    }
-  }
-
-  conectarCatalogoFirebase();
-  const prevOnStreamDBReady = window.onStreamDBReady;
-  window.onStreamDBReady = function() {
-    if (typeof prevOnStreamDBReady === 'function') prevOnStreamDBReady();
-    conectarCatalogoFirebase();
-  };
 
 
 
@@ -4552,8 +4483,10 @@
     cant = Math.min(cant, MAX_ORDEN_ITEMS);
 
     if(user) {
+      const cambioDeUsuario = norm(usuarioActual) !== norm(user);
       usuarioActual = user;
-      saldoActual = getUserPoints(user);
+      if (cambioDeUsuario && window.StreamDB && $menu.classList.contains('visible')) escucharSaldoTiendita(user);
+      saldoActual = getUserPoints(user, false);
       document.getElementById('user-name').textContent = '@' + user;
       cargarAvatarUsuario(user);
       document.getElementById('pts-val').textContent = saldoActual;
@@ -5690,6 +5623,21 @@
 
   let unsubscribeLiveUser = null;
 
+  function escucharSaldoTiendita(user) {
+    unsubscribeLiveUser?.();
+    unsubscribeLiveUser = window.escucharSaldoStream?.(user, balance => {
+      if (balance === saldoActual) return;
+      saldoActual = balance;
+      animarPuntos(saldoActual);
+      const userBar = document.getElementById('user-bar');
+      if (userBar) {
+        userBar.classList.remove('flash');
+        void userBar.offsetWidth;
+        userBar.classList.add('flash');
+      }
+    });
+  }
+
   function mostrarMenu(user, puntos=null){
     const nuevaApertura = !$menu.classList.contains('visible');
     estadoPago();
@@ -5698,7 +5646,7 @@
     if($turnAlert) $turnAlert.classList.remove('activo', 'sacudir');
     if($cdNotice) $cdNotice.classList.remove('activo', 'sacudir');
     usuarioActual=user;
-    saldoActual = puntos !== null ? parseInt(puntos) : getUserPoints(user);
+    saldoActual = puntos !== null ? parseInt(puntos) : getUserPoints(user, false);
 
     document.getElementById('user-name').textContent='@'+user;
     cargarAvatarUsuario(user);
@@ -5721,22 +5669,7 @@
     // Sincronizar estado del widget y escuchar cambios de saldo en vivo en Firebase RTDB
     if (window.StreamDB) {
       window.StreamDB.setWidgetState('tiendita', { isOpen: true, usuarioEnTurno: user });
-      window.StreamDB.getUser(user).then(uData => {
-        if (uData && typeof uData.jikopuntos === 'number' && uData.jikopuntos !== saldoActual) {
-          saldoActual = uData.jikopuntos;
-          animarPuntos(saldoActual);
-        }
-      }).catch(()=>{});
-
-      if (typeof unsubscribeLiveUser === 'function') unsubscribeLiveUser();
-      unsubscribeLiveUser = window.StreamDB.onUser(user, (uData) => {
-        if (uData && typeof uData.jikopuntos === 'number' && uData.jikopuntos !== saldoActual) {
-          saldoActual = uData.jikopuntos;
-          animarPuntos(saldoActual);
-          const uBar = document.getElementById('user-bar');
-          if (uBar) { uBar.classList.remove('flash'); void uBar.offsetWidth; uBar.classList.add('flash'); }
-        }
-      });
+      escucharSaldoTiendita(user);
     }
   }
   function ocultarMenu(){ 

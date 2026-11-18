@@ -4136,12 +4136,13 @@
 
     <!-- Firebase Script Logic -->
     <script type="module">
-        import { auth, rtdb, GoogleAuthProvider, signInWithPopup, onAuthStateChanged } from "../firebase-config.js";
+        import { auth, rtdb, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, subscribeWhilePageOpen } from "../firebase-config.js";
         import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { ref, onValue, set, remove, get, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Listener de estado de autenticación en Firebase
         onAuthStateChanged(auth, (user) => {
+            if (user && !user.isAnonymous && lockScreen.classList.contains("unlocked")) void refreshUsersDirectory();
             const authText = document.getElementById("adminAuthText");
             const googleBtn = document.getElementById("btnAdminGoogleAuth");
             if (user && !user.isAnonymous) {
@@ -4250,6 +4251,8 @@
 
                 setTimeout(() => {
                     lockScreen.classList.add("unlocked");
+                    startPresenceMonitor();
+                    void refreshUsersDirectory();
                     showToast("👋 ¡Bienvenido al Panel Maestro!");
                 }, 350);
             } else {
@@ -4344,7 +4347,7 @@
         // Escuchar cambios de PIN sincronizados desde Firebase Realtime Database
         try {
             const pinConfigRef = ref(rtdb, "sensunshop/config/securityPin");
-            onValue(pinConfigRef, (snapshot) => {
+            subscribeWhilePageOpen(() => onValue(pinConfigRef, (snapshot) => {
                 const remotePin = snapshot.val();
                 if (remotePin && typeof remotePin === "string" && /^\d{4,8}$/.test(remotePin.trim())) {
                     currentSecurityPin = remotePin.trim();
@@ -4352,7 +4355,7 @@
                     updatePinSettingUI();
                     renderPinDots();
                 }
-            });
+            }));
         } catch(e) {
             console.warn("No se pudo iniciar listener remoto de PIN:", e);
         }
@@ -4399,6 +4402,8 @@
                 updatePinDisplay();
                 pinErrorMsg.textContent = "";
                 lockScreen.classList.remove("unlocked");
+                stopPresenceMonitor?.();
+                stopPresenceMonitor = null;
                 showToast("🔒 Panel bloqueado con seguridad");
             }
         });
@@ -4499,7 +4504,7 @@
 
         // Listener en tiempo real para sensunshop/businesses
         const businessesRef = ref(rtdb, "sensunshop/businesses");
-        onValue(businessesRef, (snapshot) => {
+        subscribeWhilePageOpen(() => onValue(businessesRef, (snapshot) => {
             const data = snapshot.val() || {};
             const keys = Object.keys(data);
 
@@ -4548,11 +4553,11 @@
             renderOffersAdminTable();
             updateStatsCounters();
             if (map) renderMapMarkers();
-        });
+        }));
 
         // Listener en tiempo real para sensunshop/news
         const newsRef = ref(rtdb, "sensunshop/news");
-        onValue(newsRef, (snapshot) => {
+        subscribeWhilePageOpen(() => onValue(newsRef, (snapshot) => {
             const data = snapshot.val() || {};
             newsList = Object.keys(data).map(key => {
                 const item = data[key];
@@ -4586,7 +4591,7 @@
 
             renderNews();
             updateStatsCounters();
-        });
+        }));
 
         // Renderizado Completo de Todos los Negocios (Sin límite, con scroll fluido)
         function renderBusinesses() {
@@ -6120,71 +6125,59 @@
         let userSearchQuery = "";
         let userActiveFilter = "all";
 
-        // Listener en tiempo real para sensunshop/users
-        const usersRef = ref(rtdb, "sensunshop/users");
-        onValue(usersRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            registeredUsersList = Object.keys(data).map(key => {
-                const item = data[key];
-                return {
+        let directoryRequest = null;
+        let legacyDirectory = null;
+
+        function parseRegisteredUsers(data, legacy = false) {
+            return Object.keys(data).flatMap(key => {
+                const item = legacy ? data[key]?.profile || data[key] : data[key];
+                if (!item || (legacy && !item.email)) return [];
+                return [{
                     uid: key,
                     displayName: item.displayName || item.name || (item.email ? item.email.split('@')[0] : "Usuario"),
                     email: item.email || "",
                     photoURL: item.photoURL || item.photoUrl || "",
-                    provider: item.provider || (item.isGoogle ? "google.com" : "password"),
+                    provider: item.provider || (item.isGoogle || legacy ? "google.com" : "password"),
                     isGoogle: Boolean(item.isGoogle || (item.email && item.email.toLowerCase().endsWith('@gmail.com'))),
                     createdAt: item.createdAt ? Number(item.createdAt) : Date.now(),
                     lastLoginAt: item.lastLoginAt ? Number(item.lastLoginAt) : Date.now(),
                     lastActiveAt: item.lastActiveAt ? Number(item.lastActiveAt) : Date.now(),
                     platform: item.platform || "web"
-                };
-            }).sort((a, b) => b.createdAt - a.createdAt);
-
-            renderUsersView();
-            updateStatsCounters();
-        });
-
-        // Listener de respaldo para nodo raíz users/
-        try {
-            const rootUsersRef = ref(rtdb, "users");
-            onValue(rootUsersRef, (snapshot) => {
-                const data = snapshot.val() || {};
-                let updated = false;
-                Object.keys(data).forEach(uid => {
-                    const profile = data[uid] && (data[uid].profile || data[uid]);
-                    if (profile && profile.email && !registeredUsersList.some(u => u.uid === uid)) {
-                        registeredUsersList.push({
-                            uid: uid,
-                            displayName: profile.displayName || profile.name || profile.email.split('@')[0],
-                            email: profile.email || "",
-                            photoURL: profile.photoURL || profile.photoUrl || "",
-                            provider: profile.provider || "google.com",
-                            isGoogle: Boolean(profile.isGoogle || profile.email.toLowerCase().endsWith('@gmail.com')),
-                            createdAt: profile.createdAt ? Number(profile.createdAt) : Date.now(),
-                            lastLoginAt: profile.lastLoginAt ? Number(profile.lastLoginAt) : Date.now(),
-                            lastActiveAt: profile.lastActiveAt ? Number(profile.lastActiveAt) : Date.now(),
-                            platform: profile.platform || "web"
-                        });
-                        updated = true;
-                    }
-                });
-                if (updated) {
-                    registeredUsersList.sort((a, b) => b.createdAt - a.createdAt);
-                    renderUsersView();
-                    updateStatsCounters();
-                }
+                }];
             });
-        } catch(e) {
-            console.warn("Aviso al escuchar nodo raíz users:", e);
+        }
+
+        function refreshUsersDirectory() {
+            if (directoryRequest) return directoryRequest;
+            if (!legacyDirectory) {
+                legacyDirectory = get(ref(rtdb, "users")).then(snapshot => parseRegisteredUsers(snapshot.val() || {}, true)).catch(error => {
+                    legacyDirectory = null;
+                    console.warn("[Sensun directorio legado]", error.message);
+                    return [];
+                });
+            }
+            const directory = get(ref(rtdb, "sensunshop/users")).then(snapshot => parseRegisteredUsers(snapshot.val() || {})).catch(error => {
+                console.warn("[Sensun directorio]", error.message);
+                return [];
+            });
+            directoryRequest = Promise.all([legacyDirectory, directory]).then(async ([legacy, users]) => {
+                registeredUsersList = Array.from(new Map([...legacy, ...users].map(user => [user.uid, user])).values())
+                    .sort((a, b) => b.createdAt - a.createdAt);
+                renderUsersView();
+                updateStatsCounters();
+                await fetchAuthUsersFromCloudFunction(false);
+            }).finally(() => { directoryRequest = null; });
+            return directoryRequest;
         }
 
         async function fetchAuthUsersFromCloudFunction(notify = false) {
             try {
                 let token = null;
-                if (window.auth && window.auth.currentUser) {
-                    try { token = await window.auth.currentUser.getIdToken(); } catch(e) {}
+                if (auth.currentUser && !auth.currentUser.isAnonymous) {
+                    try { token = await auth.currentUser.getIdToken(); } catch(e) {}
                 }
-                const headers = token ? { "Authorization": `Bearer ${token}` } : {};
+                if (!token) return false;
+                const headers = { "Authorization": `Bearer ${token}` };
                 const res = await fetch("https://us-central1-sensunshopweb.cloudfunctions.net/getAuthUsers", { headers });
                 if (res.ok) {
                     const json = await res.json();
@@ -6237,7 +6230,7 @@
                     alert(
                         "ℹ️ INFORMACIÓN DE SINCRONIZACIÓN FIREBASE AUTHENTICATION:\n\n" +
                         "Las cuentas registradas con Google/Gmail se encuentran protegidas en la consola de Firebase Authentication.\n\n" +
-                        "1. Desde este momento, cualquier usuario que inicie sesión con Gmail en la Web o en la App Android aparecerá automáticamente aquí en tiempo real.\n\n" +
+                        "1. Vuelve a abrir la sección Usuarios para actualizar las cuentas registradas desde la Web o la app Android.\n\n" +
                         "2. Para sincronizar de inmediato las cuentas antiguas existentes creadas en Firebase Authentication, ejecuta en tu terminal:\n" +
                         "   firebase deploy --only functions,database\n\n" +
                         "Esto desplegará las funciones de index.js para que lean directamente de admin.auth().listUsers()."
@@ -6251,38 +6244,37 @@
             }
         };
 
-        // Ejecutar consulta inicial
-        setTimeout(() => {
-            fetchAuthUsersFromCloudFunction(false);
-        }, 1500);
+        let stopPresenceMonitor = null;
 
-        // Listener en tiempo real para sensunshop/presence (Monitoreo de App en Vivo)
-        const presenceRef = ref(rtdb, "sensunshop/presence");
-        onValue(presenceRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            const now = Date.now();
-            activePresenceList = Object.keys(data).map(key => {
-                const s = data[key];
-                return {
-                    sessionId: key,
-                    uid: s.uid || null,
-                    displayName: s.displayName || s.name || (s.email ? s.email.split('@')[0] : "Visitante"),
-                    email: s.email || "",
-                    photoURL: s.photoURL || "",
-                    isGoogle: Boolean(s.isGoogle || (s.email && s.email.toLowerCase().endsWith('@gmail.com'))),
-                    isRegistered: Boolean(s.isRegistered || s.uid),
-                    platform: s.platform || "web",
-                    page: s.page || "Sensun Shop",
-                    path: s.path || "",
-                    connectedAt: s.connectedAt ? Number(s.connectedAt) : now,
-                    lastActiveAt: s.lastActiveAt ? Number(s.lastActiveAt) : now
-                };
-            }).filter(s => (now - s.lastActiveAt) < 240000); // 4 minutos de gracia
+        function startPresenceMonitor() {
+            if (stopPresenceMonitor) return;
+            const presenceRef = ref(rtdb, "sensunshop/presence");
+            stopPresenceMonitor = subscribeWhilePageOpen(() => onValue(presenceRef, snapshot => {
+                const data = snapshot.val() || {};
+                const now = Date.now();
+                activePresenceList = Object.keys(data).map(key => {
+                    const s = data[key];
+                    return {
+                        sessionId: key,
+                        uid: s.uid || null,
+                        displayName: s.displayName || s.name || (s.email ? s.email.split('@')[0] : "Visitante"),
+                        email: s.email || "",
+                        photoURL: s.photoURL || "",
+                        isGoogle: Boolean(s.isGoogle || (s.email && s.email.toLowerCase().endsWith('@gmail.com'))),
+                        isRegistered: Boolean(s.isRegistered || s.uid),
+                        platform: s.platform || "web",
+                        page: s.page || "Sensun Shop",
+                        path: s.path || "",
+                        connectedAt: s.connectedAt ? Number(s.connectedAt) : now,
+                        lastActiveAt: s.lastActiveAt ? Number(s.lastActiveAt) : now
+                    };
+                }).filter(s => (now - s.lastActiveAt) < 240000); // 4 minutos de gracia
 
-            renderActivePresence();
-            renderUsersView();
-            updateStatsCounters();
-        });
+                renderActivePresence();
+                renderUsersView();
+                updateStatsCounters();
+            }));
+        }
 
         // Formateadores amigables
         function formatSpanishDate(timestamp) {
@@ -6897,6 +6889,7 @@
             if (target) target.classList.add("active");
 
             if (viewName === "users") {
+                void refreshUsersDirectory();
                 renderUsersView();
                 renderActivePresence();
             }

@@ -2169,40 +2169,56 @@
             }
 
             // Sincronizar alertas cuando Streamer.bot o el Laboratorio ejecutan Fetch directo al Backend
-            async function checkFirebaseLastAction() {
-                try {
-                    var res = await fetch("https://sensunshopweb-default-rtdb.firebaseio.com/stream/spotify_live/last_action.json", { cache: "no-store" });
-                    if (!res.ok) return;
-                    var act = await res.json();
-                    if (!act || !act.timestamp) return;
-                    var ts = Number(act.timestamp) || 0;
-                    if (ts > lastSeenFirebaseActionTime && (Date.now() - ts) < 8000) {
-                        lastSeenFirebaseActionTime = ts;
-                        if (act.action === "add" && act.song) {
-                            showFloatingAlert('Añadida a la cola: "' + act.song + '" (' + (act.artist || "Spotify") + ')', "add", act.user || "Chat");
-                        } else if (act.action === "skip") {
-                            showFloatingAlert("Saltando a la siguiente pista...", "skip", act.user || "Moderador");
-                            setTimeout(pollSpotifyPlayback, 800);
-                        } else if (act.action === "play") {
-                            showFloatingAlert("Música reanudada ▶️", "play", act.user || "Moderador");
-                            state.isPlaying = true;
-                            applyVisualStyles();
-                        } else if (act.action === "pause") {
-                            showFloatingAlert("Música pausada ⏸️", "pause", act.user || "Moderador");
-                            state.isPlaying = false;
-                            applyVisualStyles();
+            function showFirebaseLastAction(act) {
+                if (!act || !act.timestamp) return;
+                var ts = Number(act.timestamp) || 0;
+                if (ts > lastSeenFirebaseActionTime && (Date.now() - ts) < 8000) {
+                    lastSeenFirebaseActionTime = ts;
+                    if (act.action === "add" && act.song) {
+                        showFloatingAlert('Añadida a la cola: "' + act.song + '" (' + (act.artist || "Spotify") + ')', "add", act.user || "Chat");
+                    } else if (act.action === "skip") {
+                        showFloatingAlert("Saltando a la siguiente pista...", "skip", act.user || "Moderador");
+                        setTimeout(pollSpotifyPlayback, 800);
+                    } else if (act.action === "play") {
+                        showFloatingAlert("Música reanudada ▶️", "play", act.user || "Moderador");
+                        state.isPlaying = true;
+                        applyVisualStyles();
+                    } else if (act.action === "pause") {
+                        showFloatingAlert("Música pausada ⏸️", "pause", act.user || "Moderador");
+                        state.isPlaying = false;
+                        applyVisualStyles();
+                    }
+                }
+            }
+
+            Promise.all([
+                import('../firebase-config.js'),
+                import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js')
+            ]).then(([{ rtdb, subscribeWhilePageOpen }, { ref, onValue }]) => {
+                const lastAction = ref(rtdb, 'stream/spotify_live/last_action');
+                subscribeWhilePageOpen(() => {
+                    let unsubscribe = null;
+                    function syncVisibility() {
+                        if (document.hidden) {
+                            unsubscribe?.();
+                            unsubscribe = null;
+                        } else if (!unsubscribe) {
+                            unsubscribe = onValue(lastAction, snapshot => showFirebaseLastAction(snapshot.val()), error => {
+                                console.warn('[Spotify RTDB]', error.message);
+                            });
                         }
                     }
-                } catch (e) {}
-            }
-            setInterval(function () {
-                if (!document.hidden) checkFirebaseLastAction();
-            }, 3500);
-            document.addEventListener("visibilitychange", function () {
-                if (!document.hidden) {
-                    pollSpotifyPlayback();
-                    checkFirebaseLastAction();
-                }
+                    document.addEventListener('visibilitychange', syncVisibility);
+                    syncVisibility();
+                    return () => {
+                        document.removeEventListener('visibilitychange', syncVisibility);
+                        unsubscribe?.();
+                    };
+                });
+            }).catch(error => console.warn('[Spotify RTDB]', error.message));
+
+            document.addEventListener('visibilitychange', function () {
+                if (!document.hidden) pollSpotifyPlayback();
             });
 
             // =========================================================

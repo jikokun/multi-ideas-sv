@@ -5,13 +5,17 @@
     "sensunshop": {
       "presence": {
         ".read": true,
-        ".write": true
+        ".write": true,
+        ".indexOn": [
+          "uid"
+        ]
       },
       "$other": {
         ".write": "auth != null && $other !== 'businesses' && $other !== 'users'",
         ".read": "$other !== 'users'"
       },
       "businesses": {
+        ".indexOn": ["hasOffer"],
         "$businessId": {
           ".write": "auth != null && auth.token.admin === true && (!newData.exists() || (newData.child('hasCatalog').val() === data.child('hasCatalog').val() && newData.child('catalogUid').val() === data.child('catalogUid').val() && newData.child('catalogUrl').val() === data.child('catalogUrl').val()))"
         },
@@ -75,7 +79,8 @@
           "totalGastado",
           "asistenciasCount",
           "nivel",
-          "ultimaActividad"
+          "ultimaActividad",
+          "tarjetas/pendiente"
         ]
       },
       "transmisiones": {
@@ -111,7 +116,8 @@
         "asistencias": {
           ".indexOn": [
             "timestamp",
-            "usuarioNorm"
+            "usuarioNorm",
+            "streamId"
           ]
         }
       },
@@ -121,7 +127,15 @@
       },
       "banco": {
         ".read": true,
-        ".write": true
+        ".write": true,
+        "prestamos": {
+          ".indexOn": [
+            "solicitante",
+            "acreedor",
+            "solicitanteNorm",
+            "acreedorNorm"
+          ]
+        }
       }
     }
   }

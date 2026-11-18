@@ -778,14 +778,10 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
                 : res.status(status).send(result.message);
         }
 
-        // Obtener datos de cooldown atómico para prevenir duplicados rápidos de Streamer.bot / Botrix
-        const cooldownSnap = await cooldownRef.once("value");
-        const cooldowns = cooldownSnap.val() || {};
-
         // ── 1. Acción: SALTAR CANCIÓN (Skip / Next) ─────────────────────────────
         if (action === "skip" || action === "next" || action === "skipsong") {
             const now = Date.now();
-            const lastSkip = Number(cooldowns.last_skip_time) || 0;
+            const lastSkip = Number((await cooldownRef.child("last_skip_time").once("value")).val()) || 0;
             // 🛡️ REGLA ANTI-DOBLE SALTO EN SERVIDOR: Bloquear ejecuciones duplicadas en menos de 2.5 segundos
             if (now - lastSkip < 2500) {
                 console.log(`[spotifyControl] 🛡️ Anti-doble salto activado para '${user}' (${now - lastSkip}ms transcurridos). Omitiendo petición repetida.`);
@@ -1015,6 +1011,7 @@ exports.spotifyControl = functions.https.onRequest(async (req, res) => {
 
             // 🛡️ REGLA ANTI-DUPLICADO DE COLA: Evitar encolar 2 veces la misma canción si Streamer.bot envía doble disparo
             const now = Date.now();
+            const cooldowns = (await cooldownRef.once("value")).val() || {};
             if (cooldowns.last_added_uri === selectedTrack.uri && (now - Number(cooldowns.last_added_time || 0) < 4000)) {
                 console.log(`[spotifyControl] 🛡️ Canción duplicada encolada ignorada por anti-spam: ${selectedTrack.name}`);
                 return res.status(200).send(`Added to queue: "${selectedTrack.name}" (${artistName})`);

@@ -1467,6 +1467,7 @@
 
   <!-- ═══════════ SCRIPTS & LÓGICA EN TIEMPO REAL ═══════════ -->
   <script type="module">
+    import { subscribeWhilePageOpen } from '../firebase-config.js';
     import { resolverCategorias, escucharCategorias, guardarCategoria } from './js/tienda_categorias.js';
     import StreamDB, { norm } from "./js/stream_firebase.js?v=20261016_3";
 
@@ -1580,16 +1581,16 @@
     async function inicializar() {
       try {
         await StreamDB.init();
-        escucharCategorias(StreamDB, categorias => {
+        subscribeWhilePageOpen(() => escucharCategorias(StreamDB, categorias => {
           categoriasGuardadas = categorias;
           renderizarCategorias();
           renderizarCatalogo();
-        }, err => { document.getElementById('category-error').textContent = 'No se pudieron cargar las categorías: ' + err.message; });
+        }, err => { document.getElementById('category-error').textContent = 'No se pudieron cargar las categorías: ' + err.message; }));
         document.getElementById('status-dot').style.background = 'var(--kick)';
         document.getElementById('status-text').textContent = 'Conectado en tiempo real a Firebase RTDB (stream/tienda/items)';
 
         // Escuchar cambios en vivo en Firebase
-        StreamDB.onTiendaItems((items) => {
+        subscribeWhilePageOpen(() => StreamDB.onTiendaItems(items => {
           if (items && items.length > 0) {
             productosCache = items;
           } else {
@@ -1598,7 +1599,7 @@
           }
           actualizarMetricas();
           renderizarCatalogo();
-        });
+        }));
 
       } catch (err) {
         console.warn('[Catalogo] Error inicializando Firebase:', err);

@@ -45,7 +45,13 @@ function createPublicCatalogHandler({ getBusiness, getMaterials, timeoutMs = 100
             const materials = await withDeadline(getMaterials(uid), timeoutMs);
             const latest = await withDeadline(getBusiness(businessId), timeoutMs);
             if (!latest || latest.hasCatalog !== true || latest.catalogUid !== uid) return res.status(404).json({ error: "Catálogo no disponible." });
-            return res.status(200).json({ businessId, items: projectItems(materials) });
+            const phone = latest.whatsapp || latest.phone;
+            const publicBusiness = {
+                title: text(latest.title),
+                phone: Number.isFinite(phone) ? String(phone) : text(phone),
+                imageUrl: text(latest.imgSrc || latest.image || latest.logo || latest.photoURL)
+            };
+            return res.status(200).json({ businessId, business: publicBusiness, items: projectItems(materials) });
         } catch (error) {
             console.error("Error al consultar catálogo público", error);
             return res.status(500).json({ error: "No se pudo consultar el catálogo." });

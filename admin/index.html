@@ -2525,7 +2525,7 @@
          LÓGICA DEL PANEL ADMINISTRATIVO & FIREBASE RTDB
          ========================================================================== -->
     <script type="module">
-        import { rtdb, auth } from "../firebase-config.js";
+        import { rtdb, auth, subscribeWhilePageOpen } from "../firebase-config.js";
         import { ref, onValue, set, update, remove, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Clave de seguridad autorizada por el usuario
@@ -2557,6 +2557,7 @@
             if (val === MASTER_PASSWORD) {
                 sessionStorage.setItem(SESSION_STORAGE_KEY, "authorized");
                 document.getElementById("adminGateOverlay").classList.add("unlocked");
+                fetchRegisteredUsers();
                 showToast("✅ Acceso autorizado al Centro de Control");
                 logTerminal("AUTH", "Acceso administrativo desbloqueado con credencial maestra.");
             } else {
@@ -2612,6 +2613,7 @@
 
             const targetPane = document.getElementById(tabId);
             if (targetPane) targetPane.classList.add("active");
+            if (tabId === "tab-users") fetchRegisteredUsers();
 
             if (btn) btn.classList.add("active");
             else {
@@ -3302,7 +3304,7 @@
             // Escuchar nodo de productos en tiempo real
             try {
                 const prodRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
-                onValue(prodRef, (snap) => {
+                subscribeWhilePageOpen(() => onValue(prodRef, (snap) => {
                     const data = snap.val();
                     if (data !== null) {
                         const list = Array.isArray(data) ? data : Object.values(data);
@@ -3315,13 +3317,13 @@
                     localStorage.setItem("multiideas_admin_products_seeded", "true");
                     if (window.renderProductsMosaic) renderProductsMosaic();
                     updateDashboardCounters();
-                });
+                }));
             } catch(e) { console.warn("[Admin Prod Listener]", e); }
 
             // Escuchar nodo de servicios en tiempo real
             try {
                 const servRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services");
-                onValue(servRef, (snap) => {
+                subscribeWhilePageOpen(() => onValue(servRef, (snap) => {
                     const data = snap.val();
                     if (data !== null) {
                         const list = Array.isArray(data) ? data : Object.values(data);
@@ -3333,12 +3335,12 @@
                     localStorage.setItem("multiideas_admin_services_seeded", "true");
                     if (window.renderServicesMosaic) renderServicesMosaic();
                     updateDashboardCounters();
-                });
+                }));
             } catch(e) { console.warn("[Admin Serv Listener]", e); }
 
             // Escuchar nodo de presencia/conectividad de Firebase
             const connectedRef = ref(rtdb, ".info/connected");
-            onValue(connectedRef, (snap) => {
+            subscribeWhilePageOpen(() => onValue(connectedRef, (snap) => {
                 const isConnected = snap.val() === true;
                 window.adminState.rtdbConnected = isConnected;
                 const statusEl = document.getElementById("telemetryStatusText");
@@ -3356,11 +3358,15 @@
                     if (rtdbBadge) rtdbBadge.textContent = "DESCONECTADO";
                     logTerminal("RTDB", "Desconectado temporalmente de Firebase.", "warn");
                 }
-            });
+            }));
 
-            // Escuchar usuarios registrados en Firebase RTDB
+        }
+
+        let usersRequest = null;
+        function fetchRegisteredUsers() {
+            if (sessionStorage.getItem(SESSION_STORAGE_KEY) !== "authorized" || usersRequest) return;
             const usersRef = ref(rtdb, "users");
-            onValue(usersRef, (snapshot) => {
+            usersRequest = get(usersRef).then(snapshot => {
                 const data = snapshot.val() || {};
                 const list = [];
                 Object.keys(data).forEach(uid => {
@@ -3424,15 +3430,16 @@
                 renderUsersView();
                 renderOverviewUsers();
                 updateDashboardCounters();
-            }, (error) => {
+            }).catch(error => {
                 console.warn("[Admin Dashboard] Error de lectura en RTDB /users:", error);
                 logTerminal("RTDB", "Lectura de usuarios completada con almacenamiento local.", "info");
                 renderUsersView();
                 renderOverviewUsers();
                 updateDashboardCounters();
-            });
+            }).finally(() => { usersRequest = null; });
         }
         initFirebaseListeners();
+        fetchRegisteredUsers();
 
         // 11. Renderizadores de Interfaz
         function updateDashboardCounters() {

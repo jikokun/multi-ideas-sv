@@ -4484,6 +4484,7 @@
       formatearHorasDecimal, 
       calcularNivelUsuario 
     } from './js/stream_firebase.js?v=20261029_7';
+    import { subscribeWhilePageOpen } from '../firebase-config.js';
 
     window.StreamDB = StreamDB;
     window.norm = norm;
@@ -4497,6 +4498,7 @@
     let transmisionesHistorialCache = [];
     let streamSeleccionadoId = null;
     let usuariosCacheGlobal = [];
+    let usuariosSnapshot = null;
     let asistenciasHistorialCache = [];
     let contrasteActualCache = null;
     let pestanaAsistenciaActual = 'contraste';
@@ -4537,52 +4539,55 @@
       });
 
       // 3. Escuchar métricas globales de transmisiones
-      StreamDB.onTransmisionesStats((stats) => {
+      subscribeWhilePageOpen(() => StreamDB.onTransmisionesStats((stats) => {
         renderizarTransmisionesStats(stats);
-      });
+      }));
 
       // 4. Escuchar historial de transmisiones para el contraste
-      StreamDB.onTransmisionesHistorial((streams) => {
+      subscribeWhilePageOpen(() => StreamDB.onTransmisionesHistorial((streams) => {
         transmisionesHistorialCache = streams || [];
         window.transmisionesHistorialCache = transmisionesHistorialCache;
         actualizarListaTransmisiones(streams);
-      });
+      }));
 
       // 5. Escuchar usuarios en tiempo real para el Escalafón de la Manada
-      StreamDB.onUsers((users) => {
+      subscribeWhilePageOpen(() => StreamDB.onUsers((users, snapshot) => {
         usuariosCacheGlobal = users;
+        usuariosSnapshot = snapshot;
         renderizarGraficasUsuarios(users);
         renderizarEscalafonNiveles(users);
         document.getElementById('kpi-total-usuarios').textContent = users.length;
         document.getElementById('badge-levels-count').textContent = `${users.length} miembros`;
-      });
+      }));
 
       // 6. Escuchar estadísticas de compras y tienda
-      StreamDB.onEstadisticas((stats) => {
+      subscribeWhilePageOpen(() => StreamDB.onEstadisticas((stats) => {
         renderizarEstadisticas(stats);
-      });
+      }));
 
       // 7. Escuchar transacciones en vivo
-      StreamDB.onTransacciones((txList) => {
+      subscribeWhilePageOpen(() => StreamDB.onTransacciones((txList) => {
         renderizarTransacciones(txList);
-      });
+      }));
 
       // 7b. Escuchar préstamos de JikoBank en tiempo real (Créditos 2%, deudas y pagos)
-      StreamDB.onLoans((loans) => {
+      subscribeWhilePageOpen(() => StreamDB.onLoans((loans) => {
         renderizarTablaPrestamos(loans);
-      });
+      }));
 
       // 8. Escuchar asistencias en vivo para actualizar el contraste y la tabla histórica de inmediato
-      StreamDB.onAsistencias((asisList) => {
+      subscribeWhilePageOpen(() => StreamDB.onAsistencias((asisList) => {
+        const anterior = asistenciasHistorialCache;
         asistenciasHistorialCache = asisList || [];
         window.asistenciasHistorialCache = asistenciasHistorialCache;
         actualizarBadgesAsistencias(asistenciasHistorialCache);
         actualizarFiltroStreamsHistorial(asistenciasHistorialCache);
         renderizarTablaHistorialAsistencias();
-        if (streamSeleccionadoId) {
+        const delStreamActivo = record => record.streamId === streamSeleccionadoId;
+        if (streamSeleccionadoId && JSON.stringify(anterior.filter(delStreamActivo)) !== JSON.stringify(asistenciasHistorialCache.filter(delStreamActivo))) {
           cargarContrasteStream(streamSeleccionadoId);
         }
-      });
+      }));
 
       // 9. Escuchar mensajes del chat de Kick en tiempo real (Pusher WebSocket) para el Monitor y Combustible
       StreamDB.onKickChatMessage((chatMsg) => {
@@ -4628,13 +4633,13 @@
       restaurarCombustibleSesion();
 
       // 14. Escuchar catálogo de ítems de la Tiendita en tiempo real
-      StreamDB.onTiendaItems((items) => {
+      subscribeWhilePageOpen(() => StreamDB.onTiendaItems((items) => {
         tiendaItemsCache = items || [];
         actualizarContadoresTienda(tiendaItemsCache);
         if (modalTiendaAbierto) {
           renderizarGridDashboardTienda();
         }
-      });
+      }));
 
       showToast('🔥 Conectado con éxito a <b>Firebase RTDB (stream/)</b> con <b>Detector Kick Interno</b>');
     }).catch(err => {
@@ -5775,7 +5780,7 @@
         limpiarContrasteEnEspera();
         return;
       }
-      const res = await StreamDB.contrastarAsistenciasTransmision(streamId);
+      const res = await StreamDB.contrastarAsistenciasTransmision(streamId, usuariosSnapshot);
       if (!res || streamSeleccionadoId !== streamId) return;
       contrasteActualCache = res;
 

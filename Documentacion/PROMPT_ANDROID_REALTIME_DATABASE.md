@@ -1,0 +1,30 @@
+# Prompt para optimizar Realtime Database en Android
+
+Copia desde la siguiente sección en la IA que tenga acceso al repositorio de Android. Adjunta el manual de integración Web y Android de este proyecto si el repositorio móvil no contiene una copia.
+
+## Prompt
+
+Actúa como desarrollador Android senior especializado en Kotlin y Firebase Realtime Database. Audita e implementa las optimizaciones que correspondan en este repositorio. Tu objetivo es reducir los bytes descargados y la sobrecarga de red del plan Blaze sin perder actualizaciones en vivo que la app necesite.
+
+### Revisa primero el proyecto
+
+- Identifica cada `FirebaseApp`, URL de RTDB, módulo, repositorio, pantalla y servicio que usa la base. Sensun Shop Web comparte el proyecto `sensunshopweb` con la app. Si encuentras WolfTrack y el proyecto `com-example-jikopuntos-f9ff5`, trata esa instancia de forma independiente.
+- Busca `addValueEventListener`, `addChildEventListener`, `addListenerForSingleValueEvent`, `get()`, `keepSynced(true)`, consultas, polling HTTP a `.json`, `onDisconnect`, `callbackFlow` y efectos de Compose. Anota ruta efectiva, cuándo abre y cierra la lectura, cuántos consumidores hay y por qué requiere datos en vivo.
+- Contrasta los modelos y las escrituras existentes con `MANUAL_INTEGRACION_ANDROID_FIREBASE.md`. Los nombres y tipos efectivos del esquema y los registros históricos determinan qué consultas se pueden activar.
+
+### Implementa según el flujo
+
+1. **Ruta precisa.** Lee `sensunshop/users/{uid}` para el perfil y `users/{uid}/sensunshop_favorites` para los favoritos. Si basta un atributo, lee esa hoja. Limita comentarios a `comments/{businessId}` y ratings a `sensunshop/ratings/{businessId}`. Conserva sincronización en vivo de favoritos, comentarios abiertos o presencia cuando la pantalla o el servicio lo requiera. Evita suscripciones a la raíz, a `users`, a `stream` o a conjuntos ajenos a la pantalla.
+2. **Carga puntual y caché.** Usa `get().await()` cuando ya haya integración con coroutines, o `get().addOnSuccessListener` con manejo de errores, para una carga puntual que necesite consultar el servidor. Comparte el resultado de lecturas concurrentes por ruta y consulta, y usa caché del repositorio para datos que puedan reutilizarse. Evita sondeos con `get()` y el patrón `get()` seguido de un listener sobre la misma consulta cuando sirve el primer snapshot del listener. Conserva estados vacíos válidos y refresco explícito cuando el usuario lo pida.
+3. **Ciclo de vida.** Usa el SDK oficial. Registra un listener por consulta activa y quita la misma instancia del listener de la misma `Query` en `awaitClose`, `onStop` o el punto de cierre apropiado. Vincula los flujos de UI a `repeatOnLifecycle(STARTED)` o `collectAsStateWithLifecycle`. Comprueba que el flujo upstream también se cancele cuando se marche el último consumidor y que navegación, rotación y recomposición no multipliquen suscripciones. Cancela las consultas y vacía el estado de la cuenta anterior cuando cambie el UID.
+4. **Persistencia.** Configura `setPersistenceEnabled(true)` una sola vez por instancia aplicable antes de que un repositorio, un módulo de inyección o un servicio cree referencias o use RTDB. Revisa la inicialización actual antes de cambiarla y prueba la transición entre cuentas y el comportamiento offline. La caché en disco puede ayudar a reutilizar datos, y `get()` todavía puede consultar la red. Reserva `keepSynced(true)` para rutas pequeñas con un requisito offline confirmado y desactívalo cuando termine esa necesidad.
+5. **Filtros y páginas.** Aplica en el servidor `orderByChild`, `equalTo`, rangos y `limitToFirst` o `limitToLast` según lo que muestra la pantalla. Usa cursores con valor y clave para ordenar registros con fechas iguales. Incluye `.indexOn` en la colección padre que consulta el cliente y prueba las reglas con emulador. Conserva compatibilidad con datos legados, por ejemplo `hasOffer` en formatos `true`, `"true"` y `1`, e `isActive` ausente cuando el modelo actual lo trata como activo. Si la UI requiere filtrar por varios campos y RTDB no permite esa combinación con el modelo existente, describe qué índice o proyección adicional haría falta y cómo validar el backfill antes de usarla.
+6. **Datos compartidos.** Conserva las rutas, claves y tipos que consumen Web y versiones Android anteriores. Revisa los nombres `news`, `bulletins` y `boletines`, `offers` y `ofertas` si existen. Usa `onDisconnect` para la sesión propia y evita latidos duplicados de la Activity, el servicio o un WebView. Mantén transacciones, deduplicación y permisos vigentes. Si necesitas cambiar un esquema o reglas compartidas, deja el cambio listo para revisión y coordina el orden de publicación con Web.
+
+### Entrega y verifica
+
+- Implementa los cambios aplicables y entrega un inventario compacto con pantalla o servicio, ruta anterior, consulta nueva, motivo del listener y punto de cierre. Indica los flujos que ya cumplen y los archivos modificados.
+- Prueba arranque en frío, navegación repetida, rotación, segundo plano y regreso, cambio de cuenta, modo offline con y sin caché, cambios realizados desde Web, paginación con empates y datos históricos. Usa el emulador o dobles de prueba para contar suscripciones y lecturas duplicadas en los flujos críticos.
+- Reporta los índices que deban coordinarse con producción y cómo comparar instancias y periodos equivalentes con **Realtime Database → Uso → Descargas**. Usa el profiler para ubicar consultas costosas o sin índice. Indica si las cifras son observadas o estimadas y qué falta medir. Trabaja sobre el repositorio Android y entrega el parche sin publicar cambios en Firebase.
+
+Referencias oficiales de Firebase. [Optimizar Realtime Database](https://firebase.google.com/docs/database/usage/optimize), [lecturas y escrituras en Android](https://firebase.google.com/docs/database/android/read-and-write), [persistencia en Android](https://firebase.google.com/docs/database/android/offline-capabilities), [índices](https://firebase.google.com/docs/database/security/indexing-data) y [profiler](https://firebase.google.com/docs/database/usage/profile).

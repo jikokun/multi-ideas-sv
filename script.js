@@ -2302,12 +2302,17 @@ async function connectFirebaseToAuth(authUI, fb) {
 
     let scriptPresenceSessionId = null;
     let scriptPresenceRef = null;
+    let scriptPresenceConnected = false;
+    let refreshScriptPresence = null;
 
-    async function initPresence(user) {
-        if (!rtdb || !dbHelpers) return;
+    function initPresence() {
+        if (!rtdb || !dbHelpers || document.querySelector('script[type="module"][src*="sensun_ratings.js"]')) return;
+        if (refreshScriptPresence) {
+            if (scriptPresenceConnected && !document.hidden) refreshScriptPresence();
+            return;
+        }
         try {
             const { ref, set, onDisconnect, onValue, update } = dbHelpers;
-            const activeUser = user || auth.currentUser;
 
             if (!scriptPresenceSessionId) {
                 scriptPresenceSessionId = "sess_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
@@ -2317,6 +2322,7 @@ async function connectFirebaseToAuth(authUI, fb) {
             const connectedRef = ref(rtdb, ".info/connected");
 
             function writeCurrentPresence() {
+                const activeUser = auth.currentUser;
                 const ua = navigator.userAgent || '';
                 const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
                 const isAndroid = /android/i.test(ua);
@@ -2352,30 +2358,22 @@ async function connectFirebaseToAuth(authUI, fb) {
                 set(sessionRef, data).catch(() => {});
             }
 
-            onValue(connectedRef, (snap) => {
-                if (snap.val() === true) {
-                    onDisconnect(sessionRef).remove().catch(() => {});
-                    writeCurrentPresence();
-                }
-            });
+            refreshScriptPresence = writeCurrentPresence;
+            fb.subscribeWhilePageOpen(() => onValue(connectedRef, snap => {
+                scriptPresenceConnected = snap.val() === true;
+                if (!scriptPresenceConnected) return;
+                onDisconnect(sessionRef).remove().catch(() => {});
+                if (!document.hidden) writeCurrentPresence();
+            }));
 
-            // En dispositivos móviles, actualizar presencia de inmediato cuando la pantalla o pestaña vuelva a estar visible
-            if (!window._presenceVisibilityRegistered) {
-                window._presenceVisibilityRegistered = true;
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible' && scriptPresenceRef) {
-                        writeCurrentPresence();
-                    }
-                });
-                window.addEventListener('focus', () => {
-                    if (scriptPresenceRef) writeCurrentPresence();
-                });
-            }
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && scriptPresenceConnected) writeCurrentPresence();
+            });
 
             // Intervalo periódico de latido (cada 45 segundos)
             if (!window._scriptPresenceInterval) {
                 window._scriptPresenceInterval = setInterval(() => {
-                    if (scriptPresenceRef && document.visibilityState !== 'hidden') {
+                    if (scriptPresenceRef && scriptPresenceConnected && !document.hidden) {
                         update(scriptPresenceRef, { lastActiveAt: Date.now() }).catch(() => {});
                     }
                 }, 45000);
@@ -2437,7 +2435,7 @@ async function connectFirebaseToAuth(authUI, fb) {
                 } catch(e) {}
             }
         }
-        initPresence(user);
+        initPresence();
         updateHeaderUI(user, window.openAuthModal, signOut, auth);
     });
 }

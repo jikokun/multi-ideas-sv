@@ -1742,58 +1742,15 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
 <!-- Integración Firebase Realtime Database -->
 <script type="module">
+  import { subscribeWhilePageOpen } from '../firebase-config.js';
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl } from './js/stream_firebase.js';
   window.StreamDB = StreamDB;
+  window.escucharUsuarioStream = (username, callback) => subscribeWhilePageOpen(() => StreamDB.onUser(username, callback));
   window.norm = norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
   window.avatarMemCache = window.avatarMemCache || {};
 
-  StreamDB.init().then(() => {
-    console.log('[WidgetPerfil] 🔥 Firebase RTDB conectado correctamente');
-    StreamDB.obtenerUsuarios().then(users => {
-      if (Array.isArray(users)) {
-        users.forEach(u => {
-          if (u && u.username && u.avatar) {
-            window.avatarMemCache[u.username.toLowerCase()] = normalizarAvatarKickUrl(u.avatar);
-          }
-        });
-      }
-    }).catch(() => {});
-    StreamDB.onUsers((users) => {
-      if (Array.isArray(users)) {
-        users.forEach(u => {
-          if (u && u.username) {
-            const uKey = u.username.toLowerCase();
-            if (u.avatar) {
-              const normAv = normalizarAvatarKickUrl(u.avatar);
-              window.avatarMemCache[uKey] = normAv;
-              if (typeof window.precargarImagenPerfil === 'function') {
-                window.precargarImagenPerfil(normAv, 1500);
-              }
-            }
-            if (u.fondoTarjetaUrl && typeof window.precargarImagenPerfil === 'function') {
-              window.precargarImagenPerfil(u.fondoTarjetaUrl, 1500);
-            }
-          }
-        });
-
-        // Si la tarjeta está visible en OBS, verificar si el usuario en pantalla fue actualizado
-        const root = document.getElementById('card-root');
-        if (root && root.classList.contains('visible') && typeof window.mostrarTarjetaPerfil === 'function') {
-          const userEl = document.getElementById('card-display-name') || document.getElementById('test-card-username');
-          const currentShowing = userEl ? userEl.textContent.replace(/^@/, '').trim().toLowerCase() : '';
-          if (currentShowing) {
-            const matchUser = users.find(u => u && u.username && (u.username.toLowerCase() === currentShowing || (u.displayName && u.displayName.toLowerCase() === currentShowing)));
-            if (matchUser) {
-              console.log(`[WidgetPerfil] 🔄 Sincronizando tarjeta en vivo desde Firebase RTDB para @${matchUser.username}`);
-              window.mostrarTarjetaPerfil(matchUser, { isLiveUpdate: true, silent: true });
-            }
-          }
-        }
-      }
-    });
-  });
 </script>
 
 <script>
@@ -2248,6 +2205,7 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
   let perfilRenderToken = 0;
   let perfilExitTimer = null;
   let perfilPreparing = false;
+  let stopPerfilLive = null;
 
   function precargarImagenPerfil(url, timeoutMs = 400) {
     if (!url || typeof url !== 'string' || !url.trim()) {
@@ -2292,6 +2250,8 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     const root = document.getElementById('card-root');
     if (!root) return;
     ++perfilRenderToken;
+    stopPerfilLive?.();
+    stopPerfilLive = null;
     perfilPreparing = false;
     if (perfilExitTimer) clearTimeout(perfilExitTimer);
     perfilExitTimer = null;
@@ -2360,15 +2320,6 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     } else {
       if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
         try { uData = await window.StreamDB.getUser(clean, true); } catch(e){}
-      }
-      if (!uData) {
-        try {
-          const res = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/stream/usuarios/${clean}.json?t=${Date.now()}`, { cache: 'no-store' });
-          if (res.ok) {
-            const remote = await res.json();
-            if (remote && typeof remote === 'object' && Object.keys(remote).length > 0) uData = remote;
-          }
-        } catch(e){}
       }
       if (!uData) {
         uData = {
@@ -2596,6 +2547,13 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
 
     root.classList.remove('saliendo');
     root.classList.add('visible');
+    const profileKey = norm(uData.username || clean);
+    root.dataset.username = profileKey;
+    if (typeof usernameOObjeto !== 'object' || usernameOObjeto === null) {
+      stopPerfilLive = window.escucharUsuarioStream?.(profileKey, fresh => {
+        if (fresh) mostrarTarjetaPerfil({ ...fresh, username: profileKey }, { isLiveUpdate: true, silent: true, meta: options.meta });
+      });
+    }
     if (!isAdminPreview && !options.silent) playSciFiSound();
 
     // Proteger tarjeta de perfil adquiriendo lock de exclusión mutua
@@ -2625,6 +2583,8 @@ body.admin-profile-preview #card-root { transform: none !important; filter: none
     const root = document.getElementById('card-root');
     if (!root || root.classList.contains('saliendo')) return;
     ++perfilRenderToken; // Invalidar lecturas y precargas que terminan durante la salida.
+    stopPerfilLive?.();
+    stopPerfilLive = null;
     perfilPreparing = false;
     if (cardHideTimer) clearTimeout(cardHideTimer);
     cardHideTimer = null;

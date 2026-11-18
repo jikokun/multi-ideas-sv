@@ -4025,6 +4025,8 @@ html,body{
      ======================================================== -->
 <script type="module">
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl } from './js/stream_firebase.js';
+  import { subscribeWhilePageOpen } from '../firebase-config.js';
+  window.suscribirJikoteca = subscribeWhilePageOpen;
   window.StreamDB = StreamDB;
   window.norm = window.norm || norm;
   window.calcularNivelUsuario = calcularNivelUsuario;
@@ -4138,53 +4140,16 @@ html,body{
   window.onStreamDBReady = function() {
     console.log('[La Jikoteca] 🟢 Sincronizando datos con Firebase RTDB...');
     if (window.StreamDB) {
-      // 1. Cargar avatares de la comunidad guardados en Firebase
-      if (typeof window.StreamDB.obtenerUsuarios === 'function') {
-        window.StreamDB.obtenerUsuarios().then(users => {
-          if (Array.isArray(users)) {
-            users.forEach(u => {
-              if (u && u.username && u.avatar) {
-                const uKey = norm(u.username);
-                const cleanPic = normalizeKickAvatarUrl(u.avatar);
-                if (cleanPic) {
-                  avatarCache[uKey] = cleanPic;
-                  saveAvatarToStorage(uKey, cleanPic);
-                  updateDancerAvatar(u.username, cleanPic);
-                }
-              }
-            });
-          }
-        }).catch(()=>{});
-      }
-
-      // 2. Escuchar cambios de usuarios en tiempo real (avatares y puntos)
-      if (typeof window.StreamDB.onUsers === 'function') {
-        window.StreamDB.onUsers((users) => {
-          if (Array.isArray(users)) {
-            users.forEach(u => {
-              if (u && u.username && u.avatar) {
-                const uKey = norm(u.username);
-                const cleanPic = normalizeKickAvatarUrl(u.avatar);
-                if (cleanPic && avatarCache[uKey] !== cleanPic) {
-                  avatarCache[uKey] = cleanPic;
-                  updateDancerAvatar(u.username, cleanPic);
-                }
-              }
-            });
-          }
-        });
-      }
-
-      // 3. Sincronizar tickets de la discoteca guardados en la nube
+      // Sincronizar tickets de la discoteca guardados en la nube
       if (typeof window.StreamDB.onOverlayState === 'function') {
-        window.StreamDB.onOverlayState('jikoteca', (state) => {
+        window.suscribirJikoteca(() => window.StreamDB.onOverlayState('jikoteca', state => {
           if (state && Array.isArray(state.tickets)) {
             state.tickets.forEach(t => ticketHolders.add(norm(t)));
             try {
               localStorage.setItem('jikoteca_tickets', JSON.stringify([...ticketHolders]));
             } catch(e){}
           }
-        });
+        }));
       }
     }
   };
@@ -4950,18 +4915,6 @@ html,body{
       return JIKOKUN_OFFICIAL_AVATAR;
     }
 
-    // 4. Si ya está registrado en Firebase RTDB StreamDB (Caché síncrona en memoria)
-    if (window.StreamDB && window.StreamDB.usersCache && window.StreamDB.usersCache[cleanUser]) {
-      const fbUser = window.StreamDB.usersCache[cleanUser];
-      if (fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')) {
-        const cleanPic = normalizeKickAvatarUrl(fbUser.avatar);
-        if (cleanPic) {
-          updateDancerAvatar(cleanUser, cleanPic);
-          return cleanPic;
-        }
-      }
-    }
-
     // 5. Si está en almacenamiento local de sesiones previas
     const stored = getStoredAvatars()[cleanUser];
     if (stored) {
@@ -4972,19 +4925,14 @@ html,body{
       }
     }
 
-    // 6. Consultar a Firebase RTDB de forma asíncrona (sin bloqueos CORS)
-    if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
-      try {
-        const fbUser = await window.StreamDB.getUser(cleanUser);
-        if (fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')) {
-          const cleanPic = normalizeKickAvatarUrl(fbUser.avatar);
-          if (cleanPic) {
-            updateDancerAvatar(cleanUser, cleanPic);
-            return cleanPic;
-          }
-        }
-      } catch(e) {}
-    }
+    try {
+      const { getStreamAvatar } = await import('../firebase-config.js');
+      const cleanPic = normalizeKickAvatarUrl(await getStreamAvatar(cleanUser));
+      if (cleanPic) {
+        updateDancerAvatar(cleanUser, cleanPic);
+        return cleanPic;
+      }
+    } catch (e) {}
 
     // 7. Consulta asíncrona a Kick API y proxies de respaldo
     try {

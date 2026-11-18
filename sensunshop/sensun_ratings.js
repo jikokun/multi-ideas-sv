@@ -13,7 +13,8 @@ import {
     signInWithRedirect,
     getRedirectResult,
     getAdditionalUserInfo,
-    signOut
+    signOut,
+    subscribeWhilePageOpen
 } from "../firebase-config.js";
 import { signInAnonymously } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { ref, set, get, onValue, push, remove, update, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -1391,7 +1392,7 @@ function setupFavoritesSync(user) {
 
     if (user) {
         const favsRef = ref(rtdb, `users/${user.uid}/sensunshop_favorites`);
-        favoritesListener = onValue(favsRef, (snapshot) => {
+        favoritesListener = subscribeWhilePageOpen(() => onValue(favsRef, snapshot => {
             userFavorites = snapshot.val() || {};
             window.userFavorites = userFavorites;
             syncFavoritesUI();
@@ -1399,7 +1400,7 @@ function setupFavoritesSync(user) {
             if (typeof window.renderFavoritesView === "function") {
                 window.renderFavoritesView(userFavorites);
             }
-        });
+        }));
     } else {
         syncFavoritesUI();
         if (typeof window.renderFavoritesView === "function") {
@@ -1451,8 +1452,10 @@ async function syncUserProfileToDatabase(user) {
 
 let currentPresenceSessionId = null;
 let currentPresenceRef = null;
+let presenceConnected = false;
+let refreshPresence = null;
 
-async function initPresenceTracking(user) {
+async function initPresenceTracking() {
     try {
         // Asegurar sesión autenticada (anónima o con cuenta) para permisos de escritura en Firebase RTDB
         if (!auth.currentUser) {
@@ -1463,7 +1466,10 @@ async function initPresenceTracking(user) {
             }
         }
 
-        const activeUser = auth.currentUser || user;
+        if (refreshPresence) {
+            if (presenceConnected && !document.hidden) refreshPresence();
+            return;
+        }
 
         if (!currentPresenceSessionId) {
             currentPresenceSessionId = "sess_" + Math.random().toString(36).substring(2, 9) + "_" + Date.now();
@@ -1472,6 +1478,7 @@ async function initPresenceTracking(user) {
         currentPresenceRef = sessionRef;
 
         function writePresenceData() {
+            const activeUser = auth.currentUser;
             const ua = navigator.userAgent || '';
             const isAndroidApp = /SensunShopApp|Android.*wv|Version\/.*Chrome/i.test(ua) || window.location.search.includes('source=android_app') || window.location.search.includes('app=android');
             const isAndroid = /android/i.test(ua);
@@ -1508,32 +1515,23 @@ async function initPresenceTracking(user) {
             });
         }
 
+        refreshPresence = writePresenceData;
         const connectedRef = ref(rtdb, ".info/connected");
-        onValue(connectedRef, (snap) => {
-            if (snap.val() === true) {
-                // Al desconectarse (cerrar pestaña/app), eliminar la sesión activa automáticamente
-                onDisconnect(sessionRef).remove().catch(() => {});
-                writePresenceData();
-            }
-        });
+        subscribeWhilePageOpen(() => onValue(connectedRef, snap => {
+            presenceConnected = snap.val() === true;
+            if (!presenceConnected) return;
+            onDisconnect(sessionRef).remove().catch(() => {});
+            if (!document.hidden) writePresenceData();
+        }));
 
-        // Manejar reactivación de pantalla en teléfonos (cuando la pantalla se desbloquea o se regresa a la pestaña)
-        if (!window._sensunVisibilityPresenceRegistered) {
-            window._sensunVisibilityPresenceRegistered = true;
-            document.addEventListener('visibilitychange', () => {
-                if (document.visibilityState === 'visible' && currentPresenceRef) {
-                    writePresenceData();
-                }
-            });
-            window.addEventListener('focus', () => {
-                if (currentPresenceRef) writePresenceData();
-            });
-        }
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && presenceConnected) writePresenceData();
+        });
 
         // Actualizar lastActiveAt periódicamente mientras la página esté activa
         if (!window._sensunPresenceInterval) {
             window._sensunPresenceInterval = setInterval(() => {
-                if (currentPresenceRef && document.visibilityState !== 'hidden') {
+                if (currentPresenceRef && presenceConnected && !document.hidden) {
                     update(currentPresenceRef, { lastActiveAt: Date.now() }).catch(() => {});
                 }
             }, 45000);
@@ -1542,9 +1540,6 @@ async function initPresenceTracking(user) {
         console.warn("[Sensun Presence] Error iniciando tracking:", e);
     }
 }
-
-// Iniciar presencia inmediatamente para visitantes
-initPresenceTracking(currentUser);
 
 // Escuchar el estado de autenticación de Firebase
 onAuthStateChanged(auth, (user) => {
@@ -1555,7 +1550,7 @@ onAuthStateChanged(auth, (user) => {
         syncUserProfileToDatabase(user);
     }
     // Actualizar presencia con datos del usuario
-    initPresenceTracking(user);
+    initPresenceTracking();
 
     // Sincronizar favoritos del usuario
     setupFavoritesSync(user);
@@ -1586,6 +1581,70 @@ window.userFavorites = userFavorites;
 window.injectCommentButtons = injectCommentButtons;
 window.openCommentsModal = openCommentsModal;
 window.closeCommentsModal = closeCommentsModal;
+
+const ratingReads = new Map();
+const commentCounts = new Map();
+const visibleReadCallbacks = new WeakMap();
+const visibleReadObserver = typeof IntersectionObserver === 'function' ? new IntersectionObserver(entries => {
+    for (const entry of entries) {
+        if (!entry.isIntersecting && entry.target.isConnected) continue;
+        visibleReadObserver.unobserve(entry.target);
+        const read = visibleReadCallbacks.get(entry.target);
+        visibleReadCallbacks.delete(entry.target);
+        if (entry.target.isConnected) read?.();
+    }
+}, { rootMargin: '200px' }) : null;
+
+function readWhenVisible(element, read) {
+    if (!visibleReadObserver) {
+        read();
+        return;
+    }
+    visibleReadCallbacks.set(element, read);
+    visibleReadObserver.observe(element);
+}
+
+function loadRating(businessId) {
+    if (!ratingReads.has(businessId)) {
+        ratingReads.set(businessId, get(ref(rtdb, `sensunshop/ratings/${businessId}`))
+            .then(snapshot => snapshot.val() || {})
+            .catch(error => {
+                ratingReads.delete(businessId);
+                throw error;
+            }));
+    }
+    return ratingReads.get(businessId);
+}
+
+function showCommentCount(button, businessId) {
+    if (!button.querySelector('.comment-micro-badge')) return;
+    readWhenVisible(button, () => {
+        if (!commentCounts.has(businessId)) {
+            const request = get(ref(rtdb, `comments/${businessId}`))
+                .then(snapshot => snapshot.size)
+                .catch(error => {
+                    if (commentCounts.get(businessId) === request) commentCounts.delete(businessId);
+                    throw error;
+                });
+            commentCounts.set(businessId, request);
+        }
+        const read = commentCounts.get(businessId);
+        read.then(count => {
+            if (commentCounts.get(businessId) !== read) return;
+            const badge = button.querySelector('.comment-micro-badge');
+            if (badge) badge.textContent = count;
+        }).catch(error => console.warn('[Sensun comentarios]', error.message));
+    });
+}
+
+function updateCommentCount(businessId, count) {
+    commentCounts.set(businessId, Promise.resolve(count));
+    document.querySelectorAll('.compact-comment-circle-btn[data-business-id]').forEach(button => {
+        if (button.dataset.businessId !== businessId) return;
+        const badge = button.querySelector('.comment-micro-badge');
+        if (badge) badge.textContent = count;
+    });
+}
 
 // Inicializar un widget de votación
 function initRatingWidget(container) {
@@ -1646,23 +1705,15 @@ function initRatingWidget(container) {
             openCommentsModal(businessId, titleText);
         };
 
-        const countBadge = commentBtn.querySelector('.comment-micro-badge');
-        const commentsRefNode = ref(rtdb, `comments/${businessId}`);
-        onValue(commentsRefNode, (snapshot) => {
-            const val = snapshot.val() || {};
-            const count = Object.keys(val).length;
-            if (countBadge) countBadge.textContent = count;
-        });
+        showCommentCount(commentBtn, businessId);
     }
 
     const starsRow = container.querySelector(`.stars-row`);
     const ratingText = container.querySelector(`.rating-text`);
     const ratingHelper = container.querySelector(`.rating-helper`);
 
-    // Cargar calificaciones en tiempo real desde Firebase RTDB
-    const ratingsRef = ref(rtdb, `sensunshop/ratings/${businessId}`);
-    onValue(ratingsRef, (snapshot) => {
-        const ratingsData = snapshot.val() || {};
+    readWhenVisible(starsRow, () => loadRating(businessId).then(ratingsData => {
+        if (!starsRow.isConnected) return;
         const voters = Object.keys(ratingsData);
         const votesCount = voters.length;
         
@@ -1731,17 +1782,25 @@ function initRatingWidget(container) {
                 ratingHelper.innerHTML = `Debes <a onclick="openAuthModal()">iniciar sesión</a> para calificar.`;
             }
         }
-    });
+    }).catch(error => {
+        ratingText.textContent = 'Calificación no disponible';
+        console.warn('[Sensun calificaciones]', error.message);
+    }));
 }
 
 // Guardar voto
 async function submitVote(businessId, value) {
-    if (!currentUser) return;
+    const uid = currentUser?.uid;
+    if (!uid) return;
     try {
-        // 1. Guardar en el nodo del negocio
-        await set(ref(rtdb, `sensunshop/ratings/${businessId}/${currentUser.uid}`), value);
-        // 2. Guardar en el nodo del usuario (su registro de actividad)
-        await set(ref(rtdb, `users/${currentUser.uid}/sensunshop_ratings/${businessId}`), {
+        await set(ref(rtdb, `sensunshop/ratings/${businessId}/${uid}`), value);
+        const ratings = await ratingReads.get(businessId);
+        ratingReads.set(businessId, Promise.resolve({ ...ratings, [uid]: value }));
+        document.querySelectorAll("[id='sensun-rating-widget'], .sensun-rating-widget").forEach(widget => {
+            if (widget.dataset.businessId === businessId) initRatingWidget(widget);
+        });
+
+        await set(ref(rtdb, `users/${uid}/sensunshop_ratings/${businessId}`), {
             rating: value,
             timestamp: Date.now()
         });
@@ -2098,9 +2157,9 @@ window.closeAuthModal = closeAuthModal;
 // SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE RTDB (NEGOCIOS, NOTICIAS Y OFERTAS)
 // ==========================================================================
 let cachedParsedBusinesses = null;
-let businessesRtdbListener = null;
+let businessesReady = null;
 let cachedNewsList = [];
-let newsRtdbListener = null;
+let newsLoaded = false;
 
 // Helper para crear tarjetas de negocio en el DOM de forma dinámica
 function createBusinessDOMCard(business) {
@@ -2540,11 +2599,11 @@ window.extractCoordinatesFromUrl = extractCoordinates;
 
 // Configurar sincronización en tiempo real de sensunshop/businesses
 function setupBusinessesRealtimeSync() {
-    try {
-        const businessesRef = ref(rtdb, "sensunshop/businesses");
-        if (businessesRtdbListener) return;
+    if (businessesReady) return businessesReady;
 
-        businessesRtdbListener = onValue(businessesRef, (snapshot) => {
+    businessesReady = new Promise(resolve => {
+        const businessesRef = ref(rtdb, "sensunshop/businesses");
+        subscribeWhilePageOpen(() => onValue(businessesRef, snapshot => {
             const data = snapshot.val() || {};
             const allItems = Object.keys(data).map(key => {
                 const item = data[key];
@@ -2610,11 +2669,14 @@ function setupBusinessesRealtimeSync() {
             }
 
             // Notificar a cualquier componente activo (mapa, filtros, contadores)
+            resolve();
             document.dispatchEvent(new CustomEvent("sensun-businesses-updated", { detail: { businesses: activeList, all: allItems } }));
-        });
-    } catch (err) {
-        console.warn("Aviso: No se pudo conectar a sensunshop/businesses en Firebase RTDB:", err);
-    }
+        }, error => {
+            console.warn("Aviso: No se pudo conectar a sensunshop/businesses en Firebase RTDB:", error);
+            resolve();
+        }));
+    });
+    return businessesReady;
 }
 
 // Cache global de fuentes de datos Firebase
@@ -2721,71 +2783,39 @@ function isSensunStandaloneProfile() {
            path.includes("/profesionales/drhenrymartinez");
 }
 
-// Configurar sincronización en tiempo real de Noticias, Boletines y Ofertas desde Firebase RTDB
+// Cargar las publicaciones una vez, incluidas las rutas que usa Android.
 function setupNewsSync() {
-    if (isSensunStandaloneProfile()) return;
-    if (newsRtdbListener) return;
-    newsRtdbListener = true;
+    if (isSensunStandaloneProfile() || newsLoaded) return;
+    newsLoaded = true;
 
-    try {
-        // 1. Escuchar sensunshop/news (Noticias generales)
-        const newsRef = ref(rtdb, "sensunshop/news");
-        onValue(newsRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            cachedNewsList = parseFeedItems(data, "noticias");
-            rebuildUnifiedFeeds();
-        });
-
-        // 2. Escuchar sensunshop/bulletins y sensunshop/boletines (Boletines de la app)
-        const bulletinsRef = ref(rtdb, "sensunshop/bulletins");
-        onValue(bulletinsRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            const list1 = parseFeedItems(data, "boletines");
-            // También escuchar nodo alterno sensunshop/boletines
-            get(ref(rtdb, "sensunshop/boletines")).then(snap => {
-                const data2 = snap.val() || {};
-                const list2 = parseFeedItems(data2, "boletines");
-                const merged = [...list1, ...list2];
-                const seen = new Set();
-                cachedBulletinsList = merged.filter(b => {
-                    if (seen.has(b.id)) return false;
-                    seen.add(b.id);
-                    return true;
-                });
-                rebuildUnifiedFeeds();
-            }).catch(() => {
-                cachedBulletinsList = list1;
-                rebuildUnifiedFeeds();
-            });
-        });
-
-        // 3. Escuchar sensunshop/offers y sensunshop/ofertas (Ofertas de la app)
-        const offersRef = ref(rtdb, "sensunshop/offers");
-        onValue(offersRef, (snapshot) => {
-            const data = snapshot.val() || {};
-            const list1 = parseFeedItems(data, "anuncios");
-            get(ref(rtdb, "sensunshop/ofertas")).then(snap => {
-                const data2 = snap.val() || {};
-                const list2 = parseFeedItems(data2, "anuncios");
-                const merged = [...list1, ...list2];
-                const seen = new Set();
-                cachedOffersList = merged.filter(o => {
-                    if (seen.has(o.id)) return false;
-                    seen.add(o.id);
-                    return true;
-                });
-                rebuildUnifiedFeeds();
-            }).catch(() => {
-                cachedOffersList = list1;
-                rebuildUnifiedFeeds();
-            });
-        });
-    } catch (err) {
-        console.warn("Aviso: No se pudo conectar a los nodos de novedades/ofertas en Firebase RTDB:", err);
-    }
+    const readFeed = async (path, category) => {
+        try {
+            const snapshot = await get(ref(rtdb, `sensunshop/${path}`));
+            return parseFeedItems(snapshot.val() || {}, category);
+        } catch (error) {
+            console.warn(`[Sensun publicaciones] ${path}`, error.message);
+            return [];
+        }
+    };
+    const mergeFeeds = (primary, legacy) => {
+        const items = new Map(legacy.map(item => [item.id, item]));
+        primary.forEach(item => items.set(item.id, item));
+        return Array.from(items.values());
+    };
+    readFeed('news', 'noticias').then(items => {
+        cachedNewsList = items;
+        rebuildUnifiedFeeds();
+    });
+    Promise.all([readFeed('bulletins', 'boletines'), readFeed('boletines', 'boletines')]).then(([primary, legacy]) => {
+        cachedBulletinsList = mergeFeeds(primary, legacy);
+        rebuildUnifiedFeeds();
+    });
+    Promise.all([readFeed('offers', 'anuncios'), readFeed('ofertas', 'anuncios')]).then(([primary, legacy]) => {
+        cachedOffersList = mergeFeeds(primary, legacy);
+        rebuildUnifiedFeeds();
+    });
 }
 
-// Reconstruir carrusel de novedades y actualizar campana flotante
 function rebuildUnifiedFeeds() {
     renderUnifiedNovedadesSlider();
     if (typeof updateBellAndPopupFeed === "function") {
@@ -3048,61 +3078,9 @@ function initNovedadesAutoRotation() {
 
 // Función principal para obtener negocios con soporte de tiempo real
 async function getBusinessesList() {
-    setupBusinessesRealtimeSync();
-
-    if (cachedParsedBusinesses && cachedParsedBusinesses.length > 0) {
-        return cachedParsedBusinesses;
-    }
-
-    try {
-        const businessesRef = ref(rtdb, "sensunshop/businesses");
-        const snapshot = await get(businessesRef);
-        const data = snapshot.val();
-
-        if (data && Object.keys(data).length > 0) {
-            const list = Object.keys(data).map(key => {
-                const item = data[key];
-                const coords = extractCoordinates(item.locationUrl, item.id || key);
-                return {
-                    id: item.id || key,
-                    code: item.code || "",
-                    title: item.title || "Negocio",
-                    type: item.type || "negocioslocales",
-                    category: item.category || "comercio",
-                    badge: item.badge || "",
-                    description: item.description || "",
-                    imgSrc: item.imgSrc || "",
-                    gallery: Array.isArray(item.gallery) ? item.gallery : [],
-                    whatsapp: item.whatsapp || "",
-                    whatsappMsg: item.whatsappMsg || `Hola ${item.title || ''}, vengo desde Sensun Shop`,
-                    locationUrl: item.locationUrl || "",
-                    coords: coords,
-                    lat: coords ? coords.lat : null,
-                    lng: coords ? coords.lng : null,
-                    websiteUrl: (item.websiteUrl || "").replace(/multi-ideas-sv\.com/gi, "multiideassv.com"),
-                    hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
-                    offerMsg: item.offerMsg || "",
-                    offerCode: item.offerCode || "",
-                    offerStyle: parseInt(item.offerStyle, 10) || 1,
-                    offerExpiry: item.offerExpiry || "",
-                    offerDiscount: item.offerDiscount || "",
-                    offerDetail: item.offerDetail || "",
-                    offerBadge: item.offerBadge || "",
-                    offerDurationHours: parseInt(item.offerDurationHours, 10) || 6,
-                    offerDistance: item.offerDistance || "",
-                    accentColor: item.accentColor || "#e8621a",
-                    tags: Array.isArray(item.tags) ? item.tags : (typeof item.tags === "string" ? item.tags.split(",").map(t => t.trim()) : []),
-                    isActive: item.isActive !== false
-                };
-            }).filter(b => b.isActive);
-
-            cachedParsedBusinesses = list;
-            window.sensunBusinessesCache = list;
-            return cachedParsedBusinesses;
-        }
-    } catch (firebaseErr) {
-        console.warn("Aviso: No se pudo conectar a sensunshop/businesses en Firebase RTDB, usando respaldo DOM:", firebaseErr);
-    }
+    if (cachedParsedBusinesses) return cachedParsedBusinesses;
+    await setupBusinessesRealtimeSync();
+    if (cachedParsedBusinesses) return cachedParsedBusinesses;
 
     // Respaldo secundario local: Leer tarjetas del DOM actual
     const currentDOMCards = document.querySelectorAll('#negocios-container .negocio-card');
@@ -3443,9 +3421,10 @@ function listenToComments(businessId) {
     }
 
     const commentsRef = ref(rtdb, `comments/${businessId}`);
-    activeCommentsListener = onValue(commentsRef, (snapshot) => {
+    activeCommentsListener = subscribeWhilePageOpen(() => onValue(commentsRef, snapshot => {
         const commentsData = snapshot.val() || {};
         const commentKeys = Object.keys(commentsData);
+        updateCommentCount(businessId, commentKeys.length);
 
         // Ordenar por fecha (más antiguos a más recientes)
         const sortedComments = commentKeys.map(key => ({
@@ -3525,7 +3504,7 @@ function listenToComments(businessId) {
                 }
             });
         });
-    });
+    }));
 }
 
 async function deleteComment(businessId, commentId) {
@@ -3642,14 +3621,7 @@ function injectCommentButtons() {
             }
         }
 
-        // Escuchar número de comentarios en tiempo real
-        const countBadge = btn.querySelector(".comment-micro-badge");
-        const commentsRef = ref(rtdb, `comments/${businessId}`);
-        onValue(commentsRef, (snapshot) => {
-            const val = snapshot.val() || {};
-            const count = Object.keys(val).length;
-            if (countBadge) countBadge.textContent = count;
-        });
+        showCommentCount(btn, businessId);
     });
 }
 
@@ -4094,19 +4066,10 @@ function openCardExpandModal(card, modal) {
         }
     }
 
-    // Mantener la sincronización en tiempo real del contador de comentarios en el modal
     const commentBtn = clonedCard.querySelector(".compact-comment-circle-btn");
     if (commentBtn && businessId) {
         commentBtn.dataset.businessId = businessId;
-        const countBadge = commentBtn.querySelector(".comment-micro-badge");
-        if (countBadge) {
-            const commentsRef = ref(rtdb, `comments/${businessId}`);
-            onValue(commentsRef, (snapshot) => {
-                const val = snapshot.val() || {};
-                const count = Object.keys(val).length;
-                if (countBadge) countBadge.textContent = count;
-            });
-        }
+        showCommentCount(commentBtn, businessId);
     }
 
     // Mantener sincronizado el botón de favorito en el modal
@@ -5429,7 +5392,7 @@ window.openSensunMapModal = async function() {
     document.body.style.overflow = "hidden";
 
     try {
-        await loadLeafletResources();
+        await Promise.all([loadLeafletResources(), getBusinessesList()]);
         initPublicLeafletMap();
 
         setTimeout(() => {
@@ -5466,7 +5429,7 @@ function initSensunPageModules() {
         return;
     }
 
-    setupBusinessesRealtimeSync();
+    if (!document.body.hasAttribute("data-sensun-offers")) setupBusinessesRealtimeSync();
     setupNewsSync();
     initSensunBellAndPopupSystem();
     injectCommentButtons();

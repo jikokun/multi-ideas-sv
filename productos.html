@@ -163,7 +163,7 @@
 
     <!-- Módulo de Sincronización en Tiempo Real con Firebase RTDB -->
     <script type="module">
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getApps, getApp, initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 
         const firebaseConfig = {
@@ -628,10 +628,10 @@
             });
         }
 
-        // Sincronización en Tiempo Real con Firebase RTDB (Fuente Autoritativa)
+        // Cargar el catálogo publicado de Firebase RTDB
         try {
             const productsRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/products");
-            onValue(productsRef, (snap) => {
+            get(productsRef).then(snap => {
                 const data = snap.val();
                 if (data !== null) {
                     const list = resolveAuthoritativeProducts(DEFAULT_PRODUCTS, data);
@@ -647,7 +647,7 @@
                     } catch(e) {}
                     renderShoppingCatalog();
                 }
-            }, (error) => {
+            }).catch(error => {
                 console.warn("[RTDB Products Sync Warning]: Usando catálogo local/caché por error de red.", error);
             });
         } catch(err) {

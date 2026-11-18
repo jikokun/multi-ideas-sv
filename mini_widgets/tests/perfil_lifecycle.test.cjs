@@ -4,6 +4,27 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+test('las suscripciones se cierran al salir y se recuperan una sola vez desde la caché de navegación', () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../firebase-config.js'), 'utf8');
+  const start = source.indexOf('export function subscribeWhilePageOpen');
+  const end = source.indexOf('// Exportar módulos', start);
+  const window = new EventTarget();
+  const subscribeWhilePageOpen = vm.runInNewContext(source.slice(start, end).replace('export ', '') + '\nsubscribeWhilePageOpen;', { window });
+  let opened = 0;
+  let closed = 0;
+  const dispose = subscribeWhilePageOpen(() => { opened++; return () => { closed++; }; });
+  const restore = () => window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+
+  window.dispatchEvent(new Event('pagehide'));
+  assert.deepEqual([opened, closed], [1, 1]);
+  restore();
+  restore();
+  assert.deepEqual([opened, closed], [2, 1]);
+  dispose();
+  restore();
+  assert.deepEqual([opened, closed], [2, 2]);
+});
+
 function element() {
   const el = { className: '', dataset: {}, style: {}, textContent: '', replaceChildren() {}, removeAttribute() {}, appendChild() {} };
   el.classList = {
@@ -23,6 +44,7 @@ for (const integrated of [false, true]) {
     const get = id => { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); };
     const root = get(integrated ? 'perfil-card-wrap' : 'card-root');
     const timers = new Map();
+    const watchedProfiles = new Set();
     const queued = [];
     let now = 0, id = 0, locks = 0, releases = 0;
     const data = u => ({ ...u, displayName: u.displayName || u.username, avatar: '', nivel: 1, pts: 100, asistencias: 0, xpTotal: 1, xpEnNivel: 1, xpParaSubir: 100, xpPct: 1, rangoTitulo: 'Cachorro', roleTag: 'SEGUIDOR', consumerTitle: '', consumerBadge: '', earnedTitles: [], themeClass: 'theme-silver', themeLabel: '', useTestDesign: true });
@@ -30,7 +52,14 @@ for (const integrated of [false, true]) {
       console, Map, Promise, isAdminPreview: false, cardHideTimer: null, cardPerfilTimer: null,
       DURATION_SEC: 12, PERFIL_DURATION_SEC: 10, $cardPerfil: root, $menu: element(),
       document: { getElementById: get, createElement: element },
-      window: { JikoWidgetSync: { acquire() { locks++; }, release() { releases++; }, enqueue(item) { queued.push(item); } } },
+      window: {
+        JikoWidgetSync: { acquire() { locks++; }, release() { releases++; }, enqueue(item) { queued.push(item); } },
+        StreamDB: { async getUser(username) { return { username }; } },
+        escucharUsuarioStream(username) {
+          watchedProfiles.add(username);
+          return () => watchedProfiles.delete(username);
+        }
+      },
       setTimeout(fn, ms) { timers.set(++id, { fn, at: now + ms }); return id; },
       clearTimeout(key) { timers.delete(key); },
       norm: s => String(s).toLowerCase(), normalizarAvatarKickUrlLocal: s => s,
@@ -51,6 +80,7 @@ for (const integrated of [false, true]) {
     const alice = { username: 'alice', displayName: 'Alice Visible' };
     await context.show(alice);
     assert.equal(root.dataset.username, 'alice');
+    assert.equal(watchedProfiles.size, 0);
     const initialLocks = locks;
     const initialTimer = [...timers.keys()];
     await context.show({ username: 'bob' });
@@ -72,8 +102,9 @@ for (const integrated of [false, true]) {
     assert.equal(releases, 1);
     await context.show(alice, { isLiveUpdate: true });
     assert.equal(root.style.display, 'none');
-    await context.show({ username: queued.shift().target });
+    await context.show(queued.shift().target);
     assert.equal(root.dataset.username, 'bob');
+    assert.deepEqual([...watchedProfiles], ['bob']);
     await advance(1000);
     assert.ok(root.classList.contains('visible'));
     assert.equal(releases, 1);
@@ -83,6 +114,7 @@ for (const integrated of [false, true]) {
     vm.runInContext('precargarImagenPerfil = () => pendingPreload;', context);
     const pendingUpdate = context.show({ username: 'bob', fondoTarjetaUrl: 'art.png' }, { isLiveUpdate: true });
     context.hide();
+    assert.equal(watchedProfiles.size, 0);
     await advance(750);
     finishPreload('art.png');
     await pendingUpdate;

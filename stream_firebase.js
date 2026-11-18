@@ -22,6 +22,11 @@ import {
   runTransaction,
   query,
   orderByChild,
+  orderByKey,
+  equalTo,
+  startAt,
+  endAt,
+  limitToFirst,
   limitToLast
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -332,6 +337,15 @@ class StreamFirebaseService {
   // Inicialización y autenticación anónima para permisos de escritura limpios
   async init() {
     if (this.isInitialized) return true;
+    if (!this.initialization) {
+      this.initialization = this._initialize();
+    }
+    const initialized = await this.initialization;
+    if (!initialized) this.initialization = null;
+    return initialized;
+  }
+
+  async _initialize() {
 
     try {
       if (!this.auth.currentUser) {
@@ -344,30 +358,15 @@ class StreamFirebaseService {
       }
 
       const connRef = ref(this.rtdb, '.info/connected');
-      onValue(connRef, (snap) => {
+      const stopConnection = onValue(connRef, (snap) => {
         this.isConnected = snap.val() === true;
         console.log(`[StreamDB] 🌐 Conexión Firebase RTDB: ${this.isConnected ? 'ONLINE' : 'OFFLINE'}`);
       });
-
-      // Escuchar y cachear usuarios de forma reactiva para que cualquier consulta de saldo sea instantánea
-      this.onUsers((users) => {
-        if (Array.isArray(users)) {
-          users.forEach(u => {
-            if (u && u.username) {
-              if (u.avatar) {
-                u.avatar = normalizarAvatarKickUrl(u.avatar);
-              } else if (u.username === 'jikokun') {
-                u.avatar = 'https://files.kick.com/images/user/1926986/profile_image/conversion/ee30bea9-daf6-42be-83a5-082929611657-fullsize.webp';
-              }
-              this.usersCache.set(u.username, u);
-              this._updateLocalCache(u.username, u.jikopuntos);
-              if (!u.avatar || !String(u.avatar).startsWith('http')) {
-                this.absorberAvatarKick(u.username).catch(() => {});
-              }
-            }
-          });
-        }
-      });
+      if (typeof window !== 'undefined') {
+        window.addEventListener('pagehide', event => {
+          if (!event.persisted) stopConnection();
+        });
+      }
 
       // Sincronizar estado inicial de stream en vivo desde Firebase RTDB
       try {
@@ -422,8 +421,8 @@ class StreamFirebaseService {
     };
     if (ALIASES[q]) return ALIASES[q];
 
-    if (this.usersCache) {
-      const keysCache = Array.from(this.usersCache.keys());
+    if (this.directoryKeys) {
+      const keysCache = this.directoryKeys;
       const matchPrefix = keysCache.filter(k => k.startsWith(q));
       if (matchPrefix.length === 1) return matchPrefix[0];
       const matchContains = keysCache.filter(k => k.includes(q));
@@ -431,6 +430,18 @@ class StreamFirebaseService {
     }
 
     return q;
+  }
+
+  async resolverUsuarioDestino(username) {
+    const input = norm(username);
+    const key = this.resolverUsuarioReal(input);
+    if (!key || key !== input || this.usersCache.has(key)) return key;
+
+    const prefix = query(ref(this.rtdb, NODE_USERS), orderByKey(), startAt(key), endAt(key + '\uf8ff'), limitToFirst(2));
+    const matches = await get(prefix);
+    let resolved = key;
+    if (matches.size === 1) matches.forEach(child => { resolved = child.key; });
+    return resolved;
   }
 
   async getUser(username, forceFresh = false) {
@@ -983,6 +994,7 @@ class StreamFirebaseService {
     if (typeof callback !== 'function') return () => {};
     return onValue(ref(this.rtdb, NODE_USERS), (snap) => {
       const usersList = [];
+      const keys = [];
       if (snap.exists()) {
         snap.forEach(child => {
           const uKey = child.key;
@@ -1021,10 +1033,14 @@ class StreamFirebaseService {
           u.xpParaSubir = nivelInfo.xpParaSubir;
           u.xpFaltante = nivelInfo.xpFaltante;
           u.faltantesParaSiguienteNivel = nivelInfo.xpFaltante;
+          this.usersCache.set(uKey, u);
+          this._updateLocalCache(uKey, u.jikopuntos);
+          keys.push(uKey);
           usersList.push(u);
         });
       }
-      callback(usersList);
+      this.directoryKeys = keys;
+      callback(usersList, snap);
     });
   }
 
@@ -2031,7 +2047,7 @@ class StreamFirebaseService {
   }
 
   // Contrastar quiénes asistieron vs quiénes estuvieron ausentes en una transmisión
-  async contrastarAsistenciasTransmision(streamId) {
+  async contrastarAsistenciasTransmision(streamId, usersSnapshot = null) {
     try {
       if (!streamId) {
         const stats = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/streamActivoId`));
@@ -2041,7 +2057,7 @@ class StreamFirebaseService {
 
       const [streamSnap, usersSnap] = await Promise.all([
         get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${streamId}`)),
-        get(ref(this.rtdb, NODE_USERS))
+        usersSnapshot ?? get(ref(this.rtdb, NODE_USERS))
       ]);
 
       if (!streamSnap.exists()) return null;
@@ -2052,7 +2068,8 @@ class StreamFirebaseService {
 
       // Auto-reconciliación: Integrar cualquier asistencia registrada para este stream en NODE_ATTENDANCE
       try {
-        const asisSnap = await get(ref(this.rtdb, NODE_ATTENDANCE));
+        const history = query(ref(this.rtdb, NODE_ATTENDANCE), orderByChild('streamId'), equalTo(streamId));
+        const asisSnap = await get(history);
         if (asisSnap.exists()) {
           asisSnap.forEach(child => {
             const a = child.val();
@@ -2136,7 +2153,10 @@ class StreamFirebaseService {
   // Obtener historial de transmisiones realizadas
   async getTransmisionesHistorial(limit = 50) {
     try {
-      const snap = await get(ref(this.rtdb, NODE_TRANSMISSIONS));
+      const count = Math.floor(Number(limit));
+      if (!Number.isFinite(count) || count < 1) return [];
+      const recent = query(ref(this.rtdb, NODE_TRANSMISSIONS), orderByChild('inicioTimestamp'), limitToLast(count));
+      const snap = await get(recent);
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
@@ -2144,7 +2164,7 @@ class StreamFirebaseService {
         });
         lista.sort((a, b) => (b.inicioTimestamp || 0) - (a.inicioTimestamp || 0));
       }
-      return lista.slice(0, limit);
+      return lista;
     } catch (e) {
       return [];
     }
@@ -2152,7 +2172,13 @@ class StreamFirebaseService {
 
   onTransmisionesHistorial(callback, limit = 50) {
     if (typeof callback !== 'function') return () => {};
-    return onValue(ref(this.rtdb, NODE_TRANSMISSIONS), (snap) => {
+    const count = Math.floor(Number(limit));
+    if (!Number.isFinite(count) || count < 1) {
+      callback([]);
+      return () => {};
+    }
+    const recent = query(ref(this.rtdb, NODE_TRANSMISSIONS), orderByChild('inicioTimestamp'), limitToLast(count));
+    return onValue(recent, (snap) => {
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
@@ -2160,7 +2186,7 @@ class StreamFirebaseService {
         });
         lista.sort((a, b) => (b.inicioTimestamp || 0) - (a.inicioTimestamp || 0));
       }
-      callback(lista.slice(0, limit));
+      callback(lista);
     });
   }
 
@@ -2304,7 +2330,13 @@ class StreamFirebaseService {
 
   onTransacciones(callback, limit = 50) {
     if (typeof callback !== 'function') return () => {};
-    return onValue(ref(this.rtdb, NODE_TRANSACTIONS), snap => {
+    const count = Math.floor(Number(limit));
+    if (!Number.isFinite(count) || count < 1) {
+      callback([]);
+      return () => {};
+    }
+    const recent = query(ref(this.rtdb, NODE_TRANSACTIONS), orderByChild('timestamp'), limitToLast(count));
+    return onValue(recent, snap => {
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
@@ -2312,13 +2344,19 @@ class StreamFirebaseService {
         });
         lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
-      callback(lista.slice(0, limit));
+      callback(lista);
     });
   }
 
   onAsistencias(callback, limit = 200) {
     if (typeof callback !== 'function') return () => {};
-    return onValue(ref(this.rtdb, NODE_ATTENDANCE), snap => {
+    const count = Math.floor(Number(limit));
+    if (!Number.isFinite(count) || count < 1) {
+      callback([]);
+      return () => {};
+    }
+    const recent = query(ref(this.rtdb, NODE_ATTENDANCE), orderByChild('timestamp'), limitToLast(count));
+    return onValue(recent, snap => {
       const lista = [];
       if (snap.exists()) {
         snap.forEach(child => {
@@ -2326,7 +2364,7 @@ class StreamFirebaseService {
         });
         lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
       }
-      callback(lista.slice(0, limit));
+      callback(lista);
     });
   }
 
@@ -2391,20 +2429,6 @@ class StreamFirebaseService {
   onLoans(callback) {
     if (typeof callback !== 'function') return () => {};
     const loansRef = ref(this.rtdb, NODE_LOANS);
-
-    // Carga inicial ultrarrápida vía REST para renderizado inmediato
-    fetch('https://sensunshopweb-default-rtdb.firebaseio.com/stream/banco/prestamos.json')
-      .then(r => r.json())
-      .then(data => {
-        if (data && typeof data === 'object') {
-          const list = Object.entries(data).map(([id, val]) => ({ id, ...val }));
-          list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-          callback(list);
-        } else {
-          callback([]);
-        }
-      })
-      .catch(() => {});
 
     return onValue(loansRef, snap => {
       const list = [];
@@ -3132,51 +3156,48 @@ class StreamFirebaseService {
   // 8. SISTEMA BANCARIO JIKOBANK (PRÉSTAMOS, CRÉDITOS, REGALOS Y PERDÓN DE DEUDAS)
   // ==========================================================================
 
-  // Obtener todos los préstamos asociados a un usuario (como solicitante o acreedor)
+  async _leerPrestamosDeUsuario(key, roles = ['solicitante', 'acreedor']) {
+    const collection = ref(this.rtdb, NODE_LOANS);
+    // Los registros anteriores guardan el nombre original y otra propiedad normalizada.
+    const fields = roles.flatMap(role => [role, role + 'Norm']);
+    const snapshots = await Promise.all(fields.map(field => get(query(collection, orderByChild(field), equalTo(key)))));
+    const byId = new Map();
+    snapshots.forEach(snapshot => {
+      snapshot.forEach(child => {
+        byId.set(child.key, { ...child.val(), id: child.key });
+      });
+    });
+    return [...byId.values()];
+  }
+
   async obtenerPrestamosUsuario(username) {
     await this.init();
     const key = norm(username);
     if (!key) return [];
     try {
-      const snap = await get(ref(this.rtdb, NODE_LOANS));
-      if (!snap.exists()) return [];
-      const lista = [];
-      snap.forEach(child => {
-        const p = child.val();
-        if (p && (norm(p.solicitante) === key || norm(p.acreedor) === key)) {
-          lista.push({ ...p, id: child.key });
-        }
-      });
-      return lista.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-    } catch (e) {
-      console.warn('[StreamDB] Error al obtener préstamos de @' + key, e);
+      const loans = await this._leerPrestamosDeUsuario(key);
+      return loans.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    } catch (error) {
+      console.warn('[StreamDB] Error al obtener préstamos de @' + key, error);
       return [];
     }
   }
 
-  // Obtener préstamos pendientes de confirmación o firma para un usuario
   async obtenerPrestamoPendientePara(username) {
     await this.init();
     const key = norm(username);
     if (!key) return null;
     try {
-      const snap = await get(ref(this.rtdb, NODE_LOANS));
-      if (!snap.exists()) return null;
-      let pendiente = null;
-      snap.forEach(child => {
-        const p = child.val();
-        if (!p) return;
-        // Si es banco esperando firma del solicitante (!firmar o !aceptar)
-        if (p.tipo === 'banco' && p.estado === 'pendiente_firma' && norm(p.solicitante) === key) {
-          pendiente = { ...p, id: child.key };
-        }
-        // Si es P2P esperando que el acreedor acepte o rechace
-        if (p.tipo === 'p2p' && p.estado === 'pendiente' && norm(p.acreedor) === key) {
-          pendiente = { ...p, id: child.key };
-        }
-      });
-      return pendiente;
-    } catch (e) {
+      const loans = await this._leerPrestamosDeUsuario(key);
+      const pending = loans.filter(loan =>
+        (loan.tipo === 'banco' && loan.estado === 'pendiente_firma' && norm(loan.solicitante) === key) ||
+        (loan.tipo === 'p2p' && loan.estado === 'pendiente' && norm(loan.acreedor) === key)
+      );
+      // Las claves de la base preservan el mismo orden que el historial anterior.
+      pending.sort((a, b) => (a.id < b.id ? -1 : Number(a.id > b.id)));
+      return pending.at(-1) || null;
+    } catch (error) {
+      console.warn('[StreamDB] Error al consultar préstamos pendientes de @' + key, error);
       return null;
     }
   }
@@ -3214,7 +3235,7 @@ class StreamFirebaseService {
     const P = globalThis.JikoPointsEngine;
     const sender = this.resolverUsuarioReal(norm(solicitante));
     const bank = ['jikobank', 'jiko', 'banco'].includes(norm(acreedor));
-    const lender = bank ? 'jikobank' : this.resolverUsuarioReal(norm(acreedor));
+    const lender = bank ? 'jikobank' : await this.resolverUsuarioDestino(acreedor);
     const amount = P.integer(monto, true);
     if (!sender || !lender || sender === lender) throw new Error('Solicitante o acreedor no válido.');
     await this.getUser(sender, true);
@@ -3401,14 +3422,14 @@ class StreamFirebaseService {
     if (!receipt) {
       const amount = Math.min(P.balance(user.jikopuntos), P.balance(user.deudaTotal), requested ?? Number.MAX_SAFE_INTEGER);
       if (amount <= 0) throw new Error('No hay saldo o deuda disponible para este pago.');
-      const loans = (await get(ref(this.rtdb, NODE_LOANS))).val() || {};
-      const active = Object.entries(loans).filter(([, loan]) => norm(loan.solicitante) === userKey && loan.estado === 'activo' && loan.saldoPendiente > 0)
-        .sort((a, b) => (a[1].timestamp || 0) - (b[1].timestamp || 0));
+      const loans = await this._leerPrestamosDeUsuario(userKey, ['solicitante']);
+      const active = loans.filter(loan => norm(loan.solicitante) === userKey && loan.estado === 'activo' && loan.saldoPendiente > 0)
+        .sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0) || (a.id < b.id ? -1 : Number(a.id > b.id)));
       let remaining = amount;
       const payments = [];
-      for (const [id, loan] of active) {
+      for (const loan of active) {
         const abono = Math.min(remaining, P.balance(loan.saldoPendiente));
-        if (abono > 0) payments.push({ id, abono, acreedor: norm(loan.acreedor), tipo: loan.tipo });
+        if (abono > 0) payments.push({ id: loan.id, abono, acreedor: norm(loan.acreedor), tipo: loan.tipo });
         remaining -= abono;
         if (!remaining) break;
       }
@@ -3459,7 +3480,7 @@ class StreamFirebaseService {
     await this.init();
     const P = globalThis.JikoPointsEngine;
     const sender = this.resolverUsuarioReal(norm(remitente));
-    const target = this.resolverUsuarioReal(norm(receptor));
+    const target = await this.resolverUsuarioDestino(receptor);
     const amount = P.integer(cantidad, true);
     if (!sender || !target || sender === target) throw new Error('Remitente o receptor no válido.');
     await this.getUser(target, true);
@@ -3613,7 +3634,7 @@ class StreamFirebaseService {
     const admNorm = norm(admin);
     if (admNorm !== 'jikokun' && admNorm !== 'broadcaster') throw new Error('Comando exclusivo del due?o del canal.');
     const cantNum = globalThis.JikoPointsEngine.integer(cantidad, true);
-    const target = this.resolverUsuarioReal(norm(targetUser));
+    const target = await this.resolverUsuarioDestino(targetUser);
     const receipt = await this._operarPuntos(target, cantNum, {
       operacionId, firma: 'regalo_admin:' + target + ':' + cantNum, deduplicar: true
     });

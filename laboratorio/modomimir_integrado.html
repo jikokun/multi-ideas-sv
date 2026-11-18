@@ -2639,11 +2639,9 @@ function initKickChat() {
   function loadAvatar(element, username, supplied) {
     if (supplied) { avatarCache.set(username, Promise.resolve(supplied)); applyAvatar(element, supplied); return; }
     if (!avatarCache.has(username)) {
-      // Read the avatar saved by the existing stream integration, without modifying users.
-      const key = username.replace(/[.#$\[\]\/]/g, '_');
-      const request = fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/stream/usuarios/${encodeURIComponent(key)}/avatar.json`, {
-        signal: AbortSignal.timeout(5000)
-      }).then(r => r.ok ? r.json() : '').then(safeAvatar).catch(() => '');
+      const request = import('../firebase-config.js')
+        .then(({ getStreamAvatar }) => getStreamAvatar(username))
+        .then(safeAvatar).catch(() => '');
       if (avatarCache.size >= 200) avatarCache.delete(avatarCache.keys().next().value);
       avatarCache.set(username, request);
     }

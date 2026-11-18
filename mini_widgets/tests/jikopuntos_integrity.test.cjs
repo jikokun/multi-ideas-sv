@@ -9,7 +9,7 @@ const copy = value => value === undefined ? null : structuredClone(value);
 function database(users = {}) {
   let data = { stream: { usuarios: copy(users), banco: { prestamos: {} }, transmisiones_stats: { isLive: true, streamActivoId: 'live_1' }, transmisiones: { live_1: {} } } };
   let tail = Promise.resolve(), sequence = 0;
-  const db = { now: 1000000, fail: null };
+  const db = { now: 1000000, fail: null, reads: [], subscriptions: [] };
   db.read = location => copy(location.split('/').filter(Boolean).reduce((value, key) => value?.[key], data));
   db.write = (location, value) => {
     const keys = location.split('/').filter(Boolean);
@@ -20,11 +20,39 @@ function database(users = {}) {
   db.snapshot = (value, key = null) => ({ val: () => copy(value), exists: () => value !== null && value !== undefined,
     key, size: Object.keys(value || {}).length,
     forEach(fn) { for (const [child, item] of Object.entries(value || {})) fn(db.snapshot(item, child)); } });
+  const readQuery = location => {
+    if (typeof location === 'string') return db.read(location);
+    let rows = Object.entries(db.read(location.path) || {});
+    const value = ([key, item]) => location.field ? item[location.field] : key;
+    rows.sort((a, b) => value(a) < value(b) ? -1 : Number(value(a) > value(b)));
+    if (location.from !== undefined) rows = rows.filter(row => value(row) >= location.from);
+    if (location.to !== undefined) rows = rows.filter(row => value(row) <= location.to);
+    if (location.equal !== undefined) rows = rows.filter(row => value(row) === location.equal);
+    if (location.first) rows = rows.slice(0, location.first);
+    if (location.last) rows = rows.slice(-location.last);
+    return Object.fromEntries(rows);
+  };
   db.api = {
     ref: (_, location) => location,
+    query: (path, ...constraints) => Object.assign({ path }, ...constraints),
+    orderByChild: field => ({ field }),
+    orderByKey: () => ({}),
+    startAt: from => ({ from }),
+    endAt: to => ({ to }),
+    equalTo: equal => ({ equal }),
+    limitToFirst: first => ({ first }),
+    limitToLast: last => ({ last }),
     push: location => ({ key: 'op_' + ++sequence, location }),
-    get: async location => db.snapshot(db.read(location)),
-    onValue(location, callback) { callback(db.snapshot(db.read(location))); return () => {}; },
+    get: async location => {
+      db.reads.push(location);
+      return db.snapshot(readQuery(location));
+    },
+    onValue(location, callback) {
+      const subscription = { location, closed: false };
+      db.subscriptions.push(subscription);
+      callback(db.snapshot(readQuery(location)));
+      return () => { subscription.closed = true; };
+    },
     set: async (location, value) => db.write(location, value),
     update: async (location, fields) => db.write(location, { ...(db.read(location) || {}), ...copy(fields) }),
     runTransaction(location, callback) {
@@ -44,7 +72,7 @@ function database(users = {}) {
   return db;
 }
 
-function service(db, file) {
+function service(db, file, realInit = false) {
   const storage = new Map();
   const source = fs.readFileSync(path.join(__dirname, '../../', file), 'utf8')
     .replace(/^import\s[\s\S]*?;\s*/gm, '')
@@ -54,14 +82,14 @@ function service(db, file) {
     constructor(...args) { super(...(args.length ? args : [db.now])); }
     static now() { return db.now; }
   }
-  const context = vm.createContext({ ...db.api, rtdb: {}, auth: {}, Date: Clock, JikoPointsEngine: Points,
+  const context = vm.createContext({ ...db.api, rtdb: {}, auth: { currentUser: {} }, Date: Clock, JikoPointsEngine: Points,
     console: { log() {}, warn() {}, error() {} },
     localStorage: { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)),
       removeItem: key => storage.delete(key), key: index => [...storage.keys()][index], get length() { return storage.size; } }
   });
   vm.runInContext(source + '\nglobalThis.service = StreamDB;', context);
   const instance = context.service;
-  instance.init = async () => true;
+  if (!realInit) instance.init = async () => true;
   instance.absorberAvatarKick = async () => null;
   return { instance, storage };
 }
@@ -71,6 +99,65 @@ const files = ['stream_firebase.js', 'mini_widgets/js/stream_firebase.js'];
 
 for (const file of files) {
   const label = file.startsWith('mini_widgets') ? 'widgets' : 'raíz';
+
+  test(`${label}: iniciar varias veces no descarga el directorio de usuarios`, async () => {
+    const db = database({ test: profile(500) });
+    const { instance } = service(db, file, true);
+    await Promise.all([instance.init(), instance.init()]);
+    assert.deepEqual(db.reads, ['stream/transmisiones_stats']);
+    assert.deepEqual(db.subscriptions.map(entry => entry.location), ['.info/connected']);
+  });
+
+  test(`${label}: el historial limita las descargas en la consulta y permite desuscribirse`, () => {
+    const db = database();
+    const { instance } = service(db, file);
+    const records = { old: { timestamp: 1 }, recent: { timestamp: 3 }, middle: { timestamp: 2 } };
+    for (const [method, path] of [['onTransacciones', 'stream/tienda/transacciones'], ['onAsistencias', 'stream/tienda/asistencias']]) {
+      db.write(path, records);
+      const stop = instance[method](items => assert.deepEqual(Array.from(items, item => item.timestamp), [3, 2]), 2);
+      const subscription = db.subscriptions.at(-1);
+      assert.deepEqual(subscription.location, { path, field: 'timestamp', last: 2 });
+      stop();
+      assert.equal(subscription.closed, true);
+    }
+  });
+
+  test(`${label}: un usuario parcial en caché no redirige el nombre exacto de otra cuenta`, async () => {
+    const db = database({ ana: profile(20), anabel: profile(30) });
+    const { instance } = service(db, file);
+    await instance.getUser('anabel');
+    assert.equal(instance.resolverUsuarioReal('ana'), 'ana');
+    assert.equal(await instance.resolverUsuarioDestino('ana'), 'ana');
+    assert.equal(await instance.resolverUsuarioDestino('anab'), 'anabel');
+    assert.equal(db.reads.at(-1).first, 2);
+  });
+
+  test(`${label}: las consultas de préstamos incluyen registros históricos sin descargar el banco completo`, async () => {
+    const db = database();
+    const { instance } = service(db, file);
+    const path = 'stream/banco/prestamos';
+    db.write(path, {
+      old: { solicitante: '@Alice', solicitanteNorm: 'alice', acreedor: 'jikobank', tipo: 'banco', estado: 'pendiente_firma', timestamp: 1 },
+      newer: { solicitante: 'bob', acreedor: 'alice', acreedorNorm: 'alice', estado: 'activo', timestamp: 2 },
+      other: { solicitante: 'mallory', acreedor: 'jikobank', timestamp: 3 }
+    });
+    const loans = await instance.obtenerPrestamosUsuario('Alice');
+    assert.deepEqual(Array.from(loans, loan => loan.id), ['newer', 'old']);
+    assert.equal((await instance.obtenerPrestamoPendientePara('Alice')).id, 'old');
+    assert.ok(db.reads.every(read => read.path === path && read.equal === 'alice'));
+  });
+
+  if (label === 'widgets') test('la Tiendita observa solo la hoja de saldo y conserva el cero', () => {
+    const db = database({ test: profile(0) });
+    const { instance } = service(db, file);
+    const stop = instance.onUserBalance('test', balance => assert.equal(balance, 0));
+    const subscription = db.subscriptions.at(-1);
+    assert.equal(subscription.location, 'stream/usuarios/test/jikopuntos');
+    assert.deepEqual(db.reads, []);
+    stop();
+    assert.equal(subscription.closed, true);
+  });
+
   function setup(users) {
     const db = database(users);
     const one = service(db, file);

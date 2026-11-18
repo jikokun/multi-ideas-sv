@@ -1164,21 +1164,34 @@
                 if (!response.ok) { const error = new Error("Catálogo no disponible"); error.status = response.status; throw error; }
                 const data = await response.json();
                 if (!Array.isArray(data.items)) throw new Error("Respuesta inválida");
-                let phone = "";
-                try {
-                    const businessResponse = await fetch(`https://sensunshopweb-default-rtdb.firebaseio.com/sensunshop/businesses/${encodeURIComponent(queryBusinessId)}.json`, {cache: "no-store"});
-                    if (businessResponse.ok) {
-                        const business = await businessResponse.json();
-                        phone = String(business?.whatsapp || business?.phone || '').replace(/\D/g, '');
-                        publicBusinessName = String(business?.title || 'Negocio');
-                        document.getElementById("catalogBusinessName").textContent = publicBusinessName;
-                        const logo = document.getElementById("catalogBusinessImage");
-                        const imageUrl = business?.imgSrc || business?.image || business?.logo || business?.photoURL || '';
-                        if (imageUrl) { logo.src = normalizeImageUrl(imageUrl); logo.style.display = "block"; }
+                let business = data.business;
+                if (!business) {
+                    // Compatibilidad con versiones de la función previas a los metadatos públicos.
+                    try {
+                        const [{ rtdb }, { get, ref }] = await Promise.all([
+                            import('./firebase-config.js'),
+                            import('https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js')
+                        ]);
+                        const snapshot = await get(ref(rtdb, `sensunshop/businesses/${queryBusinessId}`));
+                        const legacy = snapshot.val();
+                        business = {
+                            title: legacy?.title,
+                            phone: legacy?.whatsapp || legacy?.phone,
+                            imageUrl: legacy?.imgSrc || legacy?.image || legacy?.logo || legacy?.photoURL
+                        };
+                    } catch (error) {
+                        console.warn('[WolfTrack catálogo]', error.message);
                     }
-                } catch (_) { /* El catálogo se muestra aunque el contacto no esté disponible. */ }
+                }
                 if (request !== publicCatalogRequest) return;
-                publicBusinessPhone = phone;
+                publicBusinessName = String(business?.title || 'Negocio');
+                document.getElementById("catalogBusinessName").textContent = publicBusinessName;
+                publicBusinessPhone = String(business?.phone || '').replace(/\D/g, '');
+                if (business?.imageUrl) {
+                    const logo = document.getElementById("catalogBusinessImage");
+                    logo.src = normalizeImageUrl(business.imageUrl);
+                    logo.style.display = "block";
+                }
                 allItems = data.items;
                 document.getElementById("syncStatusText").innerText = "Catálogo actualizado";
                 renderCatalog();

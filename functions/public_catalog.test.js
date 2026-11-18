@@ -25,7 +25,7 @@ async function request(dependencies, businessId = 'emp-002') {
 }
 test('returns empty inventory and rejects missing, invalid or disabled business', async () => {
     const deps = {getBusiness:async () => ({hasCatalog:true,catalogUid:'AbC'}),getMaterials:async () => null};
-    const ok = await request(deps); assert.equal(ok.statusCode,200); assert.deepEqual(ok.body, {businessId:'emp-002',items:[]});
+    const ok = await request(deps); assert.equal(ok.statusCode,200); assert.deepEqual(ok.body, {businessId:'emp-002',business:{title:'',phone:'',imageUrl:''},items:[]});
     assert.equal((await request(deps,'bad/key')).statusCode,400);
     assert.equal((await request({...deps,getBusiness:async () => ({hasCatalog:false,catalogUid:'AbC'})})).statusCode,404);
 });
@@ -33,6 +33,18 @@ test('does not return inventory if the binding changes while reading', async () 
     let count=0;
     const res = await request({getBusiness:async () => ({hasCatalog:true,catalogUid:++count===1?'old':'new'}), getMaterials:async () => ({one:{type:'Producto'}})});
     assert.equal(res.statusCode,404); assert.equal(res.body.items,undefined);
+});
+
+test('includes only public business metadata from the verified record', async () => {
+    const business = { hasCatalog: true, catalogUid: 'AbC', title: 'Negocio', whatsapp: '50312345678', imgSrc: 'https://example.com/logo.webp', email: 'private@example.com' };
+    let businessReads = 0;
+    const res = await request({
+        getBusiness: async () => { businessReads++; return business; },
+        getMaterials: async () => ({})
+    });
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(res.body.business, { title: business.title, phone: business.whatsapp, imageUrl: business.imgSrc });
+    assert.equal(businessReads, 2);
 });
 test('distinguishes private inventory access errors from an empty inventory', async () => {
     const old=console.error; console.error=()=>{};

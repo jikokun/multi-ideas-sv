@@ -119,7 +119,7 @@
 
     <!-- Módulo de Sincronización en Tiempo Real con Firebase RTDB -->
     <script type="module">
-        import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
         import { getApps, getApp, initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 
         const firebaseConfig = {
@@ -574,10 +574,10 @@
             });
         });
 
-        // Sincronización en Tiempo Real con Firebase RTDB (Fuente Autoritativa)
+        // Cargar el catálogo publicado de Firebase RTDB
         try {
             const servicesRef = ref(rtdb, "laboratorio_ventas/multiideas_catalogo/services");
-            onValue(servicesRef, (snap) => {
+            get(servicesRef).then(snap => {
                 const data = snap.val();
                 if (data !== null) {
                     const list = resolveAuthoritativeServices(DEFAULT_STORE_SERVICES, data);
@@ -593,7 +593,7 @@
                     } catch(e) {}
                     renderServicesBento();
                 }
-            }, (error) => {
+            }).catch(error => {
                 console.warn("[RTDB Services Sync Warning]: Fallback a servicios locales por error de red.", error);
             });
         } catch(err) {
