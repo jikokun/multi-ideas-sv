@@ -47,6 +47,7 @@
     </script>
     <link rel="stylesheet" href="../estilos.css">
     <link rel="stylesheet" href="../estilo_claro.css" id="theme-light-css">
+    <link rel="stylesheet" href="sensun_directory.css">
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
@@ -400,9 +401,18 @@
             font-size: 0.9rem;
             font-weight: 700;
             color: #ffffff;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        }
+
+        .fullmap-item-title .fullmap-item-name {
+            background: transparent;
+            border: 0;
+            color: inherit;
+            cursor: pointer;
+            font: inherit;
+            min-width: 0;
+            padding: 0;
+            text-align: left;
+            overflow-wrap: anywhere;
         }
 
         .fullmap-item-sub {
@@ -856,7 +866,7 @@
                     </div>
                 </div>
 
-                <div class="fullmap-sidebar-scroll" id="fullMapSidebarList">
+                <div class="fullmap-sidebar-scroll sensun-list-layout is-list-view" id="fullMapSidebarList">
                     <!-- Generado dinámicamente -->
                 </div>
             </div>
@@ -868,7 +878,7 @@
     <!-- Script principal de navegación global -->
     <script src="../script.js"></script>
     <!-- Script de datos y valoraciones comunitarias -->
-    <script type="module" src="sensun_ratings.js?v=5"></script>
+    <script type="module" src="sensun_ratings.js?v=18"></script>
 
     <!-- Lógica del Mapa Completo -->
     <script>
@@ -879,6 +889,7 @@
         let fullSearchText = "";
         let fullUserPos = null;
         let fullUserMarker = null;
+        let requestedMapBusiness = new URLSearchParams(window.location.search).get("mapBiz");
 
         const FULL_LAYERS = {
             osm: {
@@ -1086,8 +1097,10 @@
 
                 const thumb = b.imgSrc ? `<div style="width: 100%; height: 115px; border-radius: 12px; overflow: hidden; margin-bottom: 8px;"><img src="${optimizeSensunImg(b.imgSrc, 300)}" loading="lazy" decoding="async" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.parentElement.style.display='none'"></div>` : '';
                 const distTag = b.dist !== null ? `<div style="background: rgba(2, 132, 199, 0.15); color: #0284c7; padding: 2px 8px; border-radius: 6px; font-weight: 700; font-size: 11px; margin-bottom: 8px;">📍 A ${formatDist(b.dist)} de ti</div>` : '';
-                const wspBtn = b.whatsapp ? `<a href="https://wa.me/${b.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent('Hola ' + b.title + ', los vi en el mapa de Sensun Shop')}" target="_blank" style="flex: 1; text-align: center; background: #25D366; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">💬 WhatsApp</a>` : '';
-                const mapBtn = b.locationUrl ? `<a href="${b.locationUrl}" target="_blank" style="flex: 1; text-align: center; background: #0284c7; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">🗺️ Cómo Llegar</a>` : '';
+                const whatsapp = window.getSensunWhatsAppHref?.(b);
+                const location = getMapLocationHref(b);
+                const wspBtn = whatsapp ? `<a href="${whatsapp}" target="_blank" rel="noopener noreferrer" style="flex: 1; text-align: center; background: #25D366; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">💬 WhatsApp</a>` : '';
+                const mapBtn = `<a href="${location}" target="_blank" rel="noopener noreferrer" style="flex: 1; text-align: center; background: #0284c7; color: white; padding: 7px 10px; border-radius: 8px; font-size: 11.5px; font-weight: 700; text-decoration: none;">🗺️ Cómo Llegar</a>`;
 
                 marker.bindPopup(`
                     <div style="font-family: 'Poppins', sans-serif; min-width: 220px; max-width: 270px; padding: 2px;">
@@ -1105,6 +1118,11 @@
             });
 
             renderFullSidebar(filtered);
+            if (requestedMapBusiness && focusFullBusiness(requestedMapBusiness)) requestedMapBusiness = null;
+        }
+
+        function getMapLocationHref(business) {
+            return window.getSensunLocationHref?.(business) || `https://maps.google.com/?q=${business.coords.lat},${business.coords.lng}`;
         }
 
         function renderFullSidebar(list) {
@@ -1131,20 +1149,25 @@
                     ? `<img src="${optimizeSensunImg(b.imgSrc, 120)}" alt="${b.title}" loading="lazy" decoding="async" onerror="this.parentElement.innerHTML='${visuals.icon}'">`
                     : visuals.icon;
                 const distBadge = b.dist !== null ? `<span class="fullmap-dist-pill">📍 ${formatDist(b.dist)}</span>` : '';
+                const whatsapp = window.getSensunWhatsAppHref?.(b);
 
                 return `
-                    <div class="fullmap-item-card" onclick="focusFullBusiness('${b.id}')">
-                        <div class="fullmap-item-thumb">${thumb}</div>
-                        <div class="fullmap-item-info">
-                            <div class="fullmap-item-title">${b.title}</div>
-                            <div class="fullmap-item-sub">
-                                <span style="color: ${visuals.color}; font-weight: 700;">${visuals.icon} ${b.category || b.type}</span>
-                                ${distBadge}
-                            </div>
+                    <article class="fullmap-item-card sensun-list-row" data-share-param="mapBiz" data-share-id="${b.id}" onclick="if (!event.target.closest('button, a')) focusFullBusiness('${b.id}')">
+                        <div class="fullmap-item-thumb sensun-list-logo">${thumb}</div>
+                        <h3 class="fullmap-item-title"><button type="button" class="fullmap-item-name" onclick="focusFullBusiness('${b.id}')">${b.title}</button></h3>
+                        <div class="sensun-rating-widget" data-business-id="${b.id}" data-compact="true" data-readonly="true"></div>
+                        <div class="fullmap-item-sub sensun-list-summary">
+                            <span style="color: ${visuals.color}; font-weight: 700;">${visuals.icon} ${b.category || b.type}</span>
+                            ${distBadge}
                         </div>
-                    </div>
+                        <div class="sensun-list-actions">
+                            ${whatsapp ? `<a href="${whatsapp}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
+                            <a href="${getMapLocationHref(b)}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer">Ubicación</a>
+                        </div>
+                    </article>
                 `;
             }).join('');
+            window.initSensunListCards?.(container);
         }
 
         function focusFullBusiness(bizId) {
@@ -1152,7 +1175,8 @@
             const marker = fullMarkers.find(m => m.bizId === bizId);
             if (marker) {
                 fullMap.flyTo(marker.getLatLng(), 17, { duration: 0.8 });
-                setTimeout(() => marker.openPopup(), 450);
+                setTimeout(() => fullMarkers.find(item => item.bizId === bizId)?.openPopup(), 450);
+                return true;
             }
         }
 

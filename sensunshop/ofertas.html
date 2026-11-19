@@ -47,6 +47,7 @@
     </script>
     <link rel="stylesheet" href="../estilos.css">
     <link rel="stylesheet" href="../estilo_claro.css" id="theme-light-css"><!-- Fuentes Google -->
+    <link rel="stylesheet" href="sensun_directory.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -503,6 +504,11 @@
             margin-bottom: 18px;
         }
 
+        .biz-profile-row > .sensun-list-logo {
+            display: flex;
+            flex-shrink: 0;
+        }
+
         .biz-avatar-img {
             width: 58px;
             height: 58px;
@@ -537,15 +543,6 @@
             align-items: center;
             gap: 6px;
             flex-wrap: wrap;
-        }
-
-        .rating-star-badge {
-            background: rgba(255, 177, 66, 0.15);
-            color: #ffb142;
-            padding: 1px 6px;
-            border-radius: 4px;
-            border: 1px solid rgba(255, 177, 66, 0.3);
-            font-weight: 800;
         }
 
         /* Caja de Oferta Principal */
@@ -1012,7 +1009,13 @@
 
     <!-- CONTENEDOR PRINCIPAL DE LA CARTELERA -->
     <main style="padding: 0 5%; width: 100%; max-width: 1200px; box-sizing: border-box; margin: 0 auto;">
-        <div id="ofertas-grid" class="cartelera-grid">
+        <div class="sensun-view-bar">
+            <div class="sensun-view-toggle" role="group" aria-label="Vista de las ofertas">
+                <button type="button" class="a1-view-btn active" id="viewModeGrid" aria-controls="ofertas-grid" aria-pressed="true" onclick="setDirectoryViewMode('grid')"><span aria-hidden="true">⊞</span> Tarjetas</button>
+                <button type="button" class="a1-view-btn" id="viewModeList" aria-controls="ofertas-grid" aria-pressed="false" onclick="setDirectoryViewMode('list')"><span aria-hidden="true">☰</span> Lista</button>
+            </div>
+        </div>
+        <div id="ofertas-grid" class="cartelera-grid sensun-list-layout">
             <!-- Estado de Carga Inicial -->
             <div class="cartelera-loading-state" id="offersLoading">
                 <div style="font-size: 48px; margin-bottom: 14px; animation: pulseLive 1.5s infinite;">⏳</div>
@@ -1041,12 +1044,13 @@
 
     <!-- Scripts Base de la Plataforma -->
     <script src="../script.js?v=6"></script>
-    <script type="module" src="sensun_ratings.js?v=10"></script>
+    <script src="sensun_directory.js"></script>
 
     <!-- LÓGICA DE SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE RTDB Y CONTROL DE CARTELERA -->
     <script type="module">
         import { rtdb, subscribeWhilePageOpen } from "../firebase-config.js";
         import { ref, onValue, query, orderByChild, equalTo, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getBusinessWhatsAppHref, getBusinessLocationHref, initSensunListCards } from "./sensun_ratings.js?v=18";
 
         // Mapeo de Nombres de Estilos de Ofertas Oficiales de Sensun Shop
         const STYLE_LABELS = {
@@ -1069,6 +1073,7 @@
         let allOffersList = [];
         let activeCategoryFilter = "all";
         let searchQuery = "";
+        let requestedOffer = new URLSearchParams(window.location.search).get("offer");
 
         // Fallback de imagen
         const DEFAULT_AVATAR = "../imagenes/logos/icono-sensun-shop.webp";
@@ -1186,17 +1191,16 @@
             grid.innerHTML = filtered.map(item => {
                 const styleName = STYLE_LABELS[item.offerStyle] || "Estilo 1 · Cupón";
                 const avatar = item.imgSrc || item.imageUrl || DEFAULT_AVATAR;
-                const cleanPhone = (item.whatsapp || "").replace(/\D/g, "");
                 
                 // Mensaje WhatsApp personalizado
                 const wspText = item.offerCode 
                     ? `Hola ${item.title}, vi su oferta "${item.offerMsg || item.offerDiscount}" con el cupón [${item.offerCode}] en Sensun Shop y deseo aprovecharla.`
                     : `Hola ${item.title}, vi su promoción "${item.offerMsg || item.offerDiscount}" en Sensun Shop y deseo obtener más información.`;
-                const wspUrl = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(wspText)}`;
+                const wspUrl = getBusinessWhatsAppHref({ ...item, whatsappMsg: wspText });
 
                 // Bloque de cupón troquelado
                 const couponBlock = (item.offerCode && item.offerCode.trim().length > 0) ? `
-                    <div class="coupon-ticket-wrapper">
+                    <div class="coupon-ticket-wrapper sensun-card-only">
                         <div class="coupon-tag-scissors">✂️ CÓDIGO</div>
                         <div>
                             <span style="font-size: 0.68rem; color: var(--ss-text-muted); text-transform: uppercase; font-weight: 800; display: block; letter-spacing: 0.5px;">CUPÓN DE DESCUENTO</span>
@@ -1231,29 +1235,32 @@
                 ` : '';
 
                 return `
-                    <article class="cartelera-card" id="cartelera-item-${item.id}" onclick="triggerOfferModal('${item.id}')" style="cursor: pointer;">
-                        <div class="cartelera-card-header">
+                    <article class="cartelera-card sensun-list-row" id="cartelera-item-${item.id}" data-share-param="offer" data-share-id="${item.id}" onclick="if (!event.target.closest('button, a')) triggerOfferModal('${item.id}')" style="cursor: pointer;">
+                        <div class="cartelera-card-header sensun-card-only">
                             <div class="cartelera-type-tag">
                                 <span>${item.offerBadge ? '🔥 ' + item.offerBadge : '🏷️ OFERTA DESTACADA'}</span>
                             </div>
                             <span class="cartelera-style-badge">${styleName}</span>
                         </div>
 
-                        <div class="cartelera-card-body">
+                        <div class="cartelera-card-body sensun-list-contents">
                             <!-- Info del Negocio -->
-                            <div class="biz-profile-row">
-                                <img src="${optimizeImg(avatar, 160)}" alt="${item.title}" class="biz-avatar-img" loading="lazy" decoding="async" onerror="this.src='${DEFAULT_AVATAR}'">
-                                <div class="biz-info-meta">
+                            <div class="biz-profile-row sensun-list-contents">
+                                <div class="sensun-list-logo">
+                                    <img src="${optimizeImg(avatar, 160)}" alt="${item.title}" class="biz-avatar-img" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'">
+                                </div>
+                                <div class="biz-info-meta sensun-list-contents">
                                     <h3 class="biz-name-title">${item.title}</h3>
-                                    <div class="biz-category-rating">
+                                    <div class="biz-category-rating sensun-card-only">
                                         <span>${item.badge || item.category || 'Comercio Local'}</span>
-                                        <span class="rating-star-badge">⭐ ${item.rating || '5.0'}</span>
                                     </div>
+                                    <div class="sensun-rating-widget" data-business-id="${item.businessId || ''}" data-compact="true" data-readonly="true"></div>
                                 </div>
                             </div>
 
                             <!-- Bloque Central de la Promoción -->
-                            <div class="promo-core-box">
+                            <div class="sensun-list-summary sensun-list-only">${[item.offerDiscount, item.offerMsg].filter(Boolean).join(' · ')}</div>
+                            <div class="promo-core-box sensun-card-only">
                                 <div class="promo-discount-tag">${item.offerDiscount || '-25%'}</div>
                                 <div class="promo-headline-text">${item.offerMsg || '¡Promoción especial por tiempo limitado!'}</div>
                                 ${item.offerDetail ? `<div class="promo-detail-text">${item.offerDetail}</div>` : ''}
@@ -1264,28 +1271,28 @@
 
                             <!-- Vigencia y Referencia -->
                             ${(expiryHtml || distanceHtml) ? `
-                                <div class="promo-footer-meta">
+                                <div class="promo-footer-meta sensun-card-only">
                                     ${expiryHtml}
                                     ${distanceHtml}
                                 </div>
                             ` : ''}
 
                             <!-- Botones de Acción -->
-                            <div class="cartelera-actions-group" onclick="event.stopPropagation()">
-                                <button type="button" class="btn-billboard-action btn-view-official" onclick="triggerOfferModal('${item.id}')">
-                                    ✨ Ver Promoción Oficial
+                            <div class="cartelera-actions-group sensun-list-actions">
+                                <button type="button" class="btn-billboard-action btn-view-official sensun-list-action" onclick="triggerOfferModal('${item.id}')">
+                                    <span class="sensun-card-only">✨ Ver Promoción Oficial</span><span class="sensun-list-only">Ver oferta</span>
                                 </button>
-                                ${cleanPhone ? `
-                                    <a href="${wspUrl}" class="btn-billboard-action btn-claim-wsp" target="_blank" rel="noopener noreferrer">
+                                ${wspUrl ? `
+                                    <a href="${wspUrl}" class="btn-billboard-action btn-claim-wsp sensun-list-action" target="_blank" rel="noopener noreferrer">
                                         <svg viewBox="0 0 24 24" style="width:17px;height:17px;fill:currentColor;">
                                             <path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/>
                                         </svg>
-                                        Reclamar en WhatsApp
+                                        <span class="sensun-card-only">Reclamar en WhatsApp</span><span class="sensun-list-only">WhatsApp</span>
                                     </a>
                                 ` : ''}
                                 ${item.locationUrl ? `
-                                    <a href="${item.locationUrl}" class="btn-billboard-action btn-maps-loc" target="_blank" rel="noopener noreferrer">
-                                        📍 Ver Ubicación en Maps
+                                    <a href="${item.locationUrl}" class="btn-billboard-action btn-maps-loc sensun-list-action" target="_blank" rel="noopener noreferrer">
+                                        <span class="sensun-card-only">📍 Ver Ubicación en Maps</span><span class="sensun-list-only">Ubicación</span>
                                     </a>
                                 ` : ''}
                             </div>
@@ -1293,6 +1300,11 @@
                     </article>
                 `;
             }).join('');
+            initSensunListCards(grid);
+            if (requestedOffer && filtered.some(item => item.id === requestedOffer)) {
+                window.triggerOfferModal(requestedOffer);
+                requestedOffer = null;
+            }
         }
 
         // ==========================================================
@@ -1314,6 +1326,7 @@
                 seenIds.add(b.id);
                 combined.push({
                     id: b.id,
+                    businessId: b.businessId,
                     title: b.title || "Comercio",
                     category: b.category || "comercio",
                     type: b.type || "negocioslocales",
@@ -1331,8 +1344,7 @@
                     offerDurationHours: Number(b.offerDurationHours) || 6,
                     offerDistance: b.offerDistance || "",
                     offerStyle: parseInt(b.offerStyle, 10) || 1,
-                    offerExpiry: b.offerExpiry || "",
-                    rating: b.rating ? String(b.rating) : "5.0"
+                    offerExpiry: b.offerExpiry || ""
                 });
             });
 
@@ -1348,6 +1360,7 @@
 
                 combined.push({
                     id: o.id,
+                    businessId: o.businessId,
                     title: o.title || "Oferta Especial",
                     category: o.category || "comercio",
                     type: o.type || "negocioslocales",
@@ -1365,8 +1378,7 @@
                     offerDurationHours: Number(o.offerDurationHours) || 6,
                     offerDistance: o.offerDistance || "",
                     offerStyle: parseInt(o.offerStyle, 10) || 1,
-                    offerExpiry: o.offerExpiry || "",
-                    rating: "5.0"
+                    offerExpiry: o.offerExpiry || ""
                 });
             });
 
@@ -1379,6 +1391,7 @@
                 const item = data[key];
                 return {
                     id: item.id || key,
+                    businessId: key,
                     title: item.title || "Comercio",
                     category: item.category || "",
                     type: item.type || "negocioslocales",
@@ -1386,7 +1399,7 @@
                     imgSrc: item.imgSrc || item.imageUrl || "",
                     imageUrl: item.imageUrl || item.imgSrc || "",
                     whatsapp: item.whatsapp || "",
-                    locationUrl: item.locationUrl || "",
+                    locationUrl: getBusinessLocationHref(item),
                     hasOffer: Boolean(item.hasOffer === true || item.hasOffer === "true" || item.hasOffer === 1),
                     offerDiscount: item.offerDiscount || "",
                     offerMsg: item.offerMsg || "",
@@ -1397,7 +1410,6 @@
                     offerDistance: item.offerDistance || "",
                     offerStyle: parseInt(item.offerStyle, 10) || 1,
                     offerExpiry: item.offerExpiry || "",
-                    rating: item.rating ? String(item.rating) : "5.0",
                     isActive: item.isActive,
                     active: item.active
                 };
@@ -1428,13 +1440,14 @@
                     const item = data[key];
                     return {
                         id: item.id || key,
+                        businessId: item.businessId || "",
                         title: item.title || "Promoción",
                         category: item.category || "comercio",
                         badge: item.badge || "",
                         badgeLabel: item.badgeLabel || "OFERTA",
                         imgSrc: item.imageUrl || item.imgSrc || "",
                         whatsapp: item.contactWhatsapp || item.whatsapp || "",
-                        locationUrl: item.locationUrl || "",
+                        locationUrl: getBusinessLocationHref(item),
                         description: item.description || "",
                         offerMsg: item.offerMsg || "",
                         offerDiscount: item.offerDiscount || "",

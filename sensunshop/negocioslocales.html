@@ -44,6 +44,7 @@
     </script>
     <link rel="stylesheet" href="../estilos.css">
     <link rel="stylesheet" href="../estilo_claro.css" id="theme-light-css">
+    <link rel="stylesheet" href="sensun_directory.css">
     <style>
         :root {
             /* Tonalidades Oficiales Sensun Shop A1 */
@@ -562,11 +563,11 @@
             <!-- Barra de Estado y Selector de Vista (B07) -->
             <div class="a1-status-row" style="margin-bottom: 24px;">
                 <span id="businessCountText">7 comercios para descubrir</span>
-                <div class="a1-view-toggle">
-                    <button type="button" class="a1-view-btn active" id="viewModeGrid" onclick="setDirectoryViewMode('grid')">
+                <div class="a1-view-toggle sensun-view-toggle" role="group" aria-label="Vista del directorio">
+                    <button type="button" class="a1-view-btn active" id="viewModeGrid" aria-controls="negocios-container" aria-pressed="true" onclick="setDirectoryViewMode('grid')">
                         <span>⊞</span> Tarjetas
                     </button>
-                    <button type="button" class="a1-view-btn" id="viewModeList" onclick="setDirectoryViewMode('list')">
+                    <button type="button" class="a1-view-btn" id="viewModeList" aria-controls="negocios-container" aria-pressed="false" onclick="setDirectoryViewMode('list')">
                         <span>☰</span> Lista
                     </button>
                 </div>
@@ -764,43 +765,25 @@
             const dropdownParent = subcatBtn.closest('.dropdown');
             const tagDropdown = document.getElementById('tag-dropdown-content');
             const tagLinks = document.querySelectorAll('#tag-dropdown-content a');
-            const cards = document.querySelectorAll('#negocios-container .negocio-card');
+            const searchInput = document.getElementById('businessSearchInput');
+            const countEl = document.getElementById('businessCountText');
 
             // Estado actual del filtro
             let currentCategory = 'all';
             let currentTag = 'all';
 
             function applyFilters() {
-                cards.forEach(card => {
-                    const cardCategory = card.getAttribute('data-category');
-                    const cardTagsAttr = card.getAttribute('data-tags') || '';
-                    const cardTags = cardTagsAttr.split(',').map(t => t.trim());
-
-                    const matchCategory = (currentCategory === 'all' || cardCategory === currentCategory || cardTags.includes(currentCategory));
-                    const matchTag = (currentTag === 'all' || cardTags.includes(currentTag));
-
-                    // El espacio disponible ("disponible") siempre se muestra
-                    const isAvailableCard = (cardCategory === 'disponible');
-
-                    let show = false;
-                    if (isAvailableCard) {
-                        show = true;
-                    } else if (currentCategory === 'all' && currentTag === 'all') {
-                        show = true;
-                    } else {
-                        show = matchCategory && matchTag;
-                    }
-
-                    if (show) {
-                        card.classList.remove('hidden-filter');
-                        card.style.setProperty('display', 'flex', 'important');
-                        card.style.opacity = '1';
-                    } else {
-                        card.classList.add('hidden-filter');
-                        card.style.setProperty('display', 'none', 'important');
-                    }
-                });
+                const query = searchInput?.value || '';
+                const visibleCount = filterDirectoryBusinesses(currentCategory, currentTag, query);
+                const filtered = query.trim() || currentCategory !== 'all' || currentTag !== 'all';
+                countEl.textContent = filtered
+                    ? visibleCount + ' comercios encontrados'
+                    : visibleCount + ' comercios para descubrir';
             }
+
+            searchInput?.addEventListener('input', applyFilters);
+            document.addEventListener('sensun-businesses-updated', applyFilters);
+            applyFilters();
 
             // Toggle dropdown del filtro en móvil/click
             subcatBtn.addEventListener('click', (e) => {
@@ -967,78 +950,7 @@
                         });
                     }
                 });
-            // 5. BÚSQUEDA EN TIEMPO REAL (B06)
-            const searchInput = document.getElementById('businessSearchInput');
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    const query = searchInput.value.toLowerCase().trim();
-                    let visibleCount = 0;
-                    cards.forEach(card => {
-                        if (card.classList.contains('disponible')) {
-                            card.style.display = query ? 'none' : 'flex';
-                            return;
-                        }
-                        const title = (card.querySelector('.a1-business-title') || card.querySelector('h3') || {}).textContent || '';
-                        const desc = (card.querySelector('.a1-business-desc') || card.querySelector('p') || {}).textContent || '';
-                        const tags = card.getAttribute('data-tags') || '';
-                        const cat = card.getAttribute('data-category') || '';
-                        const fullText = (title + ' ' + desc + ' ' + tags + ' ' + cat).toLowerCase();
-                        if (!query || fullText.includes(query)) {
-                            card.style.display = 'flex';
-                            visibleCount++;
-                        } else {
-                            card.style.display = 'none';
-                        }
-                    });
-                    const countEl = document.getElementById('businessCountText');
-                    if (countEl) {
-                        countEl.textContent = query ? `${visibleCount} comercios encontrados` : '7 comercios para descubrir';
-                    }
-                });
-            }
         });
-
-        // 6. SELECTOR DE VISTA: TARJETAS / LISTA (B07)
-        function setDirectoryViewMode(mode) {
-            const container = document.getElementById('negocios-container');
-            const gridBtn = document.getElementById('viewModeGrid');
-            const listBtn = document.getElementById('viewModeList');
-            if (!container) return;
-
-            if (mode === 'list') {
-                container.style.gridTemplateColumns = '1fr';
-                container.querySelectorAll('.a1-business-card').forEach(card => {
-                    card.style.flexDirection = window.innerWidth > 640 ? 'row' : 'column';
-                    card.style.alignItems = 'center';
-                    card.style.gap = '20px';
-                    const logoWrap = card.querySelector('.a1-business-logo-wrap');
-                    if (logoWrap && window.innerWidth > 640) {
-                        logoWrap.style.width = '180px';
-                        logoWrap.style.height = '140px';
-                        logoWrap.style.flexShrink = '0';
-                        logoWrap.style.marginBottom = '0';
-                    }
-                });
-                if (gridBtn) gridBtn.classList.remove('active');
-                if (listBtn) listBtn.classList.add('active');
-            } else {
-                container.style.gridTemplateColumns = '';
-                container.querySelectorAll('.a1-business-card').forEach(card => {
-                    card.style.flexDirection = 'column';
-                    card.style.alignItems = '';
-                    card.style.gap = '';
-                    const logoWrap = card.querySelector('.a1-business-logo-wrap');
-                    if (logoWrap) {
-                        logoWrap.style.width = '';
-                        logoWrap.style.height = '';
-                        logoWrap.style.flexShrink = '';
-                        logoWrap.style.marginBottom = '';
-                    }
-                });
-                if (gridBtn) gridBtn.classList.add('active');
-                if (listBtn) listBtn.classList.remove('active');
-            }
-        }
 
         // 7. FAVORITOS LOCALES
         function toggleBusinessFavorite(id, btn) {
@@ -1076,7 +988,8 @@
     </script>
     <script src="sensun_offer_popups.js"></script>
     <script src="sensun_catalog_modal.js?v=2"></script>
-    <script type="module" src="sensun_ratings.js?v=12"></script>
+    <script src="sensun_directory.js"></script>
+    <script type="module" src="sensun_ratings.js?v=18"></script>
 </body>
 
 </html>

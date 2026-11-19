@@ -1649,7 +1649,8 @@ function updateCommentCount(businessId, count) {
 // Inicializar un widget de votación
 function initRatingWidget(container) {
     const businessId = container.dataset.businessId;
-    if (!businessId) return;
+    const readOnly = container.dataset.readonly === "true";
+    if (!businessId && !readOnly) return;
 
     const isCompact = container.dataset.compact === "true";
 
@@ -1694,7 +1695,9 @@ function initRatingWidget(container) {
 
     // Configurar listener para el botón circular de comentarios
     const commentBtn = container.querySelector('.compact-comment-circle-btn');
-    if (commentBtn) {
+    if (readOnly) {
+        commentBtn?.remove();
+    } else if (commentBtn) {
         const card = container.closest('.negocio-card, .slider-card') || container.parentElement;
         const titleEl = card ? card.querySelector('h3') : null;
         const titleText = titleEl ? titleEl.textContent.trim() : '';
@@ -1712,7 +1715,7 @@ function initRatingWidget(container) {
     const ratingText = container.querySelector(`.rating-text`);
     const ratingHelper = container.querySelector(`.rating-helper`);
 
-    readWhenVisible(starsRow, () => loadRating(businessId).then(ratingsData => {
+    readWhenVisible(starsRow, () => (businessId ? loadRating(businessId) : Promise.resolve({})).then(ratingsData => {
         if (!starsRow.isConnected) return;
         const voters = Object.keys(ratingsData);
         const votesCount = voters.length;
@@ -1723,7 +1726,7 @@ function initRatingWidget(container) {
         voters.forEach(uid => {
             const val = ratingsData[uid];
             sum += val;
-            if (currentUser && uid === currentUser.uid) {
+            if (!readOnly && currentUser && uid === currentUser.uid) {
                 userVote = val;
             }
         });
@@ -1734,9 +1737,9 @@ function initRatingWidget(container) {
         starsRow.innerHTML = '';
         for (let i = 1; i <= 5; i++) {
             const isFilled = userVote ? (i <= userVote) : (i <= Math.round(average));
-            const btnClass = `star-btn ${currentUser ? 'interactive' : ''} ${isFilled ? (userVote ? 'user-filled' : 'filled') : ''}`;
+            const btnClass = `star-btn ${!readOnly && currentUser ? 'interactive' : ''} ${isFilled ? (userVote ? 'user-filled' : 'filled') : ''}`;
             
-            const btn = document.createElement("button");
+            const btn = document.createElement(readOnly ? "span" : "button");
             btn.className = btnClass;
             btn.dataset.value = i;
             btn.innerHTML = `
@@ -1745,7 +1748,9 @@ function initRatingWidget(container) {
                 </svg>
             `;
 
-            if (currentUser) {
+            if (readOnly) {
+                btn.setAttribute("aria-hidden", "true");
+            } else if (currentUser) {
                 // Eventos de interactividad para usuarios logueados
                 btn.addEventListener('click', () => submitVote(businessId, i));
                 
@@ -2161,8 +2166,48 @@ let businessesReady = null;
 let cachedNewsList = [];
 let newsLoaded = false;
 
+export function getBusinessWhatsAppHref(business) {
+    const whatsapp = String(business.whatsapp || "").trim();
+    if (/^https?:\/\//i.test(whatsapp)) return whatsapp;
+    const phone = whatsapp.replace(/\D/g, "");
+    if (!phone) return "";
+    const message = encodeURIComponent(business.whatsappMsg || `Hola ${business.title}, vengo desde Sensun Shop`);
+    return `https://api.whatsapp.com/send?phone=${phone}&text=${message}`;
+}
+
+export function getBusinessLocationHref(business) {
+    const location = String(business.locationUrl || "").trim();
+    if (/^https?:\/\//i.test(location)) return location;
+    const lat = parseFloat(business.coords?.lat ?? business.lat ?? business.latitude);
+    const lng = parseFloat(business.coords?.lng ?? business.lng ?? business.longitude);
+    if (!(lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180)) return "";
+    return `https://maps.google.com/?q=${lat},${lng}`;
+}
+
+function syncDirectoryContactLink(card, className, label, href) {
+    let link = card.querySelector(`.${className}`);
+    if (!href) {
+        link?.remove();
+        return;
+    }
+
+    if (!link) {
+        const actions = card.querySelector(".negocio-links");
+        if (!actions) return;
+        link = document.createElement("a");
+        link.className = `btn-negocio ${className}`;
+        link.textContent = label;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        const callLink = actions.querySelector(".btn-call");
+        if (className === "btn-wsp") actions.insertBefore(link, callLink ? callLink.nextSibling : actions.firstChild);
+        else actions.append(link);
+    }
+    link.href = href;
+}
+
 // Helper para crear tarjetas de negocio en el DOM de forma dinámica
-function createBusinessDOMCard(business) {
+function createBusinessDOMCard(business, isDirectory) {
     const card = document.createElement("div");
     card.className = "producto-card negocio-card" + (business.hasOffer ? " has-active-offer" : "");
     if (business.code) card.id = business.code;
@@ -2174,17 +2219,8 @@ function createBusinessDOMCard(business) {
 
     const tagsHtml = (business.tags || []).map(t => `<span class="tag">${t}</span>`).join("");
     
-    let wspHref = "#";
-    if (business.whatsapp) {
-        if (business.whatsapp.startsWith("http")) {
-            wspHref = business.whatsapp;
-        } else {
-            const cleanPhone = business.whatsapp.replace(/\D/g, "");
-            const msg = encodeURIComponent(business.whatsappMsg || `Hola ${business.title}, vengo desde Sensun Shop`);
-            wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
-        }
-    }
-    const locHref = business.locationUrl || "#";
+    const wspHref = getBusinessWhatsAppHref(business);
+    const locHref = isDirectory ? getBusinessLocationHref(business) : business.locationUrl;
 
     const isPNC = (business.id || '').toLowerCase().includes('eme-003') || 
                   (business.id || '').toLowerCase().includes('pnc') || 
@@ -2228,8 +2264,8 @@ function createBusinessDOMCard(business) {
             ` : ''}
             <div class="negocio-links">
                 ${business.phone ? `<a href="tel:${business.phone.replace(/\D/g, '')}" class="btn-negocio btn-call" title="Llamada directa de emergencia"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/></svg> Llamar</a>` : ''}
-                ${business.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/></svg> WhatsApp</a>` : ''}
-                ${business.locationUrl ? `<a href="${locHref}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Ubicación</a>` : ''}
+                ${wspHref ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C6.48 2 2 6.48 2 12c0 1.73.44 3.35 1.21 4.78L2 22l5.37-1.41C8.75 21.31 10.33 21.6 12 21.6c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.4 12.6c-.23.63-.87 1.16-1.5 1.39-.63.23-1.45.32-2.32-.05-.87-.36-3.74-1.6-5.17-3.03-1.43-1.43-2.67-4.3-3.03-5.17-.37-.87-.28-1.69-.05-2.32.23-.63.76-1.24 1.39-1.47.63-.23 1.33-.23 1.96.05.63.27.63.76.36 1.39L8.47 8.65c-.27.63-.76.63-1.39.36l.18.32c.36.87 1.6 3.74 3.03 5.17 1.43 1.43 4.3 2.67 5.17 3.03l.32.18c-.63-.27-1.12-.27-1.39-.05l1.65-1.96c.27-.27.76-.27 1.39 0s2.99 1.47 3.26 1.74c.27.27.27.84.05 1.47z"/></svg> WhatsApp</a>` : ''}
+                ${locHref ? `<a href="${locHref}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Ubicación</a>` : ''}
                 ${(business.hasCatalog === true && business.catalogUid) ? `<a href="javascript:void(0)" class="btn-negocio btn-cat" onclick="if(window.openSensunCatalogModal){event.preventDefault(); event.stopPropagation(); window.openSensunCatalogModal({businessId: '${business.id}', businessName: '${(business.title || '').replace(/'/g, "\\'")}', businessPhone: '${business.whatsapp || business.phone || ''}', catalogUid: '${business.catalogUid || ''}', catalogUrl: '${business.catalogUrl || ''}', businessImg: '${business.imgSrc || ''}'}); return false;}" style="border-color: rgba(245, 158, 11, 0.4); color: #f59e0b; background: rgba(245, 158, 11, 0.08); font-weight: 600;"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;margin-right:4px;"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg> 🛍️ Ver Catálogo en Vivo</a>` : ''}
                 ${business.websiteUrl ? `<a href="${business.websiteUrl.replace(/multi-ideas-sv\.com/gi, 'multiideassv.com')}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer" style="border-color: rgba(232, 98, 26, 0.4); color: var(--ss-orange);"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;margin-right:4px;"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1 4-10z"></path></svg> Sitio Web</a>` : ''}
                 ${business.facebookUrl ? `<a href="${business.facebookUrl}" class="btn-negocio btn-fb" target="_blank" rel="noopener noreferrer"><svg viewBox="0 0 24 24" style="width:13px;height:13px;fill:currentColor;margin-right:4px;"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg> Facebook</a>` : ''}
@@ -2280,7 +2316,7 @@ function syncBusinessesToDOM(businessesList) {
             }
 
             // Actualizar imagen principal si cambió
-            const imgEl = targetCard.querySelector(".producto-img img, .slider-card-img img");
+            const imgEl = targetCard.querySelector(".a1-business-logo-wrap img, .producto-img img, .slider-card-img img");
             if (imgEl && business.imgSrc) {
                 const isPNCBiz = (business.id || '').toLowerCase().includes('eme-003') || 
                                  (business.title || '').toLowerCase().includes('polic');
@@ -2316,24 +2352,15 @@ function syncBusinessesToDOM(businessesList) {
                 }
             }
 
-            // Actualizar enlace WhatsApp
-            const wspBtn = targetCard.querySelector(".btn-wsp");
-            if (wspBtn && business.whatsapp) {
-                let wspHref = "#";
-                if (business.whatsapp.startsWith("http")) {
-                    wspHref = business.whatsapp;
-                } else {
-                    const cleanPhone = business.whatsapp.replace(/\D/g, "");
-                    const msg = encodeURIComponent(business.whatsappMsg || `Hola ${business.title}, vengo desde Sensun Shop`);
-                    wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
-                }
-                wspBtn.href = wspHref;
-            }
-
-            // Actualizar enlace Ubicación
-            const locBtn = targetCard.querySelector(".btn-loc");
-            if (locBtn && business.locationUrl) {
-                locBtn.href = business.locationUrl;
+            const wspHref = getBusinessWhatsAppHref(business);
+            if (targetCard.closest(".a1-directory-grid")) {
+                syncDirectoryContactLink(targetCard, "btn-wsp", "WhatsApp", wspHref);
+                syncDirectoryContactLink(targetCard, "btn-loc", "Ubicación", getBusinessLocationHref(business));
+            } else {
+                const wspBtn = targetCard.querySelector(".btn-wsp");
+                if (wspBtn && wspHref) wspBtn.href = wspHref;
+                const locBtn = targetCard.querySelector(".btn-loc");
+                if (locBtn && business.locationUrl) locBtn.href = business.locationUrl;
             }
 
             // Actualizar enlace Sitio Web
@@ -2504,7 +2531,7 @@ function syncBusinessesToDOM(businessesList) {
 
             const existing = container.querySelector(`[data-business-id="${business.id}"], #${business.code || "NO_CODE"}, #${business.id}`);
             if (!existing) {
-                const newCard = createBusinessDOMCard(business);
+                const newCard = createBusinessDOMCard(business, container.classList.contains("a1-directory-grid"));
                 const disponibleSlot = container.querySelector(".negocio-card.disponible");
                 if (disponibleSlot) {
                     container.insertBefore(newCard, disponibleSlot);
@@ -2515,10 +2542,10 @@ function syncBusinessesToDOM(businessesList) {
                 if (widget) initRatingWidget(widget);
                 injectFavoriteButtons();
                 injectCommentButtons();
-                injectShareButtons();
             }
         });
     }
+    injectShareButtons();
 }
 
 // Tabla calibrada de coordenadas geográficas de Sensuntepeque, Cabañas
@@ -2662,6 +2689,7 @@ function setupBusinessesRealtimeSync() {
             const activeList = allItems.filter(b => b.isActive);
             cachedParsedBusinesses = activeList;
             window.sensunBusinessesCache = activeList;
+            renderUnifiedNovedadesSlider();
 
             // Si el modal de favoritos está visible, refrescarlo
             if (window.userFavorites && typeof window.renderFavoritesView === 'function') {
@@ -2833,6 +2861,7 @@ function renderUnifiedNovedadesSlider() {
     // 1. Obtener los 3 negocios más recientes
     const recentBiz = (cachedParsedBusinesses || []).slice(0, 3).map(b => ({
         id: b.id,
+        businessId: b.id,
         title: b.title,
         description: b.description || "Comercio registrado en Sensun Shop",
         imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
@@ -2840,7 +2869,7 @@ function renderUnifiedNovedadesSlider() {
         badgeType: "recent",
         whatsapp: b.whatsapp,
         whatsappMsg: b.whatsappMsg,
-        locationUrl: b.locationUrl,
+        locationUrl: getBusinessLocationHref(b),
         link: b.websiteUrl || "",
         hasOffer: b.hasOffer,
         offerMsg: b.offerMsg,
@@ -2853,6 +2882,7 @@ function renderUnifiedNovedadesSlider() {
     // 2. Obtener Ofertas Principales (de sensunshop/offers o comercios con hasOffer)
     const activeBizOffers = (cachedParsedBusinesses || []).filter(b => b.hasOffer && b.isActive !== false).map(b => ({
         id: b.id,
+        businessId: b.id,
         title: b.title,
         description: b.description,
         imgSrc: b.imgSrc || "imagenes/logos/icono-sensun-shop.webp",
@@ -2860,7 +2890,7 @@ function renderUnifiedNovedadesSlider() {
         badgeType: "offer",
         whatsapp: b.whatsapp,
         whatsappMsg: `Hola ${b.title}, vi su oferta "${b.offerMsg || ''}" en Sensun Shop`,
-        locationUrl: b.locationUrl,
+        locationUrl: getBusinessLocationHref(b),
         link: b.websiteUrl || "",
         hasOffer: true,
         offerMsg: b.offerMsg || "¡Promoción especial por tiempo limitado!",
@@ -2965,17 +2995,8 @@ function renderUnifiedNovedadesSlider() {
     if (allItems.length === 0) return;
 
     let slidesHtml = "";
-    allItems.forEach((item, index) => {
-        let wspHref = "#";
-        if (item.whatsapp) {
-            if (item.whatsapp.startsWith("http")) {
-                wspHref = item.whatsapp;
-            } else {
-                const cleanPhone = item.whatsapp.replace(/\D/g, "");
-                const msg = encodeURIComponent(item.whatsappMsg || `Hola ${item.title}, vengo desde Sensun Shop`);
-                wspHref = `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${msg}`;
-            }
-        }
+    allItems.forEach(item => {
+        const wspHref = getBusinessWhatsAppHref(item);
 
         const borderLeft = item.accentColor || "var(--ss-orange)";
         const badgeBg = item.badgeBg || "rgba(232, 98, 26, 0.15)";
@@ -2983,19 +3004,20 @@ function renderUnifiedNovedadesSlider() {
         const badgeBorder = item.badgeBorder || "rgba(232, 98, 26, 0.3)";
 
         slidesHtml += `
-            <div class="slider-card ${item.hasOffer ? 'has-active-offer' : ''}" style="border-left-color: ${borderLeft}; position: relative;">
+            <div class="slider-card sensun-list-row ${item.hasOffer ? 'has-active-offer' : ''}" data-share-id="${item.id}" style="border-left-color: ${borderLeft}; position: relative;">
                 ${item.hasOffer ? `
                     <div class="negocio-offer-badge" style="top: 10px; left: 10px; z-index: 5; cursor: pointer;" onclick="if(window.openOfferModalForBusiness){event.stopPropagation(); window.openOfferModalForBusiness('${item.id}');}">
                         <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                         <span>¡OFERTA DESTACADA!</span>
                     </div>
                 ` : ''}
-                <div class="slider-card-img" style="display: flex; align-items: center; justify-content: center; padding: 6px;">
+                <div class="slider-card-img sensun-list-logo" style="display: flex; align-items: center; justify-content: center; padding: 6px;">
                     <img src="${optimizeSensunImage(item.imgSrc, 400)}" alt="${item.title}" style="object-fit: contain; width: 100%; height: 100%;" onerror="this.src='imagenes/logos/icono-sensun-shop.webp'" loading="lazy" decoding="async">
                 </div>
-                <div class="slider-card-content">
-                    <span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">${item.badge.toUpperCase()}</span>
+                <div class="slider-card-content sensun-list-contents">
+                    <span class="badge sensun-card-only" style="background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeBorder};">${item.badge.toUpperCase()}</span>
                     <h3>${item.title}</h3>
+                    ${item.businessId ? `<div class="sensun-rating-widget sensun-list-only" data-business-id="${item.businessId}" data-compact="true" data-readonly="true"></div>` : ''}
                     ${item.hasOffer && item.offerMsg ? `
                         <div class="negocio-offer-banner" style="margin: 6px 0 8px 0; padding: 6px 12px; font-size: 0.82rem; font-weight: 700; color: #ffbe76; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 6px;" onclick="if(window.openOfferModalForBusiness){window.openOfferModalForBusiness('${item.id}');}">
                             <span style="display: flex; align-items: center; gap: 6px;">
@@ -3007,9 +3029,9 @@ function renderUnifiedNovedadesSlider() {
                     ` : ''}
                     <p>${item.description}</p>
                     <div class="negocio-links">
-                        ${item.whatsapp ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
+                        ${wspHref ? `<a href="${wspHref}" class="btn-negocio btn-wsp" target="_blank" rel="noopener noreferrer">WhatsApp</a>` : ''}
                         ${item.locationUrl ? `<a href="${item.locationUrl}" class="btn-negocio btn-loc" target="_blank" rel="noopener noreferrer">Ubicación</a>` : ''}
-                        ${item.link ? `<a href="${item.link}" class="btn-negocio btn-det" target="_blank" rel="noopener noreferrer">Ver Más</a>` : ''}
+                        ${item.link ? `<a href="${item.link}" class="btn-negocio btn-det ${item.businessId ? '' : 'sensun-list-action'}" target="_blank" rel="noopener noreferrer">Ver Más</a>` : ''}
                     </div>
                 </div>
             </div>
@@ -3017,7 +3039,8 @@ function renderUnifiedNovedadesSlider() {
     });
 
     sliderContainer.innerHTML = slidesHtml;
-    if (typeof window.injectShareButtons === "function") window.injectShareButtons();
+    initSensunListCards(sliderContainer);
+    handleDirectBusinessAnchor();
     initNovedadesAutoRotation();
 }
 
@@ -3033,6 +3056,7 @@ function initNovedadesAutoRotation() {
 
     let currentIndex = 0;
     function showSlide(idx) {
+        if (slider.classList.contains("is-list-view")) return;
         if (idx >= cards.length) currentIndex = 0;
         else if (idx < 0) currentIndex = cards.length - 1;
         else currentIndex = idx;
@@ -3751,7 +3775,7 @@ function initCardExpandModal() {
         // Ignorar si el clic ocurrió DENTRO de un modal flotante abierto
         if (e.target.closest("#card-expand-modal, #sensun-comments-modal, #sensun-image-lightbox")) return;
 
-        const card = e.target.closest(".producto-card, .negocio-card");
+        const card = e.target.closest(".producto-card, .negocio-card, #sensun-slider.is-list-view > .sensun-list-row");
         if (!card) return;
 
         // Comprobar si el clic fue en un elemento interactivo directo
@@ -3771,6 +3795,7 @@ function initCardExpandModal() {
 
         const sliderCard = sliderTitle.closest(".slider-card");
         if (!sliderCard) return;
+        if (sliderCard.closest("#sensun-slider.is-list-view")) return;
 
         const widget = sliderCard.querySelector(".sensun-rating-widget");
         const titleText = sliderTitle.textContent.replace("✓", "").trim();
@@ -3834,15 +3859,26 @@ function initCardExpandModal() {
 }
 
 // Inyección y Lógica para Botones de Compartir (Anclas de Objetos)
-function injectShareButtons() {
-    const cards = document.querySelectorAll(".producto-card, .negocio-card, .slider-card");
+const shareableCardSelector = ".producto-card, .negocio-card, .slider-card, [data-share-param]";
+
+export function initSensunListCards(container) {
+    container.querySelectorAll(".sensun-rating-widget").forEach(initRatingWidget);
+    injectShareButtons(container);
+}
+
+window.initSensunListCards = initSensunListCards;
+window.getSensunWhatsAppHref = getBusinessWhatsAppHref;
+window.getSensunLocationHref = getBusinessLocationHref;
+
+function injectShareButtons(root = document) {
+    const cards = root.querySelectorAll(shareableCardSelector);
     cards.forEach((card) => {
         const h3 = card.querySelector(".producto-info h3, .slider-card-content h3, h3");
         if (!h3 || h3.querySelector(".share-card-btn")) return;
 
         const ratingWidget = card.querySelector(".sensun-rating-widget");
         const titleText = h3.textContent.replace("✓", "").trim();
-        let bizId = card.id || card.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null);
+        let bizId = card.dataset.shareId || card.id || card.dataset.businessId || (ratingWidget ? ratingWidget.dataset.businessId : null);
         if (!bizId && titleText) {
             bizId = titleText.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
         }
@@ -3854,7 +3890,7 @@ function injectShareButtons() {
         const shareBtn = document.createElement("button");
         shareBtn.type = "button";
         shareBtn.className = "share-card-btn";
-        shareBtn.title = "Compartir este negocio";
+        shareBtn.title = card.dataset.shareParam === "offer" ? "Compartir esta oferta" : "Compartir este negocio";
         shareBtn.dataset.bizId = bizId || "";
         shareBtn.innerHTML = `
             <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
@@ -3872,7 +3908,7 @@ document.addEventListener("click", async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
-    const card = shareBtn.closest(".producto-card, .negocio-card, .slider-card");
+    const card = shareBtn.closest(shareableCardSelector);
     const ratingWidget = card ? card.querySelector(".sensun-rating-widget") : null;
     const titleEl = card ? card.querySelector("h3") : null;
     let titleText = titleEl ? titleEl.textContent.replace("✓", "").trim() : "Negocio";
@@ -3883,15 +3919,18 @@ document.addEventListener("click", async (e) => {
     }
 
     const url = new URL(window.location.href);
-    url.searchParams.set("biz", bizId);
-    url.hash = bizId;
+    const shareParam = card?.dataset.shareParam || "biz";
+    url.searchParams.set(shareParam, bizId);
+    url.hash = shareParam === "biz" ? bizId : "";
     const shareUrl = url.toString();
 
     if (navigator.share && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) {
         try {
             await navigator.share({
                 title: titleText,
-                text: `Mira la ficha de ${titleText} en Sensun Shop:`,
+                text: shareParam === "offer"
+                    ? `Mira la oferta de ${titleText} en Sensun Shop:`
+                    : `Mira la ficha de ${titleText} en Sensun Shop:`,
                 url: shareUrl
             });
             return;
@@ -3934,7 +3973,9 @@ document.addEventListener("click", async (e) => {
 });
 
 // Manejo de Ancla Directa al Cargar la Página (Lleva directamente a la ficha y ABRIR la ventana flotante)
+let openedBusinessAnchor = false;
 function handleDirectBusinessAnchor() {
+    if (openedBusinessAnchor) return;
     const urlParams = new URLSearchParams(window.location.search);
     const bizParam = urlParams.get("biz") || window.location.hash.replace("#", "");
     if (!bizParam) return;
@@ -3965,7 +4006,8 @@ function handleDirectBusinessAnchor() {
 
     setTimeout(() => {
         const targetCard = findTargetCard();
-        if (targetCard) {
+        if (targetCard && !openedBusinessAnchor) {
+            openedBusinessAnchor = true;
             targetCard.scrollIntoView({ behavior: "smooth", block: "center" });
 
             targetCard.classList.add("card-anchor-highlight");
@@ -4672,13 +4714,15 @@ function updateBellAndPopupFeed() {
         }
     }
 
-    // Disparar popup emergente con frecuencia limitada y nunca en emergencias (Manual pág. 15)
+    // Dar prioridad a la ficha que se abrió desde un enlace compartido.
     const isEmergenciasPage = window.location.pathname.includes("emergencias");
+    const searchParams = new URLSearchParams(window.location.search);
+    const hasSharedItem = ["biz", "offer", "mapBiz"].some(param => searchParams.has(param));
     const lastPopupTime = parseInt(localStorage.getItem("sensun_popup_last_time") || "0", 10);
     const now = Date.now();
     const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
 
-    if (!isEmergenciasPage && uniqueItems.length > 0 && !sessionStorage.getItem("sensun_popup_seen") && (now - lastPopupTime > TWENTY_FOUR_HOURS)) {
+    if (!isEmergenciasPage && !hasSharedItem && uniqueItems.length > 0 && !sessionStorage.getItem("sensun_popup_seen") && (now - lastPopupTime > TWENTY_FOUR_HOURS)) {
         setTimeout(() => {
             showSensunPopup(uniqueItems[0]);
             localStorage.setItem("sensun_popup_last_time", String(now));

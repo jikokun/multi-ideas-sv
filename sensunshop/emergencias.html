@@ -46,6 +46,7 @@
     </script>
     <link rel="stylesheet" href="../estilos.css">
     <link rel="stylesheet" href="../estilo_claro.css" id="theme-light-css">
+    <link rel="stylesheet" href="sensun_directory.css">
     <style>
         :root {
             --ss-orange: #f39c12;
@@ -776,7 +777,13 @@
 
     <!-- CUADRÍCULA DE CUERPOS DE EMERGENCIA -->
     <section class="negocios-grid-section" style="padding: 20px 5% 50px 5%; max-width: 1200px; margin: 0 auto;">
-        <div class="productos-grid" id="negocios-container">
+        <div class="sensun-view-bar">
+            <div class="sensun-view-toggle" role="group" aria-label="Vista del directorio de emergencias">
+                <button type="button" class="a1-view-btn active" id="viewModeGrid" aria-controls="negocios-container" aria-pressed="true" onclick="setDirectoryViewMode('grid')"><span aria-hidden="true">⊞</span> Tarjetas</button>
+                <button type="button" class="a1-view-btn" id="viewModeList" aria-controls="negocios-container" aria-pressed="false" onclick="setDirectoryViewMode('list')"><span aria-hidden="true">☰</span> Lista</button>
+            </div>
+        </div>
+        <div class="productos-grid a1-directory-grid" id="negocios-container">
             
             <!-- TARJETA FLAGSHIP: COMANDOS DE SALVAMENTO SENSUNTEPEQUE (EME-001) -->
             <div class="producto-card negocio-card" id="EME-001" data-business-id="comandosdesalvamento" data-category="emergencias"
@@ -895,36 +902,30 @@
     </footer>
 
     <script src="../script.js?v=5"></script>
-    <script type="module" src="sensun_ratings.js?v=5"></script>
+    <script src="sensun_directory.js"></script>
+    <script type="module" src="sensun_ratings.js?v=18"></script>
 
     <!-- Script de filtrado local para la sección de emergencias -->
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const filterBtns = document.querySelectorAll('.filter-btn');
-            const cards = document.querySelectorAll('#negocios-container .negocio-card');
+            let currentFilter = 'all';
+
+            function applyFilters() {
+                document.querySelectorAll('#negocios-container > .negocio-card').forEach(card => {
+                    const categories = `${card.dataset.tags || ''},${card.dataset.category || ''}`.toLowerCase();
+                    card.classList.toggle('hidden-filter', currentFilter !== 'all' && !categories.includes(currentFilter));
+                });
+            }
 
             filterBtns.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    filterBtns.forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-
-                    const filterValue = btn.getAttribute('data-filter');
-
-                    cards.forEach(card => {
-                        if (filterValue === 'all') {
-                            card.style.display = '';
-                        } else {
-                            const tags = (card.getAttribute('data-tags') || '').toLowerCase();
-                            const category = (card.getAttribute('data-category') || '').toLowerCase();
-                            if (tags.includes(filterValue) || category.includes(filterValue)) {
-                                card.style.display = '';
-                            } else {
-                                card.style.display = 'none';
-                            }
-                        }
-                    });
+                    filterBtns.forEach(filterBtn => filterBtn.classList.toggle('active', filterBtn === btn));
+                    currentFilter = btn.dataset.filter;
+                    applyFilters();
                 });
             });
+            document.addEventListener('sensun-businesses-updated', applyFilters);
         });
     </script>
 </body>

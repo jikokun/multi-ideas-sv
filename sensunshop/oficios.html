@@ -44,6 +44,7 @@
     <link rel="stylesheet" href="../estilos.css">
     <link rel="stylesheet" href="../estilo_claro.css" id="theme-light-css">
     <link rel="stylesheet" href="../componentes_A1.css">
+    <link rel="stylesheet" href="sensun_directory.css">
     <style>
         :root {
             /* Tonalidades Oficiales Sensun Shop A1 */
@@ -131,11 +132,11 @@
             <!-- Barra de Estado y Selector de Vista (B07) -->
             <div class="a1-status-row" style="margin-bottom: 24px;">
                 <span id="businessCountText">Esta categoría está sumando profesionales</span>
-                <div class="a1-view-toggle">
-                    <button type="button" class="a1-view-btn active" id="viewModeGrid" onclick="setDirectoryViewMode('grid')">
+                <div class="a1-view-toggle sensun-view-toggle" role="group" aria-label="Vista del directorio">
+                    <button type="button" class="a1-view-btn active" id="viewModeGrid" aria-controls="negocios-container" aria-pressed="true" onclick="setDirectoryViewMode('grid')">
                         <span>⊞</span> Tarjetas
                     </button>
-                    <button type="button" class="a1-view-btn" id="viewModeList" onclick="setDirectoryViewMode('list')">
+                    <button type="button" class="a1-view-btn" id="viewModeList" aria-controls="negocios-container" aria-pressed="false" onclick="setDirectoryViewMode('list')">
                         <span>☰</span> Lista
                     </button>
                 </div>
@@ -153,7 +154,7 @@
             </div>
 
             <!-- Grid para cuando se carguen oficios en tiempo real -->
-            <div class="a1-directory-grid productos-grid" id="negocios-container" style="display: none;">
+            <div class="a1-directory-grid productos-grid" id="negocios-container" hidden>
                 <!-- Se sincroniza en tiempo real con el directorio oficial -->
             </div>
 
@@ -170,40 +171,31 @@
             const searchInput = document.getElementById('businessSearchInput');
             const emptyBox = document.getElementById('emptyStateBox');
             const container = document.getElementById('negocios-container');
+            const countEl = document.getElementById('businessCountText');
             const chips = document.querySelectorAll('#category-filter-container .filter-btn');
+            let category = 'all';
+
+            function applyFilters() {
+                const count = filterDirectoryBusinesses(category, 'all', searchInput?.value || '');
+                const hasBusinesses = Boolean(container.querySelector('.negocio-card:not(.business-inactive)'));
+                container.hidden = !hasBusinesses;
+                emptyBox.hidden = hasBusinesses;
+                countEl.textContent = hasBusinesses ? count + ' oficios encontrados' : 'Esta categoría está sumando profesionales';
+            }
 
             chips.forEach(btn => {
                 btn.addEventListener('click', () => {
-                    chips.forEach(c => c.classList.remove('active'));
-                    btn.classList.add('active');
+                    chips.forEach(chip => chip.classList.toggle('active', chip === btn));
+                    category = btn.dataset.filter;
+                    applyFilters();
                 });
             });
-
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    const query = searchInput.value.toLowerCase().trim();
-                    const countEl = document.getElementById('businessCountText');
-                    if (query) {
-                        if (countEl) countEl.textContent = `Buscando "${query}" en oficios...`;
-                    } else {
-                        if (countEl) countEl.textContent = 'Esta categoría está sumando profesionales';
-                    }
-                });
-            }
+            searchInput?.addEventListener('input', applyFilters);
+            document.addEventListener('sensun-businesses-updated', applyFilters);
+            applyFilters();
         });
-
-        function setDirectoryViewMode(mode) {
-            const gridBtn = document.getElementById('viewModeGrid');
-            const listBtn = document.getElementById('viewModeList');
-            if (mode === 'list') {
-                if (gridBtn) gridBtn.classList.remove('active');
-                if (listBtn) listBtn.classList.add('active');
-            } else {
-                if (gridBtn) gridBtn.classList.add('active');
-                if (listBtn) listBtn.classList.remove('active');
-            }
-        }
     </script>
-    <script type="module" src="sensun_ratings.js?v=5"></script>
+    <script src="sensun_directory.js"></script>
+    <script type="module" src="sensun_ratings.js?v=18"></script>
 </body>
 </html>

@@ -285,6 +285,8 @@ export const PUBLIC_FILES = Object.freeze(
   "sensunshop/profesionales.html",
   "sensunshop/profesionales/drhenrymartinez.html",
   "sensunshop/sensun_catalog_modal.js",
+  "sensunshop/sensun_directory.css",
+  "sensunshop/sensun_directory.js",
   "sensunshop/sensun_offer_popups.js",
   "sensunshop/sensun_ratings.js",
   "servicios.html",
