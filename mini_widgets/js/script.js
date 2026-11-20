@@ -91,7 +91,26 @@ document.addEventListener('DOMContentLoaded', () => {
   initSocialRotator();
   initCountdownTimerWidget();
   initLiveChatWidget();
+  fitWidgetPreview();
 });
+
+function fitWidgetPreview() {
+  if (new URLSearchParams(window.location.search).get('preview') !== 'true') return;
+  const stage = document.querySelector('.widget-stage');
+  const widget = stage?.firstElementChild;
+  if (!widget) return;
+
+  document.body.classList.add('widget-preview');
+  const observer = new ResizeObserver(() => {
+    widget.style.scale = Math.min(
+      1,
+      Math.max(1, stage.clientWidth - 24) / Math.max(1, widget.offsetWidth),
+      Math.max(1, stage.clientHeight - 28) / Math.max(1, widget.offsetHeight)
+    );
+  });
+  observer.observe(stage);
+  observer.observe(widget);
+}
 
 function applyWidgetThemeFromUrl() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -141,7 +160,7 @@ function initLiveWeatherClock() {
       // Si no se pasaron latitud y longitud por URL, auto-detectar por la IP del streamer que cargue el widget en OBS
       if (!lat || !lon) {
         try {
-          const geoRes = await fetch('https://ipapi.co/json/');
+          const geoRes = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(4000) });
           if (geoRes.ok) {
             const geoData = await geoRes.json();
             if (geoData.latitude && geoData.longitude) {
@@ -157,45 +176,36 @@ function initLiveWeatherClock() {
       }
 
       const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat || '13.6929'}&longitude=${lon || '-89.2182'}&current_weather=true`;
-      const res = await fetch(apiUrl);
-      if (res.ok) {
-        const data = await res.json();
-        if (data && data.current_weather) {
-          const temp = Math.round(data.current_weather.temperature);
-          const weatherCode = data.current_weather.weathercode;
-          const isDay = data.current_weather.is_day === 1;
+      const res = await fetch(apiUrl, { signal: AbortSignal.timeout(5000) });
+      if (!res.ok) throw new Error('Open-Meteo no disponible');
+      const { current_weather: weather } = await res.json();
+      if (!weather) throw new Error('Open-Meteo no devolvió datos');
+      const temp = Math.round(weather.temperature);
+      const weatherCode = weather.weathercode;
+      const isDay = weather.is_day === 1;
 
-          if (tempEl) tempEl.textContent = `${temp}°C`;
-
-          let desc = isDay ? "Día Despejado" : "Noche Estrellada";
-          let icon = isDay ? "☀️" : "🌙";
-
-          if (weatherCode === 0) {
-            desc = isDay ? "Soleado / Despejado" : "Noche Despejada";
-            icon = isDay ? "☀️" : "🌙";
-          } else if (weatherCode >= 1 && weatherCode <= 3) {
-            desc = "Parcialmente Nublado";
-            icon = isDay ? "⛅" : "☁️";
-          } else if (weatherCode >= 45 && weatherCode <= 48) {
-            desc = "Neblina Fresca";
-            icon = "🌫️";
-          } else if (weatherCode >= 51 && weatherCode <= 67) {
-            desc = "Lluvia Ligera";
-            icon = "🌧️";
-          } else if (weatherCode >= 80 && weatherCode <= 99) {
-            desc = "Tormenta / Lluvia";
-            icon = "🌩️";
-          }
-
-          if (descEl) descEl.textContent = desc;
-          if (iconEl) iconEl.textContent = icon;
-        }
+      let desc = isDay ? "Soleado / Despejado" : "Noche Despejada";
+      let icon = isDay ? "☀️" : "🌙";
+      if (weatherCode >= 1 && weatherCode <= 3) {
+        desc = "Parcialmente Nublado";
+        icon = isDay ? "⛅" : "☁️";
+      } else if (weatherCode >= 45 && weatherCode <= 48) {
+        desc = "Neblina Fresca";
+        icon = "🌫️";
+      } else if (weatherCode >= 51 && weatherCode <= 67) {
+        desc = "Lluvia Ligera";
+        icon = "🌧️";
+      } else if (weatherCode >= 80 && weatherCode <= 99) {
+        desc = "Tormenta / Lluvia";
+        icon = "🌩️";
       }
+      if (tempEl) tempEl.textContent = `${temp}°C`;
+      if (descEl) descEl.textContent = desc;
+      if (iconEl) iconEl.textContent = icon;
     } catch (e) {
-      console.warn("[MiniWidget Clima] Error conectando a Open-Meteo. Usando valores por defecto:", e);
-      if (tempEl) tempEl.textContent = "23°C";
-      if (descEl) descEl.textContent = "Noche Despejada";
-      if (iconEl) iconEl.textContent = "🌙";
+      console.warn("[MiniWidget Clima] Error conectando a Open-Meteo:", e);
+      if (tempEl) tempEl.textContent = "—°C";
+      if (descEl) descEl.textContent = "Clima no disponible";
     }
   }
 

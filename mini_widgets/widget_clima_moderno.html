@@ -706,7 +706,7 @@
 
         function toggleUnit() {
             state.useFahrenheit = !state.useFahrenheit;
-            localStorage.setItem('obs_weather_unit_f', state.useFahrenheit ? '1' : '0');
+            if (!isPreview) localStorage.setItem('obs_weather_unit_f', state.useFahrenheit ? '1' : '0');
             renderWidget();
         }
 
@@ -854,9 +854,9 @@
             }
         });
 
-        window.onload = function () {
+        document.addEventListener('DOMContentLoaded', function () {
             // Cargar preferencia de unidad (°C / °F)
-            if (!paramUnit) {
+            if (!paramUnit && !isPreview) {
                 const savedUnit = localStorage.getItem('obs_weather_unit_f');
                 if (savedUnit === '1') {
                     state.useFahrenheit = true;
@@ -873,7 +873,7 @@
                 // Actualizar automáticamente cada 10 minutos
                 setInterval(fetchRealWeather, 10 * 60 * 1000);
             }
-        };
+        });
     </script>
 </body>
 </html>

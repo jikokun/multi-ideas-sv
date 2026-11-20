@@ -54,6 +54,11 @@
                 linear-gradient(90deg, rgba(15, 23, 42, 0.06) 1px, transparent 1px) !important;
             background-size: 36px 36px !important;
         }
+        html.gallery-preview,
+        html.gallery-preview body {
+            width: 100%;
+            height: 100%;
+        }
 
         /* Contenedor maestro cuando las barras están acopladas */
         #widget-stage {
@@ -1307,7 +1312,8 @@
             var queryVarSubs = urlParams.get('var_subs');
             var queryVarKicks = urlParams.get('var_kicks');
 
-            var state = loadState();
+            var state = isPreviewParam ? structuredClone(defaultState) : loadState();
+            if (isPreviewParam) document.documentElement.classList.add('gallery-preview');
 
             // Overrides dinámicos de URL si se pasan parámetros
             if (queryWs) {
@@ -1344,6 +1350,7 @@
             }
 
             function saveState() {
+                if (isPreviewParam) return;
                 try {
                     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
                 } catch (e) {}
@@ -1399,6 +1406,18 @@
 
                 applyVisibilityAndCarousel();
                 syncModalControls();
+                fitGalleryPreview();
+            }
+
+            function fitGalleryPreview() {
+                if (!isPreviewParam || state.viewMode === 'decoupled') return;
+                var width = wrapperEl.offsetWidth;
+                var height = wrapperEl.offsetHeight;
+                var scale = Math.min(1, (innerWidth - 28) / Math.max(1, width), (innerHeight - 40) / Math.max(1, height));
+                stageEl.style.left = '50%';
+                stageEl.style.top = '50%';
+                stageEl.style.transformOrigin = 'center';
+                stageEl.style.transform = 'translate(-50%, -50%) scale(' + Math.max(0.05, scale) + ')';
             }
 
             function renderSingleGoalCard(type) {
@@ -1955,14 +1974,12 @@
                     switchToGoalOnAlert(type);
                 }
 
-                renderGoalCard('followers');
-                renderGoalCard('subs');
-                renderGoalCard('kicks');
-                applyGlobalStyles();
+                renderSingleGoalCard(type);
                 if (diff <= 0) {
                     applyVisibilityAndCarousel();
                 }
                 syncModalControls();
+                fitGalleryPreview();
 
                 // Si la barra avanzó positivamente, disparar el efecto de avance
                 if (diff > 0) {
@@ -2834,6 +2851,7 @@
             }
 
             function connectStreamerBot() {
+                if (isPreviewParam) return;
                 var statusDot = document.getElementById('ws-status-dot');
                 if (ws) {
                     try { ws.close(); } catch (e) {}
@@ -2972,6 +2990,21 @@
                                 return;
                             }
 
+                            // KicksGifted debe actualizar Kicks antes de evaluar los regalos de suscripciones.
+                            if (evType.includes('kick') || evType === 'cheer' || evType === 'rewardredemption') {
+                                var kicksAmount = Number(
+                                    payload.amount ||
+                                    payload.kicks ||
+                                    payload.bits ||
+                                    payload.cost ||
+                                    (payload.gift && payload.gift.amount) ||
+                                    100
+                                );
+                                updateGoalValue('kicks', kicksAmount, true, 'Kicks ⚡');
+                                logLastBotEvent('Kicks recibidos (+' + kicksAmount + ')');
+                                return;
+                            }
+
                             // B.3) Eventos de Suscriptores (Sub, ReSub, GiftSub, GiftBomb, GiftedSubscriptions)
                             if (evType.indexOf('sub') !== -1 || evType.indexOf('gift') !== -1) {
                                 var subCount = Number(
@@ -2990,19 +3023,6 @@
                                 return;
                             }
 
-                            // B.4) Eventos de Kicks (Monedas de Kick) o Bits/Cheers
-                            if (evType.indexOf('kick') !== -1 || evType === 'cheer' || evType === 'rewardredemption') {
-                                var kicksAmount = Number(
-                                    payload.amount ||
-                                    payload.kicks ||
-                                    payload.bits ||
-                                    payload.cost ||
-                                    (payload.gift && payload.gift.amount) ||
-                                    100
-                                );
-                                updateGoalValue('kicks', kicksAmount, true, 'Kicks ⚡');
-                                logLastBotEvent('Kicks recibidos (+' + kicksAmount + ')');
-                            }
                         } catch (err) {}
                     };
 
@@ -3051,7 +3071,9 @@
 
             // Canal de comunicación por postMessage (Para control desde la Galería de Widgets de Multi Ideas o herramientas externas)
             window.addEventListener('message', function(ev) {
-                if (!ev || !ev.data) return;
+                if (!ev.data) return;
+                if (isPreviewParam && window.parent !== window &&
+                    (ev.source !== window.parent || ev.origin !== window.location.origin)) return;
                 var d = ev.data;
                 if (d.type === 'SIM_EVENT' && d.event) {
                     handleSimulatedEvent(d.event);
@@ -3105,12 +3127,13 @@
                 return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + alpha + ')';
             }
 
-            window.onload = function() {
+            document.addEventListener('DOMContentLoaded', function() {
                 bindEvents();
                 setupStageInteractions();
                 renderAll();
+                window.addEventListener('resize', fitGalleryPreview);
                 connectStreamerBot();
-            };
+            });
         })();
     </script>
 </body>

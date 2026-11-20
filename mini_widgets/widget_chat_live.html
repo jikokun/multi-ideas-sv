@@ -4,9 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kick / Streamer.bot Live Chat Overlay</title>
-  <!-- Cliente Pusher JS para respaldo WebSocket de Kick -->
-  <script src="https://js.pusher.com/8.0.1/pusher.min.js"></script>
-  <script src="js/script.js"></script>
   <style>
     * { box-sizing: border-box; }
     body, html {
@@ -25,6 +22,16 @@
       height: 100vh;
       padding: 15px;
       gap: 10px;
+    }
+
+    .chat-preview #chat-container {
+      padding-bottom: 34px;
+    }
+
+    @media (max-height: 300px) {
+      .chat-preview .message-card:nth-last-child(n + 3) {
+        display: none;
+      }
     }
 
     .message-card {
@@ -126,7 +133,9 @@
     // Parámetros de Personalización Avanzada
     const customFontSize = urlParams.get('fontsize') || '15';
     const customTextColor = urlParams.get('textcolor') || '#e2e8f0';
-    const customBgColor = urlParams.get('bgcolor') || 'rgba(18, 18, 20, 0.85)';
+    const defaultBgColor = 'rgba(18, 18, 20, 0.85)';
+    const customBgColor = urlParams.get('bgcolor') || defaultBgColor;
+    const usesDefaultBg = customBgColor === defaultBgColor || customBgColor === '#121214';
     const customBorderColor = urlParams.get('bordercolor') || '#53fc18';
     const isAutoAccent = urlParams.get('autoaccent') !== 'false';
     const rawIgnored = urlParams.get('ignored') || '';
@@ -134,6 +143,11 @@
     const ignoredList = [...new Set([...defaultBots, ...rawIgnored.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)])];
     const isNoBg = urlParams.get('nobg') === 'true';
     const isLightTheme = urlParams.get('theme') === 'light';
+    const customBgHex = /^#([\da-f]{2})([\da-f]{2})([\da-f]{2})$/i.exec(customBgColor);
+    const useDarkText = isLightTheme && (isNoBg || usesDefaultBg || !customBgHex ||
+      customBgHex.slice(1).reduce((lightness, component, index) =>
+        lightness + parseInt(component, 16) * [0.2126, 0.7152, 0.0722][index], 0) >= 150);
+    const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top;
     const fadeTimeout = parseInt(urlParams.get('fade') || urlParams.get('timeout') || urlParams.get('fadetime') || urlParams.get('disappear') || '0', 10);
 
     const chatContainer = document.getElementById('chat-container');
@@ -142,14 +156,17 @@
     let streamerBotSocket = null;
 
     // Inicializar widget con Streamer.bot Local + Respaldo de Kick Pusher
-    initChatWidget();
+    if (!isPreviewMode) initChatWidget();
 
     function initChatWidget() {
       // 1. Conectar a Streamer.bot Local (Puerto 4445 por defecto, o 8080)
       connectStreamerBot(sbPort);
 
-      // 2. Conectar a Kick Pusher como respaldo remoto
-      initKickPusher(channelName.toLowerCase().trim());
+      // 2. Cargar el cliente de respaldo solo en modo en vivo.
+      const pusherScript = document.createElement('script');
+      pusherScript.src = 'https://js.pusher.com/8.0.1/pusher.min.js';
+      pusherScript.onload = () => initKickPusher(channelName.toLowerCase().trim());
+      document.head.appendChild(pusherScript);
     }
 
     // -----------------------------------------------------------------------
@@ -353,7 +370,7 @@
         card.style.background = 'transparent';
         card.style.boxShadow = 'none';
       } else if (isLightTheme) {
-        card.style.background = (customBgColor !== 'rgba(18, 18, 20, 0.85)' && customBgColor !== '#121214') ? customBgColor : 'rgba(255, 255, 255, 0.92)';
+        card.style.background = usesDefaultBg ? 'rgba(255, 255, 255, 0.92)' : customBgColor;
       } else {
         card.style.background = customBgColor;
       }
@@ -380,7 +397,9 @@
 
       const userSpan = document.createElement('span');
       userSpan.className = 'username';
-      userSpan.style.color = color || '#53fc18';
+      userSpan.style.color = useDarkText
+        ? '#0f172a'
+        : (color || '#53fc18');
       userSpan.style.fontSize = `${Math.max(12, parseInt(customFontSize) - 1)}px`;
       userSpan.textContent = username;
 
@@ -388,7 +407,7 @@
 
       const textDiv = document.createElement('div');
       textDiv.className = 'message-text';
-      textDiv.style.color = isLightTheme ? '#0f172a' : customTextColor;
+      textDiv.style.color = useDarkText && !urlParams.has('textcolor') ? '#0f172a' : customTextColor;
       textDiv.style.fontSize = `${customFontSize}px`;
       textDiv.innerHTML = content;
 
@@ -428,29 +447,33 @@
     // -----------------------------------------------------------------------
     // MODO VISTA PREVIA (Mensajes de demostración para el configurador web)
     // -----------------------------------------------------------------------
-    const isPreviewMode = urlParams.get('preview') === 'true' || window.self !== window.top;
-
     if (isPreviewMode) {
-      setTimeout(() => {
-        renderChatMessage({
+      document.body.classList.add('chat-preview');
+      const examples = [
+        {
           username: 'AlexStreamer',
           color: '#ff4757',
           text: '¡Hola a todos! Bienvenidos al directo 🚀',
           badges: ['STREAMER 👑']
-        });
-        renderChatMessage({
+        },
+        {
           username: 'KickFan99',
           color: '#53fc18',
           text: '¡Este tamaño de letra, fondo y realce se ven geniales! 🔥',
           badges: ['SUB ⭐']
-        });
-        renderChatMessage({
+        },
+        {
           username: 'Moderador_Vip',
           color: '#70a1ff',
           text: 'Probando el color de fondo y borde izquierdo en tiempo real.',
           badges: ['MOD 🛡️']
-        });
-      }, 150);
+        }
+      ];
+      setTimeout(() => examples.forEach(renderChatMessage), 150);
+      if (fadeTimeout > 0) {
+        let index = 0;
+        setInterval(() => renderChatMessage(examples[index++ % examples.length]), Math.max(500, fadeTimeout * 750));
+      }
     }
 
     // Escuchar mensajes de prueba del configurador (postMessage)

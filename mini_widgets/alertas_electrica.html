@@ -1072,6 +1072,7 @@
       }
 
       function connectStreamerBot() {
+        if (isPreview) return;
         if (ws) {
           try { ws.close(); } catch (e) { }
           ws = null;
@@ -1334,6 +1335,15 @@
       }
 
       if (isPreview) {
+        const fitPreview = () => {
+          alertStage.style.scale = Math.min(1,
+            Math.max(1, innerWidth - 28) / Math.max(1, alertCard.offsetWidth),
+            Math.max(1, innerHeight - 34) / Math.max(1, alertCard.offsetHeight));
+        };
+        const observer = new ResizeObserver(fitPreview);
+        observer.observe(alertCard);
+        window.addEventListener('resize', fitPreview);
+        fitPreview();
         if (!hideControls && testControls) {
           testControls.classList.remove('hidden');
         }

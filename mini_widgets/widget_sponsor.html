@@ -351,6 +351,10 @@
             box-shadow: inset 0 0 20px rgba(0,0,0,0.6);
         }
 
+        #ad-text-inner > * {
+            flex-shrink: 0;
+        }
+
         .border-none .ad-inner-viewport {
             border-radius: var(--corner-radius);
         }
@@ -571,6 +575,10 @@
             width: 96%;
             max-width: 580px;
             pointer-events: auto;
+        }
+
+        body.hide-preview-controls #preview-showcase-controls {
+            display: none !important;
         }
 
         .preview-showcase-pills {
@@ -1328,6 +1336,7 @@
 
     <script>
         var STORAGE_KEY = 'multiideas_obs_sponsor_widget_v2';
+        var previewParams = new URLSearchParams(window.location.search);
         var isPreview = false;
         try {
             isPreview = (window.self !== window.top) || (window.location.search.indexOf('preview=true') !== -1);
@@ -1765,7 +1774,7 @@
             // Longitud de la palabra más larga para que no se desborde horizontalmente
             var words = titleText.split(/\s+/).filter(Boolean);
             var longestWord = words.reduce(function(max, w) { return Math.max(max, w.length); }, 3);
-            var titleSizeByW = (availW * (isRoundish ? 0.80 : 0.88)) / (longestWord * 0.52);
+            var titleSizeByW = (availW * (isRoundish ? 0.80 : 0.88)) / (longestWord * 0.68);
 
             // Altura disponible repartida armónicamente
             var linesEst = Math.max(1, Math.ceil(Math.max(1, titleText.length) / (isRoundish ? 12 : 16)));
@@ -1802,25 +1811,30 @@
 
             // Medición del contenido real (sin atrapar al contenedor flex de altura 100%)
             var checkContentExceeds = function() {
-                var totalH = promoRenderTitle.offsetHeight;
-                if (hasTag) totalH += promoRenderTag.offsetHeight + 4;
-                if (hasSub) totalH += promoRenderSub.offsetHeight + 4;
-                if (!isThin && h >= 155 && hasSub) totalH += 8;
-                return totalH > (availH * 1.05);
+                var totalH = 0;
+                var items = adTextInner.children;
+                for (var i = 0; i < items.length; i++) {
+                    var item = items[i];
+                    if (item.classList.contains('hidden')) continue;
+                    var style = window.getComputedStyle(item);
+                    totalH += item.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom);
+                    if (item.scrollWidth > item.clientWidth + 1) return true;
+                }
+                return totalH > availH;
             };
 
             // Reducción suave automática solo si está en zoom default y el texto excede
             if (scaleMultiplier <= 1.05) {
                 var guard = 0;
                 while (guard < 30 && baseTitleSize > 10 && checkContentExceeds()) {
-                    baseTitleSize -= 1.0;
+                    baseTitleSize = Math.max(10, baseTitleSize * 0.93);
                     applyFontSizes(baseTitleSize);
                     guard++;
                 }
             }
         }
 
-        function applyVisualState() {
+        function applyVisualState(previewPromo) {
             var root = document.documentElement;
             root.style.setProperty('--border-color-1', state.borderColor1 || state.color1 || '#00f2fe');
             root.style.setProperty('--border-color-2', state.borderColor2 || state.color2 || '#4facfe');
@@ -1905,9 +1919,9 @@
                 adBadge.classList.add('hidden');
             }
 
-            if (state.images.length > 0) {
+            if (previewPromo || state.images.length > 0) {
                 if (state.currentIndex >= state.images.length) state.currentIndex = 0;
-                var currentItem = state.images[state.currentIndex];
+                var currentItem = previewPromo ? { promoData: previewPromo } : state.images[state.currentIndex];
                 if (currentItem.promoData) {
                     adImage.classList.add('hidden');
                     adImage.style.opacity = '0';
@@ -1976,10 +1990,13 @@
 
         function applyPositionAndScale() {
             if (isPreview) {
+                var controls = document.getElementById('preview-showcase-controls');
+                var top = previewParams.has('hidecontrols') ? 0 : controls.offsetTop + controls.offsetHeight + 10;
+                var bottom = (window.innerHeight || 400) - (previewParams.has('hidecontrols') ? 0 : 28);
                 draggableWrapper.style.left = '50%';
-                draggableWrapper.style.top = '55%';
+                draggableWrapper.style.top = (top + bottom) / 2 + 'px';
                 var stageW = window.innerWidth || 560;
-                var stageH = Math.max(220, (window.innerHeight || 400) - 75);
+                var stageH = Math.max(1, bottom - top);
                 var targetW = Math.max(100, state.width || 480);
                 var targetH = Math.max(80, state.height || 270);
                 var fitScaleX = (stageW * 0.90) / targetW;
@@ -3561,97 +3578,51 @@
         var previewActivePresetIdx = 0;
         var isPreviewAutoCycle = true;
         var previewCycleTimer = null;
-        var previewResumeTimer = null;
+        var previewAnimation = null;
 
-        function applyPreviewDemoPreset(idx, updatePillUI) {
+        function applyPreviewDemoPreset(idx, animate) {
             var preset = previewDemoPresets[idx];
             if (!preset) return;
             previewActivePresetIdx = idx;
 
-            adBox.style.transition = 'opacity 0.35s ease, transform 0.35s ease, border-radius 0.35s ease';
-            adBox.style.opacity = '0';
-            adBox.style.transform = 'scale(0.92)';
+            state.shapePreset = preset.key;
+            state.width = preset.width;
+            state.height = preset.height;
+            state.cornerRadius = preset.cornerRadius;
+            state.borderColor1 = preset.borderColor1;
+            state.borderColor2 = preset.borderColor2;
+            state.glowColor1 = preset.glowColor1;
+            state.glowColor2 = preset.glowColor2;
+            state.borderStyle = preset.borderStyle;
+            state.motionType = preset.motionType;
+            state.flickerType = preset.flickerType;
 
-            setTimeout(function() {
-                state.shapePreset = preset.key;
-                state.width = preset.width;
-                state.height = preset.height;
-                state.cornerRadius = preset.cornerRadius;
-                state.borderColor1 = preset.borderColor1;
-                state.borderColor2 = preset.borderColor2;
-                state.glowColor1 = preset.glowColor1;
-                state.glowColor2 = preset.glowColor2;
-                state.borderStyle = preset.borderStyle;
-                state.motionType = preset.motionType;
-                state.flickerType = preset.flickerType;
+            document.getElementById('preview-format-desc').textContent = preset.name + ' (' + preset.width + '×' + preset.height + ') • Láser Neón';
+            document.getElementById('preview-format-tag').textContent = preset.badge;
+            applyVisualState(preset.promo);
 
-                adImage.classList.add('hidden');
-                adTextPromo.classList.remove('hidden');
-                fitAdaptivePromoText(preset.promo);
-
-                applyVisualState();
-                applyPositionAndScale();
-
-                var descEl = document.getElementById('preview-format-desc');
-                var tagEl = document.getElementById('preview-format-tag');
-                if (descEl) descEl.textContent = preset.name + ' (' + preset.width + '×' + preset.height + ') • Láser Neón';
-                if (tagEl) tagEl.textContent = preset.badge;
-
-                if (updatePillUI !== false) {
-                    var pills = document.querySelectorAll('.preview-pill-btn:not(#pill-btn-auto)');
-                    for (var p = 0; p < pills.length; p++) {
-                        pills[p].classList.toggle('active', pills[p].dataset.format === preset.key);
-                    }
-                }
-
-                setTimeout(function() {
-                    adBox.style.opacity = '1';
-                    adBox.style.transform = 'scale(1)';
-                }, 30);
-            }, 260);
+            if (previewAnimation) previewAnimation.cancel();
+            if (animate && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                previewAnimation = adBox.animate([{ opacity: 0.7 }, { opacity: 1 }], { duration: 220, easing: 'ease-out' });
+            }
         }
 
         function setPreviewFormat(formatKey) {
-            if (formatKey === 'auto') {
-                isPreviewAutoCycle = true;
-                updateAutoPillUI(true);
+            var presetIndex = previewDemoPresets.findIndex(function(preset) { return preset.key === formatKey; });
+            if (formatKey !== 'auto' && presetIndex === -1) return;
+            isPreviewAutoCycle = formatKey === 'auto';
+            if (isPreviewAutoCycle) {
                 startPreviewAutoTimer();
-                applyPreviewDemoPreset(previewActivePresetIdx, false);
-                return;
+            } else {
+                clearInterval(previewCycleTimer);
+                applyPreviewDemoPreset(presetIndex, true);
             }
-
-            isPreviewAutoCycle = false;
-            updateAutoPillUI(false);
-            if (previewCycleTimer) clearInterval(previewCycleTimer);
-
-            var found = -1;
-            for (var i = 0; i < previewDemoPresets.length; i++) {
-                if (previewDemoPresets[i].key === formatKey) {
-                    found = i;
-                    break;
-                }
-            }
-            if (found !== -1) {
-                applyPreviewDemoPreset(found, true);
-            }
-
-            if (previewResumeTimer) clearTimeout(previewResumeTimer);
-            previewResumeTimer = setTimeout(function() {
-                isPreviewAutoCycle = true;
-                updateAutoPillUI(true);
-                startPreviewAutoTimer();
-            }, 14000);
-        }
-
-        function updateAutoPillUI(isAuto) {
-            var autoBtn = document.getElementById('pill-btn-auto');
-            if (autoBtn) autoBtn.classList.toggle('active', isAuto);
-            if (isAuto) {
-                var pills = document.querySelectorAll('.preview-pill-btn:not(#pill-btn-auto)');
-                for (var p = 0; p < pills.length; p++) {
-                    pills[p].classList.remove('active');
-                }
-            }
+            document.querySelectorAll('.preview-pill-btn').forEach(function(pill) {
+                var selected = pill.dataset.format === formatKey;
+                pill.classList.toggle('active', selected);
+                pill.setAttribute('aria-pressed', String(selected));
+            });
+            window.parent.postMessage({ type: 'SPONSOR_PREVIEW_FORMAT', shape: formatKey }, window.location.origin);
         }
 
         function startPreviewAutoTimer() {
@@ -3659,7 +3630,7 @@
             previewCycleTimer = setInterval(function() {
                 if (!isPreviewAutoCycle) return;
                 previewActivePresetIdx = (previewActivePresetIdx + 1) % previewDemoPresets.length;
-                applyPreviewDemoPreset(previewActivePresetIdx, false);
+                applyPreviewDemoPreset(previewActivePresetIdx, true);
             }, 4500);
         }
 
@@ -3680,19 +3651,20 @@
 
             // Escuchar mensajes desde index.html
             window.addEventListener('message', function(evt) {
-                if (evt.data && evt.data.type === 'SET_PREVIEW_SHAPE') {
+                if (evt.source === window.parent && evt.origin === window.location.origin && evt.data?.type === 'SET_PREVIEW_SHAPE') {
                     setPreviewFormat(evt.data.shape);
                 }
             });
 
             // Mostrar el primer preset e iniciar ciclo de demostración
             applyPreviewDemoPreset(0, false);
-            startPreviewAutoTimer();
+            setPreviewFormat('auto');
         }
 
-        window.onload = function() {
+        document.addEventListener('DOMContentLoaded', function() {
             if (isPreview) {
                 document.body.classList.add('is-preview-mode');
+                document.body.classList.toggle('hide-preview-controls', previewParams.has('hidecontrols'));
                 // En modo vista previa forzar bucle continuo (nunca apagarse)
                 state.loopMode = 'always';
                 initPreviewShowcase();
@@ -3704,7 +3676,7 @@
                 applyModalTransform();
                 startCycleEngine(true);
             }
-        };
+        });
 
         window.addEventListener('resize', function() {
             applyPositionAndScale();

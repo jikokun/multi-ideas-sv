@@ -664,7 +664,7 @@
             isRunning: true,            // Si está corriendo actualmente
             targetDuration: 300,        // Duración total configurada en segundos (por defecto 5 min = 300s)
             currentSeconds: 300,        // Segundos actuales mostrados
-            customLabel: 'CUENTA REGRESIVA',
+            customLabel: paramMode === 'stopwatch' ? 'CRONÓMETRO' : 'CUENTA REGRESIVA',
             theme: 'cyan',
             bgOpacity: 78,              // Porcentaje de opacidad del fondo (0 = sin fondo salvo etiqueta y barra, 100 = sólido)
             digitColor: '#ffffff',      // Color de los números del reloj
@@ -674,7 +674,7 @@
         };
 
         // Calcular duración inicial si se especificó en URL
-        if (!isNaN(paramTotal) && paramTotal > 0) {
+        if (!isNaN(paramTotal) && paramTotal >= 0) {
             state.targetDuration = paramTotal;
             state.currentSeconds = paramTotal;
         } else if (!isNaN(paramMin) || !isNaN(paramSec)) {
@@ -711,11 +711,11 @@
         // Cargar configuración guardada en OBS (localStorage)
         function loadSavedState() {
             try {
-                const saved = localStorage.getItem('obs_modern_timer_v1');
+                const saved = !isPreview && localStorage.getItem('obs_modern_timer_v1');
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     if (!urlParams.get('mode')) state.mode = parsed.mode || state.mode;
-                    if (isNaN(paramTotal) && isNaN(paramMin)) {
+                    if (isNaN(paramTotal) && isNaN(paramMin) && isNaN(paramSec)) {
                         state.targetDuration = typeof parsed.targetDuration === 'number' ? parsed.targetDuration : state.targetDuration;
                         state.currentSeconds = typeof parsed.currentSeconds === 'number' ? parsed.currentSeconds : state.targetDuration;
                     }
@@ -755,7 +755,11 @@
             if (!wrapper) return;
             const clampedX = Math.max(2, Math.min(98, state.posX));
             const clampedY = Math.max(2, Math.min(98, state.posY));
-            const clampedScale = Math.max(0.35, Math.min(4.0, state.scale));
+            const fitScale = isPreview ? Math.min(
+                Math.max(1, innerWidth - 24) / Math.max(1, wrapper.offsetWidth),
+                Math.max(1, innerHeight - 40) / Math.max(1, wrapper.offsetHeight)
+            ) : 4;
+            const clampedScale = Math.min(fitScale, Math.max(0.35, Math.min(4.0, state.scale)));
 
             wrapper.style.left = `${clampedX}%`;
             wrapper.style.top = `${clampedY}%`;
@@ -867,6 +871,7 @@
         }
 
         function saveState() {
+            if (isPreview) return;
             try {
                 localStorage.setItem('obs_modern_timer_v1', JSON.stringify(state));
             } catch (e) {
@@ -1244,14 +1249,12 @@
             if (!event.data) return;
             if (event.data.type === 'SET_TIMER_CONFIG') {
                 const d = event.data;
-                if (d.mode && (d.mode === 'countdown' || d.mode === 'stopwatch')) {
-                    switchMode(d.mode);
-                }
-                if (typeof d.minutes === 'number' || typeof d.seconds === 'number') {
-                    const totalSecs = ((d.minutes || 0) * 60) + (d.seconds || 0);
-                    state.targetDuration = totalSecs;
-                    state.currentSeconds = totalSecs;
-                    syncInputsWithDuration(totalSecs);
+                const modeChanged = (d.mode === 'countdown' || d.mode === 'stopwatch') && d.mode !== state.mode;
+                if (modeChanged) switchMode(d.mode);
+                if (Number.isFinite(d.totalSeconds) && (modeChanged || state.targetDuration !== d.totalSeconds)) {
+                    state.targetDuration = d.totalSeconds;
+                    state.currentSeconds = d.totalSeconds;
+                    syncInputsWithDuration(d.totalSeconds);
                 }
                 if (d.label !== undefined) {
                     state.customLabel = d.label;
@@ -1288,11 +1291,16 @@
         });
 
         // Inicializar al cargar el widget
-        window.onload = function () {
+        document.addEventListener('DOMContentLoaded', function () {
             loadSavedState();
             initCanvasManipulation();
+            if (isPreview) {
+                const observer = new ResizeObserver(applyTransformState);
+                observer.observe(document.getElementById('widgetWrapper'));
+                window.addEventListener('resize', applyTransformState);
+            }
             startLoop();
-        };
+        });
     </script>
 </body>
 </html>
