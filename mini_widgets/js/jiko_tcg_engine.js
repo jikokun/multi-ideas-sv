@@ -134,14 +134,12 @@
         state.cooldowns[job.user] = { timestamp: now, id: job.id };
         state.jobs[job.id] = job;
         // Los recibos económicos se conservan en el perfil. Solo se recorta el historial visual terminado.
-        const terminal = Object.values(state.jobs).filter(item => ['done', 'cancelled'].includes(item.status)).sort((a, b) => b.createdAt - a.createdAt);
+        const terminal = Object.values(state.jobs).filter(item => ['done', 'cancelled'].includes(item.status) && !item.ackPending).sort((a, b) => b.createdAt - a.createdAt);
         terminal.slice(60).forEach(item => delete state.jobs[item.id]);
         return state;
     }
-    function claim(current, role, owner, token, now, settings) {
-        if (!current) return;
-        const state = copy(current);
-        if (state.active && state.active.expiresAt > now) return;
+    function claimable(state, role, now) {
+        if (!state || state.active?.expiresAt > now) return;
         const job = pending(state)[0];
         if (!job || job.status === 'reserved' || Math.max(job.retryAt || 0, job.notBefore || 0) > now) return;
         // Una apertura exige el comprobante de que la mesa quedó vacía.
@@ -150,6 +148,13 @@
         const delivered = Number(job.deliveryCompletedAt) > 0;
         const expected = job.type === 'collection' || (delivered && ['opening', 'awaiting_open'].includes(job.status)) ? 'cards' : 'delivery';
         if (role !== expected || (!job.startedAt && (state.nextStartAt || 0) > now)) return;
+        return job.id;
+    }
+    function claim(current, role, owner, token, now, settings) {
+        const id = claimable(current, role, now);
+        if (!id) return;
+        const state = copy(current);
+        const job = state.jobs[id];
         if (!job.startedAt) { job.startedAt = now; state.nextStartAt = now + settings.globalCooldownMs; }
         delete job.retryAt; delete job.lastError;
         if (role === 'delivery') { job.deliveryAttemptAt = now; delete job.deliveryCompletedAt; }
@@ -157,5 +162,5 @@
         state.active = { jobId: job.id, role, owner, token, expiresAt: now + 30000 };
         return state;
     }
-    return Object.freeze({ RARITIES, MAX_PACKS_PER_STREAM, DEFAULT_CONFIG, copy, userKey, config, packLimitError, inventory, applyPurchase, recentCards, pending, reserve, claim });
+    return Object.freeze({ RARITIES, MAX_PACKS_PER_STREAM, DEFAULT_CONFIG, copy, userKey, config, packLimitError, inventory, applyPurchase, recentCards, pending, reserve, claimable, claim });
 });

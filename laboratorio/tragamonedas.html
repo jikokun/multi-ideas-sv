@@ -2325,9 +2325,11 @@
     // 1. Consultar si Firebase RTDB ya tiene avatar guardado
     if (window.StreamDB && typeof StreamDB.getUser === 'function') {
       try {
-        var fbUser = await StreamDB.getUser(uKey);
-        if (fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')) {
-          var normPic = normalizarAvatarKickUrl(fbUser.avatar);
+        var savedAvatar = StreamDB.getUserAvatar
+          ? await StreamDB.getUserAvatar(uKey)
+          : (await StreamDB.getUser(uKey))?.avatar;
+        if (typeof savedAvatar === 'string' && savedAvatar.startsWith('http')) {
+          var normPic = normalizarAvatarKickUrl(savedAvatar);
           if (normPic) {
             avatarCache[uKey] = normPic;
             return normPic;
@@ -3829,7 +3831,7 @@
       var userObj = null;
       if (window.StreamDB && typeof window.StreamDB.getUser === 'function') {
         try {
-          userObj = await window.StreamDB.getUser(sNorm, true);
+          userObj = await (window.StreamDB.getUserDisplay?.(sNorm) || window.StreamDB.getUser(sNorm, true));
         } catch(e) {}
       }
       if (!userObj) {

@@ -11,9 +11,9 @@ const catalog = context.window.DEFAULT_JIKOKUN_COLLECTIONS['Coleccion_Jikokun_00
 const clone = value => value == null ? value : JSON.parse(JSON.stringify(value));
 
 class Store {
-    constructor() { this.data = {}; this.listeners = []; this.serial = Promise.resolve(); this.failPublish = false; }
+    constructor() { this.data = {}; this.listeners = []; this.serial = Promise.resolve(); this.failPublish = false; this.reads = []; }
     read(path) { return path.split('/').filter(Boolean).reduce((node, key) => node?.[key], this.data) ?? null; }
-    async get(path) { return clone(this.read(path)); }
+    async get(path) { this.reads.push(path); return clone(this.read(path)); }
     async set(path, value) {
         const parts = path.split('/').filter(Boolean); let node = this.data;
         for (const key of parts.slice(0, -1)) node = node[key] ||= {};
@@ -88,15 +88,38 @@ test('dos clientes compitiendo no duplican compras, no sobregiran saldo y respet
 });
 
 test('un fallo tras el cobro conserva el recibo y la recuperación republica exactamente sus cartas', async () => {
-    const { service, store } = await setup();
+    const { service, store, advance } = await setup();
     try {
         store.failPublish = true;
         const receipt = await service.purchase('ana', [{ key: 'sobre' }], 'recover_1');
         assert.equal((await store.get('stream/usuarios/ana')).jikopuntos, 4500);
         store.failPublish = false;
-        await service.repair({ ana: await store.get('stream/usuarios/ana') });
+        store.reads = [];
+        advance(16000);
+        service.startWorker('delivery', () => { throw new Error('Solo se evalúa la recuperación'); }, () => false);
+        const deadline = Date.now() + 2000;
+        while (store.read('stream/widgets/tcg/control/jobs/recover_1/status') !== 'ready') {
+            assert.ok(Date.now() < deadline, 'la reserva recupera su recibo por ID');
+            await new Promise(resolve => setTimeout(resolve, 10));
+        }
+        assert.deepEqual(store.reads, ['stream/usuarios/ana/tarjetas/compras/recover_1']);
         assert.deepEqual((await store.get('stream/widgets/tcg/control/jobs/recover_1')).receipt.packs, receipt.packs);
         assert.equal((await store.get('stream/usuarios/ana')).tarjetas.totalCartas, 3);
+    } finally { service.destroy(); }
+});
+
+test('comprar reutiliza el catálogo observado y solicita solo los productos pedidos', async () => {
+    const { service, store } = await setup();
+    try {
+        await service.purchase('ana', [{ key: 'sobre' }, { key: 'sobre' }], 'light_order');
+        assert.deepEqual(store.reads, [
+            'stream/usuarios/ana/tarjetas/compras/light_order',
+            'stream/tienda/items/sobre',
+            'stream/transmisiones_stats/isLive',
+            'stream/transmisiones_stats/streamActivoId',
+            'stream/transmisiones_stats/streamActual'
+        ]);
+        assert.ok(store.listeners.every(listener => listener.path !== 'stream/usuarios'));
     } finally { service.destroy(); }
 });
 

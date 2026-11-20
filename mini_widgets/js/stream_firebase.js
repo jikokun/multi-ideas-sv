@@ -19,6 +19,7 @@ import {
   onValue, 
   push, 
   update, 
+  increment,
   runTransaction,
   query,
   orderByChild,
@@ -31,6 +32,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 import './jiko_points_engine.js';
+import './jiko_reward_queue.js';
 
 // Normalizador estándar de nombres de usuario (minúsculas, sin acentos ni @)
 export const norm = s => {
@@ -75,6 +77,7 @@ export const NODE_BINDINGS = 'stream/vinculaciones';
 export const NODE_COMBUSTIBLE_ACTIVO = 'stream/transmisiones_stats/combustibleEnVivo';
 export const NODE_BANCO = 'stream/banco';
 export const NODE_LOANS = 'stream/banco/prestamos';
+const LOCAL_REWARD_INTERVAL = 120000;
 export const TASA_INTERES_PRESTAMO = 0.02; // 2% fijo por préstamo
 
 // Constantes de Kick
@@ -328,6 +331,11 @@ class StreamFirebaseService {
     this.isInitialized = false;
     this.isConnected = false;
     this.usersCache = new Map();
+    this.pointProfiles = new Map();
+    this.localRewards = typeof window !== 'undefined' && window.JikoObsArtwork
+      ? new globalThis.JikoRewardQueue(window.localStorage)
+      : null;
+    this.localAttendanceListeners = new Set();
     this.listeners = new Map();
 
     // Estado del Detector Interno de Kick
@@ -376,10 +384,19 @@ class StreamFirebaseService {
       const stopConnection = onValue(connRef, (snap) => {
         this.isConnected = snap.val() === true;
         console.log(`[StreamDB] 🌐 Conexión Firebase RTDB: ${this.isConnected ? 'ONLINE' : 'OFFLINE'}`);
+        if (this.isConnected && this.localRewards) {
+          this.flushLocalRewards().catch(error => console.warn('[Recompensas OBS] Se conserva el lote local:', error.message));
+        }
       });
+      if (this.localRewards) this.startLocalRewardSync();
       if (typeof window !== 'undefined') {
         window.addEventListener('pagehide', event => {
           if (!event.persisted) stopConnection();
+          for (const entry of this.pointProfiles.values()) {
+            clearTimeout(entry.timer);
+            entry.stop();
+          }
+          this.pointProfiles.clear();
         });
       }
 
@@ -422,13 +439,11 @@ class StreamFirebaseService {
 
       // Sincronizar estado inicial de stream en vivo desde Firebase RTDB
       try {
-        const statsSnap = await get(ref(this.rtdb, NODE_TRANS_STATS));
-        if (statsSnap.exists()) {
-          const stats = statsSnap.val();
-          if (stats.isLive) {
-            this.kickIsLive = true;
-            this.kickLivestreamData = stats.streamActual || null;
-          }
+        const [live, current] = await Promise.all(['isLive', 'streamActual'].map(field =>
+          get(ref(this.rtdb, NODE_TRANS_STATS + '/' + field))));
+        if (live.val() === true) {
+          this.kickIsLive = true;
+          this.kickLivestreamData = current.val() || null;
         }
       } catch(e) {}
 
@@ -1089,34 +1104,292 @@ class StreamFirebaseService {
     }
   }
 
+  async _withPointProfile(key, callback) {
+    const userRef = ref(this.rtdb, NODE_USERS + '/' + key);
+    let entry = this.pointProfiles.get(key);
+    if (!entry) {
+      entry = { users: 0, timer: null, stop: () => {} };
+      entry.ready = new Promise((resolve, reject) => {
+        entry.stop = onValue(userRef, snapshot => {
+          entry.exists = snapshot.exists();
+          const balance = snapshot.val()?.jikopuntos;
+          if (Number.isSafeInteger(balance) && balance >= 0) {
+            this._updateLocalCache(key, balance);
+            const cached = this.usersCache.get(key);
+            if (cached) cached.jikopuntos = balance;
+          }
+          resolve();
+        }, error => {
+          entry.error = error;
+          reject(error);
+        });
+      });
+      this.pointProfiles.set(key, entry);
+    }
+    if (entry.timer !== null) clearTimeout(entry.timer);
+    entry.users++;
+    try {
+      await entry.ready;
+      if (entry.error) throw entry.error;
+      if (!entry.exists) await this.getUser(key, true);
+      return await callback(userRef);
+    } finally {
+      if (--entry.users === 0 && this.pointProfiles.get(key) === entry) {
+        const release = () => {
+          entry.stop();
+          this.pointProfiles.delete(key);
+        };
+        if (entry.error || typeof window === 'undefined') release();
+        else entry.timer = setTimeout(release, 5000);
+      }
+    }
+  }
+
   async _operarPuntos(username, delta, { operacionId = null, firma = 'ajuste', deduplicar = false, modificar = null, idExplicito = !!operacionId } = {}) {
     await this.init();
     const P = globalThis.JikoPointsEngine;
     const key = this.resolverUsuarioReal(norm(username));
     if (!key) throw new Error('Usuario no válido');
     delta = P.integer(delta);
-    await this.getUser(key, true);
-    const userRef = ref(this.rtdb, NODE_USERS + '/' + key);
     const operation = { id: operacionId || push(ref(this.rtdb, NODE_TRANSFERS)).key, idExplicito, firma, delta, deduplicar, timestamp: Date.now() };
-    let stop, duplicate = false;
-    try {
-      await new Promise((resolve, reject) => { stop = onValue(userRef, resolve, reject); });
+    return this._withPointProfile(key, async userRef => {
+      let duplicate = false;
       const result = await runTransaction(userRef, user => {
         duplicate = !!P.previous(user, operation);
-        return P.apply(user, operation, modificar);
+        if (!duplicate) return P.apply(user, operation, modificar);
       }, { applyLocally: false });
       const user = result.snapshot.val();
       const receipt = P.previous(user, operation);
-      if (!result.committed || !receipt) throw new Error('No se pudo confirmar el movimiento de Jikopuntos.');
+      if ((!result.committed && !duplicate) || !receipt) throw new Error('No se pudo confirmar el movimiento de Jikopuntos.');
       this.usersCache.set(key, user);
       this._updateLocalCache(key, user.jikopuntos);
       return { ...receipt, nuevoSaldo: user.jikopuntos, duplicadoIgnorado: duplicate, success: true };
-    } finally { stop?.(); }
+    });
   }
 
   async addJikopuntos(username, cantidad, motivo = 'premio', options = {}) {
     const receipt = await this._operarPuntos(username, cantidad, { ...options, firma: options.firma || motivo });
     return receipt.nuevoSaldo;
+  }
+
+  async getUserDisplay(username) {
+    await this.init();
+    const key = this.resolverUsuarioReal(username);
+    if (!key) return null;
+    const fields = ['jikopuntos', 'displayName', 'avatar', 'experiencia', 'asistenciasCount', 'tituloPersonalizado', 'deudaTotal'];
+    const values = await Promise.all(fields.map(field => get(ref(this.rtdb, `${NODE_USERS}/${key}/${field}`))));
+    if (!values[0].exists()) return this.getUser(username);
+    const user = Object.fromEntries(fields.map((field, index) => [field, values[index].val()]));
+    user.experiencia ??= (Number(user.asistenciasCount) || 0) * 200;
+    return { ...user, ...calcularNivelUsuario(user), username: key, displayName: user.displayName || key, avatar: normalizarAvatarKickUrl(user.avatar) };
+  }
+
+  onLocalAttendanceConfirmed(callback) {
+    this.localAttendanceListeners.add(callback);
+    for (const record of this.localRewards?.confirmedAttendance() || []) callback(record);
+    return () => this.localAttendanceListeners.delete(callback);
+  }
+
+  notifyLocalAttendance(record) {
+    for (const callback of this.localAttendanceListeners) {
+      try { callback(record); } catch (error) { console.warn('[Asistencia OBS]', error); }
+    }
+  }
+
+  startLocalRewardSync() {
+    let previousStream = this.localRewards.streamId;
+    const flush = () => this.flushLocalRewards().catch(error => console.warn('[Recompensas OBS] Pendientes de reintentar:', error.message));
+    const stopStream = this.onStreamLiveId(streamId => {
+      this.localRewards.streamId = streamId;
+      if (previousStream && previousStream !== streamId) flush();
+      previousStream = streamId;
+    });
+    const onStorage = event => {
+      const record = globalThis.JikoRewardQueue.confirmation(event);
+      if (record) this.notifyLocalAttendance(record);
+    };
+    window.addEventListener('storage', onStorage);
+    const timer = setInterval(flush, LOCAL_REWARD_INTERVAL);
+    window.addEventListener('pagehide', event => {
+      if (event.persisted) return;
+      clearInterval(timer);
+      stopStream();
+      window.removeEventListener('storage', onStorage);
+    });
+  }
+
+  async flushLocalRewards() {
+    if (!this.localRewards || !this.isConnected || this.syncingLocalRewards) return;
+    const locks = globalThis.navigator?.locks;
+    if (locks) return locks.request('jiko-obs-reward-sync', () => this._flushLocalRewards());
+    return this._flushLocalRewards();
+  }
+
+  async _flushLocalRewards() {
+    this.syncingLocalRewards = true;
+    try {
+      const events = this.localRewards.pending(Date.now());
+      const attendanceEvents = events.filter(event => event.kind === 'attendance');
+      const existingIds = await Promise.all(attendanceEvents.map(async event => {
+        const snapshot = await get(ref(this.rtdb, `${NODE_TRANSMISSIONS}/${event.streamId}/asistentes/${event.key}`));
+        return snapshot.exists() ? event.id : null;
+      }));
+      const existing = new Set(existingIds.filter(Boolean));
+      const users = new Map();
+      for (const event of events) {
+        if (!users.has(event.key)) users.set(event.key, []);
+        users.get(event.key).push(event);
+      }
+      const attendance = new Map();
+      const P = globalThis.JikoPointsEngine;
+      for (const [key, batch] of users) {
+        try {
+          const profile = await this._withPointProfile(key, async userRef => {
+            const result = await runTransaction(userRef, current => {
+              if (!current) return;
+              let applied = false;
+              for (const event of batch) {
+                if (current.operacionesPuntos?.[P.key(event.id)]) continue;
+                if (event.kind === 'attendance' && (current.historialTransmisiones?.[event.streamId] || existing.has(event.id))) continue;
+                this.applyLocalReward(current, event);
+                applied = true;
+              }
+              if (applied) return current;
+            }, { applyLocally: false });
+            const confirmed = result.snapshot.val();
+            if (!confirmed) throw new Error('No existe el perfil de ' + key);
+            this.usersCache.set(key, confirmed);
+            this._updateLocalCache(key, confirmed.jikopuntos);
+            return confirmed;
+          });
+          for (const event of batch) {
+            const receipt = profile.operacionesPuntos?.[P.key(event.id)];
+            if (event.kind === 'activity') {
+              this.localRewards.settle(event, null, Date.now());
+            } else if (receipt?.asistenciaObs) {
+              if (!attendance.has(event.streamId)) attendance.set(event.streamId, []);
+              attendance.get(event.streamId).push({ event, receipt });
+            } else {
+              const record = { usuario: event.usuario, usuarioNorm: key, streamId: event.streamId,
+                nuevoSaldo: profile.jikopuntos, yaRegistrado: true, puntosOtorgados: 0, experienciaGanada: 0 };
+              this.localRewards.settle(event, record, Date.now());
+              this.notifyLocalAttendance(record);
+            }
+          }
+        } catch (error) {
+          console.warn('[Recompensas OBS] Pendientes para @' + key + ':', error.message);
+        }
+      }
+      for (const [streamId, records] of attendance) await this.publishLocalAttendance(streamId, records);
+    } finally { this.syncingLocalRewards = false; }
+  }
+
+  applyLocalReward(user, event) {
+    const P = globalThis.JikoPointsEngine;
+    const before = calcularNivelUsuario(user);
+    const currentXp = user.experiencia ?? (user.asistenciasCount || 0) * 200;
+    const attendance = event.kind === 'attendance';
+    const baseXp = attendance ? 200 : 10 * event.minutes * event.factor;
+    const xp = before.nivel >= MAX_NIVEL ? 0 : Math.max(1, Math.round(baseXp * calcularFactorXpNivel(before.nivel)));
+    const after = calcularNivelUsuario({ ...user, experiencia: currentXp + xp });
+    const delta = attendance ? after.puntosPorAsistencia : 5 * event.minutes;
+    const previousActivity = Number(user.ultimaActividad) || 0;
+    P.apply(user, { id: event.id, timestamp: event.timestamp, delta,
+      firma: attendance ? 'asistencia:' + event.streamId : 'interaccion_tiempo_stream' }, current => {
+      current.experiencia = currentXp + xp;
+      current.ultimaActividad = Math.max(previousActivity, event.timestamp);
+      if (attendance) {
+        current.asistenciasCount = (current.asistenciasCount || 0) + 1;
+        current.historialTransmisiones ||= {};
+        current.historialTransmisiones[event.streamId] = true;
+      } else {
+        current.tiempoVistoMinutos = (current.tiempoVistoMinutos || 0) + event.minutes;
+      }
+      const level = calcularNivelUsuario(current);
+      for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) current[field] = level[field];
+      return attendance ? { asistenciaObs: true, puntosOtorgados: delta, experienciaGanada: xp, experienciaTotal: current.experiencia,
+        nivelUsuario: level.nivel, rangoTitulo: level.rangoTitulo, insigniaEmoji: level.insigniaEmoji } : { xpGanada: xp };
+    });
+  }
+
+  async publishLocalAttendance(streamId, records) {
+    const P = globalThis.JikoPointsEngine;
+    const streamRef = ref(this.rtdb, NODE_TRANSMISSIONS + '/' + streamId);
+    const result = await runTransaction(streamRef, stream => {
+      if (!stream) return null;
+      stream.asistentes ||= {};
+      const summary = stream.asistenciasObs ||= { cantidad: 0, puntos: 0 };
+      for (const { event, receipt } of records) {
+        if (stream.asistentes[event.key]) continue;
+        stream.asistentes[event.key] = { username: event.usuario, usuarioNorm: event.key, timestamp: receipt.timestamp,
+          puntosOtorgados: receipt.puntosOtorgados, nivel: receipt.nivelUsuario };
+        summary.cantidad++;
+        summary.puntos += receipt.puntosOtorgados;
+        stream.puntosRepartidos = (stream.puntosRepartidos || 0) + receipt.puntosOtorgados;
+      }
+      stream.totalAsistentes = Object.keys(stream.asistentes).length;
+      return stream;
+    }, { applyLocally: false });
+    const stream = result.snapshot.val();
+    if (!stream?.asistenciasObs) throw new Error('No se encontró la transmisión de la asistencia.');
+    const writes = {};
+    const confirmations = records.map(({ event, receipt }) => {
+      const record = { ...receipt, usuario: event.usuario, usuarioNorm: event.key, streamId, botEmisor: event.botEmisor,
+        numeroStream: stream.numeroStream || null, yaRegistrado: false };
+      writes[NODE_ATTENDANCE + '/' + P.key(event.id)] = record;
+      return { event, record };
+    });
+    await update(ref(this.rtdb), writes);
+    await runTransaction(ref(this.rtdb, NODE_STATS + '/resumen'), current => {
+      const summary = current || {};
+      const progress = summary.asistenciasObsPorDirecto ||= {};
+      const previous = progress[streamId] || { cantidad: 0, puntos: 0 };
+      const saved = stream.asistenciasObs;
+      if (previous.cantidad >= saved.cantidad) return;
+      summary.totalAsistenciasRegistradas = (summary.totalAsistenciasRegistradas || 0) + saved.cantidad - previous.cantidad;
+      summary.totalPuntosOtorgados = (summary.totalPuntosOtorgados || 0) + saved.puntos - previous.puntos;
+      summary.ultimaActualizacion = Date.now();
+      progress[streamId] = saved;
+      return summary;
+    }, { applyLocally: false });
+    for (const { event, record } of confirmations) {
+      this.localRewards.settle(event, record, Date.now());
+      this.notifyLocalAttendance(record);
+    }
+  }
+
+  async getUserAvatar(username) {
+    const key = this.resolverUsuarioReal(username);
+    if (!key) return '';
+    const cached = this.usersCache.get(key)?.avatar;
+    return cached || normalizarAvatarKickUrl((await get(ref(this.rtdb, `${NODE_USERS}/${key}/avatar`))).val());
+  }
+
+  async saveUserAvatar(username, value) {
+    const key = this.resolverUsuarioReal(username);
+    const avatar = normalizarAvatarKickUrl(value);
+    if (!key || !avatar) return;
+    const path = NODE_USERS + '/' + key;
+    const cached = this.usersCache.get(key);
+    if (cached?.avatar === avatar || await this.getUserAvatar(key) === avatar) return;
+    if (!cached && !(await get(ref(this.rtdb, path + '/username'))).exists()) return;
+    await update(ref(this.rtdb, path), { avatar, ultimaActividad: Date.now() });
+    if (cached) cached.avatar = avatar;
+  }
+
+  async registrarMensajesChat(username, amount) {
+    const key = this.resolverUsuarioReal(username);
+    const delta = globalThis.JikoPointsEngine.integer(amount, true);
+    if (!key) return;
+    const path = NODE_USERS + '/' + key;
+    if (!this.usersCache.has(key) && !(await get(ref(this.rtdb, path + '/username'))).exists()) {
+      await this.getUser(username);
+    }
+    await update(ref(this.rtdb, path), { mensajesChat: increment(delta), ultimaActividad: Date.now() });
+  }
+
+  onStreamLiveId(callback) {
+    return onValue(ref(this.rtdb, NODE_TRANS_STATS + '/streamActivoId'), snapshot => callback(snapshot.val()));
   }
 
   onUser(username, callback) {
@@ -1309,6 +1582,10 @@ class StreamFirebaseService {
     }, pollIntervalMs);
   }
 
+  iniciarDetectorKick() {
+    this.startKickStreamMonitor();
+  }
+
   stopKickStreamMonitor() {
     this.kickMonitorActive = false;
     if (this.kickPollTimer) clearInterval(this.kickPollTimer);
@@ -1448,7 +1725,8 @@ class StreamFirebaseService {
         console.log(`[StreamDB] 🐺 Saludo de Lobito detectado en Kick Chat para @${usuarioDetectado} (emisor: ${sender}): "${content}"`);
         this.registrarAsistencia({
           usuario: usuarioDetectado,
-          botEmisor: 'Lobito_Mensajero'
+          botEmisor: 'Lobito_Mensajero',
+          diferir: true
         }).catch(err => console.warn('[StreamDB] Error al procesar asistencia interceptada:', err));
       }
     } catch(err) {
@@ -1557,6 +1835,7 @@ class StreamFirebaseService {
     console.log('[StreamDB] 🛑 Directo de Kick finalizado. Cerrando sesión en Firebase RTDB...');
 
     try {
+      await this.flushLocalRewards().catch(error => console.warn('[Recompensas OBS] El lote se conservó en cola:', error.message));
       // 1. Obtener ID del stream activo
       const statsSnap = await get(ref(this.rtdb, `${NODE_TRANS_STATS}/streamActivoId`));
       const streamId = statsSnap.exists() ? statsSnap.val() : null;
@@ -1718,7 +1997,7 @@ class StreamFirebaseService {
     });
   }
 
-  // Sincronizar por lotes en Firebase RTDB (Evita sobrecarga: se llama cada 25-30s sólo si hay cambios)
+  // Publicar el acumulado periódico del directo.
   async sincronizarCombustibleEnVivoLote(datosLote = {}) {
     if (!datosLote || !datosLote.chatters) return;
     await this.init();
@@ -1737,7 +2016,19 @@ class StreamFirebaseService {
         chatters: datosLote.chatters
       };
 
-      await set(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO), payload);
+      const fuelRef = ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO);
+      const previous = this.lastLocalFuelSync;
+      if (this.localRewards && previous && previous.streamId === payload.streamId) {
+        const { chatters, ...changes } = payload;
+        const keys = new Set([...Object.keys(previous.chatters), ...Object.keys(chatters)]);
+        for (const key of keys) {
+          if (JSON.stringify(previous.chatters[key]) !== JSON.stringify(chatters[key])) changes['chatters/' + key] = chatters[key] ?? null;
+        }
+        await update(fuelRef, changes);
+      } else {
+        await set(fuelRef, payload);
+      }
+      if (this.localRewards) this.lastLocalFuelSync = payload;
 
       if (datosLote.streamId) {
         const transRef = ref(this.rtdb, `${NODE_TRANSMISSIONS}/${datosLote.streamId}/combustibleEnVivo`);
@@ -1752,6 +2043,7 @@ class StreamFirebaseService {
       }
     } catch (err) {
       console.warn('[StreamDB] Error al sincronizar combustible en vivo por lote:', err);
+      if (this.localRewards) throw err;
     }
   }
 
@@ -1779,13 +2071,14 @@ class StreamFirebaseService {
       } catch(e){}
     }
 
-    let combustibleData = null;
-    try {
-      const snap = await get(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO));
-      if (snap.exists()) {
-        combustibleData = snap.val();
-      }
-    } catch (e) {}
+    let combustibleData = this.localRewards?.read('jikokun_combustible_sesion_v2');
+    if (combustibleData?.streamId !== targetStreamId || !combustibleData?.chatters) {
+      combustibleData = null;
+      try {
+        const snap = await get(ref(this.rtdb, NODE_COMBUSTIBLE_ACTIVO));
+        if (snap.exists()) combustibleData = snap.val();
+      } catch (e) {}
+    }
 
     let chatters = (combustibleData && combustibleData.chatters) ? combustibleData.chatters : chattersFallback;
     if (!chatters || typeof chatters !== 'object') {
@@ -1881,7 +2174,7 @@ class StreamFirebaseService {
         for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
       }
     });
-    return this.getUser(username, true);
+    return this.getUser(username);
   }
 
   getStreamDuracionActual() {
@@ -1932,6 +2225,31 @@ class StreamFirebaseService {
     return Number(factor.toFixed(2));
   }
 
+  async registrarInteraccionLocal(key) {
+    const register = () => {
+      const queue = this.localRewards;
+      const streamId = queue.streamId;
+      if (!streamId) return null;
+
+      const now = Date.now();
+      const last = queue.lastActivity(key, streamId);
+      if (last === null) {
+        queue.saveActivity(key, streamId, now);
+        return { usuario: key, primeraVez: true, xpGanada: 0, minutosDelta: 0, factor: 1.0 };
+      }
+      const minutes = Math.min(5, Math.floor((now - last) / 60000));
+      if (minutes < 1) return null;
+
+      const factor = this.calcularMultiplicadorDuracionStream(this.getStreamDuracionActual().duracionMinutos);
+      const id = 'actividad:' + key + ':' + Math.floor(now / 60000);
+      queue.enqueue({ id, key, kind: 'activity', timestamp: now, minutes, factor });
+      queue.saveActivity(key, streamId, now);
+      return { usuario: key, minutosDelta: minutes, puntosPendientes: 5 * minutes, pendiente: true };
+    };
+    const locks = globalThis.navigator?.locks;
+    return locks ? locks.request('jiko-obs-activity:' + key, register) : register();
+  }
+
   // Registrar interacción de un usuario en el directo y acumular XP por tiempo activo de forma justa
   async registrarInteraccionStream({ usuario, tipo = 'chat', mensaje = '' }) {
     const key = norm(usuario);
@@ -1939,6 +2257,7 @@ class StreamFirebaseService {
 
     const BOTS_IGNORADOS = ['botrix', 'lobito_mensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'];
     if (BOTS_IGNORADOS.includes(key)) return null;
+    if (this.localRewards) return this.registrarInteraccionLocal(key);
 
     const ahora = Date.now();
     if (!this.interaccionesUsuarios) {
@@ -1969,32 +2288,46 @@ class StreamFirebaseService {
     const deltaMs = ahora - userTrack.ultimaXpAsignada;
 
     // Acumulación justa poco a poco: cada 60 segundos (1 minuto) de permanencia activa
-    if (deltaMs >= 60000) {
+    if (deltaMs >= 60000 && !userTrack.acreditando) {
       const minutosDelta = Math.min(5, Math.max(1, Math.floor(deltaMs / 60000)));
       const streamInfo = this.getStreamDuracionActual();
       const factor = this.calcularMultiplicadorDuracionStream(streamInfo.duracionMinutos);
 
       // 10 XP base por minuto activo * factor duración del directo * factor nivel (menos XP en niveles altos)
-      const userCached = this.usersCache.get(key);
-      const userNvl = userCached?.nivel || (await this.getUser(key))?.nivel || 1;
-      const factorNivel = calcularFactorXpNivel(userNvl);
-
       const xpBase = 10 * minutosDelta;
-      const xpGanada = userNvl >= MAX_NIVEL ? 0 : Math.max(1, Math.round(xpBase * factor * factorNivel));
 
       // Otorgar combustible de permanencia (+5 Jikopuntos por minuto activo de stream)
       const ptsGanados = 5 * minutosDelta;
-      await this._operarPuntos(key, ptsGanados, {
-        operacionId: 'actividad:' + key + ':' + Math.floor(ahora / 60000), firma: 'interaccion_tiempo_stream',
-        modificar: user => {
-          user.experiencia = (user.experiencia ?? (user.asistenciasCount || 0) * 200) + xpGanada;
-          user.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minutosDelta;
-          const level = calcularNivelUsuario(user);
-          for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
-        }
-      });
+      const operacionId = 'actividad:' + key + ':' + Math.floor(ahora / 60000);
+      const award = async () => {
+        const receiptKey = globalThis.JikoPointsEngine.key(operacionId);
+        const existing = await get(ref(this.rtdb, `${NODE_USERS}/${key}/operacionesPuntos/${receiptKey}`));
+        if (existing.exists()) return null;
+        return this._operarPuntos(key, ptsGanados, {
+          operacionId, firma: 'interaccion_tiempo_stream',
+          modificar: user => {
+            const userNvl = calcularNivelUsuario(user).nivel;
+            const xpGanada = userNvl >= MAX_NIVEL ? 0 : Math.max(1, Math.round(xpBase * factor * calcularFactorXpNivel(userNvl)));
+            user.experiencia = (user.experiencia ?? (user.asistenciasCount || 0) * 200) + xpGanada;
+            user.tiempoVistoMinutos = (user.tiempoVistoMinutos || 0) + minutosDelta;
+            const level = calcularNivelUsuario(user);
+            for (const field of ['nivel', 'rangoTitulo', 'insigniaEmoji', 'porcentajeProgreso', 'xpEnNivel', 'xpParaSubir', 'xpFaltante']) user[field] = level[field];
+            return { xpGanada };
+          }
+        });
+      };
+      userTrack.acreditando = true;
+      let receipt;
+      try {
+        const locks = globalThis.navigator?.locks;
+        receipt = locks ? await locks.request('jiko:' + operacionId, award) : await award();
+      } finally {
+        userTrack.acreditando = false;
+      }
 
       userTrack.ultimaXpAsignada = ahora;
+      if (!receipt || receipt.duplicadoIgnorado) return null;
+      const xpGanada = receipt.xpGanada || 0;
       userTrack.minutosInteractuados += minutosDelta;
       userTrack.xpGanadaEnDirecto += xpGanada;
 
@@ -2135,10 +2468,32 @@ class StreamFirebaseService {
   }
 
   // Registrar asistencia: otorga puntos según el nivel de asistencia y vincula al stream activo
-  async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero', streamId = null }) {
-    await this.init();
+  async registrarAsistencia({ usuario, botEmisor = 'Lobito_Mensajero', streamId = null, diferir = false }) {
     const key = this.resolverUsuarioReal(norm(usuario));
     if (!key || ['botrix', 'lobito_mensajero', 'lobitomensajero', 'kickbot', 'nightbot', 'streamelements', 'streamlabs', 'jikobot', 'streamerbot'].includes(key)) return null;
+    if (this.localRewards && diferir) {
+      streamId ||= this.localRewards.streamId;
+      if (!streamId) {
+        await this.init();
+        if (this.isConnected) {
+          const resolveStream = async () => {
+            const active = this.localRewards.streamId ||
+              (await get(ref(this.rtdb, NODE_TRANS_STATS + '/streamActivoId'))).val() ||
+              await this.asegurarStreamActivoAuto('asistencia_lobito');
+            if (active) this.localRewards.streamId = active;
+            return active;
+          };
+          const locks = globalThis.navigator?.locks;
+          streamId = locks ? await locks.request('jiko-obs-attendance-stream', resolveStream) : await resolveStream();
+        }
+      }
+      if (!streamId) throw new Error('Todavía no se conoce la transmisión activa para guardar la asistencia.');
+      const id = 'asistencia:' + streamId + ':' + key;
+      const event = this.localRewards.enqueue({ id, kind: 'attendance', key, usuario, botEmisor, streamId, timestamp: Date.now() });
+      if (event.settled && event.record) return { ...event.record, yaRegistrado: true };
+      return { id, usuario, usuarioNorm: key, streamId, timestamp: event.timestamp, pendiente: true };
+    }
+    await this.init();
     const stats = (await get(ref(this.rtdb, NODE_TRANS_STATS))).val() || {};
     streamId ||= stats.isLive && stats.streamActivoId || await this.asegurarStreamActivoAuto('asistencia_lobito');
     if (!streamId) throw new Error('No hay transmisión para registrar la asistencia.');
@@ -3439,7 +3794,7 @@ class StreamFirebaseService {
     const rawKey = norm(username);
     const key = this.resolverUsuarioReal(rawKey);
     if (!key) return null;
-    const user = await this.getUser(key, true);
+    const user = await this.getUserDisplay(key);
     if (!user) return null;
 
     const saldoBruto = Math.max(0, parseInt(user.jikopuntos, 10) || 0);

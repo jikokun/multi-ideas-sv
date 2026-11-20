@@ -79,7 +79,7 @@
     async getUser(user) {
       await dbReady;
       await writes.get(norm(user));
-      return backingDB.getUser(user, true);
+      return backingDB.getUserDisplay ? backingDB.getUserDisplay(user) : backingDB.getUser(user, true);
     },
     addJikopuntos(user, amount, reason) {
       const key = norm(user);

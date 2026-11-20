@@ -20,28 +20,56 @@
         id() { return 'tcg_' + this.now() + '_' + (globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2)).replace(/-/g, ''); }
         emit() { this.listeners.forEach(callback => { try { callback(this); } catch (error) { console.warn('[TCG]', error); } }); }
         subscribe(callback) { this.listeners.add(callback); if (this.ready) callback(this); return () => this.listeners.delete(callback); }
+        watchInitial(path, apply, fallback) {
+            return new Promise((resolve, reject) => {
+                let received = false, seeding = false;
+                const fail = error => {
+                    if (received) console.warn('[TCG Firebase]', error.message);
+                    else reject(error);
+                };
+                const receive = value => {
+                    try {
+                        apply(value);
+                        received = true;
+                        resolve();
+                        this.emit();
+                    } catch (error) { fail(error); }
+                };
+                this.stops.push(this.store.watch(path, value => {
+                    if (value == null && !received && fallback !== undefined) {
+                        if (seeding) return;
+                        seeding = true;
+                        this.store.transaction(path, current => current == null ? fallback : undefined)
+                            .then(result => { if (!received) receive(result.value); }, fail);
+                        return;
+                    }
+                    receive(value);
+                }, fail));
+            });
+        }
         async init(seed) {
             if (this.initializing) return this.initializing;
             this.initializing = (async () => {
                 const cards = this.core.createCatalog(seed);
                 const product = { key: 'sobre', nombre: 'Sobre', precio: 1500, stock: -1, activo: true, emoji: '✦', categoria: 'recurso', comando: '!sobre', aliases: ['sobres', 'sobre de cartas', 'sobretarjetas'], img: this.core.PACK_ART.front, driveUrl: this.core.PACK_ART.front, packBack: this.core.PACK_ART.back, tipo: 'tcg_booster', descripcion: 'Sobre Jikokun con tres cartas de la colección 001–100' };
-                await this.store.transaction(BASE + '/config', current => current || E.config());
-                await this.store.transaction(BASE + '/catalog', current => current || cards.map(card => ({ id: card.id, num: card.num, title: card.title, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })));
-                await this.store.transaction('stream/tienda/items/sobre', current => current || product);
-                const refresh = async () => {
-                    const [settings, catalog, item] = await Promise.all([this.store.get(BASE + '/config'), this.store.get(BASE + '/catalog'), this.store.get('stream/tienda/items/sobre')]);
-                    this.settings = E.config(settings); this.catalog = this.core.createCatalog(Object.values(catalog || {})); this.product = item;
-                };
-                await refresh();
-                this.stops.push(this.store.watch(BASE + '/config', value => { this.settings = E.config(value); this.emit(); }));
-                this.stops.push(this.store.watch(BASE + '/catalog', value => { try { this.catalog = this.core.createCatalog(Object.values(value || {})); this.emit(); } catch (error) { console.error('[TCG catálogo]', error); } }));
-                this.stops.push(this.store.watch('stream/tienda/items/sobre', value => { this.product = value; this.emit(); }));
-                const repairPending = () => this.repair(this.pendingUsers || {}).catch(error => console.warn('[TCG recuperación]', error));
-                this.stops.push(this.store.watch(CONTROL, value => { this.control = value || {}; this.emit(); repairPending(); }));
-                if (this.store.watchPending) this.stops.push(this.store.watchPending(users => { this.pendingUsers = users; repairPending(); }));
-                if (this.store.watchConnection) this.stops.push(this.store.watchConnection(online => { this.connected = online; if (!online) this.activeControllers.forEach(controller => controller.abort()); else repairPending(); }));
+                await Promise.all([
+                    this.watchInitial(BASE + '/config', value => { this.settings = E.config(value || {}); }, E.config()),
+                    this.watchInitial(BASE + '/catalog', value => { this.catalog = this.core.createCatalog(Object.values(value || {})); },
+                        cards.map(({ id, num, title, rarity, frontImage, backImage }) => ({ id, num, title, rarity, frontImage, backImage }))),
+                    this.watchInitial('stream/tienda/items/sobre', value => { this.product = value; }, product),
+                    this.watchInitial(CONTROL, value => { this.control = value || {}; })
+                ]);
+                if (this.store.watchConnection) this.stops.push(this.store.watchConnection(online => {
+                    this.connected = online;
+                    if (!online) this.activeControllers.forEach(controller => controller.abort());
+                    else this.emit();
+                }));
                 this.ready = true; this.emit(); return this;
-            })().catch(error => { this.initializing = null; throw error; });
+            })().catch(error => {
+                this.stops.splice(0).forEach(stop => stop());
+                this.initializing = null;
+                throw error;
+            });
             return this.initializing;
         }
         async online() { if (this.store.isOnline && !await this.store.isOnline()) throw new Error('Firebase no está conectado. No se ha cobrado nada.'); }
@@ -58,24 +86,10 @@
                 state ||= { jobs: {}, cooldowns: {} }; state.jobs ||= {};
                 const previous = state.jobs[receipt.id];
                 if (previous?.status === 'done') return;
-                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.deliveryCompletedAt ? { deliveryCompletedAt: previous.deliveryCompletedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}), ...(previous?.retryAt ? { retryAt: previous.retryAt, lastError: previous.lastError } : {}) };
+                const presentation = { packs: receipt.packs, items: receipt.items };
+                state.jobs[receipt.id] = { id: receipt.id, user: receipt.user, type: 'purchase', createdAt: receipt.timestamp, status: previous?.status && previous.status !== 'reserved' && previous.status !== 'cancelled' ? previous.status : 'ready', packIndex: previous?.packIndex || 0, receipt: presentation, ...(previous?.startedAt ? { startedAt: previous.startedAt } : {}), ...(previous?.deliveryCompletedAt ? { deliveryCompletedAt: previous.deliveryCompletedAt } : {}), ...(previous?.presentationReadyAt ? { presentationReadyAt: previous.presentationReadyAt } : {}), ...(previous?.retryAt ? { retryAt: previous.retryAt, lastError: previous.lastError } : {}) };
                 return state;
             });
-        }
-        async repair(users) {
-            if (this.repairing) return;
-            this.repairing = true;
-            try {
-                for (const [key, user] of Object.entries(users || {})) {
-                    for (const id of Object.keys(user.tarjetas?.entregasPendientes || {})) {
-                        const receipt = user.tarjetas?.compras?.[id];
-                        if (!receipt || receipt.entregado) continue;
-                        const job = this.control.jobs?.[id];
-                        if (job?.status === 'done') await this.acknowledge(key, id);
-                        else if (!job || ['reserved', 'cancelled'].includes(job.status)) await this.promote(receipt);
-                    }
-                }
-            } finally { this.repairing = false; }
         }
         async purchase(username, cart, id = this.id()) {
             if (!this.ready) throw new Error('El catálogo de sobres todavía no está conectado a Firebase.');
@@ -88,11 +102,14 @@
                 if (!existing.entregado) await this.promote(existing);
                 return existing;
             }
-            const [settings, rawCatalog, rawItems] = await Promise.all([this.store.get(BASE + '/config'), this.store.get(BASE + '/catalog'), this.store.get('stream/tienda/items')]);
-            const cfg = E.config(settings), catalog = this.core.createCatalog(Object.values(rawCatalog || {}));
-            const itemsByKey = Object.fromEntries(Object.values(rawItems || {}).map(item => [item.key, item]));
+            const keys = [...new Set(cart.map(item => item.key))];
+            if (keys.some(key => typeof key !== 'string' || !key || /[.#$\[\]/\u0000-\u001f\u007f]/.test(key))) {
+                throw new Error('El pedido contiene un producto inválido.');
+            }
+            const itemsByKey = new Map(await Promise.all(keys.map(async key => [key, await this.store.get('stream/tienda/items/' + key)])));
+            const cfg = this.settings, catalog = this.catalog;
             const items = cart.map(line => {
-                const item = itemsByKey[line.key];
+                const item = itemsByKey.get(line.key);
                 if (!item || item.activo === false || !(Number(item.precio) > 0)) throw new Error('El producto ' + line.key + ' ya no está disponible.');
                 if (Number(item.stock) >= 0) throw new Error('Las órdenes con sobres requieren productos de stock ilimitado.');
                 return { key: item.key, nombre: String(item.nombre || item.key), precio: Math.round(Number(item.precio)), img: String(item.img || item.driveUrl || ''), localImg: String(item.localImg || '') };
@@ -101,16 +118,16 @@
             if (quantity > E.MAX_PACKS_PER_STREAM) throw E.packLimitError();
             if (quantity < 1 || quantity > cfg.maxPacksPerPurchase) throw new Error('Puedes comprar entre 1 y ' + cfg.maxPacksPerPurchase + ' sobres por orden.');
             if (items.length > 20) throw new Error('La orden supera el límite de 20 productos.');
-            const stats = await this.store.get('stream/transmisiones_stats');
-            const streamId = stats?.isLive === true ? stats.streamActivoId : null;
+            const statsPath = 'stream/transmisiones_stats/';
+            const [isLive, activeId, stream] = await Promise.all(['isLive', 'streamActivoId', 'streamActual'].map(key => this.store.get(statsPath + key)));
+            const streamId = isLive === true ? activeId : null;
             if (!streamId) throw new Error('No hay una transmisión activa para comprar sobres.');
-            const streamStart = stats.streamActual?.id === streamId ? Number(stats.streamActual.inicioTimestamp) || 0 : 0;
+            const streamStart = stream?.id === streamId ? Number(stream.inicioTimestamp) || 0 : 0;
             const now = this.now();
             const job = { id, user, type: 'purchase', status: 'reserved', createdAt: now };
             await this.store.transaction(CONTROL, state => E.reserve(state, job, cfg, now));
             let committed = false;
             try {
-                if (!await this.store.get(userPath(user))) throw new Error('No existe tu perfil en Firebase.');
                 // Sorteo único fuera del callback: los reintentos de la transacción conservan el premio.
                 const packs = Array.from({ length: quantity }, () => this.core.drawPack(catalog).cards);
                 const packPrice = items.find(item => item.key === 'sobre').precio;
@@ -148,8 +165,9 @@
             await this.online();
             const user = E.userKey(username);
             const filter = rarity ? this.core.normalizeRarity(rarity) : '';
-            const data = await this.store.get(userPath(user));
-            const recent = E.recentCards(data, filter);
+            const path = userPath(user) + '/tarjetas/' + (filter ? 'ultimasPorRareza/' + filter : 'ultimas');
+            const data = await this.store.get(path);
+            const recent = E.recentCards({ tarjetas: filter ? { ultimasPorRareza: { [filter]: data } } : { ultimas: data } }, filter);
             if (!recent.length) throw new Error(filter ? 'Todavía no tienes cartas de esa rareza.' : 'Todavía no tienes cartas. Compra un sobre en la tiendita.');
             const job = { id: this.id(), user, type: 'collection', status: 'ready', createdAt: this.now(), rarity: filter, cards: recent.map(item => item.cardId) };
             await this.store.transaction(CONTROL, state => E.reserve(state, job, this.settings, this.now()));
@@ -164,6 +182,10 @@
                 return data;
             });
         }
+        async finishAcknowledgement(job) {
+            await this.acknowledge(job.user, job.id);
+            await this.store.set(CONTROL + '/jobs/' + job.id + '/ackPending', null);
+        }
         async saveSettings(values) {
             const cfg = E.config(values);
             const price = Math.round(Number(values.precio));
@@ -177,19 +199,30 @@
         async publishCatalog(cards) { const valid = this.core.createCatalog(cards); await this.store.set(BASE + '/catalog', valid.map(card => ({ id: card.id, num: card.num, title: card.title, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage }))); }
         startWorker(role, render, canRun = () => true) {
             const owner = this.id(); let working = false, stopped = false, aborter = null;
+            let lastRecovery = null;
             const pump = async () => {
-                if (stopped || working || !this.ready || !canRun()) return;
+                if (stopped || working || !this.ready || !this.connected) return;
                 const head = E.pending(this.control)[0];
-                if (!head) return;
+                const acknowledgement = role === 'cards' && Object.values(this.control.jobs || {}).find(job => job.ackPending);
+                const now = this.now();
+                const reserved = head?.status === 'reserved' && now - head.createdAt >= 15000 ? head : null;
+                const recovery = acknowledgement || reserved;
+                const canRecover = recovery && (lastRecovery?.id !== recovery.id || now - lastRecovery.at >= 15000);
+                const canClaim = canRun() && E.claimable(this.control, role, now);
+                if (!canRecover && !canClaim) return;
                 working = true;
                 let heartbeat = null;
                 let token = null;
                 try {
                     await this.online();
-                    if (head.status === 'reserved') {
-                        const receipt = await this.store.get(userPath(head.user) + '/tarjetas/compras/' + head.id);
-                        if (receipt) await this.promote(receipt);
-                        else if (this.now() - head.createdAt > 120000) await this.cancelReservation(head.id, head.user);
+                    if (canRecover) {
+                        lastRecovery = { id: recovery.id, at: now };
+                        if (recovery.ackPending) await this.finishAcknowledgement(recovery);
+                        else {
+                            const receipt = await this.store.get(userPath(recovery.user) + '/tarjetas/compras/' + recovery.id);
+                            if (receipt) await this.promote(receipt);
+                            else if (now - recovery.createdAt > 120000) await this.cancelReservation(recovery.id, recovery.user);
+                        }
                         return;
                     }
                     token = this.id();
@@ -201,9 +234,9 @@
                     this.activeControllers.add(controller);
                     heartbeat = setInterval(async () => {
                         try {
-                            const renewed = await this.store.transaction(CONTROL, state => {
-                                if (state?.active?.token !== token) return;
-                                state.active.expiresAt = this.now() + 30000; return state;
+                            const renewed = await this.store.transaction(CONTROL + '/active', active => {
+                                if (active?.token !== token) return;
+                                return { ...active, expiresAt: this.now() + 30000 };
                             });
                             if (!renewed.committed) controller.abort();
                         } catch (_) { controller.abort(); }
@@ -222,10 +255,16 @@
                         if (state?.active?.token !== token) return;
                         state.jobs[job.id].status = role === 'delivery' ? 'awaiting_open' : 'done';
                         if (role === 'delivery') state.jobs[job.id].deliveryCompletedAt = this.now();
-                        if (role === 'cards') state.jobs[job.id] = { id: job.id, user: job.user, type: job.type, createdAt: job.createdAt, status: 'done', completedAt: this.now() };
+                        if (role === 'cards') state.jobs[job.id] = {
+                            id: job.id, user: job.user, type: job.type, createdAt: job.createdAt, status: 'done',
+                            completedAt: this.now(), ...(job.type === 'purchase' ? { ackPending: true } : {})
+                        };
                         delete state.active; return state;
                     });
-                    if (completed.committed && role === 'cards' && job.type === 'purchase') await this.acknowledge(job.user, job.id);
+                    if (completed.committed && role === 'cards' && job.type === 'purchase') {
+                        lastRecovery = { id: job.id, at: this.now() };
+                        await this.finishAcknowledgement(job);
+                    }
                 } catch (error) {
                     console.warn('[TCG cola]', error.message);
                     if (token) await this.store.transaction(CONTROL, state => {

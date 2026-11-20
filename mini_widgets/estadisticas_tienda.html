@@ -4854,10 +4854,7 @@
       actividadChatPendiente.clear();
       for (const [username, delta] of batch) {
         try {
-          const user = await StreamDB.getUser(username);
-          if (!user) continue;
-          const mensajesChat = Math.max(0, parseInt(user.mensajesChat, 10) || 0) + delta;
-          await StreamDB.actualizarUsuario(username, { mensajesChat });
+          await StreamDB.registrarMensajesChat(username, delta);
         } catch (err) {
           actividadChatPendiente.set(username, (actividadChatPendiente.get(username) || 0) + delta);
           console.warn('[ActividadPerfil] No se pudo sincronizar el conteo de chat:', username, err);

@@ -198,6 +198,7 @@ export const PUBLIC_FILES = Object.freeze(
   "mini_widgets/js/jiko_casino_bridge.js",
   "mini_widgets/js/jiko_casino_ui.js",
   "mini_widgets/js/jiko_points_engine.js",
+  "mini_widgets/js/jiko_reward_queue.js",
   "mini_widgets/js/jiko_tcg_engine.js",
   "mini_widgets/js/jiko_tcg_firebase.js",
   "mini_widgets/js/jiko_tcg_profile.js",

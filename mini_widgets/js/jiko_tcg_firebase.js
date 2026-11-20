@@ -1,5 +1,5 @@
 import { rtdb, auth, signInAnonymously } from '../../firebase-config.js';
-import { ref, get, set, update, runTransaction, onValue, query, orderByChild, equalTo } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
+import { ref, get, set, update, runTransaction, onValue } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js';
 import '../../laboratorio/tarjetero_sobres_core.js?v=20261107-delivery4';
 import '../../data/tarjetas_default_data.js';
 import './jiko_tcg_engine.js?v=20261110-packlimit';
@@ -26,9 +26,9 @@ const store = {
             return { committed: result.committed, value: result.snapshot.val() };
         } finally { stop?.(); }
     },
-    watch: (path, callback) => onValue(ref(rtdb, path), snapshot => callback(snapshot.val()), error => console.warn('[TCG Firebase]', error.message)),
+    watch: (path, callback, onError = error => console.warn('[TCG Firebase]', error.message)) =>
+        onValue(ref(rtdb, path), snapshot => callback(snapshot.val()), onError),
     watchConnection: callback => onValue(ref(rtdb, '.info/connected'), snapshot => callback(snapshot.val() === true)),
-    watchPending: callback => onValue(query(ref(rtdb, 'stream/usuarios'), orderByChild('tarjetas/pendiente'), equalTo(true)), snapshot => callback(snapshot.val() || {}), error => console.warn('[TCG recuperación]', error.message)),
     isOnline: async () => connected
 };
 export const TcgCloud = new window.JikoTcgService(store, window.JikoBoosterCore, { now: () => Date.now() + offset });

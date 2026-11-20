@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>OBS Widget — Celebración Épica Kick &amp; Acua (SUBS + KICKS + Confeti + Fuegos Artificiales)</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&family=Bowlby+One+SC&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
@@ -372,6 +372,18 @@
 
   .epic-number-display, .epic-sub-display { white-space: nowrap; }
 
+  .epic-gifter-display {
+    max-width: 850px;
+    margin: 14px 24px 0;
+    color: #fff;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-weight: 800;
+    font-size: clamp(22px, 4vw, 48px);
+    text-align: center;
+    overflow-wrap: anywhere;
+    text-shadow: 0 2px 6px #041923, 0 0 14px var(--theme-neon);
+  }
+
   #number-wrapper[data-event-kind="FOLLOW"] .epic-number-display,
   #number-wrapper[data-event-kind="FOLLOW"] .epic-sub-display {
     font-family: 'Baloo 2', 'Arial Rounded MT Bold', sans-serif;
@@ -604,6 +616,7 @@
       <div id="epic-lockup">
         <div id="epic-number-text" class="epic-number-display" data-value="1">1</div>
         <div id="epic-sub-text" class="epic-sub-display" data-value="SUB">SUB</div>
+        <div id="epic-gifter-text" class="epic-gifter-display" hidden></div>
       </div>
     </div>
   </div>
@@ -926,6 +939,7 @@
   var epicLockup = document.getElementById("epic-lockup");
   var numberText = document.getElementById("epic-number-text");
   var subText = document.getElementById("epic-sub-text");
+  var gifterText = document.getElementById("epic-gifter-text");
   var risingBeam = document.getElementById("rising-beam");
   var shockwave1 = document.getElementById("shockwave-1");
   var shockwave2 = document.getElementById("shockwave-2");
@@ -1867,7 +1881,7 @@
     return parsed === 1 ? "SUB" : "SUBS";
   }
 
-  function triggerFullCelebration(customNumber, customKind, months) {
+  function triggerFullCelebration(customNumber, customKind, months, gifterName) {
     clearSequenceTimers();
     state.isAnimating = true;
 
@@ -1930,6 +1944,10 @@
 
     subText.textContent = labelWord;
     subText.setAttribute("data-value", labelWord);
+    gifterText.textContent = state.currentEventKind === "SUBS" && gifterName
+      ? (numericVal === 1 ? "Regalada por " : "Regaladas por ") + gifterName
+      : "";
+    gifterText.hidden = !gifterText.textContent;
 
     numberWrapper.className = "";
     risingBeam.className = "";
@@ -1984,7 +2002,7 @@
       if (state.giftQueue.length > 0) {
         var nextItem = state.giftQueue.shift();
         if (nextItem && typeof nextItem === "object") {
-          triggerFullCelebration(nextItem.count, nextItem.kind, nextItem.months);
+          triggerFullCelebration(nextItem.count, nextItem.kind, nextItem.months, nextItem.gifter);
         } else {
           triggerFullCelebration(nextItem, "SUBS");
         }
@@ -2029,6 +2047,7 @@
   function procesarSubsRegaladas(cantidad, gifterName) {
     var num = parseInt(String(cantidad).replace(/[^0-9]/g, ""), 10);
     if (isNaN(num) || num < 1) return;
+    gifterName = String(gifterName || "").trim().slice(0, 80);
 
     subsRegaladas = num;
     window.subsRegaladas = num;
@@ -2041,9 +2060,9 @@
     }
 
     if (state.isAnimating) {
-      state.giftQueue.push({ count: num, kind: "SUBS" });
+      state.giftQueue.push({ count: num, kind: "SUBS", gifter: gifterName });
     } else {
-      triggerFullCelebration(num, "SUBS");
+      triggerFullCelebration(num, "SUBS", undefined, gifterName);
     }
   }
 
@@ -2075,10 +2094,8 @@
   var ws = null;
   var reconnectTimer = null;
   var connectionAttempts = 0;
-  var ignoreSingleGiftsUntil = 0;
-  var singleGiftBurstCount = 0;
-  var singleGiftBurstGifter = "";
-  var singleGiftBurstTimer = null;
+  var giftBombs = new Map();
+  var singleGiftBursts = new Map();
 
   function setWsBadgeStatus(statusType, text) {
     if (!wsStatusDot || !wsStatusText) return;
@@ -2129,6 +2146,30 @@
       return raw.username || raw.name || raw.display_name || raw.displayName || raw.login || "";
     }
     return String(raw || "");
+  }
+
+  function extractGiftDonor(payload, message) {
+    var sources = [payload, payload?.arguments, payload?.variables, message?.arguments, message?.variables]
+      .filter(src => src && typeof src === "object");
+    if (sources.some(src => [src.anonymous, src.isAnonymous].some(value => value === true || value === "true"))) {
+      return "Anónimo";
+    }
+    var custom = (urlParams.get("gifterVar") || "").trim();
+    var fields = [
+      custom, "gifter", "gifterUserName", "gifterUsername", "gifterName",
+      "gifterUserLogin", "giftedBy", "giftingUser", "sender", "senderName",
+      "user.userName", "user.userLogin", "userName", "userLogin", "displayName", "username", "user_name", "user"
+    ].filter(Boolean);
+    for (var field of fields) {
+      for (var src of sources) {
+        var donor = getByPathOrKey(src, field);
+        if (donor && typeof donor === "object") {
+          donor = donor.userName || donor.displayName || donor.display_name || donor.name || donor.userLogin || donor.username || donor.login;
+        }
+        if (typeof donor === "string" && donor.trim() && !/^%[^%]+%$/.test(donor.trim())) return donor.trim();
+      }
+    }
+    return "";
   }
 
   // Extrae la cantidad de Kicks enviados desde la variable oficial de Streamer.bot (%kicks.amount%) y alias
@@ -2292,52 +2333,36 @@
     return allowFallbackToOne ? 1 : 0;
   }
 
-  function registerGiftSubEvent(count, gifter, isMassBombEvent) {
+  function registerGiftSubEvent(count, gifter, isMassBombEvent, source) {
     var validCount = Math.max(1, parseInt(count, 10) || 1);
-
-    // Si es un evento explícito de paquete/bomba (>1 sub o SubBomb/GiftBomb/MassGiftSubscription),
-    // disparamos de inmediato y silenciamos eventos individuales redundantes por 2.5s
+    var now = Date.now();
+    var key = source + ":" + String(gifter || "").replace(/^@/, "").toLowerCase();
+    for (var [oldKey, until] of giftBombs) if (until <= now) giftBombs.delete(oldKey);
+    var burst = singleGiftBursts.get(key);
     if (isMassBombEvent || validCount > 1) {
-      if (singleGiftBurstTimer) {
-        clearTimeout(singleGiftBurstTimer);
-        singleGiftBurstTimer = null;
-        singleGiftBurstCount = 0;
+      if (burst) {
+        clearTimeout(burst.timer);
+        singleGiftBursts.delete(key);
       }
-      ignoreSingleGiftsUntil = Date.now() + 2500;
+      giftBombs.set(key, now + 2500);
       procesarSubsRegaladas(validCount, gifter);
       return;
     }
-
-    // Si acaba de dispararse un SubBomb hace menos de 2.5s, ignorar los eventos individuales de esa misma bomba
-    if (Date.now() < ignoreSingleGiftsUntil) {
-      return;
-    }
-
-    // Agrupador inteligente de 180ms:
-    // Si es 1 sub regalada, espera 180ms por si Streamer.bot envía múltiples eventos individuales simultáneos
-    singleGiftBurstCount += 1;
-    if (gifter) singleGiftBurstGifter = gifter;
-
-    if (singleGiftBurstTimer) {
-      clearTimeout(singleGiftBurstTimer);
-    }
-    singleGiftBurstTimer = setTimeout(function () {
-      var totalToLaunch = singleGiftBurstCount;
-      var gifterToUse = singleGiftBurstGifter;
-      singleGiftBurstCount = 0;
-      singleGiftBurstGifter = "";
-      singleGiftBurstTimer = null;
-      if (totalToLaunch >= 1) {
-        procesarSubsRegaladas(totalToLaunch, gifterToUse);
-      }
+    if (giftBombs.has(key)) return;
+    if (burst) clearTimeout(burst.timer);
+    var total = (burst?.count || 0) + 1;
+    var timer = setTimeout(function () {
+      singleGiftBursts.delete(key);
+      procesarSubsRegaladas(total, gifter);
     }, 180);
+    singleGiftBursts.set(key, { count: total, timer: timer });
   }
 
   function handleStreamerBotMessage(msg) {
     if (!msg || typeof msg !== "object") return;
 
     // 1. Respuesta a GetGlobals o actualización directa de variable global
-    if (msg.variables && typeof msg.variables === "object") {
+    if (msg.triggerCelebration === true && msg.variables && typeof msg.variables === "object") {
       var kicksKey = (state.sbKicksVarName || "kicks.amount").trim();
       var kicksGlobalVal = extractPositiveInt(getByPathOrKey(msg.variables, kicksKey));
       if (kicksGlobalVal >= 1 && msg.triggerCelebration === true) {
@@ -2348,7 +2373,7 @@
       var varKey = (state.sbVarName || "gifts").trim();
       var globalVal = extractPositiveInt(getByPathOrKey(msg.variables, varKey));
       if (globalVal >= 1 && msg.triggerCelebration === true) {
-        procesarSubsRegaladas(globalVal, "");
+        procesarSubsRegaladas(globalVal, extractGiftDonor(msg.variables, msg));
       }
       return;
     }
@@ -2413,7 +2438,7 @@
 
       var customCount = extractSubsCountFromPayload(customPayload, false);
       if (customCount >= 1) {
-        procesarSubsRegaladas(customCount, extractGifterUsername(customPayload));
+        procesarSubsRegaladas(customCount, extractGiftDonor(customPayload, msg));
       }
       return;
     }
@@ -2462,9 +2487,9 @@
       ));
 
     if (isSubBomb || isSingleGiftSub) {
-      var gifter = extractGifterUsername(payload);
+      var gifter = extractGiftDonor(payload, msg);
       var count = extractSubsCountFromPayload(payload, true);
-      registerGiftSubEvent(count, gifter, isSubBomb);
+      registerGiftSubEvent(count, gifter, isSubBomb, source);
       return;
     }
 
@@ -2845,7 +2870,7 @@
     } else if (d.type === "GIFT_KICKS" || d.type === "TRIGGER_KICKS") {
       procesarKicksEnviados(d.kicks || d.amount || d.count || 100, d.user || "");
     } else if (d.type === "GIFT_SUBS" || d.type === "TRIGGER_SUBS") {
-      procesarSubsRegaladas(d.subs || d.gifts || d.count || 1, d.user || "");
+      procesarSubsRegaladas(d.subs || d.gifts || d.count || 1, extractGiftDonor(d, d));
     } else if (d.type === "TOGGLE_PANEL") {
       toggleSimPanel();
     } else if (d.type === "HIDE_PANEL") {
@@ -2890,7 +2915,8 @@
       }, 350);
     } else if (urlSubs && extractPositiveInt(urlSubs) >= 1) {
       setTimeout(function () {
-        procesarSubsRegaladas(extractPositiveInt(urlSubs), "");
+        var donorArgs = Object.fromEntries(urlParams.entries());
+        procesarSubsRegaladas(extractPositiveInt(urlSubs), extractGiftDonor(donorArgs));
       }, 350);
     } else if (urlParams.get("demo") === "true" || urlParams.get("preview") === "true") {
       setTimeout(function () {

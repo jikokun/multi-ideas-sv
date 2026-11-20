@@ -337,7 +337,11 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     }
 
     const state = { phase: 'idle', generation: 0, pack: null, packs: 0, cards: 0, legendary: 0 };
-    const packArtwork = { front: Core.PACK_ART.front, back: Core.PACK_ART.back };
+    const localArtwork = window.JikoObsArtwork;
+    const packArtwork = localArtwork ? { ...localArtwork.pack } : { ...Core.PACK_ART };
+    const cardArtwork = (card, front) => localArtwork
+        ? (front ? localArtwork.cards[card.id] : localArtwork.backs[card.rarity])
+        : (front ? card.frontImage : card.backImage);
     const timers = new Set();
     const failedAssets = new Set();
     const loadedAssets = new Set();
@@ -433,6 +437,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     }
 
     function resolveArtwork(url) {
+        if (!url) return Promise.reject(new Error('No se encontró el archivo de imagen local.'));
         const info = artworkInfo(url);
         if (assetCache.has(info.key)) {
             const cached = assetCache.get(info.key); assetCache.delete(info.key); assetCache.set(info.key, cached);
@@ -520,7 +525,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         signal?.addEventListener('abort', cancel, { once: true });
         if (signal?.aborted) cancel();
         try {
-            const urls = cards.flatMap(card => [card.frontImage, card.backImage]);
+            const urls = cards.flatMap(card => [cardArtwork(card, true), cardArtwork(card, false)]);
             if (includePack) urls.push(packArtwork.front, packArtwork.back);
             const images = Promise.allSettled([...new Set(urls)].map(resolveArtwork)).then(async results => {
                 if (includePack && results.every(result => result.status === 'fulfilled')) {
@@ -563,7 +568,7 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         );
         const image = element('img', 'drive-art');
         image.alt = front ? '#' + card.num + ' — ' + card.title : 'Reverso oficial ' + Core.RARITIES[card.rarity].label;
-        face.artworkReady = loadArtwork(image, front ? card.frontImage : card.backImage);
+        face.artworkReady = loadArtwork(image, cardArtwork(card, front));
         artwork.append(fallback, image, element('span', 'holo-sheen'));
         face.append(artwork);
         return face;
@@ -1096,9 +1101,9 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
     });
     addEventListener('pagehide', resetStage);
 
-    loadArtwork($('pack-front-art'), Core.PACK_ART.front);
-    loadArtwork($('pack-back-art'), Core.PACK_ART.back);
-    loadArtwork($('pack-seal-art'), Core.PACK_ART.front);
+    loadArtwork($('pack-front-art'), packArtwork.front);
+    loadArtwork($('pack-back-art'), packArtwork.back);
+    loadArtwork($('pack-seal-art'), packArtwork.front);
     palette(canvas, 'common');
     setPhase('idle');
     setLayout('compact', true);
@@ -1123,7 +1128,18 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
         clearDelivery: () => { setReserveCount(0); deliveryJobId = null; if (state.phase === 'delivery') resetStage(); },
         showOwned: showOwnedCards,
         setCloudCatalog: cards => { if (state.phase !== 'idle') return false; catalog = Core.createCatalog(cards); return true; },
-        setCloudProduct: product => { if (product?.img && packArtwork.front !== product.img) { packArtwork.front = product.img; loadArtwork($('pack-front-art'), product.img); loadArtwork($('pack-seal-art'), product.img); } if (product?.packBack && packArtwork.back !== product.packBack) { packArtwork.back = product.packBack; loadArtwork($('pack-back-art'), product.packBack); } },
+        setCloudProduct: product => {
+            if (localArtwork) return;
+            if (product?.img && packArtwork.front !== product.img) {
+                packArtwork.front = product.img;
+                loadArtwork($('pack-front-art'), product.img);
+                loadArtwork($('pack-seal-art'), product.img);
+            }
+            if (product?.packBack && packArtwork.back !== product.packBack) {
+                packArtwork.back = product.packBack;
+                loadArtwork($('pack-back-art'), product.packBack);
+            }
+        },
         setQueueLocked: locked => { queueLocked = !!locked; },
         setPresentationAllowed: allowed => { canvas.dataset.presentationAllowed = String(!!allowed); },
         snapshot: () => ({ phase: state.phase, layout: canvas.dataset.layout, reserveCount, deliveryJobId, loadingImages: !!assetPreparation || state.phase === 'loading', lastAssetError, mode: state.pack?.mode || null, highestRarity: state.pack?.highestRarity || null, cards: state.pack?.cards.map(card => ({ id: card.id, num: card.num, rarity: card.rarity, frontImage: card.frontImage, backImage: card.backImage })) || [], stats: { packs: state.packs, cards: state.cards, legendary: state.legendary }, pendingTimers: timers.size, particles: particles.length, controlsEnabled, panelOpen: !panel.hidden, failedImages: failedAssets.size, loadedImages: loadedAssets.size })
@@ -1133,10 +1149,10 @@ input[type=range] { accent-color: #38bdf8; flex: 1; min-width: 0; }
 
 </script>
 <script type="module" id="tarjetero-firebase">
-import { TcgCloud, initializeTcg } from '../mini_widgets/js/jiko_tcg_firebase.js?v=20261110-packlimit';
-
 const params = new URLSearchParams(location.search);
-const live = !params.has('preview') && (params.get('controls') !== 'true' || params.get('obs') === 'true') && parent === window;
+if (!params.has('preview') && parent === window) {
+const { TcgCloud, initializeTcg } = await import('../mini_widgets/js/jiko_tcg_firebase.js?v=20261110-packlimit');
+const live = params.get('controls') !== 'true' || params.get('obs') === 'true';
 if (live) window.JikoBooster?.setPresentationAllowed(false);
 await initializeTcg();
 TcgCloud.subscribe(service => {
@@ -1202,6 +1218,7 @@ addEventListener('message', event => {
     window.JikoTarjeteroCommands.mostrarCartas(event.data.user, command[1] || '').catch(error => console.warn('[TCG comando]', error.message));
 });
 addEventListener('pagehide', () => TcgCloud.destroy(), { once: true });
+}
 
 </script>
 </body>

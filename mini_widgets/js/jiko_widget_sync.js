@@ -127,7 +127,7 @@
     notifyLockChange(lock);
 
     // Sincronización en la nube con Firebase RTDB si está disponible
-    if (global.StreamDB && typeof global.StreamDB.setWidgetState === 'function') {
+    if (!global.JikoObsArtwork && global.StreamDB && typeof global.StreamDB.setWidgetState === 'function') {
       global.StreamDB.setWidgetState('overlay_coordinator', { lock }).catch(()=>{});
     }
 
@@ -150,7 +150,7 @@
       broadcast({ type: 'LOCK_RELEASED', widget: current.widget, releasedAt: Date.now() });
       notifyLockChange(null);
 
-      if (global.StreamDB && typeof global.StreamDB.setWidgetState === 'function') {
+      if (!global.JikoObsArtwork && global.StreamDB && typeof global.StreamDB.setWidgetState === 'function') {
         global.StreamDB.setWidgetState('overlay_coordinator', { lock: null }).catch(()=>{});
       }
 

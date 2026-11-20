@@ -4,12 +4,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const Points = require('../js/jiko_points_engine.js');
+const RewardQueue = require('../js/jiko_reward_queue.js');
 
 const copy = value => value === undefined ? null : structuredClone(value);
 function database(users = {}) {
   let data = { stream: { usuarios: copy(users), banco: { prestamos: {} }, transmisiones_stats: { isLive: true, streamActivoId: 'live_1' }, transmisiones: { live_1: {} } } };
   let tail = Promise.resolve(), sequence = 0;
-  const db = { now: 1000000, fail: null, reads: [], subscriptions: [] };
+  const db = { now: 1000000, fail: null, reads: [], subscriptions: [], transactions: [] };
   db.read = location => copy(location.split('/').filter(Boolean).reduce((value, key) => value?.[key], data));
   db.write = (location, value) => {
     const keys = location.split('/').filter(Boolean);
@@ -33,7 +34,7 @@ function database(users = {}) {
     return Object.fromEntries(rows);
   };
   db.api = {
-    ref: (_, location) => location,
+    ref: (_, location = '') => location,
     query: (path, ...constraints) => Object.assign({ path }, ...constraints),
     orderByChild: field => ({ field }),
     orderByKey: () => ({}),
@@ -54,8 +55,11 @@ function database(users = {}) {
       return () => { subscription.closed = true; };
     },
     set: async (location, value) => db.write(location, value),
-    update: async (location, fields) => db.write(location, { ...(db.read(location) || {}), ...copy(fields) }),
+    update: async (location, fields) => {
+      for (const [field, value] of Object.entries(fields)) db.write([location, field].filter(Boolean).join('/'), value);
+    },
     runTransaction(location, callback) {
+      db.transactions.push(location);
       const task = tail.then(() => {
         if (db.fail?.(location)) throw new Error('Fallo de conexión simulado');
         // Firebase puede ejecutar el callback varias veces; solo persiste el último intento.
@@ -97,6 +101,83 @@ function service(db, file, realInit = false) {
 const profile = points => ({ username: 'test', displayName: 'Test', jikopuntos: points, experiencia: 0, nivel: 1, deudaTotal: 0, totalGanado: points, totalGastado: 0 });
 const files = ['stream_firebase.js', 'mini_widgets/js/stream_firebase.js'];
 
+function localRewardStore() {
+  const storage = new Map();
+  const queue = new RewardQueue({
+    getItem: key => storage.get(key) ?? null,
+    setItem: (key, value) => storage.set(key, String(value)),
+    removeItem: key => storage.delete(key),
+    key: index => [...storage.keys()][index],
+    get length() { return storage.size; }
+  });
+  queue.streamId = 'live_1';
+  return queue;
+}
+
+test('OBS guarda asistencia y actividad sin red y agrupa el cobro en una transacción por perfil', async () => {
+  const db = database({ ana: { ...profile(1000), username: 'ana' } });
+  const { instance } = service(db, files[1]);
+  const { instance: other } = service(db, files[1]);
+  instance.localRewards = other.localRewards = localRewardStore();
+  const notices = [];
+  instance.onLocalAttendanceConfirmed(record => notices.push(record));
+  await instance.registrarInteraccionStream({ usuario: 'ana' });
+  assert.equal((await instance.registrarAsistencia({ usuario: 'ana', diferir: true })).pendiente, true);
+  await other.registrarAsistencia({ usuario: 'ana', diferir: true });
+  db.now += 30000;
+  assert.equal(await other.registrarInteraccionStream({ usuario: 'ana' }), null);
+  db.now += 30000;
+  await other.registrarInteraccionStream({ usuario: 'ana' });
+  db.now += 30000;
+  assert.equal(await instance.registrarInteraccionStream({ usuario: 'ana' }), null);
+  db.now += 30000;
+  await instance.registrarInteraccionStream({ usuario: 'ana' });
+  await instance.flushLocalRewards();
+  assert.equal(instance.localRewards.pending(db.now).length, 3);
+  assert.equal(db.read('stream/usuarios/ana/jikopuntos'), 1000);
+  assert.deepEqual(db.reads, []);
+  assert.deepEqual(db.transactions, []);
+  instance.isConnected = true;
+  await instance.flushLocalRewards();
+  const user = db.read('stream/usuarios/ana');
+  assert.equal(user.asistenciasCount, 1);
+  assert.equal(user.tiempoVistoMinutos, 2);
+  assert.equal(user.jikopuntos, 1010 + notices[0].puntosOtorgados);
+  assert.equal(instance.localRewards.pending(db.now).length, 0);
+  assert.deepEqual(db.reads, ['stream/transmisiones/live_1/asistentes/ana']);
+  assert.equal(db.transactions.filter(path => path === 'stream/usuarios/ana').length, 1);
+  assert.equal(db.read('stream/transmisiones/live_1/totalAsistentes'), 1);
+  assert.equal(db.read('stream/tienda/estadisticas/resumen/totalAsistenciasRegistradas'), 1);
+  assert.equal((await other.registrarAsistencia({ usuario: 'ana', diferir: true })).yaRegistrado, true);
+  other.localRewards.streamId = 'live_2';
+  db.now += 60000;
+  assert.equal((await instance.registrarInteraccionStream({ usuario: 'ana' })).primeraVez, true);
+  assert.equal(instance.localRewards.pending(db.now).length, 0);
+});
+
+test('OBS recupera el lote tras el pago sin repetir recompensas ni acumular asistencia dos veces', async () => {
+  const db = database({ ana: { ...profile(1000), username: 'ana' } });
+  const { instance } = service(db, files[1]);
+  instance.localRewards = localRewardStore();
+  instance.isConnected = true;
+  const event = await instance.registrarAsistencia({ usuario: 'ana', diferir: true });
+  db.fail = path => path === 'stream/tienda/estadisticas/resumen';
+  await assert.rejects(instance.flushLocalRewards(), /Fallo de conexión simulado/);
+  const balance = db.read('stream/usuarios/ana/jikopuntos');
+  assert.ok(balance > 1000);
+  assert.equal(instance.localRewards.pending(db.now).length, 1);
+  assert.equal(db.read('stream/tienda/asistencias/' + Points.key(event.id)).usuarioNorm, 'ana');
+  db.fail = null;
+  const { instance: restarted } = service(db, files[1]);
+  restarted.localRewards = instance.localRewards;
+  restarted.isConnected = true;
+  await restarted.flushLocalRewards();
+  assert.equal(db.read('stream/usuarios/ana/jikopuntos'), balance);
+  assert.equal(db.read('stream/transmisiones/live_1/totalAsistentes'), 1);
+  assert.equal(db.read('stream/tienda/estadisticas/resumen/totalAsistenciasRegistradas'), 1);
+  assert.equal(restarted.localRewards.pending(db.now).length, 0);
+});
+
 for (const file of files) {
   const label = file.startsWith('mini_widgets') ? 'widgets' : 'raíz';
 
@@ -104,7 +185,9 @@ for (const file of files) {
     const db = database({ test: profile(500) });
     const { instance } = service(db, file, true);
     await Promise.all([instance.init(), instance.init()]);
-    assert.deepEqual(db.reads, ['stream/transmisiones_stats']);
+    assert.deepEqual(db.reads, label === 'widgets'
+      ? ['stream/transmisiones_stats/isLive', 'stream/transmisiones_stats/streamActual']
+      : ['stream/transmisiones_stats']);
     assert.deepEqual(db.subscriptions.map(entry => entry.location), ['.info/connected']);
   });
 

@@ -9,10 +9,10 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch/400.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch/600.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/chakra-petch/700.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/orbitron@latest/latin-400-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/orbitron@latest/latin-700-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-600-normal.css">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/fontsource/fonts/rajdhani@latest/latin-700-normal.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/orbitron/latin-400.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/orbitron/latin-700.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/rajdhani/latin-600.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource/rajdhani/latin-700.css">
 <style>
   :root{
     --kick:#53fc18;
@@ -2501,7 +2501,8 @@
   import { subscribeWhilePageOpen } from '../firebase-config.js';
   import { StreamDB, norm, calcularNivelUsuario, normalizarAvatarKickUrl, extraerUsuarioDeBienvenidaGlobal } from './js/stream_firebase.js?v=20261029_7';
   import { resolverCategorias, escucharCategorias } from './js/tienda_categorias.js';
-  import { TcgCloud, initializeTcg } from './js/jiko_tcg_firebase.js?v=20261110-packlimit';
+  if (new URLSearchParams(location.search).get('preview') !== 'true') {
+  const { TcgCloud, initializeTcg } = await import('./js/jiko_tcg_firebase.js?v=20261110-packlimit');
   TcgCloud.helpers = { level: calcularNivelUsuario, factor: level => window.calcularFactorXpNivel?.(level) ?? 1, purchaseXp: (cost, level) => window.calcularXpCompra?.(cost, level) ?? Math.round(cost * .1) };
   initializeTcg().then(() => window.iniciarSobresTiendita?.(TcgCloud)).catch(error => console.warn('[TCG tiendita]', error));
   window.StreamDB = StreamDB;
@@ -2512,9 +2513,13 @@
   window.normalizarAvatarKickUrl = normalizarAvatarKickUrl;
   window.extraerUsuarioDeBienvenidaGlobal = extraerUsuarioDeBienvenidaGlobal;
   StreamDB.init().then(() => {
-    subscribeWhilePageOpen(() => StreamDB.onTransmisionesStats(stats => {
-      if (stats.isLive && stats.streamActivoId) window.establecerDirectoVitrina?.(stats.streamActivoId);
+    subscribeWhilePageOpen(() => StreamDB.onStreamLiveId(streamId => {
+      if (streamId) {
+        window.establecerDirectoVitrina?.(streamId);
+        window.establecerDirectoAsistencia?.(streamId);
+      }
     }));
+    subscribeWhilePageOpen(() => StreamDB.onLocalAttendanceConfirmed(record => window.confirmarAsistenciaLocal?.(record)));
     let categoriasGuardadas = [];
     window.resolverCategoriasTienda = items => resolverCategorias(categoriasGuardadas, items);
     subscribeWhilePageOpen(() => escucharCategorias(StreamDB, categorias => {
@@ -2531,6 +2536,7 @@
   }).catch(err => {
     console.warn('[Tiendita] Aviso al inicializar Firebase StreamDB:', err);
   });
+  }
 </script>
 
 <script>
@@ -2721,15 +2727,12 @@
     }
 
     // 0. Si ya tenemos avatar en Firebase RTDB
-    if(window.StreamDB && typeof window.StreamDB.getUser === 'function'){
+    if(window.StreamDB?.getUserAvatar){
       try {
-        const fbUser = await window.StreamDB.getUser(userKey);
-        if(fbUser && fbUser.avatar && String(fbUser.avatar).startsWith('http')){
-          const normPic = normalizarAvatarKickUrlLocal(fbUser.avatar);
-          if(normPic){
-            avatarCache[userKey] = normPic;
-            return normPic;
-          }
+        const pic = await window.StreamDB.getUserAvatar(userKey);
+        if(pic){
+          avatarCache[userKey] = pic;
+          return pic;
         }
       } catch(_){}
     }
@@ -2751,9 +2754,7 @@
           if(rawPic && typeof rawPic === 'string' && rawPic.startsWith('http')){
             const pic = normalizarAvatarKickUrlLocal(rawPic);
             avatarCache[userKey] = pic;
-            if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
-              window.StreamDB.actualizarUsuario(userKey, { avatar: pic }).catch(()=>{});
-            }
+            window.StreamDB?.saveUserAvatar?.(userKey, pic).catch(()=>{});
             return pic;
           }
         }
@@ -2775,10 +2776,7 @@
     const userKey = norm(cleanUser);
 
     if(urlDirecto && typeof urlDirecto === 'string' && urlDirecto.startsWith('http')){
-      avatarCache[userKey] = urlDirecto;
-      if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
-        window.StreamDB.actualizarUsuario(userKey, { avatar: urlDirecto }).catch(()=>{});
-      }
+      guardarAvatarEnCache(userKey, urlDirecto);
     }
 
     if(avatarCache[userKey]){
@@ -2802,6 +2800,13 @@
         };
       }
     }
+  }
+
+  function guardarAvatarEnCache(userKey, url) {
+    const avatar = normalizarAvatarKickUrlLocal(url) || url;
+    if (!userKey || avatarCache[userKey] === avatar) return;
+    avatarCache[userKey] = avatar;
+    window.StreamDB?.saveUserAvatar?.(userKey, avatar).catch(()=>{});
   }
 
   async function cargarAvatarCardJp(user, urlDirecto = null){
@@ -3735,6 +3740,7 @@
   /* ═══════════ SISTEMA DE ASISTENCIA & LOBITO MENSAJERO (+500 JIKOPUNTOS) ═══════════ */
   const STORAGE_KEY_ASISTENCIA = 'tiendita_asistencia_stream_v1';
   let asistenciaStream = [];
+  let asistenciaStreamId = null;
 
   function cargarAsistenciaStream(){
     try {
@@ -3744,6 +3750,7 @@
         // Mantener registro de asistencia solo si es de las últimas 4 horas de la transmisión
         if(parsed && Array.isArray(parsed.lista) && (Date.now() - (parsed.timestamp || 0) < 4 * 3600 * 1000)){
           asistenciaStream = parsed.lista;
+          asistenciaStreamId = parsed.streamId || null;
         } else {
           asistenciaStream = [];
         }
@@ -3759,6 +3766,7 @@
       localStorage.setItem(STORAGE_KEY_ASISTENCIA, JSON.stringify({
         timestamp: Date.now(),
         fecha: new Date().toLocaleDateString(),
+        streamId: asistenciaStreamId,
         lista: asistenciaStream
       }));
     } catch(e){}
@@ -3770,6 +3778,65 @@
     if($cardPl && $cardPl.classList.contains('visible')) renderizarUsuariosPasarLista();
     console.log('[Tiendita] 🔄 Lista de asistencia reiniciada.');
   }
+
+  window.establecerDirectoAsistencia = function(streamId) {
+    if (asistenciaStreamId === streamId) return;
+    const previous = asistenciaStreamId;
+    asistenciaStreamId = streamId;
+    if (previous) reiniciarAsistenciaStream();
+    else guardarAsistenciaStream();
+  };
+
+  function mostrarAsistencia(record) {
+    if (!record) return;
+    const user = record.usuario;
+    const key = norm(record.usuarioNorm || user);
+    const current = asistenciaStream.findIndex(item => norm(item.user) === key);
+    if (current !== -1 && !asistenciaStream[current].pendiente) return;
+    const timestamp = record.timestamp || Date.now();
+    const pts = record.puntosOtorgados ?? 0;
+    const xp = record.experienciaGanada ?? 0;
+    const nivel = record.nivelUsuario || 1;
+    const insignia = record.insigniaEmoji || '🐾';
+    const rango = record.rangoTitulo || 'Cachorro';
+    const item = { user, puntosGanados: pts, xpGanada: xp, nivel, insignia, rango, pendiente: Boolean(record.pendiente),
+      hora: new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }), timestamp };
+    if (current === -1) asistenciaStream.push(item);
+    else asistenciaStream[current] = item;
+    guardarAsistenciaStream();
+    if ($cardPl?.classList.contains('visible')) renderizarUsuariosPasarLista();
+
+    if (record.pendiente) {
+      toast(`🐺 Bienvenido <b>@${user}</b>. Asistencia guardada, puntos pendientes de sincronizar.`);
+      window.StreamDB?.registrarInteraccionStream({ usuario: user, tipo: 'bienvenida_lobito' }).catch(()=>{});
+      return;
+    }
+    if (record.yaRegistrado) return;
+    if (!record.asistenciaObs && Number.isFinite(record.nuevoSaldo)) {
+      localStorage.setItem('tiendita_pts_' + key, record.nuevoSaldo);
+      if (norm(usuarioActual) === key) {
+        saldoActual = record.nuevoSaldo;
+        animarPuntos(saldoActual);
+      }
+    }
+    toast(`🐺 <b>Lobito:</b> @${user} recibió <b>+${pts} pts</b> y <b>+${xp} XP</b> · ${insignia} ${rango}`);
+    playSfx('buy');
+    cargarAvatarUsuario(user);
+    if (socket?.readyState === 1) {
+      socket.send(JSON.stringify({
+        request: 'DoAction', action: { name: 'Tiendita_AsistenciaRegistrada' },
+        args: { usuario: user, puntosSumados: pts, xpSumada: xp, nivel, rango, nuevoSaldo: record.nuevoSaldo,
+          totalAsistentes: asistenciaStream.length },
+        id: 'asistencia-lobito-' + timestamp
+      }));
+    }
+    if (!record.asistenciaObs) window.StreamDB?.registrarInteraccionStream({ usuario: user, tipo: 'bienvenida_lobito' }).catch(()=>{});
+  }
+
+  window.confirmarAsistenciaLocal = function(record) {
+    if (record.streamId === asistenciaStreamId && asistenciaStream.some(item =>
+      item.pendiente && norm(item.user) === record.usuarioNorm)) mostrarAsistencia(record);
+  };
 
   // Extrae el nombre de usuario del saludo de Lobito_Mensajero / Botrix: "Gracias por estar aquí $(name)!"
   function extraerUsuarioDeBienvenida(texto){
@@ -3802,84 +3869,24 @@
     // Verificar si ya fue saludado/registrado en la transmisión actual
     const yaRegistrado = asistenciaStream.some(item => norm(item.user) === userNorm);
 
-    const saldoPrevio = getUserPoints(cleanUser);
-    let nuevoSaldo = saldoPrevio;
-
     if(!yaRegistrado){
       // Si StreamDB está disponible, delegar la persistencia atómica en Firebase RTDB
       if (window.StreamDB && typeof window.StreamDB.registrarAsistencia === 'function') {
         window.StreamDB.registrarAsistencia({
           usuario: cleanUser,
-          botEmisor: 'Lobito_Mensajero'
-        }).then((record) => {
-          if (!record) return;
-          const ptsGanados = record.puntosOtorgados || 0;
-          const xpGanada = record.experienciaGanada || 0;
-          const nuevoSaldo = record.nuevoSaldo;
-          const nivel = record.nivelUsuario || 1;
-          const insignia = record.insigniaEmoji || '🐾';
-          const rango = record.rangoTitulo || 'Cachorro';
-
-          // La asistencia ya se acredit? en Firebase: actualizar solo la vista local.
-          if (nuevoSaldo !== undefined && nuevoSaldo !== null && !isNaN(nuevoSaldo)) {
-            try { localStorage.setItem('tiendita_pts_' + userNorm, nuevoSaldo); } catch(e){}
-          }
-
-          asistenciaStream.push({
-            user: cleanUser,
-            puntosGanados: ptsGanados,
-            xpGanada: xpGanada,
-            nivel: nivel,
-            insignia: insignia,
-            rango: rango,
-            hora: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            timestamp: Date.now()
-          });
-          guardarAsistenciaStream();
-
-          if(norm(usuarioActual) === userNorm && nuevoSaldo !== undefined && !isNaN(nuevoSaldo)){
-            saldoActual = nuevoSaldo;
-            animarPuntos(saldoActual);
-          }
-
-          console.log(`[Tiendita] 🐺 ¡Lobito Mensajero dio bienvenida a @${cleanUser}! +${ptsGanados} pts y +${xpGanada} XP [Nivel ${nivel} ${insignia} ${rango}]. Saldo: ${nuevoSaldo} pts.`);
-          toast(`🐺 <b>Lobito:</b> ¡Bienvenido <b>@${cleanUser}</b>! [${insignia} <b>${rango}</b> • Nvl ${nivel}] Recibiste <b>+${ptsGanados} pts</b> y <b>+${xpGanada} XP</b> 🌟 (Total: <b>${nuevoSaldo} pts</b>)`);
-          playSfx('buy');
-
-          cargarAvatarUsuario(cleanUser);
-
-          if(socket && socket.readyState === 1){
-            socket.send(JSON.stringify({
-              request: 'DoAction',
-              action: { name: 'Tiendita_AsistenciaRegistrada' },
-              args: {
-                usuario: cleanUser,
-                puntosSumados: ptsGanados,
-                xpSumada: xpGanada,
-                nivel: nivel,
-                rango: rango,
-                nuevoSaldo: nuevoSaldo,
-                totalAsistentes: asistenciaStream.length
-              },
-              id: 'asistencia-lobito-' + Date.now()
-            }));
-          }
-
-          if (window.StreamDB && typeof window.StreamDB.registrarInteraccionStream === 'function') {
-            window.StreamDB.registrarInteraccionStream({ usuario: cleanUser, tipo: 'bienvenida_lobito' }).catch(()=>{});
-          }
-
-          if($cardPl && $cardPl.classList.contains('visible')){
-            renderizarUsuariosPasarLista();
-          }
-        }).catch(err => console.warn('[Tiendita] Error registrando asistencia en Firebase:', err));
+          botEmisor: 'Lobito_Mensajero',
+          diferir: true
+        }).then(record => {
+          if (record?.streamId) window.establecerDirectoAsistencia(record.streamId);
+          mostrarAsistencia(record);
+        }).catch(err => console.warn('[Tiendita] Error registrando asistencia:', err));
       } else {
         if (!isPreview && parent === window) return;
         // Simulación local sin modificar saldos en vivo.
         const asistPrev = 0;
         const nivelInfo = window.calcularNivelUsuario ? window.calcularNivelUsuario(asistPrev + 1) : { nivel: 1, rangoTitulo: 'Cachorro', insigniaEmoji: '🐾', bonoExtra: 0, puntosPorAsistencia: 500 };
         const ptsGanados = nivelInfo.puntosPorAsistencia;
-        nuevoSaldo = saldoPrevio + ptsGanados;
+        const nuevoSaldo = getUserPoints(cleanUser) + ptsGanados;
         setUserPoints(cleanUser, nuevoSaldo, 'asistencia_lobito');
 
         asistenciaStream.push({
@@ -3905,7 +3912,7 @@
       }
     } else {
       console.log(`[Tiendita] ℹ️ @${cleanUser} ya fue registrado en la asistencia de esta transmisión.`);
-      if (window.StreamDB && typeof window.StreamDB.asegurarAsistenteEnStreamActivo === 'function') {
+      if (!window.JikoObsArtwork && window.StreamDB && typeof window.StreamDB.asegurarAsistenteEnStreamActivo === 'function') {
         window.StreamDB.asegurarAsistenteEnStreamActivo(cleanUser).catch(()=>{});
       }
     }
@@ -3951,7 +3958,7 @@
     const COIN_MINI = `<svg class="coin-icon" viewBox="0 0 20 20" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" style="vertical-align:-2px;margin-right:2px;"><circle cx="10" cy="10" r="9" fill="#f59e0b" stroke="#fef08a" stroke-width="1.2"/><circle cx="10" cy="10" r="6.5" stroke="#fef08a" stroke-width="0.8" stroke-dasharray="2 1" opacity="0.85"/><polygon points="10,5.5 11.4,8.2 14.3,8.7 12.2,10.7 12.7,13.6 10,12.2 7.3,13.6 7.8,10.7 5.7,8.7 8.6,8.2" fill="#ffffff"/></svg>`;
 
     const cardsHtml = asistenciaStream.map(item => {
-      const uPts = getUserPoints(item.user);
+      const uPts = getUserPoints(item.user, !window.JikoObsArtwork);
       const inicial = (item.user[0] || '?').toUpperCase();
       const userKey = norm(item.user);
       const cachedAvatar = avatarCache[userKey];
@@ -3968,8 +3975,8 @@
             </div>
           </div>
           <div class="pl-user-right">
-            <span class="pl-u-bonus">+${item.puntosGanados || 500} pts ✅</span>
-            <span class="pl-u-points">${COIN_MINI}<strong>${uPts}</strong> pts</span>
+            <span class="pl-u-bonus">${item.pendiente ? 'Por sincronizar' : '+' + (item.puntosGanados ?? 500) + ' pts ✅'}</span>
+            ${item.pendiente ? '' : `<span class="pl-u-points">${COIN_MINI}<strong>${uPts}</strong> pts</span>`}
           </div>
         </div>
       `;
@@ -4196,9 +4203,14 @@
     return carouselHalfWidth;
   }
 
+  function itemArtwork(item) {
+    const local = window.JikoObsArtwork;
+    return local ? (local.shop[item.key] || '') : (item.img || item.driveUrl || item.localImg || '');
+  }
+
   function cardHTML(it, idx) {
     const agotado = it.stock === 0;
-    const imgSrc = it.img || it.driveUrl || it.localImg;
+    const imgSrc = itemArtwork(it);
     const fallbackSrc = it.localImg || '';
     return `
       <div class="item-card ${!imgSrc ? 'sin-img' : ''} ${agotado ? 'agotado' : ''}" data-key="${it.key}" data-idx="${idx}" data-categoria="${it.categoria || 'comida'}">
@@ -4581,7 +4593,7 @@
     });
 
     $chips.innerHTML = grupos.map(g => {
-      const chipImg = g.item.img || g.item.driveUrl || g.item.localImg || '';
+      const chipImg = itemArtwork(g.item);
       const fallbackLocal = g.item.localImg || '';
       return `
       <div class="orden-chip" title="${g.item.nombre} (${g.cantidad} uds)">
@@ -4870,7 +4882,8 @@
         platoDiv.style.animationDelay = `${(delayAcumulado + (i * 0.08)).toFixed(2)}s`;
         platoDiv.style.zIndex = i + 1;
         const localFallback = c.item.localImg || '';
-        platoDiv.innerHTML = `<img src="${c.item.img}" alt="${c.item.nombre}" title="${c.item.nombre}" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry && '${localFallback}'){ this.dataset.retry='1'; this.src='${localFallback}'; } else { this.style.display='none'; }">`;
+        const image = itemArtwork(c.item);
+        platoDiv.innerHTML = image ? `<img src="${image}" alt="${c.item.nombre}" title="${c.item.nombre}" referrerpolicy="no-referrer" onerror="if(!this.dataset.retry && '${localFallback}'){ this.dataset.retry='1'; this.src='${localFallback}'; } else { this.style.display='none'; }">` : c.item.emoji || '🍽️';
         clusterDiv.appendChild(platoDiv);
       }
 
@@ -5531,10 +5544,7 @@
                               data.profile_pic ||
                               null;
         if(avatarDirecto && typeof avatarDirecto === 'string' && avatarDirecto.startsWith('http')){
-          avatarCache[norm(user)] = avatarDirecto;
-          if(window.StreamDB && typeof window.StreamDB.actualizarUsuario === 'function'){
-            window.StreamDB.actualizarUsuario(user, { avatar: avatarDirecto }).catch(()=>{});
-          }
+          guardarAvatarEnCache(norm(user), avatarDirecto);
         } else {
           obtenerAvatarDeKick(user);
         }
