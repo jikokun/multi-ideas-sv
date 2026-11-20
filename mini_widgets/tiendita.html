@@ -636,7 +636,7 @@
     border:1.5px solid rgba(83,252,24,.45);box-shadow:0 12px 40px rgba(0,0,0,.85);backdrop-filter:blur(10px);
     transition:transform .55s cubic-bezier(.4,.9,.4,1),opacity .4s;
   }
-  #demo-zone.oculto{transform:translateY(190%);opacity:0;pointer-events:none}
+  #demo-zone.oculto{transform:translateY(190%);opacity:0;visibility:hidden;pointer-events:none}
   .dz-title{font-size:10.5px;letter-spacing:1.8px;color:#d9ffb0;font-weight:800;margin-right:2px;font-family:var(--f-display)}
   #demo-zone button{
     font-family:var(--f-cuerpo);font-weight:700;font-size:11px;letter-spacing:.4px;cursor:pointer;
@@ -2438,7 +2438,7 @@
   </div>
 
   <!-- Panel de prueba / simulación interactiva OBS -->
-  <div id="demo-zone">
+  <div id="demo-zone" class="oculto" inert>
     <span class="dz-title">🧪 SIMULACIÓN</span>
     <button id="demo-perfil" onclick="window.simularPerfilDemo()" style="color:#00eaff;border-color:rgba(0,234,255,.7);font-weight:800;" title="Simular comando !perfil con tarjeta cibernética">🪪 !perfil Clásica</button>
     <button id="demo-perfil-gamer" onclick="window.simularPerfilGamerDemo()" style="color:#ffd700;border-color:rgba(255,215,0,.7);font-weight:800;" title="Simular comando !perfil con Carta Gamer Moderna">🃏 !perfil Gamer</button>
@@ -4983,9 +4983,6 @@
     renderFilaMesa($filaAtras, clustersAtras, true, 0.08, totalPlatos);
     renderFilaMesa($filaAdelante, clustersAdelante, false, clustersAtras.length > 0 ? 0.28 : 0.10, totalPlatos);
 
-    // Ocultar zona de pruebas durante la entrega para vista 100% limpia
-    if(demoZone) demoZone.style.display = 'none';
-
     // Activar mesero a pantalla completa (sin fondo, solo mesero.png y platos)
     document.body.classList.add('mesero-activo');
     $meseroOverlay.classList.remove('saliendo');
@@ -5021,7 +5018,6 @@
         document.body.classList.remove('mesero-activo');
         if($filaAtras) $filaAtras.innerHTML = '';
         if($filaAdelante) $filaAdelante.innerHTML = '';
-        if(demoZone && (!isOverlayMode || isPreview)) demoZone.style.display = 'flex';
         iniciarCooldownGlobal(); // Iniciar cooldown global tras completarse la entrega
         requestAnimationFrame(() => requestAnimationFrame(() => {
           if (options.signal?.aborted) return;
@@ -5729,10 +5725,31 @@
   }
 
   /* ═══════════ PANEL DE PRUEBA: Alternar tocando la pantalla ═══════════ */
-  addEventListener('pointerdown', e => {
-    if (e.target.closest('#demo-zone, #tiendita-menu')) return;
-    demoZone.classList.toggle('oculto');
-  }, { passive: true });
+  function ocultarPanelSimulacion(ocultar) {
+    demoZone.classList.toggle('oculto', ocultar);
+    demoZone.inert = ocultar;
+  }
+
+  const esFuenteLocal = window.JikoObsArtwork || location.protocol === 'file:' ||
+    ['127.0.0.1', 'localhost', 'absolute'].includes(location.hostname);
+  const panelEmpiezaOculto = (isOverlayMode || (esFuenteLocal && parent === window)) && (!isPreview || !!window.obsstudio);
+  if (!panelEmpiezaOculto) ocultarPanelSimulacion(false);
+
+  addEventListener('click', e => {
+    if (!e.isTrusted || e.button !== 0 || e.target.closest('#demo-zone, #tiendita-menu')) return;
+    if (document.body.classList.contains('mesero-activo')) return;
+    ocultarPanelSimulacion(!demoZone.classList.contains('oculto'));
+  });
+
+  if (panelEmpiezaOculto) {
+    addEventListener('obsSourceVisibleChanged', e => {
+      if (e.detail?.visible === false) ocultarPanelSimulacion(true);
+    });
+    addEventListener('obsSourceActiveChanged', e => {
+      if (e.detail?.active === false) ocultarPanelSimulacion(true);
+    });
+    addEventListener('obsSceneChanged', () => ocultarPanelSimulacion(true));
+  }
 
   const nombres=['LunaGamer','elpana_juan','DonChente','MoraPixel','Kafecito_'];
   document.getElementById('demo-cliente').onclick=()=>{
@@ -6062,13 +6079,6 @@
   const btnSyncFb = document.getElementById('demo-sync-firebase');
   if(btnSyncFb){
     btnSyncFb.onclick = () => window.ejecutarSincronizacionDesdeTiendita(btnSyncFb);
-  }
-
-  if(isOverlayMode && !isPreview){
-    demoZone.classList.add('oculto');
-  } else if(isPreview){
-    demoZone.classList.remove('oculto');
-    demoZone.style.display = 'flex';
   }
 
   /* ═══════════ RECEPTOR DE ACCIONES EXTERNAS (PANEL DE PRUEBA) ═══════════ */
