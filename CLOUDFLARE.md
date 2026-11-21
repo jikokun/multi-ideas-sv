@@ -31,10 +31,8 @@ contraseña fija y se excluyen únicamente del paquete de prueba. Sus originales
 permanecen intactos. Las rutas de esas dos pantallas devuelven 404 en esta prueba.
 `firebase-config.js` y `wolftrack-firebase-config.js` contienen la configuración
 pública del SDK web y siguen siendo dependencias del navegador.
-`businesses_only.json` contiene el catálogo público utilizado por el seeder existente;
-`stream_database_seed.json` contiene los datos de muestra solicitados por el panel
-de estadísticas. Los archivos JSON de `data/` contienen los catálogos de tarjetas
-y productos.
+`businesses_only.json` contiene el catálogo público utilizado por el seeder existente.
+La Tiendita, las cartas y sus datos de muestra pertenecen al paquete privado de OBS.
 
 Se excluyen funciones Firebase, exportaciones y respaldos de usuarios, archivos
 `.bak`, documentos internos, archivos de entorno, credenciales de servidor,
@@ -51,7 +49,7 @@ Por ejemplo, `/servicios` sirve `/servicios.html` sin cambiar la URL; ambas form
 siguen disponibles. Los callbacks OAuth y los widgets HTML conservan sus rutas y
 parámetros. El comportamiento JavaScript de cada página se conserva.
 
-Las carpetas sin un HTML hermano, como `/laboratorio` y `/mini_widgets`, llevan a
+Las carpetas públicas sin un HTML hermano, como `/mini_widgets`, llevan a
 su versión con barra final para que funcionen los recursos relativos. `/sensunshop`
 y `/sensunshop/admin` corresponden a sus HTML hermanos; las variantes con barra
 corresponden a sus respectivos `index.html`. El build genera una página 404 propia en `dist`,
@@ -78,25 +76,18 @@ La publicación de estas páginas no realiza la declaración de operador en Play
 
 Referencia oficial: [Declaración del estado de operador](https://support.google.com/googleplay/android-developer/answer/17594752?hl=es).
 
-## Colección navideña de overlays
+## OBS personal de Jikokun
 
-El laboratorio incluye un espacio **Overlays navideños** que abre
-`/overley_navideños/`. Contiene escenas independientes de inicio, chat, juego
-y cierre, con controles de nieve, luces y árbol, vista previa bajo demanda y
-enlaces individuales para fuentes Navegador de OBS de 1920 × 1080.
-Las luces y ventiscas admiten la señal musical existente. El modo juego reutiliza
-el marco original de cámara y muestra su tira Botrix 1 minuto, con 15 minutos de pausa.
-Los archivos de esta carpeta se incluyen explícitamente en el build público;
-también se generan sus rutas sin extensión. Las escenas originales se conservan.
-La guía de uso y los parámetros están en `overley_navideños/README.md` (documento
-local, no incluido en el paquete público).
+El panel, las escenas personales y sus recursos se mantienen en la carpeta
+independiente `jikokun-obs-local`. La galería clásica y «Mis Widgets» siguen
+en `/mini_widgets/`. Firebase Hosting usa la salida `dist/` y GitHub Pages
+aplica `_config.yml`.
 
 ## Alcance de la prueba
 
 La configuración no declara dominios, rutas de zona ni bindings de Firebase.
-Las llamadas existentes a Firebase y a las funciones Spotify continúan usando sus
-direcciones actuales. Workers Static Assets no ejecuta `functions/` ni reproduce
-los rewrites de Firebase `/spotify/**` y `/api/spotify/**`.
+El sitio general conserva sus llamadas a Firebase. Workers Static Assets sirve
+los archivos públicos y el conector de Spotify se ejecuta en el servicio local de OBS.
 
 El inicio de sesión real en un hostname nuevo depende de la configuración existente
 de dominios autorizados y Redirect URIs de cada proveedor. La prueba local comprueba

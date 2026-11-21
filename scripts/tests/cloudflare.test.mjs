@@ -80,23 +80,38 @@ test('paquete público y rutas en el runtime local de Cloudflare', { timeout: 12
     }
     assert.equal(routes.has('/admin'), false);
     assert.equal(routes.get('/sensunshop'), '/sensunshop.html');
-    assert.equal(routes.get('/overley_navide%C3%B1os/'), '/overley_navide%C3%B1os/index.html');
-    assert.equal(redirects.get('/overley_navide%C3%B1os'), '/overley_navide%C3%B1os/');
+    assert.equal(routes.get('/mini_widgets/'), '/mini_widgets/index.html');
+    assert.equal(redirects.get('/mini_widgets'), '/mini_widgets/');
   });
 
-  await t.test('OAuth y fuentes OBS con parámetros conservan su URL y su contenido', async () => {
-    for (const file of ['callback.html', 'callback/index.html', 'laboratorio/spotify_callback.html',
-      'mini_widgets/widget_spotify.html', 'mini_widgets/widget_perfil.html',
-      'laboratorio/spotify_isla_widget.html', 'laboratorio/widget spotify mio.html',
-      'overley_navideños/escena_inicial_integrada.html', 'overley_navideños/modochat_integrado.html',
-      'overley_navideños/modojuego_integrado.html', 'overley_navideños/modomimir_integrado.html']) {
-      await expectAsset(assetUrl(file) + '?code=prueba%2B123&state=estado%2Fobs&user=jikokun2', file);
+  await t.test('los widgets clásicos y sus configuraciones mantienen las rutas públicas', async () => {
+    for (const file of ['mini_widgets/index.html', 'mini_widgets/mis_widgets.html',
+      'mini_widgets/widget_clima_reloj.html', 'mini_widgets/widget_temporizador.html', 'mini_widgets/widget_chat_live.html',
+      'mini_widgets/alertas_jikokun.html', 'mini_widgets/marcocamara1.html']) {
+      await expectAsset(assetUrl(file) + '?preview=true&port=4445&channel=prueba', file);
+    }
+  });
+
+  await t.test('One Chicago conserva un enlace de regreso a la sección pública de proyectos', async () => {
+    for (const file of ['one_chicago.html', 'laboratorio/one_chicago.html']) {
+      const response = await fetch(base + assetUrl(file));
+      assert.equal(response.status, 200, file);
+      const html = await response.text();
+      const backLink = html.match(/<a href="([^"]+)" class="back-link"/)?.[1];
+      assert.ok(backLink, file);
+      const target = new URL(backLink, response.url);
+      assert.equal(target.pathname, '/proyectos.html');
+      assert.equal((await fetch(target)).status, 200);
     }
   });
 
   await t.test('URLs inexistentes y archivos excluidos devuelven 404, sin fallback a la portada', async () => {
     for (const url of ['/ruta-inexistente', '/ruta-inexistente.html', '/.env', '/.git/config', '/CNAME',
       '/admin', '/admin/', '/admin.html', '/admin/index.html',
+      '/jikokun', '/jikokun.html', '/prueba.html', '/modochat.html', '/laboratorio/', '/laboratorio/index.html',
+      '/laboratorio/tarjetero.html', '/laboratorio/admintarjetas.html', '/mini_widgets/widget_perfil.html',
+      '/mini_widgets/tiendita.html', '/mini_widgets/ruleta.html', '/mini_widgets/estadisticas_tienda.html',
+      '/overley_navide%C3%B1os/', '/callback', '/callback.html', '/stream_database_seed.json', '/_obs/admin.html',
       '/firebase.json', '/database.rules.json', '/backup_users_culion_aguita.json', '/index.html.bak',
       '/functions/index.js', '/Documentacion/README.md', '/scripts/build-cloudflare.mjs',
       '/mini_widgets/recursos/Manual_A1_Unico_Interfaces_y_Rendimiento.pdf']) {
